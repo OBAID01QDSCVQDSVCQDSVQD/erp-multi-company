@@ -47,11 +47,20 @@ const testPages = [
   { name: '🧪 Test Suggestions', href: '/test-suggestions', icon: CogIcon },
 ];
 
-export default function Sidebar() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+interface SidebarProps {
+  sidebarOpen?: boolean;
+  setSidebarOpen?: (open: boolean) => void;
+}
+
+export default function Sidebar({ sidebarOpen: externalSidebarOpen, setSidebarOpen: externalSetSidebarOpen }: SidebarProps) {
+  const [internalSidebarOpen, setInternalSidebarOpen] = useState(false);
   const [documentsOpen, setDocumentsOpen] = useState(true);
   const pathname = usePathname();
   const { data: session } = useSession();
+
+  // Use external state if provided, otherwise use internal state
+  const sidebarOpen = externalSidebarOpen !== undefined ? externalSidebarOpen : internalSidebarOpen;
+  const setSidebarOpen = externalSetSidebarOpen || setInternalSidebarOpen;
 
   return (
     <>
