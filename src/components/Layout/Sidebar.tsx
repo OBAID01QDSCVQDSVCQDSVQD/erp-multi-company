@@ -62,6 +62,8 @@ export default function Sidebar({ sidebarOpen: externalSidebarOpen, setSidebarOp
   const sidebarOpen = externalSidebarOpen !== undefined ? externalSidebarOpen : internalSidebarOpen;
   const setSidebarOpen = externalSetSidebarOpen || setInternalSidebarOpen;
 
+  console.log('🟢 Sidebar render, sidebarOpen:', sidebarOpen, 'externalSidebarOpen:', externalSidebarOpen, 'setSidebarOpen type:', typeof setSidebarOpen);
+
   return (
     <>
       {/* Mobile sidebar */}
