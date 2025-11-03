@@ -40,7 +40,7 @@
     "jspdf": "^3.0.3",
     "jspdf-autotable": "^5.0.2",
     "lucide-react": "^0.294.0",
-    "mongodb": "^6.3.0",
+    "mongodb": "^5.9.2",
     "mongoose": "^8.0.3",
     "next": "13.5.6",
     "next-auth": "^4.22.1",
