@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Fix TVA</title>
+</head>
+<body>
+    <h1>Fix TVA pour les produits</h1>
+    <button onclick="fixTVA()">Fix TVA</button>
+    <div id="result"></div>
+
+    <script>
+        async function fixTVA() {
+            const button = document.querySelector('button');
+            const resultDiv = document.getElementById('result');
+            button.disabled = true;
+            resultDiv.textContent = 'Chargement...';
+
+            try {
+                const response = await fetch('/api/products/fix-tva', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <h2>Succès!</h2>
+                        <p>Total produits: ${data.total}</p>
+                        <p>Mis à jour: ${data.updated}</p>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <h2>Erreur</h2>
+                        <p>${data.error}</p>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <h2>Erreur</h2>
+                    <p>${error.message}</p>
+                `;
+            } finally {
+                button.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,22 @@
+# Global owners
+* @maintainer1
+
+# Documentation
+*.md @maintainer1
+docs/ @maintainer1
+
+# Configuration files
+package.json @maintainer1
+tsconfig.json @maintainer1
+tailwind.config.ts @maintainer1
+next.config.ts @maintainer1
+
+# Source code
+src/ @maintainer1
+
+# GitHub workflows
+.github/ @maintainer1
+
+# Docker files
+Dockerfile @maintainer1
+docker-compose*.yml @maintainer1
