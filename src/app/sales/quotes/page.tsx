@@ -755,21 +755,21 @@ export default function QuotesPage() {
 
   return (
     <DashboardLayout>
-      <div className="p-6 space-y-6">
+      <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <DocumentTextIcon className="w-8 h-8" /> Devis
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
+            <DocumentTextIcon className="w-6 h-6 sm:w-8 sm:h-8" /> <span className="whitespace-nowrap">Devis</span>
           </h1>
           <div className="flex gap-2">
-            <button className="flex items-center gap-2 border px-3 py-2 rounded-lg hover:bg-gray-50">
-              <ArrowDownTrayIcon className="w-4 h-4" /> Exporter
+            <button className="hidden sm:flex items-center gap-2 border px-3 py-2 rounded-lg hover:bg-gray-50">
+              <ArrowDownTrayIcon className="w-4 h-4" /> <span className="hidden lg:inline">Exporter</span>
             </button>
             <button 
               onClick={() => setShowModal(true)} 
-              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+              className="flex items-center gap-2 bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-blue-700 text-sm sm:text-base w-full sm:w-auto justify-center"
             >
-              <PlusIcon className="w-5 h-5" /> Nouveau devis
+              <PlusIcon className="w-5 h-5" /> <span>Nouveau devis</span>
             </button>
           </div>
         </div>
@@ -782,7 +782,7 @@ export default function QuotesPage() {
             placeholder="Rechercher par numéro ou nom du client..."
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border rounded-lg"
+            className="w-full pl-10 pr-4 py-2 border rounded-lg text-sm sm:text-base"
           />
         </div>
 
@@ -805,10 +805,13 @@ export default function QuotesPage() {
             </button>
           </div>
         ) : (
-          <div className="bg-white border rounded-xl overflow-hidden shadow-sm">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b">
-                <tr>
+          <>
+            {/* Desktop Table */}
+            <div className="hidden lg:block bg-white border rounded-xl overflow-hidden shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b">
+                    <tr>
                   <th className="px-3 py-4 text-left text-sm font-semibold text-gray-700">Numéro</th>
                   <th className="px-3 py-4 text-left text-sm font-semibold text-gray-700">Date</th>
                   <th className="px-3 py-4 text-left text-sm font-semibold text-gray-700">Client</th>
@@ -881,18 +884,92 @@ export default function QuotesPage() {
                     </td>
                   </tr>
                 ))}
-              </tbody>
-            </table>
-          </div>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Mobile Cards */}
+            <div className="lg:hidden space-y-4">
+              {filtered.map((quote) => (
+                <div key={quote._id} className="bg-white border rounded-xl shadow-sm p-4 space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className="font-semibold text-gray-900">{quote.numero}</h3>
+                      <p className="text-sm text-gray-600 mt-1">
+                        {new Date(quote.dateDoc).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                      </p>
+                    </div>
+                    <div className="flex gap-1">
+                      <button 
+                        onClick={() => handleView(quote)}
+                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+                        title="Voir"
+                      >
+                        <EyeIcon className="w-4 h-4" />
+                      </button>
+                      <button 
+                        onClick={() => handleEdit(quote)}
+                        className="p-2 text-green-600 hover:bg-green-50 rounded-lg"
+                        title="Modifier"
+                      >
+                        <PencilIcon className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="border-t pt-3 space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Client:</span>
+                      <span className="font-medium text-gray-900">{quote.customerName || '-'}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Total HT:</span>
+                      <span className="font-medium text-gray-900">{quote.totalBaseHT?.toFixed(3)} {quote.devise || 'TND'}</span>
+                    </div>
+                    {quote.timbreFiscal && quote.timbreFiscal > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Timbre:</span>
+                        <span className="font-medium text-gray-900">{quote.timbreFiscal.toFixed(3)} {quote.devise || 'TND'}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">TVA:</span>
+                      <span className="font-medium text-gray-900">{quote.totalTVA?.toFixed(3)} {quote.devise || 'TND'}</span>
+                    </div>
+                    <div className="flex justify-between text-base pt-2 border-t">
+                      <span className="font-semibold text-gray-900">Total TTC:</span>
+                      <span className="font-bold text-blue-600">{quote.totalTTC?.toFixed(3)} {quote.devise || 'TND'}</span>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 pt-2">
+                    <button 
+                      onClick={() => handleDownloadPDF(quote)}
+                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm border rounded-lg hover:bg-gray-50"
+                    >
+                      <ArrowDownTrayIcon className="w-4 h-4" />
+                      PDF
+                    </button>
+                    <button 
+                      onClick={() => handleDelete(quote._id)}
+                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm text-red-600 border border-red-300 rounded-lg hover:bg-red-50"
+                    >
+                      <TrashIcon className="w-4 h-4" />
+                      Supprimer
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         )}
 
         {/* Simple Modal Placeholder - Will be replaced with full modal */}
         {showModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl max-w-6xl w-full max-h-[90vh] flex flex-col shadow-2xl">
-              <div className="p-6 border-b flex items-center justify-between">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+            <div className="bg-white rounded-xl sm:rounded-2xl max-w-7xl w-full max-h-[95vh] sm:max-h-[90vh] flex flex-col shadow-2xl">
+              <div className="p-4 sm:p-6 border-b flex items-center justify-between">
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-900">
+                  <h2 className="text-lg sm:text-2xl font-bold text-gray-900">
                     {editingQuoteId ? '✏️ Modifier devis' : '🧾 Nouveau devis'}
                   </h2>
                   <p className="text-sm text-gray-600 mt-1">
@@ -906,9 +983,9 @@ export default function QuotesPage() {
                   ×
                 </button>
               </div>
-              <div className="p-6 flex-1 overflow-y-auto">
+              <div className="p-4 sm:p-6 flex-1 overflow-y-auto">
                 {/* Basic Info */}
-                <div className="grid grid-cols-2 gap-6 mb-8">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
                   <div className="relative customer-autocomplete">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Client *
@@ -1258,7 +1335,7 @@ export default function QuotesPage() {
                 </div>
 
                 {/* Conditions */}
-                <div className="mt-6 grid grid-cols-2 gap-6">
+                <div className="mt-4 sm:mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Mode de paiement
@@ -1300,16 +1377,16 @@ export default function QuotesPage() {
                   />
                 </div>
               </div>
-              <div className="p-6 border-t flex justify-end gap-3">
+              <div className="p-4 sm:p-6 border-t flex flex-col sm:flex-row justify-end gap-3">
                 <button 
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+                  className="w-full sm:w-auto px-4 py-2 border rounded-lg hover:bg-gray-50 text-sm sm:text-base"
                 >
                   Annuler
                 </button>
                 <button 
                   onClick={handleCreateQuote}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm sm:text-base"
                 >
                   {editingQuoteId ? 'Modifier' : 'Créer'}
                 </button>

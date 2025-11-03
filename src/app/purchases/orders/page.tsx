@@ -690,21 +690,21 @@ export default function PurchaseOrdersPage() {
 
   return (
     <DashboardLayout>
-      <div className="p-6 space-y-6">
+      <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <TruckIcon className="w-8 h-8" /> Commandes d'achat
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
+            <TruckIcon className="w-6 h-6 sm:w-8 sm:h-8" /> <span className="whitespace-nowrap">Commandes d'achat</span>
           </h1>
           <div className="flex gap-2">
-            <button className="flex items-center gap-2 border px-3 py-2 rounded-lg hover:bg-gray-50">
-              <ArrowDownTrayIcon className="w-4 h-4" /> Exporter
+            <button className="hidden sm:flex items-center gap-2 border px-3 py-2 rounded-lg hover:bg-gray-50">
+              <ArrowDownTrayIcon className="w-4 h-4" /> <span className="hidden lg:inline">Exporter</span>
             </button>
             <button 
               onClick={() => setShowModal(true)} 
-              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+              className="flex items-center gap-2 bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-blue-700 text-sm sm:text-base w-full sm:w-auto justify-center"
             >
-              <PlusIcon className="w-5 h-5" /> Nouvelle commande
+              <PlusIcon className="w-5 h-5" /> <span>Nouvelle commande</span>
             </button>
           </div>
         </div>
@@ -717,154 +717,252 @@ export default function PurchaseOrdersPage() {
             placeholder="Rechercher par numéro ou nom du fournisseur..."
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border rounded-lg"
+            className="w-full pl-10 pr-4 py-2 border rounded-lg text-sm sm:text-base"
           />
         </div>
 
-        {/* Table */}
+        {/* Table - Desktop */}
         {loading ? (
           <div className="text-center py-12">
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             <p className="mt-4 text-gray-600">Chargement...</p>
           </div>
         ) : filtered.length === 0 ? (
-          <div className="text-center py-20 bg-gray-50 rounded-2xl">
-            <DocumentTextIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Aucune commande d'achat trouvée</h3>
-            <p className="text-gray-600 mb-6">Créez votre première commande d'achat en quelques clics</p>
+          <div className="text-center py-12 sm:py-20 bg-gray-50 rounded-2xl px-4">
+            <DocumentTextIcon className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">Aucune commande d'achat trouvée</h3>
+            <p className="text-sm sm:text-base text-gray-600 mb-6">Créez votre première commande d'achat en quelques clics</p>
             <button 
               onClick={() => setShowModal(true)}
-              className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 mx-auto"
+              className="flex items-center gap-2 bg-blue-600 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg hover:bg-blue-700 mx-auto text-sm sm:text-base"
             >
               <PlusIcon className="w-5 h-5" /> Nouvelle commande
             </button>
           </div>
         ) : (
-          <div className="bg-white border rounded-xl overflow-hidden shadow-sm">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b">
-                <tr>
-                  <th className="px-3 py-4 text-left text-sm font-semibold text-gray-700">Numéro</th>
-                  <th className="px-3 py-4 text-left text-sm font-semibold text-gray-700">Date</th>
-                  <th className="px-3 py-4 text-left text-sm font-semibold text-gray-700">Fournisseur</th>
-                  <th className="px-3 py-4 text-right text-sm font-semibold text-gray-700">Total HT</th>
-                  <th className="px-3 py-4 text-right text-sm font-semibold text-gray-700">Timbre</th>
-                  <th className="px-3 py-4 text-right text-sm font-semibold text-gray-700">Total TVA</th>
-                  <th className="px-3 py-4 text-right text-sm font-semibold text-gray-700">Total TTC</th>
-                  <th className="px-2 py-4 text-left text-sm font-semibold text-gray-700">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {filtered.map((order) => (
-                  <tr key={order._id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-3 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">{order.numero}</td>
-                    <td className="px-3 py-4 text-sm text-gray-600 whitespace-nowrap">
-                      {new Date(order.dateDoc).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
-                    </td>
-                    <td className="px-3 py-4 text-sm text-gray-600">
-                      {order.fournisseurNom || '-'}
-                    </td>
-                    <td className="px-3 py-4 text-sm text-gray-600 text-right whitespace-nowrap">
-                      {order.totalBaseHT?.toFixed(3)} {order.devise || 'TND'}
-                    </td>
-                    <td className="px-3 py-4 text-sm text-gray-500 text-right whitespace-nowrap">
-                      {order.timbreFiscal && order.timbreFiscal > 0 ? `${order.timbreFiscal.toFixed(3)} ${order.devise || 'TND'}` : '-'}
-                    </td>
-                    <td className="px-3 py-4 text-sm text-gray-600 text-right whitespace-nowrap">
-                      {order.totalTVA?.toFixed(3)} {order.devise || 'TND'}
-                    </td>
-                    <td className="px-3 py-4 text-sm font-semibold text-gray-900 text-right whitespace-nowrap">
-                      {order.totalTTC?.toFixed(3)} {order.devise || 'TND'}
-                    </td>
-                    <td className="px-2 py-4">
-                      <div className="flex gap-0.5">
-                        <button 
-                          onClick={() => {
-                            console.log('🔵 BUTTON CLICKED - Order ID:', order._id);
-                            handleView(order);
-                          }}
-                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Voir"
-                        >
-                          <EyeIcon className="w-3.5 h-3.5" />
-                        </button>
-                        <button 
-                          onClick={() => {
-                            console.log('🟢 MODIFY BUTTON CLICKED - Order:', order);
-                            handleEdit(order);
-                          }}
-                          className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                          title="Modifier"
-                        >
-                          <PencilIcon className="w-3.5 h-3.5" />
-                        </button>
-                        <button 
-                          onClick={async () => {
-                            try {
-                              const response = await fetch(`/api/purchases/orders/${order._id}/pdf`, {
-                                headers: { 'X-Tenant-Id': tenantId },
-                              });
-                              if (response.ok) {
-                                const blob = await response.blob();
-                                const url = window.URL.createObjectURL(blob);
-                                const a = document.createElement('a');
-                                a.href = url;
-                                a.download = `Commande-${order.numero}.pdf`;
-                                document.body.appendChild(a);
-                                a.click();
-                                window.URL.revokeObjectURL(url);
-                                document.body.removeChild(a);
-                                toast.success('PDF téléchargé avec succès');
-                              }
-                            } catch (error) {
-                              console.error('Error downloading PDF:', error);
-                              toast.error('Erreur lors du téléchargement du PDF');
-                            }
-                          }}
-                          className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                          title="Télécharger PDF"
-                        >
-                          <ArrowDownTrayIcon className="w-3.5 h-3.5" />
-                        </button>
-                        <button 
-                          onClick={() => handleDelete(order._id)}
-                          className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Supprimer"
-                        >
-                          <TrashIcon className="w-3.5 h-3.5" />
-                        </button>
+          <>
+            {/* Desktop Table */}
+            <div className="hidden lg:block bg-white border rounded-xl overflow-hidden shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b">
+                    <tr>
+                      <th className="px-3 py-4 text-left text-sm font-semibold text-gray-700">Numéro</th>
+                      <th className="px-3 py-4 text-left text-sm font-semibold text-gray-700">Date</th>
+                      <th className="px-3 py-4 text-left text-sm font-semibold text-gray-700">Fournisseur</th>
+                      <th className="px-3 py-4 text-right text-sm font-semibold text-gray-700">Total HT</th>
+                      <th className="px-3 py-4 text-right text-sm font-semibold text-gray-700">Timbre</th>
+                      <th className="px-3 py-4 text-right text-sm font-semibold text-gray-700">Total TVA</th>
+                      <th className="px-3 py-4 text-right text-sm font-semibold text-gray-700">Total TTC</th>
+                      <th className="px-2 py-4 text-left text-sm font-semibold text-gray-700">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {filtered.map((order) => (
+                      <tr key={order._id} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-3 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">{order.numero}</td>
+                        <td className="px-3 py-4 text-sm text-gray-600 whitespace-nowrap">
+                          {new Date(order.dateDoc).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                        </td>
+                        <td className="px-3 py-4 text-sm text-gray-600">
+                          {order.fournisseurNom || '-'}
+                        </td>
+                        <td className="px-3 py-4 text-sm text-gray-600 text-right whitespace-nowrap">
+                          {order.totalBaseHT?.toFixed(3)} {order.devise || 'TND'}
+                        </td>
+                        <td className="px-3 py-4 text-sm text-gray-500 text-right whitespace-nowrap">
+                          {order.timbreFiscal && order.timbreFiscal > 0 ? `${order.timbreFiscal.toFixed(3)} ${order.devise || 'TND'}` : '-'}
+                        </td>
+                        <td className="px-3 py-4 text-sm text-gray-600 text-right whitespace-nowrap">
+                          {order.totalTVA?.toFixed(3)} {order.devise || 'TND'}
+                        </td>
+                        <td className="px-3 py-4 text-sm font-semibold text-gray-900 text-right whitespace-nowrap">
+                          {order.totalTTC?.toFixed(3)} {order.devise || 'TND'}
+                        </td>
+                        <td className="px-2 py-4">
+                          <div className="flex gap-0.5">
+                            <button 
+                              onClick={() => {
+                                console.log('dY" BUTTON CLICKED - Order ID:', order._id);
+                                handleView(order);
+                              }}
+                              className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              title="Voir"
+                            >
+                              <EyeIcon className="w-3.5 h-3.5" />
+                            </button>
+                            <button 
+                              onClick={() => {
+                                console.log('dYY MODIFY BUTTON CLICKED - Order:', order);
+                                handleEdit(order);
+                              }}
+                              className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                              title="Modifier"
+                            >
+                              <PencilIcon className="w-3.5 h-3.5" />
+                            </button>
+                            <button 
+                              onClick={async () => {
+                                try {
+                                  const response = await fetch(`/api/purchases/orders/${order._id}/pdf`, {
+                                    headers: { 'X-Tenant-Id': tenantId },
+                                  });
+                                  if (response.ok) {
+                                    const blob = await response.blob();
+                                    const url = window.URL.createObjectURL(blob);
+                                    const a = document.createElement('a');
+                                    a.href = url;
+                                    a.download = `Commande-${order.numero}.pdf`;
+                                    document.body.appendChild(a);
+                                    a.click();
+                                    window.URL.revokeObjectURL(url);
+                                    document.body.removeChild(a);
+                                    toast.success('PDF téléchargé avec succès');
+                                  }
+                                } catch (error) {
+                                  console.error('Error downloading PDF:', error);
+                                  toast.error('Erreur lors du téléchargement du PDF');
+                                }
+                              }}
+                              className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                              title="Télécharger PDF"
+                            >
+                              <ArrowDownTrayIcon className="w-3.5 h-3.5" />
+                            </button>
+                            <button 
+                              onClick={() => handleDelete(order._id)}
+                              className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Supprimer"
+                            >
+                              <TrashIcon className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Mobile Cards */}
+            <div className="lg:hidden space-y-4">
+              {filtered.map((order) => (
+                <div key={order._id} className="bg-white border rounded-xl shadow-sm p-4 space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className="font-semibold text-gray-900">{order.numero}</h3>
+                      <p className="text-sm text-gray-600 mt-1">
+                        {new Date(order.dateDoc).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                      </p>
+                    </div>
+                    <div className="flex gap-1">
+                      <button 
+                        onClick={() => handleView(order)}
+                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+                        title="Voir"
+                      >
+                        <EyeIcon className="w-4 h-4" />
+                      </button>
+                      <button 
+                        onClick={() => handleEdit(order)}
+                        className="p-2 text-green-600 hover:bg-green-50 rounded-lg"
+                        title="Modifier"
+                      >
+                        <PencilIcon className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="border-t pt-3 space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Fournisseur:</span>
+                      <span className="font-medium text-gray-900">{order.fournisseurNom || '-'}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Total HT:</span>
+                      <span className="font-medium text-gray-900">{order.totalBaseHT?.toFixed(3)} {order.devise || 'TND'}</span>
+                    </div>
+                    {order.timbreFiscal && order.timbreFiscal > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Timbre:</span>
+                        <span className="font-medium text-gray-900">{order.timbreFiscal.toFixed(3)} {order.devise || 'TND'}</span>
                       </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    )}
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">TVA:</span>
+                      <span className="font-medium text-gray-900">{order.totalTVA?.toFixed(3)} {order.devise || 'TND'}</span>
+                    </div>
+                    <div className="flex justify-between text-base pt-2 border-t">
+                      <span className="font-semibold text-gray-900">Total TTC:</span>
+                      <span className="font-bold text-blue-600">{order.totalTTC?.toFixed(3)} {order.devise || 'TND'}</span>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 pt-2">
+                    <button 
+                      onClick={async () => {
+                        try {
+                          const response = await fetch(`/api/purchases/orders/${order._id}/pdf`, {
+                            headers: { 'X-Tenant-Id': tenantId },
+                          });
+                          if (response.ok) {
+                            const blob = await response.blob();
+                            const url = window.URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `Commande-${order.numero}.pdf`;
+                            document.body.appendChild(a);
+                            a.click();
+                            window.URL.revokeObjectURL(url);
+                            document.body.removeChild(a);
+                            toast.success('PDF téléchargé avec succès');
+                          }
+                        } catch (error) {
+                          console.error('Error downloading PDF:', error);
+                          toast.error('Erreur lors du téléchargement du PDF');
+                        }
+                      }}
+                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm border rounded-lg hover:bg-gray-50"
+                    >
+                      <ArrowDownTrayIcon className="w-4 h-4" />
+                      PDF
+                    </button>
+                    <button 
+                      onClick={() => handleDelete(order._id)}
+                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm text-red-600 border border-red-300 rounded-lg hover:bg-red-50"
+                    >
+                      <TrashIcon className="w-4 h-4" />
+                      Supprimer
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         )}
 
         {/* Simple Modal Placeholder - Will be replaced with full modal */}
         {showModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl max-w-6xl w-full max-h-[90vh] flex flex-col shadow-2xl">
-              <div className="p-6 border-b flex items-center justify-between">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+            <div className="bg-white rounded-xl sm:rounded-2xl max-w-7xl w-full max-h-[95vh] sm:max-h-[90vh] flex flex-col shadow-2xl">
+              <div className="p-4 sm:p-6 border-b flex items-center justify-between">
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-900">
-                    {editingOrderId ? '✏️ Modifier commande d\'achat' : '🧾 Nouvelle commande d\'achat'}
+                  <h2 className="text-lg sm:text-2xl font-bold text-gray-900">
+                    {editingOrderId ? '✏️ Modifier commande d\'achat' : '➕ Nouvelle commande d\'achat'}
                   </h2>
-                  <p className="text-sm text-gray-600 mt-1">
+                  <p className="text-xs sm:text-sm text-gray-600 mt-1">
                     {editingOrderId ? 'Modifiez votre commande d\'achat' : 'Créez une commande d\'achat élégante et précise en quelques clics'}
                   </p>
                 </div>
                 <button 
                   onClick={() => setShowModal(false)}
-                  className="text-gray-400 hover:text-gray-600 text-2xl"
+                  className="text-gray-400 hover:text-gray-600 text-2xl sm:text-3xl"
                 >
                   ×
                 </button>
               </div>
-              <div className="p-6 flex-1 overflow-y-auto">
+              <div className="p-4 sm:p-6 flex-1 overflow-y-auto">
                 {/* Basic Info */}
-                <div className="grid grid-cols-2 gap-6 mb-8">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
                   <div className="relative supplier-autocomplete">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Fournisseur *
@@ -998,23 +1096,24 @@ export default function PurchaseOrdersPage() {
                 </div>
 
                 {/* Lines Table */}
-                <div className="mb-8">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-900">Lignes</h3>
+                <div className="mb-6 sm:mb-8">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0 mb-4">
+                    <h3 className="text-base sm:text-lg font-semibold text-gray-900">Lignes</h3>
                     <button 
                       onClick={addLine}
-                      className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                      className="text-sm text-blue-600 hover:text-blue-700 font-medium w-full sm:w-auto text-center sm:text-left"
                     >
                       + Ajouter une ligne
                     </button>
                   </div>
-                  <div className="border rounded-lg overflow-visible">
+                  <div className="border rounded-lg overflow-x-auto">
                     {lines.length === 0 ? (
-                      <div className="text-center py-12 text-gray-500">
+                      <div className="text-center py-8 sm:py-12 text-gray-500 text-sm sm:text-base">
                         Aucune ligne ajoutée
                       </div>
                     ) : (
-                      <table className="w-full">
+                      <div className="min-w-full">
+                        <table className="w-full min-w-[800px]">
                         <thead className="bg-gray-50 border-b">
                           <tr>
                             <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 w-80">Produit</th>
@@ -1216,14 +1315,15 @@ export default function PurchaseOrdersPage() {
                           ))}
                         </tbody>
                       </table>
+                      </div>
                     )}
                   </div>
                 </div>
 
                 {/* Totals */}
-                <div className="bg-gray-50 rounded-lg p-6 border-2 border-gray-200">
+                <div className="bg-gray-50 rounded-lg p-4 sm:p-6 border-2 border-gray-200">
                   <div className="flex justify-end">
-                    <div className="w-80 space-y-3">
+                    <div className="w-full sm:w-80 space-y-3">
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-600">Sous-total HT</span>
                         <span className="font-medium">{totals.totalHT.toFixed(3)} {formData.devise}</span>
@@ -1261,7 +1361,7 @@ export default function PurchaseOrdersPage() {
                 </div>
 
                 {/* Conditions */}
-                <div className="mt-6 grid grid-cols-2 gap-6">
+                <div className="mt-4 sm:mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Mode de paiement
@@ -1269,7 +1369,7 @@ export default function PurchaseOrdersPage() {
                     <select 
                       value={formData.modePaiement}
                       onChange={(e) => setFormData({ ...formData, modePaiement: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm sm:text-base"
                     >
                       <option value="">Sélectionner...</option>
                       {modesReglement.map((mode, index) => (
@@ -1279,7 +1379,7 @@ export default function PurchaseOrdersPage() {
                   </div>
                 </div>
 
-                <div className="mt-6">
+                <div className="mt-4 sm:mt-6">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Notes
                   </label>
@@ -1288,20 +1388,20 @@ export default function PurchaseOrdersPage() {
                     value={formData.notes}
                     onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                     placeholder="Notes additionnelles pour le fournisseur..."
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm sm:text-base"
                   />
                 </div>
               </div>
-              <div className="p-6 border-t flex justify-end gap-3">
+              <div className="p-4 sm:p-6 border-t flex flex-col sm:flex-row justify-end gap-3">
                 <button 
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+                  className="w-full sm:w-auto px-4 py-2 border rounded-lg hover:bg-gray-50 text-sm sm:text-base"
                 >
                   Annuler
                 </button>
                 <button 
                   onClick={handleCreateOrder}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm sm:text-base"
                 >
                   {editingOrderId ? 'Modifier' : 'Créer'}
                 </button>

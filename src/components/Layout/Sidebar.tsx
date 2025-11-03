@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
 import Link from 'next/link';
@@ -29,22 +29,22 @@ const navigation = [
   { name: 'Produits', href: '/products', icon: ShoppingBagIcon },
   { name: 'Clients', href: '/customers', icon: UserGroupIcon },
   { name: 'Fournisseurs', href: '/suppliers', icon: UserGroupIcon },
-  { name: '💸 Dépenses', href: '/expenses', icon: CurrencyEuroIcon },
+  { name: 'ðŸ’¸ DÃ©penses', href: '/expenses', icon: CurrencyEuroIcon },
   { name: 'Documents', href: '#', icon: DocumentTextIcon, hasSubmenu: true, submenu: [
     { name: 'Devis', href: '/sales/quotes', icon: DocumentTextIcon },
     { name: 'Commandes', href: '/sales/orders', icon: ShoppingCartIcon },
     { name: 'Bons de livraison', href: '/sales/deliveries', icon: TruckIcon },
     { name: 'Factures', href: '/sales/invoices', icon: DocumentTextIcon },
     { name: 'Commandes d\'achat', href: '/purchases/orders', icon: ShoppingCartIcon },
-    { name: 'Bons de réception', href: '/purchases/receipts', icon: ClipboardDocumentCheckIcon },
+    { name: 'Bons de rÃ©ception', href: '/purchases/receipts', icon: ClipboardDocumentCheckIcon },
     { name: 'Factures fournisseurs', href: '/purchases/invoices', icon: DocumentTextIcon },
   ]},
   { name: 'Rapports', href: '/reports', icon: ChartBarIcon },
-  { name: 'Paramètres', href: '/settings', icon: CogIcon },
+  { name: 'ParamÃ¨tres', href: '/settings', icon: CogIcon },
 ];
 
 const testPages = [
-  { name: '🧪 Test Suggestions', href: '/test-suggestions', icon: CogIcon },
+  { name: 'ðŸ§ª Test Suggestions', href: '/test-suggestions', icon: CogIcon },
 ];
 
 interface SidebarProps {
@@ -62,7 +62,7 @@ export default function Sidebar({ sidebarOpen: externalSidebarOpen, setSidebarOp
   const sidebarOpen = externalSidebarOpen !== undefined ? externalSidebarOpen : internalSidebarOpen;
   const setSidebarOpen = externalSetSidebarOpen || setInternalSidebarOpen;
 
-  console.log('🟢 Sidebar render, sidebarOpen:', sidebarOpen, 'externalSidebarOpen:', externalSidebarOpen, 'setSidebarOpen type:', typeof setSidebarOpen);
+
 
   return (
     <>
@@ -188,7 +188,7 @@ export default function Sidebar({ sidebarOpen: externalSidebarOpen, setSidebarOp
                   onClick={() => signOut()}
                   className="text-sm text-gray-500 hover:text-gray-700"
                 >
-                  Se déconnecter
+                  Se dÃ©connecter
                 </button>
               </div>
             </div>
@@ -309,7 +309,7 @@ export default function Sidebar({ sidebarOpen: externalSidebarOpen, setSidebarOp
                     onClick={() => signOut()}
                     className="text-xs text-gray-500 hover:text-gray-700"
                   >
-                    Se déconnecter
+                    Se dÃ©connecter
                   </button>
                 </div>
               </div>

@@ -78,31 +78,31 @@ export default function SettingsPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
         {/* Header */}
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Paramètres</h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Paramètres</h1>
+          <p className="mt-1 text-xs sm:text-sm text-gray-500">
             Gérez les paramètres de votre entreprise
           </p>
         </div>
 
         {/* Navigation des onglets */}
-        <div className="border-b border-gray-200">
-          <nav className="-mb-px flex space-x-8">
+        <div className="border-b border-gray-200 overflow-x-auto -mx-4 sm:mx-0">
+          <nav className="-mb-px flex space-x-4 sm:space-x-8 px-4 sm:px-0 min-w-max sm:min-w-0">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 ${
+                  className={`py-2 px-2 sm:px-1 border-b-2 font-medium text-xs sm:text-sm flex items-center space-x-1 sm:space-x-2 whitespace-nowrap ${
                     activeTab === tab.id
                       ? 'border-indigo-500 text-indigo-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
                 >
-                  <Icon className="h-5 w-5" />
+                  <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
                   <span>{tab.name}</span>
                 </button>
               );
@@ -111,7 +111,7 @@ export default function SettingsPage() {
         </div>
 
         {/* Contenu des onglets */}
-        <div className="mt-6">
+        <div className="mt-4 sm:mt-6">
           {renderTabContent()}
         </div>
       </div>
