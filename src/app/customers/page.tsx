@@ -447,41 +447,41 @@ export default function CustomersPage() {
             <ul className="divide-y divide-gray-200">
               {filteredCustomers.map((customer) => (
                 <li key={customer._id}>
-                  <div className="px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
-                    <div className="flex items-center flex-1">
+                  <div className="px-3 sm:px-6 py-3 sm:py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 hover:bg-gray-50 transition-colors">
+                    <div className="flex items-center flex-1 min-w-0">
                       <div className="flex-shrink-0">
-                        <div className="h-12 w-12 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center shadow-lg">
+                        <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center shadow-lg">
                           {customer.type === 'societe' ? (
-                            <BuildingOfficeIcon className="h-6 w-6 text-white" />
+                            <BuildingOfficeIcon className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                           ) : (
-                            <UserGroupIcon className="h-6 w-6 text-white" />
+                            <UserGroupIcon className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                           )}
                         </div>
                       </div>
-                      <div className="ml-4 flex-1">
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-semibold text-gray-900">
+                      <div className="ml-3 sm:ml-4 flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-1 sm:gap-2">
+                          <p className="text-xs sm:text-sm font-semibold text-gray-900 truncate">
                             {getDisplayName(customer)}
                           </p>
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getTypeColor(customer.type)}`}>
+                          <span className={`inline-flex items-center px-1.5 sm:px-2 py-0.5 rounded text-xs font-medium ${getTypeColor(customer.type)}`}>
                             {getTypeLabel(customer.type)}
                           </span>
                           {customer.matriculeFiscale && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono bg-gray-100 text-gray-700">
+                            <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 rounded text-xs font-mono bg-gray-100 text-gray-700">
                               {customer.matriculeFiscale}
                             </span>
                           )}
                           {customer.tvaCode && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-700">
+                            <span className="hidden sm:inline-flex items-center px-1.5 sm:px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-700">
                               {customer.tvaCode}
                             </span>
                           )}
                         </div>
-                        <div className="mt-2 flex items-center gap-4 text-sm text-gray-500">
+                        <div className="mt-1.5 sm:mt-2 flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-500">
                           {customer.email && (
-                            <span className="flex items-center">
+                            <span className="flex items-center truncate max-w-full">
                               <span className="mr-1">📧</span>
-                              {customer.email}
+                              <span className="truncate">{customer.email}</span>
                             </span>
                           )}
                           {customer.telephone && (
@@ -499,26 +499,28 @@ export default function CustomersPage() {
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center space-x-3">
-                      {customer.bloque && (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                          BLOQUÉ
+                    <div className="flex items-center justify-between sm:justify-end gap-2 sm:space-x-3 flex-shrink-0">
+                      <div className="flex items-center gap-1.5 sm:space-x-2">
+                        {customer.bloque && (
+                          <span className="inline-flex items-center px-2 sm:px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                            BLOQUÉ
+                          </span>
+                        )}
+                        <span className={`inline-flex items-center px-2 sm:px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          customer.actif ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {customer.actif ? 'Actif' : 'Inactif'}
                         </span>
-                      )}
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        customer.actif ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {customer.actif ? 'Actif' : 'Inactif'}
-                      </span>
-                      <div className="flex items-center space-x-2">
-                        <button onClick={() => handleView(customer)} className="text-gray-600 hover:text-gray-900" title="Voir">
-                          <EyeIcon className="h-5 w-5" />
+                      </div>
+                      <div className="flex items-center space-x-1.5 sm:space-x-2">
+                        <button onClick={() => handleView(customer)} className="text-gray-600 hover:text-gray-900 p-1.5 sm:p-0" title="Voir">
+                          <EyeIcon className="h-4 w-4 sm:h-5 sm:w-5" />
                         </button>
-                        <button onClick={() => handleEdit(customer)} className="text-indigo-600 hover:text-indigo-900" title="Modifier">
-                          <PencilIcon className="h-5 w-5" />
+                        <button onClick={() => handleEdit(customer)} className="text-indigo-600 hover:text-indigo-900 p-1.5 sm:p-0" title="Modifier">
+                          <PencilIcon className="h-4 w-4 sm:h-5 sm:w-5" />
                         </button>
-                        <button onClick={() => handleDelete(customer._id)} className="text-red-600 hover:text-red-900" title="Supprimer">
-                          <TrashIcon className="h-5 w-5" />
+                        <button onClick={() => handleDelete(customer._id)} className="text-red-600 hover:text-red-900 p-1.5 sm:p-0" title="Supprimer">
+                          <TrashIcon className="h-4 w-4 sm:h-5 sm:w-5" />
                         </button>
                       </div>
                     </div>
@@ -532,27 +534,27 @@ export default function CustomersPage() {
 
       {/* Modal Nouveau Client */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
           <div className="absolute inset-0 bg-black/40" onClick={() => setShowModal(false)} />
-          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-4xl mx-4 max-h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b sticky top-0 bg-white rounded-t-2xl z-10">
+          <div className="relative bg-white rounded-xl sm:rounded-2xl shadow-xl w-full max-w-4xl max-h-[95vh] sm:max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b sticky top-0 bg-white rounded-t-xl sm:rounded-t-2xl z-10">
               <div className="flex items-center space-x-2">
-                <span className="text-2xl">👤</span>
-                <h3 className="text-lg font-semibold text-gray-900">{viewingId ? 'Voir client' : (editingId ? 'Modifier client' : 'Nouveau client')}</h3>
+                <span className="text-xl sm:text-2xl">👤</span>
+                <h3 className="text-base sm:text-lg font-semibold text-gray-900">{viewingId ? 'Voir client' : (editingId ? 'Modifier client' : 'Nouveau client')}</h3>
               </div>
-              <button onClick={() => setShowModal(false)} className="text-gray-500 hover:text-gray-700" type="button">
+              <button onClick={() => setShowModal(false)} className="text-gray-500 hover:text-gray-700 p-1" type="button">
                 <XMarkIcon className="h-5 w-5" />
               </button>
             </div>
             
             {/* Tabs */}
-            <div className="border-b px-6">
-              <nav className="-mb-px flex space-x-6">
+            <div className="border-b overflow-x-auto -mx-4 sm:mx-0">
+              <nav className="-mb-px flex space-x-4 sm:space-x-6 px-4 sm:px-6 min-w-max sm:min-w-0">
                 {['identite', 'adresses', 'paiement', 'banque'].map((tab) => (
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
-                    className={`whitespace-nowrap py-4 px-1 border-b-2 text-sm font-medium ${
+                    className={`whitespace-nowrap py-3 sm:py-4 px-1 border-b-2 text-xs sm:text-sm font-medium ${
                       activeTab === tab
                         ? 'border-indigo-600 text-indigo-600'
                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -567,7 +569,7 @@ export default function CustomersPage() {
               </nav>
             </div>
 
-            <div className="px-6 pb-6 overflow-y-auto">
+            <div className="px-4 sm:px-6 pb-4 sm:pb-6 overflow-y-auto">
               {activeTab === 'identite' && (
                 <div className="space-y-4 mt-4">
                       <div>
@@ -886,16 +888,16 @@ export default function CustomersPage() {
               )}
             </div>
 
-            <div className="flex justify-end space-x-3 px-6 py-4 border-t sticky bottom-0 bg-white rounded-b-2xl">
-              <button onClick={() => setShowModal(false)} className="px-4 py-2 text-sm bg-gray-100 border border-gray-300 rounded-md">
-                Annuler
-              </button>
-              {!viewingId && (
-                <button onClick={submitCustomer} disabled={saving} className="px-4 py-2 text-sm text-white bg-indigo-600 rounded-md disabled:opacity-50">
-                  {saving ? 'Enregistrement...' : (editingId ? 'Enregistrer' : 'Créer le client')}
+                        <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 space-y-0 px-4 sm:px-6 py-3 sm:py-4 border-t sticky bottom-0 bg-white rounded-b-xl sm:rounded-b-2xl">
+                <button onClick={() => setShowModal(false)} className="w-full sm:w-auto px-4 py-2 text-sm bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200">
+                  Annuler
                 </button>
-              )}
-            </div>
+                {!viewingId && (
+                  <button onClick={submitCustomer} disabled={saving} className="w-full sm:w-auto px-4 py-2 text-sm text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                    {saving ? 'Enregistrement...' : (editingId ? 'Enregistrer' : 'Créer le client')}
+                  </button>
+                )}
+              </div>
           </div>
         </div>
       )}
