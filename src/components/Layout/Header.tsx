@@ -15,7 +15,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
     <div className="relative z-10 flex-shrink-0 flex h-16 bg-white shadow">
       <button
         type="button"
-        className="px-4 border-r border-gray-200 text-gray-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500 lg:hidden"
+        className="px-4 border-r border-gray-200 text-gray-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500 lg:hidden relative z-50"
         onClick={onMenuClick}
       >
         <Bars3Icon className="h-6 w-6" />
