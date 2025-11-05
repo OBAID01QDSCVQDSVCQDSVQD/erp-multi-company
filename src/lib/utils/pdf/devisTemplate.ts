@@ -268,15 +268,58 @@ function drawInfoBlocks(doc: jsPDF, quoteData: QuoteData, companyInfo: CompanyIn
   // Bloc client/fournisseur à droite
   const partyLabel = isPurchaseOrder ? 'Fournisseur' : 'Client';
   doc.setFillColor(238, 244, 255);
-  doc.roundedRect(clientX, startY, 80, h, 3, 3, 'F');
+  
+  // Calculate dynamic height based on content
+  let textY = startY + 12;
+  let dynamicHeight = 6; // Start with label height
+  
+  // Calculate height needed for address (with wrapping)
+  let addressLines = 0;
+  if (quoteData.customerAddress) {
+    const addressText = `Adresse: ${quoteData.customerAddress}`;
+    const addressWidth = 72; // 80 - 4 (margin) - 4 (padding)
+    const splitAddress = doc.splitTextToSize(addressText, addressWidth);
+    addressLines = splitAddress.length;
+    dynamicHeight += 5 + (addressLines * 4); // Name height + address lines
+  } else {
+    dynamicHeight += 5; // Just name height
+  }
+  
+  // Add phone height if exists
+  if (quoteData.customerPhone) {
+    dynamicHeight += 5;
+  }
+  
+  // Ensure minimum height
+  dynamicHeight = Math.max(dynamicHeight, h);
+  
+  // Draw the box with dynamic height
+  doc.roundedRect(clientX, startY, 80, dynamicHeight, 3, 3, 'F');
+  
+  // Draw text content
   doc.setFontSize(9).setFont('helvetica', 'bold');
   doc.text(partyLabel, clientX + 4, startY + 6);
   doc.setFont('helvetica', 'normal');
-  doc.text(quoteData.customerName || '—', clientX + 4, startY + 12);
-  if (quoteData.customerAddress) doc.text(`Adresse: ${quoteData.customerAddress}`, clientX + 4, startY + 17);
-  if (quoteData.customerPhone) doc.text(`Tél: ${quoteData.customerPhone}`, clientX + 4, startY + 22);
+  doc.text(quoteData.customerName || '—', clientX + 4, textY);
+  textY += 5;
+  
+  // Address with wrapping
+  if (quoteData.customerAddress) {
+    const addressText = `Adresse: ${quoteData.customerAddress}`;
+    const addressWidth = 72;
+    const splitAddress = doc.splitTextToSize(addressText, addressWidth);
+    splitAddress.forEach((line: string, idx: number) => {
+      doc.text(line, clientX + 4, textY + (idx * 4));
+    });
+    textY += splitAddress.length * 4;
+  }
+  
+  // Phone
+  if (quoteData.customerPhone) {
+    doc.text(`Tél: ${quoteData.customerPhone}`, clientX + 4, textY);
+  }
 
-  return startY + h + 6;
+  return startY + dynamicHeight + 6;
 }
 
 // Helper function to parse HTML and convert to plain text with line breaks

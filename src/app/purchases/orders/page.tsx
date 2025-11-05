@@ -67,6 +67,7 @@ export default function PurchaseOrdersPage() {
   const [productSearches, setProductSearches] = useState<{ [key: number]: string }>({});
   const [showProductDropdowns, setShowProductDropdowns] = useState<{ [key: number]: boolean }>({});
   const [selectedProductIndices, setSelectedProductIndices] = useState<{ [key: number]: number }>({});
+  const [productDropdownPositions, setProductDropdownPositions] = useState<{ [key: number]: { top: number; left: number; width: number } }>({});
   
   // Form state
   const [formData, setFormData] = useState({
@@ -104,12 +105,43 @@ export default function PurchaseOrdersPage() {
       }
       if (!target.closest('.product-autocomplete')) {
         setShowProductDropdowns({});
+        setSelectedProductIndices({});
+        setProductDropdownPositions({});
       }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Update dropdown positions when dropdowns are shown
+  useEffect(() => {
+    Object.keys(showProductDropdowns).forEach((key) => {
+      const lineIndex = parseInt(key);
+      if (showProductDropdowns[lineIndex]) {
+        // Find the input element for this line
+        const input = document.querySelector(`.product-autocomplete input[data-line-index="${lineIndex}"]`) as HTMLInputElement;
+        if (input && !productDropdownPositions[lineIndex]) {
+          const position = calculateDropdownPosition(input);
+          setProductDropdownPositions(prev => ({ ...prev, [lineIndex]: position }));
+        }
+      }
+    });
+  }, [showProductDropdowns]);
+
+  // Close dropdowns on scroll to prevent positioning issues
+  useEffect(() => {
+    const handleScroll = () => {
+      if (Object.keys(showProductDropdowns).length > 0) {
+        setShowProductDropdowns({});
+        setSelectedProductIndices({});
+        setProductDropdownPositions({});
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, true); // Use capture phase to catch all scroll events
+    return () => window.removeEventListener('scroll', handleScroll, true);
+  }, [showProductDropdowns]);
 
   // Filter suppliers based on search
   const filteredSuppliers = suppliers.filter((supplier) => {
@@ -186,6 +218,17 @@ export default function PurchaseOrdersPage() {
     });
   };
 
+  // Calculate dropdown position based on input element
+  // Using fixed position (relative to viewport, not document)
+  const calculateDropdownPosition = (inputElement: HTMLInputElement) => {
+    const rect = inputElement.getBoundingClientRect();
+    return {
+      top: rect.bottom + 4, // 4px margin, fixed position is relative to viewport
+      left: rect.left,
+      width: rect.width
+    };
+  };
+
   // Handle product selection for a specific line
   const handleSelectProduct = (lineIndex: number, product: Product) => {
     const newLines = [...lines];
@@ -211,6 +254,10 @@ export default function PurchaseOrdersPage() {
     setProductSearches({ ...productSearches, [lineIndex]: product.nom });
     setShowProductDropdowns({ ...showProductDropdowns, [lineIndex]: false });
     setSelectedProductIndices({ ...selectedProductIndices, [lineIndex]: -1 });
+    // Clear position when closing
+    const newPositions = { ...productDropdownPositions };
+    delete newPositions[lineIndex];
+    setProductDropdownPositions(newPositions);
   };
 
   // Handle keyboard navigation for products
@@ -1139,13 +1186,22 @@ export default function PurchaseOrdersPage() {
                                     <MagnifyingGlassIcon className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                                     <input
                                       type="text"
+                                      data-line-index={index}
                                       value={productSearches[index] || ''}
                                       onChange={(e) => {
+                                        const input = e.target as HTMLInputElement;
                                         setProductSearches({ ...productSearches, [index]: e.target.value });
                                         setShowProductDropdowns({ ...showProductDropdowns, [index]: true });
                                         setSelectedProductIndices({ ...selectedProductIndices, [index]: -1 });
+                                        const position = calculateDropdownPosition(input);
+                                        setProductDropdownPositions({ ...productDropdownPositions, [index]: position });
                                       }}
-                                      onFocus={() => setShowProductDropdowns({ ...showProductDropdowns, [index]: true })}
+                                      onFocus={(e) => {
+                                        const input = e.target as HTMLInputElement;
+                                        setShowProductDropdowns({ ...showProductDropdowns, [index]: true });
+                                        const position = calculateDropdownPosition(input);
+                                        setProductDropdownPositions({ ...productDropdownPositions, [index]: position });
+                                      }}
                                       onKeyDown={(e) => handleProductKeyDown(e, index)}
                                       placeholder="Rechercher un produit..."
                                       className="w-full pl-8 pr-2 py-1 border rounded text-xs"
@@ -1153,8 +1209,16 @@ export default function PurchaseOrdersPage() {
                                   </div>
                                   
                                   {/* Dropdown */}
-                                  {showProductDropdowns[index] && (
-                                    <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl max-h-[280px] overflow-hidden" style={{ minWidth: '300px' }}>
+                                  {showProductDropdowns[index] && productDropdownPositions[index] && (
+                                    <div 
+                                      className="fixed z-[9999] bg-white border border-gray-200 rounded-lg shadow-xl max-h-[280px] overflow-hidden" 
+                                      style={{ 
+                                        minWidth: '300px',
+                                        width: `${productDropdownPositions[index].width}px`,
+                                        top: `${productDropdownPositions[index].top}px`,
+                                        left: `${productDropdownPositions[index].left}px`
+                                      }}
+                                    >
                                       {/* Alphabet filter bar */}
                                       <div className="flex items-center justify-center gap-1 px-2 py-1 bg-gray-50 border-b text-xs">
                                         {Array.from('ABCDEFGHIJKLMNOPQRSTUVWXYZ').map((letter) => (
