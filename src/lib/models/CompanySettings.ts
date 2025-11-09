@@ -167,7 +167,7 @@ export interface ICompanySettings extends Document {
   updatedAt: Date;
 }
 
-const SocieteSchema = new Schema<ISociete>({
+const SocieteSchema = new Schema({
   nom: { type: String, required: true },
   adresse: {
     rue: { type: String, required: true },
@@ -205,7 +205,7 @@ const SocieteSchema = new Schema<ISociete>({
   },
 }, { _id: false });
 
-const NumerotationSchema = new Schema<INumerotation>({
+const NumerotationSchema = new Schema({
   devis: { type: String, required: true, default: 'DEV-{{YYYY}}-{{SEQ:5}}' },
   bc: { type: String, required: true, default: 'BC-{{YYYY}}-{{SEQ:5}}' },
   bl: { type: String, required: true, default: 'BL-{{YY}}{{MM}}-{{SEQ:4}}' },
@@ -218,27 +218,27 @@ const NumerotationSchema = new Schema<INumerotation>({
   pafo: { type: String, required: true, default: 'PAFO-{{YYYY}}-{{SEQ:5}}' },
 }, { _id: false });
 
-const VentesSchema = new Schema<IVentes>({
+const VentesSchema = new Schema({
   tvaParDefautPct: { type: Number, default: 19 },
   conditionsPaiementDefaut: { type: String, default: '30 jours' },
   uniteParDefaut: { type: String, default: 'pièce' },
 }, { _id: false });
 
-const AchatsSchema = new Schema<IAchats>({
+const AchatsSchema = new Schema({
   modesReglement: { 
     type: [String], 
     default: ['Espèces', 'Virement', 'Chèque', 'Carte'] 
   },
 }, { _id: false });
 
-const DepensesSchema = new Schema<IDepenses>({
+const DepensesSchema = new Schema({
   politiqueValidation: {
     autoJusqua: { type: Number, default: 500 },
     approbationRequiseAuDela: { type: Number, default: 1000 },
   },
 }, { _id: false });
 
-const StockSchema = new Schema<IStock>({
+const StockSchema = new Schema({
   multiEntrepots: { type: Boolean, default: true },
   binsActifs: { type: Boolean, default: false },
   transfertLeadTimeJours: { type: Number, default: 1 },
@@ -285,17 +285,17 @@ const StockSchema = new Schema<IStock>({
   },
 }, { _id: false });
 
-const SecuriteSchema = new Schema<ISecurite>({
+const SecuriteSchema = new Schema({
   motDePasseComplexe: { type: Boolean, default: true },
   deuxFA: { type: Boolean, default: false },
 }, { _id: false });
 
-const SystemeSchema = new Schema<ISysteme>({
+const SystemeSchema = new Schema({
   maintenance: { type: Boolean, default: false },
   version: { type: String, default: '1.0.0' },
 }, { _id: false });
 
-const TVASchema = new Schema<ITVA>({
+const TVASchema = new Schema({
   tauxParDefautPct: { type: Number, default: 19 },
   regimeParDefautCode: { type: String, default: 'TN19' },
   arrondi: { 
@@ -319,7 +319,7 @@ const TVASchema = new Schema<ITVA>({
   },
 }, { _id: false });
 
-const CompanySettingsSchema = new Schema<ICompanySettings>({
+const CompanySettingsSchema = new Schema({
   tenantId: {
     type: String,
     required: true,
@@ -368,4 +368,7 @@ const CompanySettingsSchema = new Schema<ICompanySettings>({
 // Note: 'unique: true' on tenantId already creates the unique index.
 // Avoid defining a duplicate index to prevent Mongoose duplicate index warnings.
 
-export default mongoose.models.CompanySettings || mongoose.model<ICompanySettings>('CompanySettings', CompanySettingsSchema);
+// @ts-expect-error - Schema type is too complex for TypeScript to infer, but works at runtime
+const CompanySettingsModel = mongoose.models.CompanySettings || mongoose.model<ICompanySettings>('CompanySettings', CompanySettingsSchema);
+
+export default CompanySettingsModel;
