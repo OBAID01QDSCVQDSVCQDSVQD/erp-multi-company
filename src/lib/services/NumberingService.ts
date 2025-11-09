@@ -2,7 +2,7 @@ import connectDB from '@/lib/mongodb';
 import CompanySettings from '@/lib/models/CompanySettings';
 import Counter from '@/lib/models/Counter';
 
-export type SequenceType = 'devis' | 'bc' | 'bl' | 'fac' | 'avoir' | 'ca' | 'br' | 'facfo' | 'avoirfo';
+export type SequenceType = 'devis' | 'bc' | 'bl' | 'fac' | 'avoir' | 'ca' | 'br' | 'facfo' | 'avoirfo' | 'pafo' | 'pac';
 
 export class NumberingService {
   /**
@@ -23,6 +23,16 @@ export class NumberingService {
     // Fallback: if ca not found, use po template
     if (!template && seqName === 'ca' && settings.numerotation.po) {
       template = settings.numerotation.po.replace(/PO-/g, 'CA-');
+    }
+    
+    // Fallback: if pafo not found, use default template
+    if (!template && seqName === 'pafo') {
+      template = 'PAFO-{{YYYY}}-{{SEQ:5}}';
+    }
+    
+    // Fallback: if pac not found, use default template
+    if (!template && seqName === 'pac') {
+      template = 'PAC-{{YYYY}}-{{SEQ:5}}';
     }
     
     if (!template) {
@@ -76,7 +86,18 @@ export class NumberingService {
       throw new Error(`Paramètres non trouvés pour le tenant ${tenantId}`);
     }
 
-    const template = settings.numerotation[seqName];
+    let template = settings.numerotation[seqName];
+    
+    // Fallback: if pafo not found, use default template
+    if (!template && seqName === 'pafo') {
+      template = 'PAFO-{{YYYY}}-{{SEQ:5}}';
+    }
+    
+    // Fallback: if pac not found, use default template
+    if (!template && seqName === 'pac') {
+      template = 'PAC-{{YYYY}}-{{SEQ:5}}';
+    }
+    
     if (!template) {
       throw new Error(`Template de numérotation non trouvé pour ${seqName}`);
     }
@@ -108,7 +129,7 @@ export class NumberingService {
   static async resetAll(tenantId: string): Promise<void> {
     await connectDB();
     
-    const sequenceTypes: SequenceType[] = ['devis', 'bc', 'bl', 'fac', 'avoir', 'ca', 'br', 'facfo', 'avoirfo'];
+    const sequenceTypes: SequenceType[] = ['devis', 'bc', 'bl', 'fac', 'avoir', 'ca', 'br', 'facfo', 'avoirfo', 'pafo', 'pac'];
     
     for (const seqName of sequenceTypes) {
       await (Counter as any).findOneAndUpdate(

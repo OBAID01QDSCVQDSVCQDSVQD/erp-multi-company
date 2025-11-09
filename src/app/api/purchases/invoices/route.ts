@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
-import Document from '@/lib/models/Document';
+import PurchaseInvoice from '@/lib/models/PurchaseInvoice';
 import { NumberingService } from '@/lib/services/NumberingService';
+import Supplier from '@/lib/models/Supplier';
+import mongoose from 'mongoose';
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,25 +17,58 @@ export async function GET(request: NextRequest) {
     await connectDB();
 
     const tenantId = session.user.companyId?.toString() || '';
-    const { searchParams } = new URL(request.url);
-    const supplierId = searchParams.get('supplierId');
+    const searchParams = request.nextUrl.searchParams;
     const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '50');
+    const limit = parseInt(searchParams.get('limit') || '20');
+    const statut = searchParams.get('statut');
+    const fournisseurId = searchParams.get('fournisseurId');
 
-    const query: any = { tenantId, type: 'FACFO' };
-    if (supplierId) query.supplierId = supplierId;
+    const query: any = { societeId: tenantId };
+    if (statut) {
+      query.statut = statut;
+    }
+    if (fournisseurId) {
+      query.fournisseurId = fournisseurId;
+    }
 
-    const invoices = await (Document as any).find(query)
-      .sort('-createdAt')
-      .skip((page - 1) * limit)
+    const skip = (page - 1) * limit;
+    const total = await (PurchaseInvoice as any).countDocuments(query);
+    const invoices = await (PurchaseInvoice as any)
+      .find(query)
+      .sort({ dateFacture: -1, createdAt: -1 })
+      .skip(skip)
       .limit(limit)
       .lean();
 
-    const total = await (Document as any).countDocuments(query);
+    // Ensure default values for fodec and timbre
+    const normalizedInvoices = invoices.map((inv: any) => ({
+      ...inv,
+      fodec: {
+        enabled: inv.fodec?.enabled ?? false,
+        tauxPct: inv.fodec?.tauxPct ?? 1,
+        montant: inv.fodec?.montant ?? 0,
+      },
+      timbre: {
+        enabled: inv.timbre?.enabled ?? true,
+        montant: inv.timbre?.montant ?? 1.000,
+      },
+      totaux: {
+        ...inv.totaux,
+        totalRemise: inv.totaux?.totalRemise ?? 0,
+        totalFodec: inv.totaux?.totalFodec ?? 0,
+        totalTimbre: inv.totaux?.totalTimbre ?? 0,
+      },
+    }));
 
-    return NextResponse.json({ items: invoices, total });
+    return NextResponse.json({
+      items: normalizedInvoices,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    });
   } catch (error) {
-    console.error('Erreur GET /purchases/invoices:', error);
+    console.error('Erreur GET /api/purchases/invoices:', error);
     return NextResponse.json(
       { error: 'Erreur serveur', details: (error as Error).message },
       { status: 500 }
@@ -48,56 +83,88 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }
 
-    const body = await request.json();
     await connectDB();
 
     const tenantId = session.user.companyId?.toString() || '';
+    const body = await request.json();
+
+    // Generate invoice number
     const numero = await NumberingService.next(tenantId, 'facfo');
 
-    const invoice = new Document({
-      ...body,
-      tenantId,
-      type: 'FACFO',
+    // Get supplier name if not provided
+    let fournisseurNom = body.fournisseurNom || '';
+    if (!fournisseurNom && body.fournisseurId) {
+      const supplier = await (Supplier as any).findOne({
+        _id: body.fournisseurId,
+        tenantId,
+      });
+      if (supplier) {
+        fournisseurNom = supplier.raisonSociale || `${supplier.nom || ''} ${supplier.prenom || ''}`.trim();
+      }
+    }
+
+    // Prepare lines
+    const lignes = (body.lignes || []).map((line: any) => ({
+      produitId: line.produitId || undefined,
+      designation: line.designation || '',
+      quantite: line.quantite || 0,
+      prixUnitaireHT: line.prixUnitaireHT || 0,
+      remisePct: line.remisePct || 0,
+      tvaPct: line.tvaPct || 0,
+      fodecPct: line.fodecPct || 0,
+      totalLigneHT: 0,
+    }));
+
+    // Prepare fodec
+    const fodec = {
+      enabled: body.fodec?.enabled ?? false,
+      tauxPct: body.fodec?.tauxPct ?? 1,
+      montant: 0,
+    };
+
+    // Prepare timbre
+    const timbre = {
+      enabled: body.timbre?.enabled ?? true,
+      montant: body.timbre?.montant ?? 1.000,
+    };
+
+    const invoice = new PurchaseInvoice({
+      societeId: tenantId,
       numero,
-      statut: 'brouillon',
-      createdBy: session.user.email
+      dateFacture: body.dateFacture ? new Date(body.dateFacture) : new Date(),
+      referenceFournisseur: body.referenceFournisseur || undefined,
+      fournisseurId: body.fournisseurId,
+      fournisseurNom,
+      devise: body.devise || 'TND',
+      conditionsPaiement: body.conditionsPaiement || undefined,
+      statut: body.statut || 'BROUILLON',
+      lignes,
+      fodec,
+      timbre,
+      totaux: {
+        totalHT: 0,
+        totalRemise: 0,
+        totalFodec: 0,
+        totalTVA: 0,
+        totalTimbre: 0,
+        totalTTC: 0,
+      },
+      bonsReceptionIds: body.bonsReceptionIds || [],
+      fichiers: body.fichiers || [],
+      paiements: body.paiements || [],
+      notes: body.notes || '',
+      createdBy: session.user.email,
     });
 
-    calculateDocumentTotals(invoice);
+    // Totals will be calculated by pre-save hook
     await (invoice as any).save();
 
     return NextResponse.json(invoice, { status: 201 });
   } catch (error) {
-    console.error('Erreur POST /purchases/invoices:', error);
+    console.error('Erreur POST /api/purchases/invoices:', error);
     return NextResponse.json(
       { error: 'Erreur serveur', details: (error as Error).message },
       { status: 500 }
     );
   }
-}
-
-function calculateDocumentTotals(doc: any) {
-  let totalBaseHT = 0;
-  let totalTVA = 0;
-  let totalTVADeductible = 0;
-
-  doc.lignes.forEach((line: any) => {
-    const remise = line.remisePct || 0;
-    const prixHT = line.prixUnitaireHT * (1 - remise / 100);
-    const montantHT = prixHT * line.quantite;
-    totalBaseHT += montantHT;
-    
-    if (line.tvaPct) {
-      const tvaAmount = montantHT * (line.tvaPct / 100);
-      totalTVA += tvaAmount;
-      // For purchases, calculate deductible TVA (assuming 100% deductible)
-      totalTVADeductible += tvaAmount;
-    }
-  });
-
-  doc.totalBaseHT = Math.round(totalBaseHT * 100) / 100;
-  doc.totalTVA = Math.round(totalTVA * 100) / 100;
-  doc.totalTTC = doc.totalBaseHT + doc.totalTVA;
-  doc.totalTVADeductible = Math.round(totalTVADeductible * 100) / 100;
-  doc.netAPayer = doc.totalTTC;
 }

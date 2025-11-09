@@ -1,0 +1,309 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import connectDB from '@/lib/mongodb';
+import PaiementClient from '@/lib/models/PaiementClient';
+import Document from '@/lib/models/Document';
+import Customer from '@/lib/models/Customer';
+import { NumberingService } from '@/lib/services/NumberingService';
+import mongoose from 'mongoose';
+
+export async function GET(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+    }
+
+    await connectDB();
+
+    const tenantId = session.user.companyId?.toString() || '';
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '10');
+    const search = searchParams.get('search') || '';
+    const customerId = searchParams.get('customerId') || '';
+
+    const query: any = { societeId: new mongoose.Types.ObjectId(tenantId) };
+
+    if (search) {
+      query.$or = [
+        { numero: { $regex: search, $options: 'i' } },
+        { customerNom: { $regex: search, $options: 'i' } },
+        { reference: { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    if (customerId) {
+      query.customerId = new mongoose.Types.ObjectId(customerId);
+    }
+
+    const total = await PaiementClient.countDocuments(query);
+    const paiements = await PaiementClient.find(query)
+      .sort({ datePaiement: -1, numero: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean();
+
+    // Enrich payment lines with referenceExterne from invoices if missing
+    const enrichedPaiements = await Promise.all(
+      paiements.map(async (paiement: any) => {
+        if (paiement.lignes && paiement.lignes.length > 0) {
+          const enrichedLignes = await Promise.all(
+            paiement.lignes.map(async (ligne: any) => {
+              // If referenceExterne is missing, fetch it from the invoice
+              if (!ligne.referenceExterne && ligne.factureId) {
+                const invoice = await (Document as any).findOne({
+                  _id: ligne.factureId,
+                  tenantId: tenantId,
+                  type: 'FAC',
+                }).select('referenceExterne numero').lean();
+                
+                if (invoice) {
+                  ligne.referenceExterne = invoice.referenceExterne || invoice.numero;
+                }
+              }
+              return ligne;
+            })
+          );
+          return { ...paiement, lignes: enrichedLignes };
+        }
+        return paiement;
+      })
+    );
+
+    return NextResponse.json({
+      items: enrichedPaiements,
+      total,
+      page,
+      limit,
+    });
+  } catch (error) {
+    console.error('Erreur GET /api/sales/payments:', error);
+    return NextResponse.json(
+      { error: 'Erreur serveur', details: (error as Error).message },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+    }
+
+    await connectDB();
+
+    const tenantId = session.user.companyId?.toString() || '';
+    const body = await request.json();
+    const {
+      customerId,
+      datePaiement,
+      modePaiement,
+      reference,
+      notes,
+    } = body;
+
+    // Check if this is a payment on account
+    const isPaymentOnAccount = body.isPaymentOnAccount === true;
+    const montantOnAccount = parseFloat(body.montantOnAccount) || 0;
+    let lignes = body.lignes || [];
+
+    // Handle advance balance usage
+    const useAdvanceBalance = body.useAdvanceBalance === true;
+    const currentAdvanceBalance = parseFloat(body.currentAdvanceBalance) || 0;
+    const advanceAmount = parseFloat(body.advanceAmount) || 0;
+    const advanceUsed = useAdvanceBalance ? advanceAmount : (parseFloat(body.advanceUsed) || 0);
+
+    if (!customerId || !datePaiement || !modePaiement) {
+      return NextResponse.json(
+        { error: 'Données manquantes' },
+        { status: 400 }
+      );
+    }
+
+    // For payment on account, lignes can be empty or have a single line with montantPaye
+    if (isPaymentOnAccount) {
+      if (montantOnAccount <= 0) {
+        return NextResponse.json(
+          { error: 'Le montant du paiement sur compte doit être supérieur à zéro' },
+          { status: 400 }
+        );
+      }
+      // Create a single line for payment on account
+      if (!lignes || lignes.length === 0) {
+        lignes = [{ montantPaye: montantOnAccount }];
+      }
+    } else {
+      // For regular payments, lignes must not be empty
+      if (!lignes || lignes.length === 0) {
+        return NextResponse.json(
+          { error: 'Données manquantes' },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Get customer info
+    const customer = await (Customer as any).findOne({
+      _id: customerId,
+      tenantId,
+    }).lean();
+
+    if (!customer) {
+      return NextResponse.json({ error: 'Client non trouvé' }, { status: 404 });
+    }
+
+    const customerNom = customer.raisonSociale || `${customer.nom || ''} ${customer.prenom || ''}`.trim();
+
+    // Generate payment number
+    const numero = await NumberingService.next(tenantId, 'pac');
+
+    // Process payment lines
+    const processedLignes = await Promise.all(
+      lignes.map(async (ligne: any) => {
+        if (ligne.factureId) {
+          // Payment for specific invoice
+          const invoice = await (Document as any).findOne({
+            _id: ligne.factureId,
+            tenantId,
+            type: 'FAC',
+          }).lean();
+
+          if (!invoice) {
+            throw new Error(`Facture ${ligne.factureId} non trouvée`);
+          }
+
+          // Get all previous payments for this invoice
+          const previousPayments = await (PaiementClient as any).find({
+            societeId: new mongoose.Types.ObjectId(tenantId),
+            'lignes.factureId': ligne.factureId,
+          }).lean();
+
+          let montantPayeAvant = 0;
+          previousPayments.forEach((payment: any) => {
+            payment.lignes.forEach((line: any) => {
+              if (line.factureId && line.factureId.toString() === ligne.factureId.toString()) {
+                montantPayeAvant += line.montantPaye;
+              }
+            });
+          });
+
+          const montantFacture = invoice.totalTTC || 0;
+          const roundedMontantPayeAvant = Math.round(montantPayeAvant * 1000) / 1000;
+          const roundedMontantPaye = Math.round(ligne.montantPaye * 1000) / 1000;
+          const roundedSoldeRestantAvant = Math.round((montantFacture - roundedMontantPayeAvant) * 1000) / 1000;
+
+          // Validate payment amount
+          if (roundedMontantPaye > roundedSoldeRestantAvant + 0.001) {
+            throw new Error(
+              `Le montant payé (${roundedMontantPaye}) ne peut pas être supérieur au solde restant (${roundedSoldeRestantAvant})`
+            );
+          }
+
+          const soldeRestant = Math.max(0, montantFacture - roundedMontantPayeAvant - roundedMontantPaye);
+
+          return {
+            factureId: ligne.factureId,
+            numeroFacture: invoice.numero,
+            referenceExterne: invoice.referenceExterne || invoice.numero,
+            montantFacture,
+            montantPayeAvant: roundedMontantPayeAvant,
+            montantPaye: roundedMontantPaye,
+            soldeRestant,
+            isPaymentOnAccount: false,
+          };
+        } else {
+          // Payment on account
+          return {
+            montantPaye: ligne.montantPaye,
+            isPaymentOnAccount: true,
+          };
+        }
+      })
+    );
+
+    // Calculate total amount
+    const montantTotal = processedLignes.reduce((sum, ligne) => sum + (ligne.montantPaye || 0), 0);
+
+    // Create payment document
+    const paiement = new PaiementClient({
+      societeId: new mongoose.Types.ObjectId(tenantId),
+      numero,
+      datePaiement: new Date(datePaiement),
+      customerId: new mongoose.Types.ObjectId(customerId),
+      customerNom,
+      modePaiement,
+      reference,
+      montantTotal,
+      lignes: processedLignes,
+      notes,
+      isPaymentOnAccount: processedLignes.every((l) => l.isPaymentOnAccount),
+      advanceUsed: Math.round(advanceUsed * 1000) / 1000, // Round to 3 decimal places
+      createdBy: session.user.email,
+    });
+
+    await paiement.save();
+
+    // Update invoice payment status
+    for (const ligne of processedLignes) {
+      if (ligne.factureId && !ligne.isPaymentOnAccount) {
+        const invoice = await (Document as any).findOne({
+          _id: ligne.factureId,
+          tenantId,
+          type: 'FAC',
+        });
+
+        if (invoice) {
+          // Calculate total paid amount for this invoice
+          const allPayments = await (PaiementClient as any).find({
+            societeId: new mongoose.Types.ObjectId(tenantId),
+            'lignes.factureId': ligne.factureId,
+          }).lean();
+
+          let totalPaye = 0;
+          allPayments.forEach((payment: any) => {
+            payment.lignes.forEach((line: any) => {
+              if (line.factureId && line.factureId.toString() === ligne.factureId.toString()) {
+                totalPaye += line.montantPaye;
+              }
+            });
+          });
+
+          const montantFacture = invoice.totalTTC || 0;
+          
+          if (totalPaye >= montantFacture - 0.001) {
+            invoice.statut = 'PAYEE';
+          } else if (totalPaye > 0) {
+            invoice.statut = 'PARTIELLEMENT_PAYEE';
+          } else {
+            invoice.statut = 'BROUILLON';
+          }
+
+          await invoice.save();
+        }
+      }
+    }
+
+    // Handle advance balance usage
+    // When we use advance balance to pay an invoice, we simply mark advanceUsed in the payment.
+    // The netAdvanceBalance is calculated as: totalPaymentsOnAccount - totalAdvanceUsed
+    // We DON'T create a new payment on account for the remaining balance, as that would double-count.
+    // The remaining balance is automatically calculated when we compute netAdvanceBalance.
+    
+    // Note: We no longer create a payment on account for the remaining advance.
+    // The calculation of netAdvanceBalance in /api/customers/[id]/balance will automatically
+    // show the correct remaining balance by subtracting advanceUsed from totalPaymentsOnAccount.
+
+    return NextResponse.json(paiement, { status: 201 });
+  } catch (error) {
+    console.error('Erreur POST /api/sales/payments:', error);
+    return NextResponse.json(
+      { error: 'Erreur serveur', details: (error as Error).message },
+      { status: 500 }
+    );
+  }
+}
+

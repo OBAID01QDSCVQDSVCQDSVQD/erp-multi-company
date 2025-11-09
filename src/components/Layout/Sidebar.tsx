@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
@@ -20,31 +20,44 @@ import {
   ShoppingCartIcon,
   TruckIcon,
   ClipboardDocumentCheckIcon,
+  CubeIcon,
+  BanknotesIcon,
 } from '@heroicons/react/24/outline';
 
 const navigation = [
   { name: 'Tableau de bord', href: '/dashboard', icon: HomeIcon },
   { name: 'Entreprises', href: '/companies', icon: BuildingOfficeIcon },
   { name: 'Utilisateurs', href: '/users', icon: UserGroupIcon },
-  { name: 'Produits', href: '/products', icon: ShoppingBagIcon },
-  { name: 'Clients', href: '/customers', icon: UserGroupIcon },
-  { name: 'Fournisseurs', href: '/suppliers', icon: UserGroupIcon },
-  { name: 'ðŸ’¸ DÃ©penses', href: '/expenses', icon: CurrencyEuroIcon },
-  { name: 'Documents', href: '#', icon: DocumentTextIcon, hasSubmenu: true, submenu: [
+  { name: '💼 Ventes', href: '#', icon: ShoppingBagIcon, hasSubmenu: true, submenu: [
+    { name: 'Clients', href: '/customers', icon: UserGroupIcon },
     { name: 'Devis', href: '/sales/quotes', icon: DocumentTextIcon },
-    { name: 'Commandes', href: '/sales/orders', icon: ShoppingCartIcon },
+    { name: 'Commandes clients', href: '/sales/orders', icon: ShoppingCartIcon },
     { name: 'Bons de livraison', href: '/sales/deliveries', icon: TruckIcon },
-    { name: 'Factures', href: '/sales/invoices', icon: DocumentTextIcon },
-    { name: 'Commandes d\'achat', href: '/purchases/orders', icon: ShoppingCartIcon },
-    { name: 'Bons de rÃ©ception', href: '/purchases/receipts', icon: ClipboardDocumentCheckIcon },
-    { name: 'Factures fournisseurs', href: '/purchases/invoices', icon: DocumentTextIcon },
+    { name: 'Factures clients', href: '/sales/invoices', icon: DocumentTextIcon },
+    { name: 'Paiements clients', href: '/sales/payments', icon: BanknotesIcon },
+    { name: 'Soldes clients', href: '/customers/balances', icon: BanknotesIcon },
   ]},
+  { name: '📦 Achats', href: '#', icon: ShoppingCartIcon, hasSubmenu: true, submenu: [
+    { name: 'Fournisseurs', href: '/suppliers', icon: UserGroupIcon },
+    { name: 'Commandes d\'achat', href: '/purchases/orders', icon: ShoppingCartIcon },
+    { name: 'Bons de réception', href: '/purchases/receipts', icon: ClipboardDocumentCheckIcon },
+    { name: 'Factures fournisseurs', href: '/purchases/invoices', icon: DocumentTextIcon },
+    { name: 'Paiements fournisseurs', href: '/purchases/payments', icon: BanknotesIcon },
+    { name: 'Soldes fournisseurs', href: '/suppliers/balances', icon: BanknotesIcon },
+  ]},
+  { name: '🏭 Stock', href: '#', icon: CubeIcon, hasSubmenu: true, submenu: [
+    { name: 'Inventaire', href: '/stock', icon: CubeIcon },
+    { name: 'Produits / Articles', href: '/products', icon: ShoppingBagIcon },
+    { name: 'Mouvements de stock', href: '/stock/movements', icon: TruckIcon },
+    { name: 'Alertes stock minimum', href: '/stock/alerts', icon: ChartBarIcon },
+  ]},
+  { name: 'Dépenses', href: '/expenses', icon: CurrencyEuroIcon },
   { name: 'Rapports', href: '/reports', icon: ChartBarIcon },
-  { name: 'ParamÃ¨tres', href: '/settings', icon: CogIcon },
+  { name: 'Paramètres', href: '/settings', icon: CogIcon },
 ];
 
 const testPages = [
-  { name: 'ðŸ§ª Test Suggestions', href: '/test-suggestions', icon: CogIcon },
+  { name: '🧪 Test Suggestions', href: '/test-suggestions', icon: CogIcon },
 ];
 
 interface SidebarProps {
@@ -54,9 +67,45 @@ interface SidebarProps {
 
 export default function Sidebar({ sidebarOpen: externalSidebarOpen, setSidebarOpen: externalSetSidebarOpen }: SidebarProps) {
   const [internalSidebarOpen, setInternalSidebarOpen] = useState(false);
-  const [documentsOpen, setDocumentsOpen] = useState(true);
   const pathname = usePathname();
   const { data: session } = useSession();
+  
+  // Determine which submenus should be open based on current path
+  const getOpenSubmenus = (currentPathname: string) => {
+    const openMenus: { [key: string]: boolean } = {};
+    navigation.forEach((item) => {
+      if (item.hasSubmenu && item.submenu) {
+        const isActive = item.submenu.some((subItem: any) => 
+          currentPathname === subItem.href || currentPathname.startsWith(subItem.href + '/')
+        );
+        openMenus[item.name] = isActive;
+      }
+    });
+    return openMenus;
+  };
+  
+  const [openSubmenus, setOpenSubmenus] = useState<{ [key: string]: boolean }>(() => getOpenSubmenus(pathname));
+  
+  // Update open submenus when pathname changes
+  useEffect(() => {
+    const newOpenMenus = getOpenSubmenus(pathname);
+    setOpenSubmenus(prev => {
+      const updated = { ...prev };
+      Object.keys(newOpenMenus).forEach(key => {
+        if (newOpenMenus[key] && !updated[key]) {
+          updated[key] = true;
+        }
+      });
+      return updated;
+    });
+  }, [pathname]);
+  
+  const toggleSubmenu = (menuName: string) => {
+    setOpenSubmenus(prev => ({
+      ...prev,
+      [menuName]: !prev[menuName]
+    }));
+  };
 
   // Use external state if provided, otherwise use internal state
   const sidebarOpen = externalSidebarOpen !== undefined ? externalSidebarOpen : internalSidebarOpen;
@@ -86,35 +135,45 @@ export default function Sidebar({ sidebarOpen: externalSidebarOpen, setSidebarOp
             <nav className="mt-5 px-2 space-y-1">
               {navigation.map((item) => {
                 if (item.hasSubmenu && item.submenu) {
+                  const isSubmenuOpen = openSubmenus[item.name] || false;
+                  const isSubmenuActive = item.submenu.some((subItem: any) => 
+                    pathname === subItem.href || pathname.startsWith(subItem.href + '/')
+                  );
+                  
                   return (
                     <div key={item.name}>
                       <button
-                        onClick={() => setDocumentsOpen(!documentsOpen)}
-                        className="w-full flex items-center justify-between px-2 py-2 text-base font-medium rounded-md text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                        onClick={() => toggleSubmenu(item.name)}
+                        className={`w-full flex items-center justify-between px-2 py-2 text-base font-medium rounded-md ${
+                          isSubmenuActive
+                            ? 'bg-gray-100 text-gray-900'
+                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                        }`}
                       >
                         <div className="flex items-center">
-                          <item.icon className="mr-4 flex-shrink-0 h-6 w-6 text-gray-400" />
+                          <item.icon className={`mr-4 flex-shrink-0 h-6 w-6 ${isSubmenuActive ? 'text-gray-500' : 'text-gray-400'}`} />
                           {item.name}
                         </div>
-                        {documentsOpen ? <ChevronDownIcon className="h-5 w-5" /> : <ChevronRightIcon className="h-5 w-5" />}
+                        {isSubmenuOpen ? <ChevronDownIcon className="h-5 w-5" /> : <ChevronRightIcon className="h-5 w-5" />}
                       </button>
-                      {documentsOpen && (
+                      {isSubmenuOpen && (
                         <div className="ml-4 mt-1 space-y-1">
                           {item.submenu.map((subItem: any) => {
-                            const isActive = pathname === subItem.href;
+                            const isActive = pathname === subItem.href || pathname.startsWith(subItem.href + '/');
                             return (
                               <Link
                                 key={subItem.name}
                                 href={subItem.href}
+                                onClick={() => setSidebarOpen(false)}
                                 className={`${
                                   isActive
-                                    ? 'bg-gray-100 text-gray-900'
+                                    ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-600'
                                     : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                                } group flex items-center px-2 py-2 text-sm font-medium rounded-md`}
+                                } group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors`}
                               >
                                 <subItem.icon
                                   className={`${
-                                    isActive ? 'text-gray-500' : 'text-gray-400 group-hover:text-gray-500'
+                                    isActive ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-500'
                                   } mr-3 flex-shrink-0 h-5 w-5`}
                                 />
                                 {subItem.name}
@@ -127,20 +186,21 @@ export default function Sidebar({ sidebarOpen: externalSidebarOpen, setSidebarOp
                   );
                 }
                 
-                const isActive = pathname === item.href;
+                const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href + '/'));
                 return (
                   <Link
                     key={item.name}
                     href={item.href}
+                    onClick={() => setSidebarOpen(false)}
                     className={`${
                       isActive
-                        ? 'bg-gray-100 text-gray-900'
+                        ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-600'
                         : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                    } group flex items-center px-2 py-2 text-base font-medium rounded-md`}
+                    } group flex items-center px-2 py-2 text-base font-medium rounded-md transition-colors`}
                   >
                     <item.icon
                       className={`${
-                        isActive ? 'text-gray-500' : 'text-gray-400 group-hover:text-gray-500'
+                        isActive ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-500'
                       } mr-4 flex-shrink-0 h-6 w-6`}
                     />
                     {item.name}
@@ -184,12 +244,12 @@ export default function Sidebar({ sidebarOpen: externalSidebarOpen, setSidebarOp
               <div className="ml-3">
                 <p className="text-base font-medium text-gray-700">{session?.user?.name}</p>
                 <p className="text-sm font-medium text-gray-500">{session?.user?.companyName}</p>
-                <button
-                  onClick={() => signOut()}
-                  className="text-sm text-gray-500 hover:text-gray-700"
-                >
-                  Se dÃ©connecter
-                </button>
+                  <button
+                    onClick={() => signOut()}
+                    className="text-sm text-gray-500 hover:text-gray-700"
+                  >
+                    Se déconnecter
+                  </button>
               </div>
             </div>
           </div>
@@ -207,35 +267,44 @@ export default function Sidebar({ sidebarOpen: externalSidebarOpen, setSidebarOp
               <nav className="mt-5 flex-1 px-2 space-y-1">
                 {navigation.map((item) => {
                   if (item.hasSubmenu && item.submenu) {
+                    const isSubmenuOpen = openSubmenus[item.name] || false;
+                    const isSubmenuActive = item.submenu.some((subItem: any) => 
+                      pathname === subItem.href || pathname.startsWith(subItem.href + '/')
+                    );
+                    
                     return (
                       <div key={item.name}>
                         <button
-                          onClick={() => setDocumentsOpen(!documentsOpen)}
-                          className="w-full flex items-center justify-between px-2 py-2 text-sm font-medium rounded-md text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                          onClick={() => toggleSubmenu(item.name)}
+                          className={`w-full flex items-center justify-between px-2 py-2 text-sm font-medium rounded-md ${
+                            isSubmenuActive
+                              ? 'bg-gray-100 text-gray-900'
+                              : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                          }`}
                         >
                           <div className="flex items-center">
-                            <item.icon className="mr-3 flex-shrink-0 h-6 w-6 text-gray-400" />
+                            <item.icon className={`mr-3 flex-shrink-0 h-6 w-6 ${isSubmenuActive ? 'text-gray-500' : 'text-gray-400'}`} />
                             {item.name}
                           </div>
-                          {documentsOpen ? <ChevronDownIcon className="h-5 w-5" /> : <ChevronRightIcon className="h-5 w-5" />}
+                          {isSubmenuOpen ? <ChevronDownIcon className="h-5 w-5" /> : <ChevronRightIcon className="h-5 w-5" />}
                         </button>
-                        {documentsOpen && (
+                        {isSubmenuOpen && (
                           <div className="ml-4 mt-1 space-y-1">
                             {item.submenu.map((subItem: any) => {
-                              const isActive = pathname === subItem.href;
+                              const isActive = pathname === subItem.href || pathname.startsWith(subItem.href + '/');
                               return (
                                 <Link
                                   key={subItem.name}
                                   href={subItem.href}
                                   className={`${
                                     isActive
-                                      ? 'bg-gray-100 text-gray-900'
+                                      ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-600'
                                       : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                                  } group flex items-center px-2 py-2 text-sm font-medium rounded-md`}
+                                  } group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors`}
                                 >
                                   <subItem.icon
                                     className={`${
-                                      isActive ? 'text-gray-500' : 'text-gray-400 group-hover:text-gray-500'
+                                      isActive ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-500'
                                     } mr-3 flex-shrink-0 h-5 w-5`}
                                   />
                                   {subItem.name}
@@ -248,7 +317,7 @@ export default function Sidebar({ sidebarOpen: externalSidebarOpen, setSidebarOp
                     );
                   }
                   
-                  const isActive = pathname === item.href;
+                  const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href + '/'));
                   return (
                     <Link
                       key={item.name}
@@ -309,7 +378,7 @@ export default function Sidebar({ sidebarOpen: externalSidebarOpen, setSidebarOp
                     onClick={() => signOut()}
                     className="text-xs text-gray-500 hover:text-gray-700"
                   >
-                    Se dÃ©connecter
+                    Se déconnecter
                   </button>
                 </div>
               </div>

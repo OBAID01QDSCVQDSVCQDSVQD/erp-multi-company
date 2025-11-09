@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
 import { PlusIcon, TruckIcon, MagnifyingGlassIcon, EyeIcon, PencilIcon, TrashIcon, XMarkIcon, FolderIcon, EnvelopeIcon, PhoneIcon } from '@heroicons/react/24/outline';
 import { useTenantId } from '@/hooks/useTenantId';
+import { useSearchParams } from 'next/navigation';
 
 interface Supplier {
   _id: string;
@@ -33,6 +34,7 @@ interface Supplier {
 
 export default function SuppliersPage() {
   const { tenantId } = useTenantId();
+  const searchParams = useSearchParams();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -41,7 +43,38 @@ export default function SuppliersPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [viewingId, setViewingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<'identite' | 'adresse' | 'paiement' | 'banque'>('identite');
+  const [activeTab, setActiveTab] = useState<'identite' | 'adresse' | 'paiement' | 'banque' | 'statistiques' | 'solde'>('identite');
+  const [statistics, setStatistics] = useState<{
+    totalFactures: number;
+    totalPaye: number;
+    soldeRestant: number;
+    nombreFactures: number;
+    nombrePaiements: number;
+  } | null>(null);
+  const [loadingStatistics, setLoadingStatistics] = useState(false);
+  const [balanceData, setBalanceData] = useState<{
+    soldeDu: number;
+    aging: {
+      '0-30': number;
+      '31-60': number;
+      '61-90': number;
+      '>90': number;
+    };
+    factures: Array<{
+      _id: string;
+      numero: string;
+      dateFacture: string;
+      dateEcheance: string | null;
+      montantTotal: number;
+      montantPaye: number;
+      soldeRestant: number;
+      statut: string;
+      aging: string;
+      joursEchus: number;
+    }>;
+    paymentsOnAccount?: number;
+  } | null>(null);
+  const [loadingBalance, setLoadingBalance] = useState(false);
 
   const [form, setForm] = useState({
     type: 'societe' as 'societe' | 'particulier',
@@ -74,6 +107,23 @@ export default function SuppliersPage() {
   });
 
   useEffect(() => { if (tenantId) fetchSuppliers(); }, [tenantId]);
+
+  // Handle URL params to open supplier modal with specific tab
+  useEffect(() => {
+    if (suppliers.length > 0 && tenantId) {
+      const supplierId = searchParams.get('supplierId');
+      const tab = searchParams.get('tab');
+      if (supplierId && !viewingId) {
+        const supplier = suppliers.find(s => s._id === supplierId);
+        if (supplier) {
+          handleView(supplierId);
+          if (tab === 'solde') {
+            setTimeout(() => setActiveTab('solde'), 300);
+          }
+        }
+      }
+    }
+  }, [suppliers, searchParams, tenantId]);
 
   const fetchSuppliers = async () => {
     try {
@@ -216,7 +266,25 @@ export default function SuppliersPage() {
     setShowModal(true);
   }
 
-  function handleView(id: string) {
+  const fetchBalanceData = async (supplierId: string) => {
+    if (!tenantId) return;
+    try {
+      setLoadingBalance(true);
+      const response = await fetch(`/api/suppliers/${supplierId}/balance`, {
+        headers: { 'X-Tenant-Id': tenantId },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setBalanceData(data);
+      }
+    } catch (err) {
+      console.error('Error fetching balance data:', err);
+    } finally {
+      setLoadingBalance(false);
+    }
+  };
+
+  async function handleView(id: string) {
     const s = suppliers.find(x => x._id === id);
     if (!s) return;
     setEditingId(null);
@@ -259,6 +327,24 @@ export default function SuppliersPage() {
     });
     setActiveTab('identite');
     setShowModal(true);
+    
+    // Fetch statistics
+    if (tenantId) {
+      setLoadingStatistics(true);
+      try {
+        const res = await fetch(`/api/suppliers/${id}/statistics`, {
+          headers: { 'X-Tenant-Id': tenantId },
+        });
+        if (res.ok) {
+          const stats = await res.json();
+          setStatistics(stats);
+        }
+      } catch (err) {
+        console.error('Error fetching statistics:', err);
+      } finally {
+        setLoadingStatistics(false);
+      }
+    }
   }
 
   async function handleDelete(id: string) {
@@ -380,10 +466,15 @@ export default function SuppliersPage() {
               {/* Tabs */}
               <div className="px-6 pt-4 border-b sticky top-[73px] bg-white">
                 <div className="flex gap-4">
-                  {(['identite', 'adresse', 'paiement', 'banque'] as const).map(tab => (
+                  {(['identite', 'adresse', 'paiement', 'banque', 'solde'] as const).map(tab => (
                     <button
                       key={tab}
-                      onClick={() => setActiveTab(tab)}
+                      onClick={() => {
+                        setActiveTab(tab);
+                        if (tab === 'solde' && viewingId && tenantId) {
+                          fetchBalanceData(viewingId);
+                        }
+                      }}
                       className={`px-4 py-2 font-medium transition-colors ${
                         activeTab === tab ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-600 hover:text-gray-900'
                       }`}
@@ -392,6 +483,7 @@ export default function SuppliersPage() {
                       {tab === 'adresse' && 'Adresses'}
                       {tab === 'paiement' && 'Paiement & Achat'}
                       {tab === 'banque' && 'Banque'}
+                      {tab === 'solde' && 'Solde & échéances'}
                     </button>
                   ))}
                 </div>
@@ -552,6 +644,181 @@ export default function SuppliersPage() {
                         <input type="text" value={form.swift} onChange={(e) => setForm({ ...form, swift: e.target.value })} disabled={viewingId !== null} className="w-full px-3 py-2 border rounded-lg" />
                       </div>
                     </div>
+                  </div>
+                )}
+
+                {activeTab === 'statistiques' && viewingId && (
+                  <div className="p-6 space-y-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Statistiques financières</h3>
+                    {loadingStatistics ? (
+                      <div className="text-center py-8">Chargement des statistiques...</div>
+                    ) : statistics ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="bg-blue-50 rounded-lg p-4">
+                          <div className="text-sm text-gray-600 mb-1">Total des factures</div>
+                          <div className="text-2xl font-bold text-blue-700">
+                            {statistics.totalFactures.toFixed(3)} DT
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            {statistics.nombreFactures} facture(s)
+                          </div>
+                        </div>
+
+                        <div className="bg-green-50 rounded-lg p-4">
+                          <div className="text-sm text-gray-600 mb-1">Total payé</div>
+                          <div className="text-2xl font-bold text-green-700">
+                            {statistics.totalPaye.toFixed(3)} DT
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            {statistics.nombrePaiements} paiement(s)
+                          </div>
+                        </div>
+
+                        <div className="bg-orange-50 rounded-lg p-4 md:col-span-2">
+                          <div className="text-sm text-gray-600 mb-1">Solde restant</div>
+                          <div className={`text-2xl font-bold ${statistics.soldeRestant > 0 ? 'text-orange-700' : 'text-green-700'}`}>
+                            {statistics.soldeRestant.toFixed(3)} DT
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-gray-500">
+                        Aucune statistique disponible
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {activeTab === 'solde' && viewingId && (
+                  <div className="p-6 space-y-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Solde & échéances</h3>
+                    {loadingBalance ? (
+                      <div className="text-center py-8">Chargement des données...</div>
+                    ) : balanceData ? (
+                      <>
+                        {/* Balance Widget */}
+                        <div className="bg-gradient-to-r from-red-50 to-orange-50 rounded-lg p-6 border border-red-200">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="text-sm text-gray-600 mb-1">Solde global dû</div>
+                              <div className="text-3xl font-bold text-red-700">
+                                {balanceData.soldeDu.toFixed(3)} DT
+                              </div>
+                              {balanceData.paymentsOnAccount && balanceData.paymentsOnAccount > 0 && (
+                                <div className="text-xs text-gray-500 mt-1">
+                                  Dont {balanceData.paymentsOnAccount.toFixed(3)} DT en paiements sur compte
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex gap-4">
+                              <div className="text-center">
+                                <div className="text-xs text-gray-600 mb-1">0-30 jours</div>
+                                <div className="text-lg font-semibold text-green-700">
+                                  {balanceData.aging['0-30'].toFixed(3)} DT
+                                </div>
+                              </div>
+                              <div className="text-center">
+                                <div className="text-xs text-gray-600 mb-1">31-60 jours</div>
+                                <div className="text-lg font-semibold text-yellow-700">
+                                  {balanceData.aging['31-60'].toFixed(3)} DT
+                                </div>
+                              </div>
+                              <div className="text-center">
+                                <div className="text-xs text-gray-600 mb-1">61-90 jours</div>
+                                <div className="text-lg font-semibold text-orange-700">
+                                  {balanceData.aging['61-90'].toFixed(3)} DT
+                                </div>
+                              </div>
+                              <div className="text-center">
+                                <div className="text-xs text-gray-600 mb-1">&gt;90 jours</div>
+                                <div className="text-lg font-semibold text-red-700">
+                                  {balanceData.aging['>90'].toFixed(3)} DT
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Aging Badges */}
+                        <div className="flex gap-2 flex-wrap">
+                          <span className={`px-3 py-1 rounded-full text-sm font-medium ${balanceData.aging['0-30'] > 0 ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-500'}`}>
+                            0-30 jours: {balanceData.aging['0-30'].toFixed(3)} DT
+                          </span>
+                          <span className={`px-3 py-1 rounded-full text-sm font-medium ${balanceData.aging['31-60'] > 0 ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-500'}`}>
+                            31-60 jours: {balanceData.aging['31-60'].toFixed(3)} DT
+                          </span>
+                          <span className={`px-3 py-1 rounded-full text-sm font-medium ${balanceData.aging['61-90'] > 0 ? 'bg-orange-100 text-orange-800' : 'bg-gray-100 text-gray-500'}`}>
+                            61-90 jours: {balanceData.aging['61-90'].toFixed(3)} DT
+                          </span>
+                          <span className={`px-3 py-1 rounded-full text-sm font-medium ${balanceData.aging['>90'] > 0 ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-500'}`}>
+                            &gt;90 jours: {balanceData.aging['>90'].toFixed(3)} DT
+                          </span>
+                        </div>
+
+                        {/* Open Invoices Table */}
+                        <div>
+                          <h4 className="text-md font-semibold text-gray-900 mb-3">Factures ouvertes</h4>
+                          {balanceData.factures.length === 0 ? (
+                            <div className="text-center py-8 text-gray-500">
+                              Aucune facture ouverte
+                            </div>
+                          ) : (
+                            <div className="overflow-x-auto">
+                              <table className="w-full border-collapse">
+                                <thead>
+                                  <tr className="bg-gray-50 border-b">
+                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">N°</th>
+                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Échéance</th>
+                                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Reste</th>
+                                    <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Aging</th>
+                                    <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Actions</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {balanceData.factures.map((facture) => (
+                                    <tr key={facture._id} className="border-b hover:bg-gray-50">
+                                      <td className="px-4 py-2 text-sm font-medium text-gray-900">{facture.numero}</td>
+                                      <td className="px-4 py-2 text-sm text-gray-600">
+                                        {new Date(facture.dateFacture).toLocaleDateString('fr-FR')}
+                                      </td>
+                                      <td className="px-4 py-2 text-sm text-gray-600">
+                                        {facture.dateEcheance ? new Date(facture.dateEcheance).toLocaleDateString('fr-FR') : 'N/A'}
+                                      </td>
+                                      <td className="px-4 py-2 text-sm text-right font-medium text-red-600">
+                                        {facture.soldeRestant.toFixed(3)} DT
+                                      </td>
+                                      <td className="px-4 py-2 text-center">
+                                        <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                          facture.aging === '0-30' ? 'bg-green-100 text-green-800' :
+                                          facture.aging === '31-60' ? 'bg-yellow-100 text-yellow-800' :
+                                          facture.aging === '61-90' ? 'bg-orange-100 text-orange-800' :
+                                          'bg-red-100 text-red-800'
+                                        }`}>
+                                          {facture.aging}
+                                        </span>
+                                      </td>
+                                      <td className="px-4 py-2 text-center">
+                                        <button
+                                          onClick={() => window.open(`/purchases/invoices/${facture._id}`, '_blank')}
+                                          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                                        >
+                                          Payer
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    ) : (
+                      <div className="text-center py-8 text-gray-500">
+                        Aucune donnée disponible
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

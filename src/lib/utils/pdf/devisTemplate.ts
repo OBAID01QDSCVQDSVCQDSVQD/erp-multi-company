@@ -115,8 +115,12 @@ interface QuoteData {
   totalTTC: number;
   modePaiement?: string;
   notes?: string;
-  documentType?: string; // New optional field for document type (DEVIS, Bon de commande, etc.)
+  documentType?: string; // New optional field for document type (DEVIS, Bon de commande, BON DE LIVRAISON, etc.)
   adresseLivraison?: string; // For purchase orders
+  dateLivraisonPrevue?: string; // For delivery notes
+  dateLivraisonReelle?: string; // For delivery notes
+  lieuLivraison?: string; // For delivery notes
+  moyenTransport?: string; // For delivery notes
 }
 
 interface CompanyInfo {
@@ -235,9 +239,22 @@ function drawInfoBlocks(doc: jsPDF, quoteData: QuoteData, companyInfo: CompanyIn
   const clientX = 120;
   const h = 28;
 
-  // N° document + date + validité (si applicable)
-  const isPurchaseOrder = quoteData.documentType && (quoteData.documentType.toLowerCase().includes('commande') || quoteData.documentType.toLowerCase().includes('bon'));
-  const docNumberLabel = isPurchaseOrder ? 'Numéro de commande' : 'Numéro de devis';
+  // Determine document type
+  const docType = quoteData.documentType?.toLowerCase() || '';
+  const isInvoice = docType.includes('facture');
+  const isDeliveryNote = docType.includes('livraison') || docType.includes('bon de livraison');
+  const isPurchaseOrder = docType.includes('commande') && (docType.includes('achat') || docType.includes('réception') || docType.includes('reception'));
+  const isQuote = !isDeliveryNote && !isPurchaseOrder && !isInvoice;
+  
+  // Set document number label based on type
+  let docNumberLabel = 'Numéro de devis';
+  if (isInvoice) {
+    docNumberLabel = 'Numéro de facture';
+  } else if (isDeliveryNote) {
+    docNumberLabel = 'Numéro de bon de livraison';
+  } else if (isPurchaseOrder) {
+    docNumberLabel = 'Numéro de commande';
+  }
   
   doc.setFontSize(9).setFont('helvetica', 'normal');
   doc.text(docNumberLabel, col1X, startY + 4);
@@ -247,11 +264,28 @@ function drawInfoBlocks(doc: jsPDF, quoteData: QuoteData, companyInfo: CompanyIn
   doc.setTextColor(0, 0, 0);
   doc.setFont('helvetica', 'normal');
   
-  // Only show validité for quotes, show adresseLivraison for purchase orders
-  if (isPurchaseOrder && quoteData.adresseLivraison) {
+  // Show different fields based on document type
+  if (isInvoice) {
+    // For invoices, show dateEcheance (due date)
+    if (quoteData.dateValidite) { // dateValidite is used for dateEcheance in invoices
+      doc.text('Date échéance', col1X, startY + 17);
+      doc.text(new Date(quoteData.dateValidite).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }), col1X, startY + 23);
+    }
+  } else if (isDeliveryNote) {
+    // For delivery notes, show dateLivraisonPrevue or lieuLivraison
+    if (quoteData.dateLivraisonPrevue) {
+      doc.text('Date livraison prévue', col1X, startY + 17);
+      doc.text(new Date(quoteData.dateLivraisonPrevue).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }), col1X, startY + 23);
+    } else if (quoteData.lieuLivraison) {
+      doc.text('Lieu de livraison', col1X, startY + 17);
+      doc.text(quoteData.lieuLivraison, col1X, startY + 23);
+    }
+  } else if (isPurchaseOrder && quoteData.adresseLivraison) {
+    // For purchase orders, show adresseLivraison
     doc.text('Adresse livraison', col1X, startY + 17);
     doc.text(quoteData.adresseLivraison, col1X, startY + 23);
-  } else if (!isPurchaseOrder) {
+  } else if (isQuote) {
+    // For quotes, show validité
     doc.text('Validité', col1X, startY + 17);
     const validite = quoteData.dateValidite 
       ? new Date(quoteData.dateValidite).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
@@ -266,6 +300,7 @@ function drawInfoBlocks(doc: jsPDF, quoteData: QuoteData, companyInfo: CompanyIn
   doc.setFont('helvetica', 'normal');
 
   // Bloc client/fournisseur à droite
+  // Delivery notes and quotes are for clients, purchase orders are for suppliers
   const partyLabel = isPurchaseOrder ? 'Fournisseur' : 'Client';
   doc.setFillColor(238, 244, 255);
   
@@ -432,12 +467,17 @@ function drawTotals(doc: jsPDF, quoteData: QuoteData, startY: number, maxHeightB
   const w = 75;
   const lineH = 6;
   const currencySymbol = quoteData.devise === 'TND' ? ' DT' : ` ${quoteData.devise}`;
+  
+  // Determine if this is a delivery note
+  const docType = quoteData.documentType?.toLowerCase() || '';
+  const isDeliveryNote = docType.includes('livraison') || docType.includes('bon de livraison');
 
   const rows: Array<[string, number | undefined]> = [
     ['Total HT', quoteData.totalBaseHT],
     ['Total Remise', quoteData.totalRemise],
     ['Total TVA', quoteData.totalTVA],
-    ['Timbre fiscal', quoteData.timbreFiscal],
+    // Skip Timbre fiscal for delivery notes
+    ...(isDeliveryNote ? [] : [['Timbre fiscal', quoteData.timbreFiscal] as [string, number | undefined]]),
   ];
 
   // Calculate box height (only for totals, without Arrêté and Mode de paiement)
@@ -445,6 +485,8 @@ function drawTotals(doc: jsPDF, quoteData: QuoteData, startY: number, maxHeightB
     if (!val && val !== 0) return false;
     if (label === 'Total Remise' && val === 0) return false;
     if (label === 'Total TVA' && val === 0) return false;
+    // Skip Timbre fiscal for delivery notes (should not appear at all)
+    if (label === 'Timbre fiscal' && isDeliveryNote) return false;
     return true;
   });
   

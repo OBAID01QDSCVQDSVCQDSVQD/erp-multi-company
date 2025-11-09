@@ -24,6 +24,7 @@ export interface IDocument extends Document {
   type: 'DEVIS' | 'BC' | 'BL' | 'FAC' | 'AVOIR' | 'PO' | 'BR' | 'FACFO' | 'AVOIRFO';
   numero: string;
   dateDoc: Date;
+  statut?: 'BROUILLON' | 'VALIDEE' | 'PARTIELLEMENT_PAYEE' | 'PAYEE' | 'ANNULEE';
   
   // Party (customer or supplier)
   customerId?: string;
@@ -50,6 +51,7 @@ export interface IDocument extends Document {
   retenueSource?: number;
   netAPayer: number;
   totalTVADeductible?: number; // For purchases
+  remiseGlobalePct?: number; // Global discount percentage
   
   // Settings
   devise?: string;
@@ -92,6 +94,7 @@ const DocumentSchema = new Schema<IDocument>({
   type: { type: String, enum: ['DEVIS', 'BC', 'BL', 'FAC', 'AVOIR', 'PO', 'BR', 'FACFO', 'AVOIRFO'], required: true },
   numero: { type: String, required: true },
   dateDoc: { type: Date, required: true, default: Date.now },
+  statut: { type: String, enum: ['BROUILLON', 'VALIDEE', 'PARTIELLEMENT_PAYEE', 'PAYEE', 'ANNULEE'], default: 'BROUILLON' },
   
   customerId: { type: String },
   supplierId: { type: String },
@@ -113,6 +116,7 @@ const DocumentSchema = new Schema<IDocument>({
   retenueSource: { type: Number, default: 0 },
   netAPayer: { type: Number, default: 0 },
   totalTVADeductible: { type: Number, default: 0 },
+  remiseGlobalePct: { type: Number, default: 0, min: 0, max: 100 },
   
   devise: { type: String, default: 'TND' },
   tauxChange: { type: Number, default: 1 },

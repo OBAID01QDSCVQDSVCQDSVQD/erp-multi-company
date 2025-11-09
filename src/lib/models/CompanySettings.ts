@@ -49,6 +49,7 @@ export interface INumerotation {
   br: string;
   facfo: string;
   avoirfo: string;
+  pafo: string;
 }
 
 export interface IVentes {
@@ -214,6 +215,7 @@ const NumerotationSchema = new Schema<INumerotation>({
   br: { type: String, required: true, default: 'BR-{{YYYY}}-{{SEQ:5}}' },
   facfo: { type: String, required: true, default: 'FACFO-{{YYYY}}-{{SEQ:5}}' },
   avoirfo: { type: String, required: true, default: 'AVOIRFO-{{YYYY}}-{{SEQ:5}}' },
+  pafo: { type: String, required: true, default: 'PAFO-{{YYYY}}-{{SEQ:5}}' },
 }, { _id: false });
 
 const VentesSchema = new Schema<IVentes>({
