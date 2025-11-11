@@ -1,28 +1,28 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
-import { useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
+import { useState, useEffect, useRef } from 'react';
+import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { 
-  BuildingOfficeIcon, 
-  LockClosedIcon, 
-  ChartBarIcon, 
-  ShoppingBagIcon,
-  ArrowRightIcon,
+  BuildingOfficeIcon,
   CheckCircleIcon,
-  Bars3Icon,
   XMarkIcon,
+  ArrowRightIcon,
+  SparklesIcon,
+  RocketLaunchIcon,
+  TrophyIcon,
   ChevronDownIcon,
+  Bars3Icon,
   CreditCardIcon,
-  UserGroupIcon,
-  CogIcon,
   CurrencyEuroIcon,
+  CogIcon,
   UserCircleIcon,
+  ChartBarIcon,
   ArrowRightOnRectangleIcon
 } from '@heroicons/react/24/outline';
 
-export default function Home() {
+export default function PricingPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
@@ -35,7 +35,6 @@ export default function Home() {
 
   useEffect(() => {
     setMounted(true);
-    // Removed automatic redirect to allow users to visit the home page even when logged in
     return () => {
       if (userMenuTimeoutRef.current) {
         clearTimeout(userMenuTimeoutRef.current);
@@ -64,9 +63,117 @@ export default function Home() {
       </div>
     );
   }
+  const plans = [
+    {
+      name: 'Gratuit',
+      price: '0',
+      currency: 'DT',
+      period: '/mois',
+      description: 'Parfait pour tester et démarrer',
+      icon: SparklesIcon,
+      color: 'from-gray-400 to-gray-600',
+      borderColor: 'border-gray-300',
+      buttonColor: 'from-gray-600 to-gray-700',
+      popular: false,
+      features: [
+        { text: '100 documents par an', included: true },
+        { text: 'Gestion multi-entreprises', included: true },
+        { text: 'Clients et fournisseurs illimités', included: true },
+        { text: 'Gestion du stock', included: true },
+        { text: 'Facturation de base', included: true },
+        { text: 'Rapports basiques', included: true },
+        { text: 'Support par email', included: true },
+        { text: 'Plus de 100 documents/an', included: false },
+        { text: 'Rapports avancés', included: false },
+        { text: 'Support prioritaire', included: false },
+        { text: 'API access', included: false },
+      ],
+      limit: '100 documents/an'
+    },
+    {
+      name: 'Starter',
+      price: '20',
+      currency: 'DT',
+      period: '/mois',
+      description: 'Idéal pour les petites entreprises',
+      icon: RocketLaunchIcon,
+      color: 'from-blue-500 to-indigo-600',
+      borderColor: 'border-blue-400',
+      buttonColor: 'from-blue-600 to-indigo-700',
+      popular: true,
+      features: [
+        { text: '1,000 documents par an', included: true },
+        { text: 'Gestion multi-entreprises', included: true },
+        { text: 'Clients et fournisseurs illimités', included: true },
+        { text: 'Gestion du stock avancée', included: true },
+        { text: 'Facturation complète', included: true },
+        { text: 'Rapports détaillés', included: true },
+        { text: 'Support prioritaire', included: true },
+        { text: 'Export de données', included: true },
+        { text: 'Personnalisation des documents', included: true },
+        { text: 'Plus de 1,000 documents/an', included: false },
+        { text: 'API access', included: false },
+      ],
+      limit: '1,000 documents/an'
+    },
+    {
+      name: 'Premium',
+      price: '40',
+      currency: 'DT',
+      period: '/mois',
+      description: 'Pour les entreprises en croissance',
+      icon: TrophyIcon,
+      color: 'from-purple-500 to-pink-600',
+      borderColor: 'border-purple-400',
+      buttonColor: 'from-purple-600 to-pink-700',
+      popular: false,
+      features: [
+        { text: 'Documents illimités', included: true },
+        { text: 'Gestion multi-entreprises', included: true },
+        { text: 'Clients et fournisseurs illimités', included: true },
+        { text: 'Gestion du stock avancée', included: true },
+        { text: 'Facturation complète', included: true },
+        { text: 'Rapports avancés et analytics', included: true },
+        { text: 'Support prioritaire 24/7', included: true },
+        { text: 'Export de données illimité', included: true },
+        { text: 'Personnalisation complète', included: true },
+        { text: 'API access', included: true },
+        { text: 'Intégrations tierces', included: true },
+        { text: 'Formation personnalisée', included: true },
+      ],
+      limit: 'Illimité'
+    }
+  ];
+
+  const faqs = [
+    {
+      question: 'Qu\'est-ce qu\'un document ?',
+      answer: 'Un document correspond à un devis, bon de livraison, facture, commande d\'achat, bon de réception, ou facture fournisseur créé dans le système.'
+    },
+    {
+      question: 'Puis-je changer de plan à tout moment ?',
+      answer: 'Oui, vous pouvez mettre à niveau ou rétrograder votre plan à tout moment. Les changements prennent effet immédiatement.'
+    },
+    {
+      question: 'Que se passe-t-il si j\'atteins ma limite de documents ?',
+      answer: 'Vous recevrez une notification lorsque vous approchez de votre limite. Vous pourrez alors mettre à niveau votre plan pour continuer à utiliser le service.'
+    },
+    {
+      question: 'Les données sont-elles sauvegardées ?',
+      answer: 'Oui, toutes vos données sont sauvegardées automatiquement et de manière sécurisée. Vous pouvez exporter vos données à tout moment.'
+    },
+    {
+      question: 'Y a-t-il des frais cachés ?',
+      answer: 'Non, les prix affichés sont les prix finaux. Aucun frais caché, aucune surprise.'
+    },
+    {
+      question: 'Puis-je annuler mon abonnement ?',
+      answer: 'Oui, vous pouvez annuler votre abonnement à tout moment. Vous continuerez à avoir accès jusqu\'à la fin de la période payée.'
+    }
+  ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50">
       {/* Header */}
       <header className="bg-white shadow-md sticky top-0 z-50">
         <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -439,157 +546,239 @@ export default function Home() {
       </header>
 
       {/* Hero Section */}
-      <div id="hero" className="relative overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
+      <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white py-16 sm:py-24">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-gray-900 mb-6">
-              ERP Multi-Entreprises
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold mb-6">
+              Tarifs & Plans
             </h1>
-            <p className="text-lg sm:text-xl lg:text-2xl text-gray-600 mb-8 max-w-3xl mx-auto">
-              Solution complète de gestion d'entreprise pour plusieurs sociétés
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-              <Link
-                href="/auth/signin"
-                className="inline-flex items-center px-8 py-4 border border-transparent text-base font-medium rounded-lg text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 transform hover:scale-105 shadow-lg"
-              >
-                Se connecter
-                <ArrowRightIcon className="ml-2 h-5 w-5" />
-              </Link>
-              <Link
-                href="/auth/signup"
-                className="inline-flex items-center px-8 py-4 border-2 border-gray-300 text-base font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 transform hover:scale-105"
-              >
-                Créer une entreprise
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Features Section */}
-      <div id="features" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">
-            Fonctionnalités principales
-          </h2>
-          <p className="text-lg text-gray-600">
-            Tout ce dont vous avez besoin pour gérer votre entreprise
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {/* Feature 1 */}
-          <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-200">
-            <div className="flex items-center justify-center w-12 h-12 bg-blue-100 rounded-lg mb-4">
-              <BuildingOfficeIcon className="h-6 w-6 text-blue-600" />
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              Multi-Entreprises
-            </h3>
-            <p className="text-gray-600">
-              Gérez plusieurs entreprises depuis une seule plateforme avec isolation complète des données
-            </p>
-          </div>
-
-          {/* Feature 2 */}
-          <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-200">
-            <div className="flex items-center justify-center w-12 h-12 bg-green-100 rounded-lg mb-4">
-              <ShoppingBagIcon className="h-6 w-6 text-green-600" />
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              Gestion Complète
-            </h3>
-            <p className="text-gray-600">
-              Ventes, achats, stock, facturation et comptabilité dans une solution intégrée
-            </p>
-          </div>
-
-          {/* Feature 3 */}
-          <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-200">
-            <div className="flex items-center justify-center w-12 h-12 bg-purple-100 rounded-lg mb-4">
-              <ChartBarIcon className="h-6 w-6 text-purple-600" />
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              Rapports Avancés
-            </h3>
-            <p className="text-gray-600">
-              Tableaux de bord interactifs et rapports détaillés pour une meilleure prise de décision
-            </p>
-          </div>
-
-          {/* Feature 4 */}
-          <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-200">
-            <div className="flex items-center justify-center w-12 h-12 bg-yellow-100 rounded-lg mb-4">
-              <LockClosedIcon className="h-6 w-6 text-yellow-600" />
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              Sécurisé
-            </h3>
-            <p className="text-gray-600">
-              Données protégées avec authentification sécurisée et isolation par entreprise
-            </p>
-          </div>
-
-          {/* Feature 5 */}
-          <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-200">
-            <div className="flex items-center justify-center w-12 h-12 bg-indigo-100 rounded-lg mb-4">
-              <CheckCircleIcon className="h-6 w-6 text-indigo-600" />
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              Facile à utiliser
-            </h3>
-            <p className="text-gray-600">
-              Interface intuitive et moderne pour une prise en main rapide
-            </p>
-          </div>
-
-          {/* Feature 6 */}
-          <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-200">
-            <div className="flex items-center justify-center w-12 h-12 bg-red-100 rounded-lg mb-4">
-              <svg className="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              Rapide et Performant
-            </h3>
-            <p className="text-gray-600">
-              Technologie moderne pour des performances optimales et une expérience fluide
+            <p className="text-xl sm:text-2xl text-indigo-100 max-w-3xl mx-auto">
+              Choisissez le plan qui correspond le mieux à vos besoins. Tous les plans incluent toutes les fonctionnalités.
             </p>
           </div>
         </div>
       </div>
+
+      {/* Pricing Cards */}
+      <section className="py-16 -mt-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-10">
+            {plans.map((plan, index) => (
+              <div
+                key={index}
+                className={`relative bg-white rounded-2xl shadow-xl border-2 ${
+                  plan.popular ? plan.borderColor : 'border-gray-200'
+                } overflow-hidden transition-all duration-200 hover:shadow-2xl hover:scale-105`}
+              >
+                {plan.popular && (
+                  <div className={`absolute top-0 left-0 right-0 bg-gradient-to-r ${plan.color} text-white text-center py-2 text-sm font-semibold`}>
+                    Le plus populaire
+                  </div>
+                )}
+                
+                <div className={`pt-${plan.popular ? '12' : '8'} pb-8 px-8`}>
+                  <div className="text-center mb-6">
+                    <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-r ${plan.color} mb-4`}>
+                      <plan.icon className="h-8 w-8 text-white" />
+                    </div>
+                    <h3 className="text-2xl font-bold text-gray-900 mb-2">{plan.name}</h3>
+                    <p className="text-gray-600 text-sm mb-4">{plan.description}</p>
+                    <div className="mb-4">
+                      <span className="text-5xl font-extrabold text-gray-900">{plan.price}</span>
+                      <span className="text-xl text-gray-600 ml-1">{plan.currency}</span>
+                      <span className="text-gray-600 ml-1">{plan.period}</span>
+                    </div>
+                    <div className={`inline-block px-4 py-2 rounded-full text-sm font-medium ${
+                      plan.color.includes('gray') ? 'bg-gray-100 text-gray-700' :
+                      plan.color.includes('blue') ? 'bg-blue-100 text-blue-700' :
+                      'bg-purple-100 text-purple-700'
+                    }`}>
+                      {plan.limit}
+                    </div>
+                  </div>
+
+                  <ul className="space-y-4 mb-8">
+                    {plan.features.map((feature, idx) => (
+                      <li key={idx} className="flex items-start">
+                        {feature.included ? (
+                          <CheckCircleIcon className="h-6 w-6 text-green-500 mr-3 flex-shrink-0 mt-0.5" />
+                        ) : (
+                          <XMarkIcon className="h-6 w-6 text-gray-300 mr-3 flex-shrink-0 mt-0.5" />
+                        )}
+                        <span className={`text-sm ${feature.included ? 'text-gray-700' : 'text-gray-400 line-through'}`}>
+                          {feature.text}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <Link
+                    href="/auth/signup"
+                    className={`block w-full text-center px-6 py-3 rounded-lg font-semibold text-white bg-gradient-to-r ${plan.buttonColor} hover:shadow-lg transition-all duration-200 transform hover:scale-105`}
+                  >
+                    {plan.name === 'Gratuit' ? 'Commencer gratuitement' : 'Choisir ce plan'}
+                    <ArrowRightIcon className="inline-block ml-2 h-5 w-5" />
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Comparison Table */}
+      <section className="py-16 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+              Comparaison des plans
+            </h2>
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+              Comparez les fonctionnalités de chaque plan
+            </p>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b-2 border-gray-200">
+                  <th className="text-left py-4 px-6 font-semibold text-gray-900">Fonctionnalité</th>
+                  <th className="text-center py-4 px-6 font-semibold text-gray-900">Gratuit</th>
+                  <th className="text-center py-4 px-6 font-semibold text-gray-900">Starter</th>
+                  <th className="text-center py-4 px-6 font-semibold text-gray-900">Premium</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                <tr>
+                  <td className="py-4 px-6 text-gray-700">Documents par an</td>
+                  <td className="py-4 px-6 text-center">100</td>
+                  <td className="py-4 px-6 text-center">1,000</td>
+                  <td className="py-4 px-6 text-center font-semibold text-purple-600">Illimité</td>
+                </tr>
+                <tr className="bg-gray-50">
+                  <td className="py-4 px-6 text-gray-700">Multi-entreprises</td>
+                  <td className="py-4 px-6 text-center"><CheckCircleIcon className="h-6 w-6 text-green-500 mx-auto" /></td>
+                  <td className="py-4 px-6 text-center"><CheckCircleIcon className="h-6 w-6 text-green-500 mx-auto" /></td>
+                  <td className="py-4 px-6 text-center"><CheckCircleIcon className="h-6 w-6 text-green-500 mx-auto" /></td>
+                </tr>
+                <tr>
+                  <td className="py-4 px-6 text-gray-700">Clients & Fournisseurs</td>
+                  <td className="py-4 px-6 text-center font-semibold text-green-600">Illimité</td>
+                  <td className="py-4 px-6 text-center font-semibold text-green-600">Illimité</td>
+                  <td className="py-4 px-6 text-center font-semibold text-green-600">Illimité</td>
+                </tr>
+                <tr className="bg-gray-50">
+                  <td className="py-4 px-6 text-gray-700">Gestion du stock</td>
+                  <td className="py-4 px-6 text-center"><CheckCircleIcon className="h-6 w-6 text-green-500 mx-auto" /></td>
+                  <td className="py-4 px-6 text-center"><CheckCircleIcon className="h-6 w-6 text-green-500 mx-auto" /></td>
+                  <td className="py-4 px-6 text-center"><CheckCircleIcon className="h-6 w-6 text-green-500 mx-auto" /></td>
+                </tr>
+                <tr>
+                  <td className="py-4 px-6 text-gray-700">Rapports avancés</td>
+                  <td className="py-4 px-6 text-center"><XMarkIcon className="h-6 w-6 text-gray-300 mx-auto" /></td>
+                  <td className="py-4 px-6 text-center"><CheckCircleIcon className="h-6 w-6 text-green-500 mx-auto" /></td>
+                  <td className="py-4 px-6 text-center"><CheckCircleIcon className="h-6 w-6 text-green-500 mx-auto" /></td>
+                </tr>
+                <tr className="bg-gray-50">
+                  <td className="py-4 px-6 text-gray-700">Support prioritaire</td>
+                  <td className="py-4 px-6 text-center"><XMarkIcon className="h-6 w-6 text-gray-300 mx-auto" /></td>
+                  <td className="py-4 px-6 text-center"><CheckCircleIcon className="h-6 w-6 text-green-500 mx-auto" /></td>
+                  <td className="py-4 px-6 text-center"><CheckCircleIcon className="h-6 w-6 text-green-500 mx-auto" /></td>
+                </tr>
+                <tr>
+                  <td className="py-4 px-6 text-gray-700">API Access</td>
+                  <td className="py-4 px-6 text-center"><XMarkIcon className="h-6 w-6 text-gray-300 mx-auto" /></td>
+                  <td className="py-4 px-6 text-center"><XMarkIcon className="h-6 w-6 text-gray-300 mx-auto" /></td>
+                  <td className="py-4 px-6 text-center"><CheckCircleIcon className="h-6 w-6 text-green-500 mx-auto" /></td>
+                </tr>
+                <tr className="bg-gray-50">
+                  <td className="py-4 px-6 text-gray-700">Intégrations tierces</td>
+                  <td className="py-4 px-6 text-center"><XMarkIcon className="h-6 w-6 text-gray-300 mx-auto" /></td>
+                  <td className="py-4 px-6 text-center"><XMarkIcon className="h-6 w-6 text-gray-300 mx-auto" /></td>
+                  <td className="py-4 px-6 text-center"><CheckCircleIcon className="h-6 w-6 text-green-500 mx-auto" /></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ Section */}
+      <section className="py-16 bg-gradient-to-br from-indigo-50 to-purple-50">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+              Questions fréquentes
+            </h2>
+            <p className="text-lg text-gray-600">
+              Tout ce que vous devez savoir sur nos tarifs
+            </p>
+          </div>
+
+          <div className="space-y-6">
+            {faqs.map((faq, index) => (
+              <div key={index} className="bg-white rounded-xl shadow-md p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  {faq.question}
+                </h3>
+                <p className="text-gray-600">
+                  {faq.answer}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
       {/* CTA Section */}
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 mt-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-          <div className="text-center">
-            <h2 className="text-3xl font-bold text-white mb-4">
-              Prêt à commencer ?
-            </h2>
-            <p className="text-xl text-blue-100 mb-8">
-              Créez votre compte gratuitement et commencez à gérer votre entreprise dès aujourd'hui
-            </p>
+      <section className="py-16 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
+            Prêt à commencer ?
+          </h2>
+          <p className="text-xl text-indigo-100 mb-8 max-w-2xl mx-auto">
+            Commencez gratuitement dès aujourd'hui. Aucune carte bancaire requise.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               href="/auth/signup"
-              className="inline-flex items-center px-8 py-4 border-2 border-white text-base font-medium rounded-lg text-blue-600 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white transition-all duration-200 transform hover:scale-105 shadow-lg"
+              className="inline-flex items-center px-8 py-4 border-2 border-white text-base font-medium rounded-lg text-indigo-600 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white transition-all duration-200 transform hover:scale-105 shadow-lg"
             >
-              Créer mon entreprise
+              Commencer gratuitement
               <ArrowRightIcon className="ml-2 h-5 w-5" />
+            </Link>
+            <Link
+              href="/features"
+              className="inline-flex items-center px-8 py-4 border-2 border-white text-base font-medium rounded-lg text-white hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white transition-all duration-200"
+            >
+              Voir les fonctionnalités
             </Link>
           </div>
         </div>
-      </div>
+      </section>
 
       {/* Footer */}
       <footer className="bg-gray-900 text-gray-300 py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <p className="text-sm">
-            © {new Date().getFullYear()} ERP Multi-Entreprises. Tous droits réservés.
-          </p>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col md:flex-row justify-between items-center">
+            <p className="text-sm mb-4 md:mb-0">
+              © {new Date().getFullYear()} ERP Multi-Entreprises. Tous droits réservés.
+            </p>
+            <div className="flex space-x-6">
+              <Link href="/" className="text-sm hover:text-white transition-colors">
+                Accueil
+              </Link>
+              <Link href="/features" className="text-sm hover:text-white transition-colors">
+                Fonctionnalités
+              </Link>
+              <Link href="/pricing" className="text-sm hover:text-white transition-colors">
+                Tarifs
+              </Link>
+            </div>
+          </div>
         </div>
       </footer>
     </div>
   );
 }
+

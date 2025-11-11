@@ -22,12 +22,15 @@ import {
   ClipboardDocumentCheckIcon,
   CubeIcon,
   BanknotesIcon,
+  CreditCardIcon,
 } from '@heroicons/react/24/outline';
 
 const navigation = [
   { name: 'Tableau de bord', href: '/dashboard', icon: HomeIcon, permission: null }, // Always visible
   { name: 'Entreprises', href: '/companies', icon: BuildingOfficeIcon, permission: 'settings' },
   { name: 'Utilisateurs', href: '/users', icon: UserGroupIcon, permission: 'users' },
+  { name: 'Mon abonnement', href: '/subscriptions', icon: CreditCardIcon, permission: null }, // All users can see their own subscription
+  { name: 'Gérer les abonnements', href: '/subscriptions/manage', icon: CreditCardIcon, permission: 'settings' }, // Admin only - manages all subscriptions
   { name: '💼 Ventes', href: '#', icon: ShoppingBagIcon, hasSubmenu: true, permission: null, submenu: [
     { name: 'Clients', href: '/customers', icon: UserGroupIcon, permission: 'customers' },
     { name: 'Devis', href: '/sales/quotes', icon: DocumentTextIcon, permission: 'quotes' },
