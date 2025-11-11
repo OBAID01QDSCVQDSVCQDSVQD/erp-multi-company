@@ -67,12 +67,12 @@ export async function PATCH(request: NextRequest) {
         societe: {
           nom: 'Nouvelle Entreprise',
           adresse: {
-            rue: '',
-            ville: '',
-            codePostal: '',
+            rue: 'Non spécifié',
+            ville: 'Non spécifié',
+            codePostal: '0000',
             pays: 'Tunisie',
           },
-          tva: '',
+          tva: 'Non spécifié',
           devise: 'TND',
           langue: 'fr',
           fuseau: 'Africa/Tunis',
@@ -131,8 +131,8 @@ export async function PATCH(request: NextRequest) {
     if (!settings.societe) {
       settings.societe = {
         nom: 'Nouvelle Entreprise',
-        adresse: { rue: '', ville: '', codePostal: '', pays: 'Tunisie' },
-        tva: '',
+        adresse: { rue: 'Non spécifié', ville: 'Non spécifié', codePostal: '0000', pays: 'Tunisie' },
+        tva: 'Non spécifié',
         devise: 'TND',
         langue: 'fr',
         fuseau: 'Africa/Tunis',

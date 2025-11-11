@@ -12,7 +12,7 @@ const StockStateSchema = new Schema<IStockState>({
   actif: { type: Boolean, default: true },
 });
 
-StockStateSchema.index({ code: 1 }, { unique: true });
+// Note: 'unique: true' on code already creates the unique index. No need for schema.index()
 
 export default mongoose.models.StockState || mongoose.model<IStockState>('StockState', StockStateSchema);
 

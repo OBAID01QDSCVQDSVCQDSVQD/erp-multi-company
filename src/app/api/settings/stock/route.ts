@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     let settings = await (CompanySettings as any).findOne({ tenantId });
     if (!settings) {
       // getOrCreate: créer avec defaults implicites du schéma
-      settings = new CompanySettings({ tenantId, societe: { nom: 'Nouvelle Entreprise', adresse: { rue: '', ville: '', codePostal: '', pays: 'Tunisie' }, tva: '', devise: 'TND', langue: 'fr', fuseau: 'Africa/Tunis' }, numerotation: { devis: 'DEV-{{YYYY}}-{{SEQ:5}}', bl: 'BL-{{YY}}{{MM}}-{{SEQ:4}}', facture: 'FAC-{{YYYY}}-{{SEQ:5}}', avoir: 'AVR-{{YYYY}}-{{SEQ:5}}' }, ventes: {}, achats: {}, depenses: {}, stock: {}, securite: {}, systeme: {}, tva: {} } as any);
+      settings = new CompanySettings({ tenantId, societe: { nom: 'Nouvelle Entreprise', adresse: { rue: 'Non spécifié', ville: 'Non spécifié', codePostal: '0000', pays: 'Tunisie' }, tva: 'Non spécifié', devise: 'TND', langue: 'fr', fuseau: 'Africa/Tunis' }, numerotation: { devis: 'DEV-{{YYYY}}-{{SEQ:5}}', bl: 'BL-{{YY}}{{MM}}-{{SEQ:4}}', facture: 'FAC-{{YYYY}}-{{SEQ:5}}', avoir: 'AVR-{{YYYY}}-{{SEQ:5}}' }, ventes: {}, achats: {}, depenses: {}, stock: {}, securite: {}, systeme: {}, tva: {} } as any);
       await (settings as any).save();
     }
     return NextResponse.json(settings.stock);

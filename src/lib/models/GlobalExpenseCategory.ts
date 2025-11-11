@@ -46,7 +46,6 @@ const GlobalExpenseCategorySchema = new Schema<IGlobalExpenseCategory>({
   timestamps: true,
 });
 
-// Index unique pour code
-GlobalExpenseCategorySchema.index({ code: 1 }, { unique: true });
+// Note: 'unique: true' on code already creates the unique index. No need for schema.index()
 
 export default mongoose.models.GlobalExpenseCategory || mongoose.model<IGlobalExpenseCategory>('GlobalExpenseCategory', GlobalExpenseCategorySchema);

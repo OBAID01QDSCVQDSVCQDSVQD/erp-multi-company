@@ -35,12 +35,31 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+    
+    if (!session) {
+      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+    }
+
+    // Vérifier que l'utilisateur est admin
+    if (session.user.role !== 'admin') {
+      return NextResponse.json({ error: 'Accès refusé. Seuls les administrateurs peuvent créer des utilisateurs.' }, { status: 403 });
+    }
+
     const body = await request.json();
-    const { email, password, firstName, lastName, role, permissions, companyId } = body;
+    const { email, password, firstName, lastName, role, permissions } = body;
+    
+    if (!email || !password || !firstName || !lastName) {
+      return NextResponse.json(
+        { error: 'Tous les champs sont requis' },
+        { status: 400 }
+      );
+    }
+
+    await connectDB();
     
     // Vérifier si l'utilisateur existe déjà
-    await connectDB();
-    const existingUser = await (User as any).findOne({ email });
+    const existingUser = await (User as any).findOne({ email: email.toLowerCase().trim() });
     if (existingUser) {
       return NextResponse.json(
         { error: 'Un utilisateur avec cet email existe déjà' },
@@ -52,13 +71,14 @@ export async function POST(request: NextRequest) {
     const hashedPassword = await bcrypt.hash(password, 12);
 
     const user = new (User as any)({
-      email,
+      email: email.toLowerCase().trim(),
       password: hashedPassword,
       firstName,
       lastName,
       role: role || 'user',
       permissions: permissions || [],
-      companyId: companyId,
+      companyId: session.user.companyId,
+      isActive: true,
     });
 
     await (user as any).save();

@@ -25,35 +25,35 @@ import {
 } from '@heroicons/react/24/outline';
 
 const navigation = [
-  { name: 'Tableau de bord', href: '/dashboard', icon: HomeIcon },
-  { name: 'Entreprises', href: '/companies', icon: BuildingOfficeIcon },
-  { name: 'Utilisateurs', href: '/users', icon: UserGroupIcon },
-  { name: '💼 Ventes', href: '#', icon: ShoppingBagIcon, hasSubmenu: true, submenu: [
-    { name: 'Clients', href: '/customers', icon: UserGroupIcon },
-    { name: 'Devis', href: '/sales/quotes', icon: DocumentTextIcon },
-    { name: 'Commandes clients', href: '/sales/orders', icon: ShoppingCartIcon },
-    { name: 'Bons de livraison', href: '/sales/deliveries', icon: TruckIcon },
-    { name: 'Factures clients', href: '/sales/invoices', icon: DocumentTextIcon },
-    { name: 'Paiements clients', href: '/sales/payments', icon: BanknotesIcon },
-    { name: 'Soldes clients', href: '/customers/balances', icon: BanknotesIcon },
+  { name: 'Tableau de bord', href: '/dashboard', icon: HomeIcon, permission: null }, // Always visible
+  { name: 'Entreprises', href: '/companies', icon: BuildingOfficeIcon, permission: 'settings' },
+  { name: 'Utilisateurs', href: '/users', icon: UserGroupIcon, permission: 'users' },
+  { name: '💼 Ventes', href: '#', icon: ShoppingBagIcon, hasSubmenu: true, permission: null, submenu: [
+    { name: 'Clients', href: '/customers', icon: UserGroupIcon, permission: 'customers' },
+    { name: 'Devis', href: '/sales/quotes', icon: DocumentTextIcon, permission: 'quotes' },
+    { name: 'Commandes clients', href: '/sales/orders', icon: ShoppingCartIcon, permission: 'sales_orders' },
+    { name: 'Bons de livraison', href: '/sales/deliveries', icon: TruckIcon, permission: 'deliveries' },
+    { name: 'Factures clients', href: '/sales/invoices', icon: DocumentTextIcon, permission: 'sales_invoices' },
+    { name: 'Paiements clients', href: '/sales/payments', icon: BanknotesIcon, permission: 'customer_payments' },
+    { name: 'Soldes clients', href: '/customers/balances', icon: BanknotesIcon, permission: 'customer_balances' },
   ]},
-  { name: '📦 Achats', href: '#', icon: ShoppingCartIcon, hasSubmenu: true, submenu: [
-    { name: 'Fournisseurs', href: '/suppliers', icon: UserGroupIcon },
-    { name: 'Commandes d\'achat', href: '/purchases/orders', icon: ShoppingCartIcon },
-    { name: 'Bons de réception', href: '/purchases/receipts', icon: ClipboardDocumentCheckIcon },
-    { name: 'Factures fournisseurs', href: '/purchases/invoices', icon: DocumentTextIcon },
-    { name: 'Paiements fournisseurs', href: '/purchases/payments', icon: BanknotesIcon },
-    { name: 'Soldes fournisseurs', href: '/suppliers/balances', icon: BanknotesIcon },
+  { name: '📦 Achats', href: '#', icon: ShoppingCartIcon, hasSubmenu: true, permission: null, submenu: [
+    { name: 'Fournisseurs', href: '/suppliers', icon: UserGroupIcon, permission: 'suppliers' },
+    { name: 'Commandes d\'achat', href: '/purchases/orders', icon: ShoppingCartIcon, permission: 'purchase_orders' },
+    { name: 'Bons de réception', href: '/purchases/receipts', icon: ClipboardDocumentCheckIcon, permission: 'receipts' },
+    { name: 'Factures fournisseurs', href: '/purchases/invoices', icon: DocumentTextIcon, permission: 'purchase_invoices' },
+    { name: 'Paiements fournisseurs', href: '/purchases/payments', icon: BanknotesIcon, permission: 'supplier_payments' },
+    { name: 'Soldes fournisseurs', href: '/suppliers/balances', icon: BanknotesIcon, permission: 'supplier_balances' },
   ]},
-  { name: '🏭 Stock', href: '#', icon: CubeIcon, hasSubmenu: true, submenu: [
-    { name: 'Inventaire', href: '/stock', icon: CubeIcon },
-    { name: 'Produits / Articles', href: '/products', icon: ShoppingBagIcon },
-    { name: 'Mouvements de stock', href: '/stock/movements', icon: TruckIcon },
-    { name: 'Alertes stock minimum', href: '/stock/alerts', icon: ChartBarIcon },
+  { name: '🏭 Stock', href: '#', icon: CubeIcon, hasSubmenu: true, permission: null, submenu: [
+    { name: 'Inventaire', href: '/stock', icon: CubeIcon, permission: 'inventory' },
+    { name: 'Produits / Articles', href: '/products', icon: ShoppingBagIcon, permission: 'products' },
+    { name: 'Mouvements de stock', href: '/stock/movements', icon: TruckIcon, permission: 'stock_movements' },
+    { name: 'Alertes stock minimum', href: '/stock/alerts', icon: ChartBarIcon, permission: 'stock_alerts' },
   ]},
-  { name: 'Dépenses', href: '/expenses', icon: CurrencyEuroIcon },
-  { name: 'Rapports', href: '/reports', icon: ChartBarIcon },
-  { name: 'Paramètres', href: '/settings', icon: CogIcon },
+  { name: 'Dépenses', href: '/expenses', icon: CurrencyEuroIcon, permission: 'expenses' },
+  { name: 'Rapports', href: '/reports', icon: ChartBarIcon, permission: 'reports' },
+  { name: 'Paramètres', href: '/settings', icon: CogIcon, permission: 'settings' },
 ];
 
 const testPages = [
@@ -69,11 +69,62 @@ export default function Sidebar({ sidebarOpen: externalSidebarOpen, setSidebarOp
   const [internalSidebarOpen, setInternalSidebarOpen] = useState(false);
   const pathname = usePathname();
   const { data: session } = useSession();
+
+  // Check if user has permission
+  const hasPermission = (permission: string | null): boolean => {
+    if (!permission) return true; // No permission required
+    if (!session?.user) return false;
+    
+    const userPermissions = session.user.permissions || [];
+    const userRole = session.user.role;
+    
+    // Admin has all permissions
+    if (userRole === 'admin' || userPermissions.includes('all')) {
+      return true;
+    }
+    
+    // Check if user has the specific permission
+    return userPermissions.includes(permission);
+  };
+
+  // Filter navigation items based on permissions
+  const getFilteredNavigation = () => {
+    return navigation.filter((item) => {
+      if (!hasPermission(item.permission)) {
+        return false;
+      }
+      
+      // If item has submenu, filter submenu items
+      if (item.hasSubmenu && item.submenu) {
+        const filteredSubmenu = item.submenu.filter((subItem: any) => 
+          hasPermission(subItem.permission)
+        );
+        
+        // Only show parent if it has at least one visible submenu item
+        return filteredSubmenu.length > 0;
+      }
+      
+      return true;
+    }).map((item) => {
+      // Filter submenu items
+      if (item.hasSubmenu && item.submenu) {
+        return {
+          ...item,
+          submenu: item.submenu.filter((subItem: any) => 
+            hasPermission(subItem.permission)
+          ),
+        };
+      }
+      return item;
+    });
+  };
+
+  const filteredNavigation = getFilteredNavigation();
   
   // Determine which submenus should be open based on current path
   const getOpenSubmenus = (currentPathname: string) => {
     const openMenus: { [key: string]: boolean } = {};
-    navigation.forEach((item) => {
+    filteredNavigation.forEach((item) => {
       if (item.hasSubmenu && item.submenu) {
         const isActive = item.submenu.some((subItem: any) => 
           currentPathname === subItem.href || currentPathname.startsWith(subItem.href + '/')
@@ -133,7 +184,7 @@ export default function Sidebar({ sidebarOpen: externalSidebarOpen, setSidebarOp
               <h1 className="text-xl font-bold text-gray-900">ERP Multi-Entreprises</h1>
             </div>
             <nav className="mt-5 px-2 space-y-1">
-              {navigation.map((item) => {
+              {filteredNavigation.map((item) => {
                 if (item.hasSubmenu && item.submenu) {
                   const isSubmenuOpen = openSubmenus[item.name] || false;
                   const isSubmenuActive = item.submenu.some((subItem: any) => 
@@ -265,7 +316,7 @@ export default function Sidebar({ sidebarOpen: externalSidebarOpen, setSidebarOp
                 <h1 className="text-xl font-bold text-gray-900">ERP Multi-Entreprises</h1>
               </div>
               <nav className="mt-5 flex-1 px-2 space-y-1">
-                {navigation.map((item) => {
+                {filteredNavigation.map((item) => {
                   if (item.hasSubmenu && item.submenu) {
                     const isSubmenuOpen = openSubmenus[item.name] || false;
                     const isSubmenuActive = item.submenu.some((subItem: any) => 

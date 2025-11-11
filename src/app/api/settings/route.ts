@@ -88,12 +88,12 @@ async function createDefaultSettings(tenantId: string) {
     societe: {
       nom: 'Nouvelle Entreprise',
       adresse: {
-        rue: '',
-        ville: '',
-        codePostal: '',
+        rue: 'Non spécifié',
+        ville: 'Non spécifié',
+        codePostal: '0000',
         pays: 'Tunisie',
       },
-      tva: '',
+      tva: 'Non spécifié',
       devise: 'TND',
       langue: 'fr',
       fuseau: 'Africa/Tunis',

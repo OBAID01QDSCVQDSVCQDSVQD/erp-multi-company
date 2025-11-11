@@ -9,6 +9,7 @@ declare module 'next-auth' {
       role: string;
       companyId: string;
       companyName: string;
+      permissions: string[];
     };
   }
 
@@ -16,6 +17,7 @@ declare module 'next-auth' {
     role: string;
     companyId: string;
     companyName: string;
+    permissions: string[];
   }
 }
 
@@ -24,5 +26,6 @@ declare module 'next-auth/jwt' {
     role: string;
     companyId: string;
     companyName: string;
+    permissions: string[];
   }
 }

@@ -36,7 +36,10 @@ interface ExpenseCategory {
 
 interface Supplier {
   _id: string;
-  name: string;
+  type: 'societe' | 'particulier';
+  raisonSociale?: string;
+  nom?: string;
+  prenom?: string;
 }
 
 interface User {
@@ -160,7 +163,7 @@ export default function EditExpensePage() {
 
       if (suppliersRes.ok) {
         const suppliersData = await suppliersRes.json();
-        setSuppliers(suppliersData);
+        setSuppliers(suppliersData.items || suppliersData || []);
       }
 
       if (usersRes.ok) {
@@ -401,9 +404,9 @@ export default function EditExpensePage() {
                   {...register('devise')}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                 >
+                  <option value="TND">TND</option>
                   <option value="EUR">EUR</option>
                   <option value="USD">USD</option>
-                  <option value="GBP">GBP</option>
                 </select>
                 {errors.devise && (
                   <p className="mt-1 text-sm text-red-600">{errors.devise.message}</p>
@@ -485,11 +488,16 @@ export default function EditExpensePage() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                 >
                   <option value="">Sélectionner un fournisseur</option>
-                  {suppliers.map((supplier) => (
-                    <option key={supplier._id} value={supplier._id}>
-                      {supplier.name}
-                    </option>
-                  ))}
+                  {suppliers.map((supplier) => {
+                    const supplierName = supplier.type === 'societe' 
+                      ? supplier.raisonSociale 
+                      : `${supplier.nom || ''} ${supplier.prenom || ''}`.trim();
+                    return (
+                      <option key={supplier._id} value={supplier._id}>
+                        {supplierName || 'Sans nom'}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 

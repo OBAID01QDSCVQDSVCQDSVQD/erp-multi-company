@@ -368,7 +368,9 @@ const CompanySettingsSchema = new Schema({
 // Note: 'unique: true' on tenantId already creates the unique index.
 // Avoid defining a duplicate index to prevent Mongoose duplicate index warnings.
 
-// @ts-expect-error - Schema type is too complex for TypeScript to infer, but works at runtime
-const CompanySettingsModel = mongoose.models.CompanySettings || mongoose.model<ICompanySettings>('CompanySettings', CompanySettingsSchema);
+const CompanySettingsModel = mongoose.models.CompanySettings || (
+  // @ts-expect-error - Schema type is too complex for TypeScript to infer, but works at runtime
+  mongoose.model<ICompanySettings>('CompanySettings', CompanySettingsSchema)
+);
 
 export default CompanySettingsModel;
