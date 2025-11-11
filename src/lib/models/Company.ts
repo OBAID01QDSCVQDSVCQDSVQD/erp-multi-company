@@ -74,7 +74,7 @@ const CompanySchema = new Schema({
 });
 
 const CompanyModel = mongoose.models.Company || (
-  // @ts-expect-error - Schema type is too complex for TypeScript to infer, but works at runtime
+  // @ts-ignore - Schema type is too complex for TypeScript to infer, but works at runtime
   mongoose.model<ICompany>('Company', CompanySchema)
 );
 
