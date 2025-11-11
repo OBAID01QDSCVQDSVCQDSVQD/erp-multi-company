@@ -369,7 +369,7 @@ const CompanySettingsSchema = new Schema({
 // Avoid defining a duplicate index to prevent Mongoose duplicate index warnings.
 
 const CompanySettingsModel = mongoose.models.CompanySettings || (
-  // @ts-expect-error - Schema type is too complex for TypeScript to infer, but works at runtime
+  // @ts-ignore - Schema type is too complex for TypeScript to infer, but works at runtime
   mongoose.model<ICompanySettings>('CompanySettings', CompanySettingsSchema)
 );
 
