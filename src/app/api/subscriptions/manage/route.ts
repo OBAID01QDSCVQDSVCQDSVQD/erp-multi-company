@@ -36,6 +36,13 @@ export async function GET(req: NextRequest) {
       .sort({ createdAt: -1 })
       .lean();
 
+    // Filter to show pending plan changes first
+    subscriptions.sort((a: any, b: any) => {
+      if (a.pendingPlanChange && !b.pendingPlanChange) return -1;
+      if (!a.pendingPlanChange && b.pendingPlanChange) return 1;
+      return 0;
+    });
+
     // Filter by search term (company name or email)
     if (search) {
       const searchLower = search.toLowerCase();
@@ -61,6 +68,7 @@ export async function GET(req: NextRequest) {
       free: await (Subscription as any).countDocuments({ plan: 'free' }),
       starter: await (Subscription as any).countDocuments({ plan: 'starter' }),
       premium: await (Subscription as any).countDocuments({ plan: 'premium' }),
+      pendingRequests: await (Subscription as any).countDocuments({ pendingPlanChange: { $exists: true, $ne: null } }),
     };
 
     return NextResponse.json({

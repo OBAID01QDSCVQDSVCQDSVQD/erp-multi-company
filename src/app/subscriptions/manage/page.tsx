@@ -11,6 +11,7 @@ import {
   MagnifyingGlassIcon,
   FunnelIcon,
   ArrowPathIcon,
+  PencilIcon,
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 
@@ -34,6 +35,9 @@ interface Subscription {
   currency: string;
   autoRenew: boolean;
   cancelledAt?: string;
+  pendingPlanChange?: 'free' | 'starter' | 'premium';
+  pendingPlanChangeDate?: string;
+  pendingPlanChangeReason?: string;
 }
 
 interface Stats {
@@ -44,6 +48,7 @@ interface Stats {
   free: number;
   starter: number;
   premium: number;
+  pendingRequests?: number;
 }
 
 export default function ManageSubscriptionsPage() {
@@ -54,12 +59,14 @@ export default function ManageSubscriptionsPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [planFilter, setPlanFilter] = useState<string>('all');
+  const [showPendingOnly, setShowPendingOnly] = useState(false);
+  const [editingPlan, setEditingPlan] = useState<string | null>(null);
 
   useEffect(() => {
     if (session?.user) {
       fetchSubscriptions();
     }
-  }, [session, statusFilter, planFilter]);
+  }, [session, statusFilter, planFilter, showPendingOnly]);
 
   const fetchSubscriptions = async () => {
     try {
@@ -75,7 +82,14 @@ export default function ManageSubscriptionsPage() {
       }
 
       const data = await response.json();
-      setSubscriptions(data.subscriptions || []);
+      let subs = data.subscriptions || [];
+      
+      // Filter pending requests if needed
+      if (showPendingOnly) {
+        subs = subs.filter((sub: Subscription) => sub.pendingPlanChange);
+      }
+      
+      setSubscriptions(subs);
       setStats(data.stats || null);
     } catch (error: any) {
       console.error('Error fetching subscriptions:', error);
@@ -88,6 +102,37 @@ export default function ManageSubscriptionsPage() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     fetchSubscriptions();
+  };
+
+  const handleApprovePlanChange = async (subscriptionId: string, approve: boolean) => {
+    try {
+      console.log('Approving/rejecting plan change:', { subscriptionId, approve });
+      
+      const response = await fetch('/api/subscriptions/approve-plan-change', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          subscriptionId,
+          approve,
+        }),
+      });
+
+      const responseData = await response.json();
+
+      if (!response.ok) {
+        console.error('API Error:', responseData);
+        throw new Error(responseData.error || 'Erreur lors du traitement de la demande');
+      }
+
+      console.log('Success:', responseData);
+      toast.success(responseData.message || (approve ? 'Changement de plan approuvé' : 'Demande rejetée'));
+      fetchSubscriptions();
+    } catch (error: any) {
+      console.error('Error approving/rejecting plan change:', error);
+      toast.error(error.message || 'Erreur lors du traitement de la demande');
+    }
   };
 
   const updateSubscriptionStatus = async (subscriptionId: string, status: string) => {
@@ -112,6 +157,42 @@ export default function ManageSubscriptionsPage() {
     } catch (error: any) {
       console.error('Error updating subscription:', error);
       toast.error('Erreur lors de la mise à jour de l\'abonnement');
+    }
+  };
+
+  const handleChangePlan = async (subscriptionId: string, newPlan: string) => {
+    try {
+      // Get the subscription to find companyId
+      const subscription = subscriptions.find(s => s._id === subscriptionId);
+      if (!subscription) {
+        throw new Error('Abonnement non trouvé');
+      }
+
+      // Use the approve-plan-change API but with direct approval
+      const response = await fetch('/api/subscriptions/approve-plan-change', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          subscriptionId,
+          approve: true,
+          directChange: true, // Flag to indicate direct admin change
+          newPlan: newPlan, // The new plan to set
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Erreur lors du changement de plan');
+      }
+
+      toast.success(`Plan changé avec succès vers ${getPlanName(newPlan)}`);
+      setEditingPlan(null);
+      fetchSubscriptions();
+    } catch (error: any) {
+      console.error('Error changing plan:', error);
+      toast.error(error.message || 'Erreur lors du changement de plan');
     }
   };
 
@@ -156,6 +237,10 @@ export default function ManageSubscriptionsPage() {
       default:
         return plan;
     }
+  };
+
+  const getPlanName = (plan: string) => {
+    return getPlanLabel(plan);
   };
 
   const getPlanColor = (plan: string) => {
@@ -221,7 +306,7 @@ export default function ManageSubscriptionsPage() {
 
         {/* Statistics */}
         {stats && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div className="bg-white rounded-lg shadow p-6">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
@@ -265,6 +350,94 @@ export default function ManageSubscriptionsPage() {
                   <p className="text-2xl font-bold text-yellow-600">{stats.inactive}</p>
                 </div>
               </div>
+            </div>
+            <div className="bg-gradient-to-r from-yellow-400 to-orange-500 rounded-lg shadow p-6">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <ClockIcon className="h-8 w-8 text-white" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-white">Demandes en attente</p>
+                  <p className="text-2xl font-bold text-white">{subscriptions.filter(s => s.pendingPlanChange).length}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Pending Requests Section */}
+        {subscriptions.filter(s => s.pendingPlanChange).length > 0 && (
+          <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-200 rounded-lg p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center">
+                <ClockIcon className="h-6 w-6 text-yellow-600 mr-2" />
+                <h2 className="text-xl font-bold text-gray-900">
+                  Demandes de changement de plan en attente ({subscriptions.filter(s => s.pendingPlanChange).length})
+                </h2>
+              </div>
+              <button
+                onClick={() => setShowPendingOnly(!showPendingOnly)}
+                className={`px-4 py-2 text-sm font-medium rounded-lg ${
+                  showPendingOnly
+                    ? 'bg-yellow-600 text-white'
+                    : 'bg-white text-yellow-600 border border-yellow-600'
+                } hover:bg-yellow-600 hover:text-white transition-colors`}
+              >
+                {showPendingOnly ? 'Afficher tous' : 'Afficher uniquement les demandes'}
+              </button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {subscriptions
+                .filter(s => s.pendingPlanChange)
+                .map((subscription) => (
+                  <div key={subscription._id} className="bg-white rounded-lg shadow-md p-4 border-2 border-yellow-300">
+                    <div className="mb-3">
+                      <h3 className="font-semibold text-gray-900">
+                        {typeof subscription.companyId === 'object' && subscription.companyId
+                          ? subscription.companyId.name
+                          : 'N/A'}
+                      </h3>
+                      <p className="text-sm text-gray-500">
+                        {typeof subscription.companyId === 'object' && subscription.companyId
+                          ? subscription.companyId.contact?.email || subscription.companyId.code
+                          : 'N/A'}
+                      </p>
+                    </div>
+                    <div className="mb-3">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm text-gray-600">Plan actuel:</span>
+                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getPlanColor(subscription.plan)}`}>
+                          {getPlanLabel(subscription.plan)}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600">Demande:</span>
+                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getPlanColor(subscription.pendingPlanChange!)}`}>
+                          {getPlanName(subscription.pendingPlanChange!)}
+                        </span>
+                      </div>
+                    </div>
+                    {subscription.pendingPlanChangeDate && (
+                      <p className="text-xs text-gray-500 mb-3">
+                        Date: {formatDate(subscription.pendingPlanChangeDate)}
+                      </p>
+                    )}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleApprovePlanChange(subscription._id, true)}
+                        className="flex-1 px-3 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors"
+                      >
+                        ✓ Approuver
+                      </button>
+                      <button
+                        onClick={() => handleApprovePlanChange(subscription._id, false)}
+                        className="flex-1 px-3 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
+                      >
+                        ✗ Rejeter
+                      </button>
+                    </div>
+                  </div>
+                ))}
             </div>
           </div>
         )}
@@ -344,6 +517,9 @@ export default function ManageSubscriptionsPage() {
                     Renouvellement
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Demande de changement
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
@@ -351,13 +527,13 @@ export default function ManageSubscriptionsPage() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {loading ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-4 text-center text-sm text-gray-500">
+                    <td colSpan={8} className="px-6 py-4 text-center text-sm text-gray-500">
                       Chargement...
                     </td>
                   </tr>
                 ) : subscriptions.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-4 text-center text-sm text-gray-500">
+                    <td colSpan={8} className="px-6 py-4 text-center text-sm text-gray-500">
                       Aucun abonnement trouvé
                     </td>
                   </tr>
@@ -413,31 +589,105 @@ export default function ManageSubscriptionsPage() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {formatDate(subscription.renewalDate)}
                       </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        {subscription.pendingPlanChange ? (
+                          <div className="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-3 min-w-[200px]">
+                            <div className="flex items-center mb-2">
+                              <ClockIcon className="h-5 w-5 text-yellow-600 mr-2 flex-shrink-0" />
+                              <div>
+                                <div className="font-medium text-yellow-800 text-xs">
+                                  Demande: {getPlanName(subscription.pendingPlanChange)}
+                                </div>
+                                <div className="text-xs text-yellow-600 mt-1">
+                                  Depuis: {subscription.pendingPlanChangeDate ? formatDate(subscription.pendingPlanChangeDate) : 'N/A'}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex gap-2 mt-2">
+                              <button
+                                onClick={() => handleApprovePlanChange(subscription._id, true)}
+                                className="flex-1 px-3 py-1.5 text-xs font-medium text-white bg-green-600 rounded hover:bg-green-700 transition-colors"
+                              >
+                                ✓ Approuver
+                              </button>
+                              <button
+                                onClick={() => handleApprovePlanChange(subscription._id, false)}
+                                className="flex-1 px-3 py-1.5 text-xs font-medium text-white bg-red-600 rounded hover:bg-red-700 transition-colors"
+                              >
+                                ✗ Rejeter
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 text-xs">Aucune demande</span>
+                        )}
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex gap-2">
-                          {subscription.status === 'active' ? (
-                            <button
-                              onClick={() => updateSubscriptionStatus(subscription._id, 'inactive')}
-                              className="text-yellow-600 hover:text-yellow-900"
-                            >
-                              Désactiver
-                            </button>
+                        <div className="flex flex-col gap-2">
+                          {/* Change Plan */}
+                          {editingPlan === subscription._id ? (
+                            <div className="flex gap-1 mb-2">
+                              <select
+                                defaultValue={subscription.plan}
+                                className="text-xs border border-gray-300 rounded px-2 py-1"
+                                onChange={(e) => {
+                                  if (e.target.value !== subscription.plan) {
+                                    handleChangePlan(subscription._id, e.target.value);
+                                  } else {
+                                    setEditingPlan(null);
+                                  }
+                                }}
+                                onBlur={() => setEditingPlan(null)}
+                                autoFocus
+                              >
+                                <option value="free">Gratuit</option>
+                                <option value="starter">Starter</option>
+                                <option value="premium">Premium</option>
+                              </select>
+                              <button
+                                onClick={() => setEditingPlan(null)}
+                                className="text-xs text-gray-500 hover:text-gray-700"
+                              >
+                                ✕
+                              </button>
+                            </div>
                           ) : (
                             <button
-                              onClick={() => updateSubscriptionStatus(subscription._id, 'active')}
-                              className="text-green-600 hover:text-green-900"
+                              onClick={() => setEditingPlan(subscription._id)}
+                              className="text-xs text-indigo-600 hover:text-indigo-900 flex items-center gap-1"
+                              title="Changer le plan"
                             >
-                              Activer
+                              <PencilIcon className="h-4 w-4" />
+                              Changer plan
                             </button>
                           )}
-                          {subscription.status !== 'cancelled' && (
-                            <button
-                              onClick={() => updateSubscriptionStatus(subscription._id, 'cancelled')}
-                              className="text-red-600 hover:text-red-900"
-                            >
-                              Annuler
-                            </button>
-                          )}
+                          
+                          {/* Status Actions */}
+                          <div className="flex gap-2">
+                            {subscription.status === 'active' ? (
+                              <button
+                                onClick={() => updateSubscriptionStatus(subscription._id, 'inactive')}
+                                className="text-xs text-yellow-600 hover:text-yellow-900"
+                              >
+                                Désactiver
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => updateSubscriptionStatus(subscription._id, 'active')}
+                                className="text-xs text-green-600 hover:text-green-900"
+                              >
+                                Activer
+                              </button>
+                            )}
+                            {subscription.status !== 'cancelled' && (
+                              <button
+                                onClick={() => updateSubscriptionStatus(subscription._id, 'cancelled')}
+                                className="text-xs text-red-600 hover:text-red-900"
+                              >
+                                Annuler
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </td>
                     </tr>

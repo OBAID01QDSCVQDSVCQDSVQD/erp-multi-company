@@ -36,18 +36,25 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    
-    if (!session) {
-      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
-    }
-
-    // Vérifier que l'utilisateur est admin
-    if (session.user.role !== 'admin') {
-      return NextResponse.json({ error: 'Accès refusé. Seuls les administrateurs peuvent créer des utilisateurs.' }, { status: 403 });
-    }
-
     const body = await request.json();
-    const { email, password, firstName, lastName, role, permissions } = body;
+    const { email, password, firstName, lastName, role, permissions, companyId } = body;
+    
+    await connectDB();
+    
+    // Vérifier si c'est une création depuis setup (première installation)
+    const isSetupMode = !session && companyId;
+    
+    if (!isSetupMode) {
+      // Mode normal: nécessite une session
+      if (!session) {
+        return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+      }
+
+      // Vérifier que l'utilisateur est admin
+      if (session.user.role !== 'admin') {
+        return NextResponse.json({ error: 'Accès refusé. Seuls les administrateurs peuvent créer des utilisateurs.' }, { status: 403 });
+      }
+    }
     
     if (!email || !password || !firstName || !lastName) {
       return NextResponse.json(
@@ -55,8 +62,6 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-
-    await connectDB();
     
     // Vérifier si l'utilisateur existe déjà
     const existingUser = await (User as any).findOne({ email: email.toLowerCase().trim() });
@@ -70,6 +75,9 @@ export async function POST(request: NextRequest) {
     // Hasher le mot de passe
     const hashedPassword = await bcrypt.hash(password, 12);
 
+    // Utiliser companyId du body si en mode setup, sinon de la session
+    const finalCompanyId = isSetupMode ? companyId : session.user.companyId;
+
     const user = new (User as any)({
       email: email.toLowerCase().trim(),
       password: hashedPassword,
@@ -77,7 +85,7 @@ export async function POST(request: NextRequest) {
       lastName,
       role: role || 'user',
       permissions: permissions || [],
-      companyId: session.user.companyId,
+      companyId: finalCompanyId,
       isActive: true,
     });
 

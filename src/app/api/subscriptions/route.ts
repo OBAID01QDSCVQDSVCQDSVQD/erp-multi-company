@@ -101,7 +101,30 @@ export async function POST(req: NextRequest) {
       renewalDate.setFullYear(renewalDate.getFullYear() + 1);
     }
 
-    // Update or create subscription
+    // Check if this is a plan change request
+    const currentSubscription = await (Subscription as any).findOne({ companyId }).lean();
+    
+    if (currentSubscription && data.plan && currentSubscription.plan !== data.plan) {
+      // This is a plan change request - set pending fields instead of changing directly
+      const subscription = await (Subscription as any).findOneAndUpdate(
+        { companyId },
+        {
+          pendingPlanChange: data.plan,
+          pendingPlanChangeDate: new Date(),
+          pendingPlanChangeReason: data.reason || '',
+        },
+        { new: true }
+      );
+
+      return NextResponse.json({ 
+        subscription,
+        message: 'Demande de changement de plan envoyée. En attente d\'approbation de l\'administrateur.',
+        pendingApproval: true
+      });
+    }
+
+    // If admin is updating (status change, etc.), allow direct update
+    // Otherwise, update or create subscription normally
     const subscription = await (Subscription as any).findOneAndUpdate(
       { companyId },
       {
@@ -111,6 +134,8 @@ export async function POST(req: NextRequest) {
         price,
         renewalDate,
         status: data.status || 'active',
+        // Clear pending plan change if plan is being set directly (admin action)
+        ...(data.plan && { pendingPlanChange: null, pendingPlanChangeDate: null, pendingPlanChangeReason: null }),
       },
       { new: true, upsert: true }
     );

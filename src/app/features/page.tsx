@@ -333,7 +333,7 @@ export default function FeaturesPage() {
               </div>
 
               {/* Admin Dropdown - Only for admins */}
-              {session?.user?.role === 'admin' && (
+              {session?.user?.email === 'admin@entreprise-demo.com' && (
                 <div 
                   className="relative pb-2"
                   onMouseEnter={() => setAdminMenuOpen(true)}
@@ -412,7 +412,7 @@ export default function FeaturesPage() {
                         <p className="text-sm font-medium text-gray-900">{session.user.name}</p>
                         <p className="text-xs text-gray-500">{session.user.email}</p>
                         <p className="text-xs text-gray-500">{session.user.companyName}</p>
-                        {session.user.role === 'admin' && (
+                        {session.user.email === 'admin@entreprise-demo.com' && (
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800 mt-1">
                             Admin Système
                           </span>
@@ -530,7 +530,7 @@ export default function FeaturesPage() {
                   </div>
                 </div>
 
-                {session?.user?.role === 'admin' && (
+                {session?.user?.email === 'admin@entreprise-demo.com' && (
                   <div className="px-3 py-2">
                     <div className="text-base font-medium text-gray-700 mb-2">Administration</div>
                     <div className="pl-4 space-y-1">
@@ -560,7 +560,7 @@ export default function FeaturesPage() {
                         <div>
                           <p className="text-sm font-medium text-gray-900">{session.user.name}</p>
                           <p className="text-xs text-gray-500">{session.user.email}</p>
-                          {session.user.role === 'admin' && (
+                          {session.user.email === 'admin@entreprise-demo.com' && (
                             <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800 mt-1">
                               Admin Système
                             </span>

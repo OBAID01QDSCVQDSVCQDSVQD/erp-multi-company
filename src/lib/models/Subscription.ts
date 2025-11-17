@@ -18,6 +18,10 @@ export interface ISubscription extends Document {
   cancelledAt?: Date;
   cancellationReason?: string;
   notes?: string;
+  // Plan change request fields
+  pendingPlanChange?: 'free' | 'starter' | 'premium';
+  pendingPlanChangeDate?: Date;
+  pendingPlanChangeReason?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -92,6 +96,17 @@ const SubscriptionSchema = new Schema({
     type: String,
   },
   notes: {
+    type: String,
+  },
+  // Plan change request fields
+  pendingPlanChange: {
+    type: String,
+    enum: ['free', 'starter', 'premium'],
+  },
+  pendingPlanChangeDate: {
+    type: Date,
+  },
+  pendingPlanChangeReason: {
     type: String,
   },
 }, {

@@ -15,6 +15,7 @@ export default function SetupPage() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [success, setSuccess] = useState(false);
   const router = useRouter();
   const { data: session } = useSession();
@@ -29,6 +30,7 @@ export default function SetupPage() {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setFieldErrors({});
 
     try {
       // Créer l'entreprise
@@ -54,7 +56,35 @@ export default function SetupPage() {
       });
 
       if (!companyResponse.ok) {
-        throw new Error('Erreur lors de la création de l\'entreprise');
+        const errorData = await companyResponse.json();
+        
+        // Gérer les erreurs de validation par champ
+        if (errorData.validationErrors) {
+          const newFieldErrors: Record<string, string> = {};
+          Object.keys(errorData.validationErrors).forEach((key) => {
+            // Mapper les champs من Mongoose إلى الحقول في النموذج
+            if (key.includes('fiscal.taxNumber')) {
+              newFieldErrors.taxNumber = errorData.validationErrors[key];
+            } else if (key.includes('fiscal.registrationNumber')) {
+              newFieldErrors.registrationNumber = errorData.validationErrors[key];
+            } else if (key.includes('name')) {
+              newFieldErrors.companyName = errorData.validationErrors[key];
+            } else if (key.includes('email') || key.includes('contact.email')) {
+              newFieldErrors.companyEmail = errorData.validationErrors[key];
+            } else {
+              newFieldErrors[key] = errorData.validationErrors[key];
+            }
+          });
+          setFieldErrors(newFieldErrors);
+          setError(errorData.message || 'Veuillez corriger les erreurs ci-dessous');
+        } else if (errorData.field === 'code') {
+          setFieldErrors({ companyName: 'Une entreprise avec un code similaire existe déjà. Veuillez choisir un autre nom.' });
+          setError(errorData.error);
+        } else {
+          setError(errorData.error || 'Erreur lors de la création de l\'entreprise');
+        }
+        setLoading(false);
+        return;
       }
 
       const company = await companyResponse.json();
@@ -77,7 +107,10 @@ export default function SetupPage() {
       });
 
       if (!userResponse.ok) {
-        throw new Error('Erreur lors de la création de l\'utilisateur administrateur');
+        const errorData = await userResponse.json();
+        setError(errorData.error || 'Erreur lors de la création de l\'utilisateur administrateur');
+        setLoading(false);
+        return;
       }
 
       setSuccess(true);
@@ -93,10 +126,18 @@ export default function SetupPage() {
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value,
+      [name]: value,
     });
+    // Effacer l'erreur du champ quand l'utilisateur commence à taper
+    if (fieldErrors[name]) {
+      setFieldErrors({
+        ...fieldErrors,
+        [name]: '',
+      });
+    }
   };
 
   if (success) {
@@ -150,9 +191,16 @@ export default function SetupPage() {
                     required
                     value={formData.companyName}
                     onChange={handleChange}
-                    className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                    className={`mt-1 appearance-none relative block w-full px-3 py-2 border ${
+                      fieldErrors.companyName 
+                        ? 'border-red-300 focus:border-red-500 focus:ring-red-500' 
+                        : 'border-gray-300 focus:ring-indigo-500 focus:border-indigo-500'
+                    } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:z-10 sm:text-sm`}
                     placeholder="Nom de votre entreprise"
                   />
+                  {fieldErrors.companyName && (
+                    <p className="mt-1 text-sm text-red-600">{fieldErrors.companyName}</p>
+                  )}
                 </div>
                 <div>
                   <label htmlFor="companyEmail" className="block text-sm font-medium text-gray-700">
@@ -165,9 +213,16 @@ export default function SetupPage() {
                     required
                     value={formData.companyEmail}
                     onChange={handleChange}
-                    className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                    className={`mt-1 appearance-none relative block w-full px-3 py-2 border ${
+                      fieldErrors.companyEmail 
+                        ? 'border-red-300 focus:border-red-500 focus:ring-red-500' 
+                        : 'border-gray-300 focus:ring-indigo-500 focus:border-indigo-500'
+                    } placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:z-10 sm:text-sm`}
                     placeholder="contact@votre-entreprise.com"
                   />
+                  {fieldErrors.companyEmail && (
+                    <p className="mt-1 text-sm text-red-600">{fieldErrors.companyEmail}</p>
+                  )}
                 </div>
               </div>
             </div>

@@ -15,9 +15,23 @@ export interface ICompany extends Document {
     website?: string;
   };
   fiscal: {
-    taxNumber: string;
-    registrationNumber: string;
+    taxNumber?: string;
+    registrationNumber?: string;
     vatNumber?: string;
+  };
+  enTete?: {
+    slogan?: string;
+    capitalSocial?: string;
+  };
+  piedPage?: {
+    texte?: string;
+    conditionsGenerales?: string;
+    mentionsLegales?: string;
+    coordonneesBancaires?: {
+      banque?: string;
+      rib?: string;
+      swift?: string;
+    };
   };
   settings: {
     currency: string;
@@ -55,9 +69,23 @@ const CompanySchema = new Schema({
     website: { type: String },
   },
   fiscal: {
-    taxNumber: { type: String, required: true },
-    registrationNumber: { type: String, required: true },
+    taxNumber: { type: String },
+    registrationNumber: { type: String },
     vatNumber: { type: String },
+  },
+  enTete: {
+    slogan: { type: String },
+    capitalSocial: { type: String },
+  },
+  piedPage: {
+    texte: { type: String },
+    conditionsGenerales: { type: String },
+    mentionsLegales: { type: String },
+    coordonneesBancaires: {
+      banque: { type: String },
+      rib: { type: String },
+      swift: { type: String },
+    },
   },
   settings: {
     currency: { type: String, default: 'EUR' },
@@ -73,9 +101,12 @@ const CompanySchema = new Schema({
   timestamps: true,
 });
 
-const CompanyModel = mongoose.models.Company || (
-  // @ts-ignore - Schema type is too complex for TypeScript to infer, but works at runtime
-  mongoose.model<ICompany>('Company', CompanySchema)
-);
+// In Next.js, models are cached. Delete from cache in development to ensure schema updates
+if (process.env.NODE_ENV === 'development' && mongoose.models.Company) {
+  delete mongoose.models.Company;
+}
+
+// @ts-ignore - Schema type is too complex for TypeScript to infer, but works at runtime
+const CompanyModel = mongoose.models.Company || mongoose.model<ICompany>('Company', CompanySchema);
 
 export default CompanyModel;

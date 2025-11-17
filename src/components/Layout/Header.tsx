@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Bars3Icon, BellIcon, HomeIcon, UserCircleIcon, ChartBarIcon, ArrowRightOnRectangleIcon, CogIcon } from '@heroicons/react/24/outline';
+import { Bars3Icon, BellIcon, HomeIcon, UserCircleIcon, ChartBarIcon, ArrowRightOnRectangleIcon, CogIcon, BuildingOfficeIcon, ChevronDownIcon, CreditCardIcon } from '@heroicons/react/24/outline';
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -14,14 +14,23 @@ export default function Header({ onMenuClick }: HeaderProps) {
   const { data: session } = useSession();
   const router = useRouter();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [adminMenuOpen, setAdminMenuOpen] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const adminTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const adminContainerRef = useRef<HTMLDivElement>(null);
+  
+  // Check if user is the specific admin
+  const isSystemAdmin = session?.user?.email === 'admin@entreprise-demo.com';
 
   // Clear timeout on unmount
   useEffect(() => {
     return () => {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
+      }
+      if (adminTimeoutRef.current) {
+        clearTimeout(adminTimeoutRef.current);
       }
     };
   }, []);
@@ -38,6 +47,20 @@ export default function Header({ onMenuClick }: HeaderProps) {
       timeoutRef.current = null;
     }
     setUserMenuOpen(true);
+  };
+
+  const handleAdminMenuLeave = () => {
+    adminTimeoutRef.current = setTimeout(() => {
+      setAdminMenuOpen(false);
+    }, 150);
+  };
+
+  const handleAdminMenuEnter = () => {
+    if (adminTimeoutRef.current) {
+      clearTimeout(adminTimeoutRef.current);
+      adminTimeoutRef.current = null;
+    }
+    setAdminMenuOpen(true);
   };
 
   return (
@@ -74,6 +97,64 @@ export default function Header({ onMenuClick }: HeaderProps) {
           >
             <BellIcon className="h-6 w-6" />
           </button>
+
+          {/* Administration Dropdown - Only for admin@entreprise-demo.com */}
+          {isSystemAdmin && (
+            <div 
+              ref={adminContainerRef}
+              className="ml-3 relative"
+              style={{ zIndex: 1000, overflow: 'visible' }}
+              onMouseEnter={handleAdminMenuEnter}
+              onMouseLeave={handleAdminMenuLeave}
+            >
+              <button
+                type="button"
+                className="flex items-center space-x-1 text-gray-700 hover:text-indigo-600 px-3 py-2 text-sm font-medium transition-colors"
+              >
+                <span>Administration</span>
+                <ChevronDownIcon className="h-4 w-4" />
+              </button>
+              {adminMenuOpen && (
+                <div
+                  className="absolute right-0 bg-white rounded-lg shadow-xl py-2 border border-gray-200"
+                  style={{
+                    top: 'calc(100% + 4px)',
+                    width: '240px',
+                    zIndex: 1001
+                  }}
+                  onMouseEnter={handleAdminMenuEnter}
+                  onMouseLeave={handleAdminMenuLeave}
+                >
+                  <Link
+                    href="/companies"
+                    className="block px-4 py-3 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
+                    onClick={() => setAdminMenuOpen(false)}
+                  >
+                    <div className="flex items-center">
+                      <BuildingOfficeIcon className="h-5 w-5 mr-3 text-indigo-600" />
+                      <div>
+                        <div className="font-medium">Gérer les entreprises</div>
+                        <div className="text-xs text-gray-500">Contrôler les inscriptions</div>
+                      </div>
+                    </div>
+                  </Link>
+                  <Link
+                    href="/subscriptions/manage"
+                    className="block px-4 py-3 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
+                    onClick={() => setAdminMenuOpen(false)}
+                  >
+                    <div className="flex items-center">
+                      <CreditCardIcon className="h-5 w-5 mr-3 text-indigo-600" />
+                      <div>
+                        <div className="font-medium">Gérer les abonnements</div>
+                        <div className="text-xs text-gray-500">Approuver les demandes</div>
+                      </div>
+                    </div>
+                  </Link>
+                </div>
+              )}
+            </div>
+          )}
 
           <div 
             ref={containerRef}

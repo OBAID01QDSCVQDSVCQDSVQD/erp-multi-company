@@ -134,8 +134,8 @@ export default function Home() {
                 )}
               </div>
 
-              {/* Admin Dropdown - Only for admins */}
-              {session?.user?.role === 'admin' && (
+              {/* Admin Dropdown - Only for admin@entreprise-demo.com */}
+              {session?.user?.email === 'admin@entreprise-demo.com' && (
                 <div 
                   className="relative pb-2"
                   onMouseEnter={() => setAdminMenuOpen(true)}

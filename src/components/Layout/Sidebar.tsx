@@ -30,7 +30,6 @@ const navigation = [
   { name: 'Entreprises', href: '/companies', icon: BuildingOfficeIcon, permission: 'settings' },
   { name: 'Utilisateurs', href: '/users', icon: UserGroupIcon, permission: 'users' },
   { name: 'Mon abonnement', href: '/subscriptions', icon: CreditCardIcon, permission: null }, // All users can see their own subscription
-  { name: 'Gérer les abonnements', href: '/subscriptions/manage', icon: CreditCardIcon, permission: 'settings' }, // Admin only - manages all subscriptions
   { name: '💼 Ventes', href: '#', icon: ShoppingBagIcon, hasSubmenu: true, permission: null, submenu: [
     { name: 'Clients', href: '/customers', icon: UserGroupIcon, permission: 'customers' },
     { name: 'Devis', href: '/sales/quotes', icon: DocumentTextIcon, permission: 'quotes' },
@@ -81,7 +80,7 @@ export default function Sidebar({ sidebarOpen: externalSidebarOpen, setSidebarOp
     const userPermissions = session.user.permissions || [];
     const userRole = session.user.role;
     
-    // Admin has all permissions
+    // Admin has all permissions (including settings)
     if (userRole === 'admin' || userPermissions.includes('all')) {
       return true;
     }

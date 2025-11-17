@@ -118,60 +118,135 @@ export default function SocieteTab({ tenantId }: SocieteTabProps) {
     }
   };
 
-  const fetchSettings = async () => {
+  const fetchSettings = async (showLoader = true) => {
     try {
-      setLoading(true);
-      const response = await fetch('/api/settings', {
-        headers: { 'X-Tenant-Id': tenantId },
-      });
+      if (showLoader) {
+        setLoading(true);
+      }
+      const response = await fetch('/api/companies?current=true');
 
       if (response.ok) {
-        const data = await response.json();
+        const company = await response.json();
+        console.log('Fetched company data:', company);
         reset({
-          nom: data.societe?.nom || '',
-          adresse: data.societe?.adresse || {
-            rue: '',
-            ville: '',
-            codePostal: '',
-            pays: 'Tunisie',
+          nom: company.name || '',
+          adresse: {
+            rue: company.address?.street || '',
+            ville: company.address?.city || '',
+            codePostal: company.address?.postalCode || '',
+            pays: company.address?.country || 'Tunisie',
           },
-          tva: data.societe?.tva || '',
-          devise: data.societe?.devise || 'TND',
-          langue: data.societe?.langue || 'fr',
-          fuseau: data.societe?.fuseau || 'Africa/Tunis',
-          logoUrl: data.societe?.logoUrl || '',
-          theme: data.societe?.theme || {},
-          enTete: data.societe?.enTete || {},
-          piedPage: data.societe?.piedPage || {},
+          tva: company.fiscal?.vatNumber || company.fiscal?.taxNumber || '',
+          devise: company.settings?.currency || 'TND',
+          langue: company.settings?.language || 'fr',
+          fuseau: company.settings?.timezone || 'Africa/Tunis',
+          logoUrl: '', // Logo non stocké dans Company model pour l'instant
+          theme: {},
+          enTete: {
+            slogan: company.enTete?.slogan || '',
+            telephone: company.contact?.phone || '',
+            email: company.contact?.email || '',
+            siteWeb: company.contact?.website || '',
+            matriculeFiscal: company.fiscal?.taxNumber || '',
+            registreCommerce: company.fiscal?.registrationNumber || '',
+            capitalSocial: company.enTete?.capitalSocial || '',
+          },
+          piedPage: {
+            texte: company.piedPage?.texte || '',
+            conditionsGenerales: company.piedPage?.conditionsGenerales || '',
+            mentionsLegales: company.piedPage?.mentionsLegales || '',
+            coordonneesBancaires: {
+              banque: company.piedPage?.coordonneesBancaires?.banque || '',
+              rib: company.piedPage?.coordonneesBancaires?.rib || '',
+              swift: company.piedPage?.coordonneesBancaires?.swift || '',
+            },
+          },
         });
       }
     } catch (error) {
-      toast.error('Erreur lors du chargement des paramètres');
+      console.error('Error fetching settings:', error);
+      toast.error('Erreur lors du chargement des informations de l\'entreprise');
     } finally {
-      setLoading(false);
+      if (showLoader) {
+        setLoading(false);
+      }
     }
   };
 
   const onSubmit = async (data: SocieteForm) => {
+    // Empêcher la double soumission
+    if (saving) {
+      return;
+    }
+
     try {
       setSaving(true);
-      const response = await fetch('/api/settings', {
-        method: 'PATCH',
+      
+      // Convertir les données du formulaire vers le format Company
+      const companyData = {
+        name: data.nom,
+        address: {
+          street: data.adresse.rue,
+          city: data.adresse.ville,
+          postalCode: data.adresse.codePostal,
+          country: data.adresse.pays,
+        },
+        contact: {
+          email: data.enTete?.email || '',
+          phone: data.enTete?.telephone || '',
+          website: data.enTete?.siteWeb || '',
+        },
+        fiscal: {
+          taxNumber: data.enTete?.matriculeFiscal || data.tva || '',
+          registrationNumber: data.enTete?.registreCommerce || '',
+          vatNumber: data.tva || '',
+        },
+        enTete: {
+          slogan: data.enTete?.slogan || '',
+          capitalSocial: data.enTete?.capitalSocial || '',
+        },
+        piedPage: {
+          texte: data.piedPage?.texte || '',
+          conditionsGenerales: data.piedPage?.conditionsGenerales || '',
+          mentionsLegales: data.piedPage?.mentionsLegales || '',
+          coordonneesBancaires: {
+            banque: data.piedPage?.coordonneesBancaires?.banque || '',
+            rib: data.piedPage?.coordonneesBancaires?.rib || '',
+            swift: data.piedPage?.coordonneesBancaires?.swift || '',
+          },
+        },
+        settings: {
+          currency: data.devise,
+          language: data.langue,
+          timezone: data.fuseau,
+          dateFormat: 'DD/MM/YYYY', // Garder le format par défaut
+        },
+      };
+
+      console.log('Sending company data:', companyData);
+
+      const response = await fetch('/api/companies', {
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'X-Tenant-Id': tenantId,
         },
-        body: JSON.stringify({
-          societe: data,
-        }),
+        body: JSON.stringify(companyData),
       });
 
+      const responseData = await response.json();
+      console.log('Response status:', response.status);
+      console.log('Response data:', responseData);
+
       if (response.ok) {
-        toast.success('Paramètres de société mis à jour');
+        toast.success('Informations de l\'entreprise mises à jour');
+        // Recharger les données sans afficher le loader
+        await fetchSettings(false);
       } else {
-        toast.error('Erreur lors de la mise à jour');
+        toast.error(responseData.error || 'Erreur lors de la mise à jour');
+        console.error('Update error:', responseData);
       }
     } catch (error) {
+      console.error('Submit error:', error);
       toast.error('Erreur de connexion');
     } finally {
       setSaving(false);

@@ -242,7 +242,7 @@ export default function PricingPage() {
               </div>
 
               {/* Admin Dropdown - Only for admins */}
-              {session?.user?.role === 'admin' && (
+              {session?.user?.email === 'admin@entreprise-demo.com' && (
                 <div 
                   className="relative pb-2"
                   onMouseEnter={() => setAdminMenuOpen(true)}
@@ -321,7 +321,7 @@ export default function PricingPage() {
                         <p className="text-sm font-medium text-gray-900">{session.user.name}</p>
                         <p className="text-xs text-gray-500">{session.user.email}</p>
                         <p className="text-xs text-gray-500">{session.user.companyName}</p>
-                        {session.user.role === 'admin' && (
+                        {session.user.email === 'admin@entreprise-demo.com' && (
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800 mt-1">
                             Admin Système
                           </span>
@@ -439,7 +439,7 @@ export default function PricingPage() {
                   </div>
                 </div>
 
-                {session?.user?.role === 'admin' && (
+                {session?.user?.email === 'admin@entreprise-demo.com' && (
                   <div className="px-3 py-2">
                     <div className="text-base font-medium text-gray-700 mb-2">Administration</div>
                     <div className="pl-4 space-y-1">
@@ -469,7 +469,7 @@ export default function PricingPage() {
                         <div>
                           <p className="text-sm font-medium text-gray-900">{session.user.name}</p>
                           <p className="text-xs text-gray-500">{session.user.email}</p>
-                          {session.user.role === 'admin' && (
+                          {session.user.email === 'admin@entreprise-demo.com' && (
                             <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800 mt-1">
                               Admin Système
                             </span>
@@ -612,13 +612,23 @@ export default function PricingPage() {
                     ))}
                   </ul>
 
-                  <Link
-                    href="/auth/signup"
-                    className={`block w-full text-center px-6 py-3 rounded-lg font-semibold text-white bg-gradient-to-r ${plan.buttonColor} hover:shadow-lg transition-all duration-200 transform hover:scale-105`}
-                  >
-                    {plan.name === 'Gratuit' ? 'Commencer gratuitement' : 'Choisir ce plan'}
-                    <ArrowRightIcon className="inline-block ml-2 h-5 w-5" />
-                  </Link>
+                  {status === 'authenticated' && session?.user ? (
+                    <Link
+                      href={`/subscriptions/change-plan?plan=${plan.name === 'Gratuit' ? 'free' : plan.name === 'Starter' ? 'starter' : 'premium'}`}
+                      className={`block w-full text-center px-6 py-3 rounded-lg font-semibold text-white bg-gradient-to-r ${plan.buttonColor} hover:shadow-lg transition-all duration-200 transform hover:scale-105`}
+                    >
+                      {plan.name === 'Gratuit' ? 'Changer vers ce plan' : 'Choisir ce plan'}
+                      <ArrowRightIcon className="inline-block ml-2 h-5 w-5" />
+                    </Link>
+                  ) : (
+                    <Link
+                      href="/auth/signup"
+                      className={`block w-full text-center px-6 py-3 rounded-lg font-semibold text-white bg-gradient-to-r ${plan.buttonColor} hover:shadow-lg transition-all duration-200 transform hover:scale-105`}
+                    >
+                      {plan.name === 'Gratuit' ? 'Commencer gratuitement' : 'Choisir ce plan'}
+                      <ArrowRightIcon className="inline-block ml-2 h-5 w-5" />
+                    </Link>
+                  )}
                 </div>
               </div>
             ))}
@@ -740,13 +750,23 @@ export default function PricingPage() {
             Commencez gratuitement dès aujourd'hui. Aucune carte bancaire requise.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              href="/auth/signup"
-              className="inline-flex items-center px-8 py-4 border-2 border-white text-base font-medium rounded-lg text-indigo-600 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white transition-all duration-200 transform hover:scale-105 shadow-lg"
-            >
-              Commencer gratuitement
-              <ArrowRightIcon className="ml-2 h-5 w-5" />
-            </Link>
+            {status === 'authenticated' && session?.user ? (
+              <Link
+                href="/subscriptions/change-plan"
+                className="inline-flex items-center px-8 py-4 border-2 border-white text-base font-medium rounded-lg text-indigo-600 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white transition-all duration-200 transform hover:scale-105 shadow-lg"
+              >
+                Changer de plan
+                <ArrowRightIcon className="ml-2 h-5 w-5" />
+              </Link>
+            ) : (
+              <Link
+                href="/auth/signup"
+                className="inline-flex items-center px-8 py-4 border-2 border-white text-base font-medium rounded-lg text-indigo-600 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white transition-all duration-200 transform hover:scale-105 shadow-lg"
+              >
+                Commencer gratuitement
+                <ArrowRightIcon className="ml-2 h-5 w-5" />
+              </Link>
+            )}
             <Link
               href="/features"
               className="inline-flex items-center px-8 py-4 border-2 border-white text-base font-medium rounded-lg text-white hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white transition-all duration-200"
