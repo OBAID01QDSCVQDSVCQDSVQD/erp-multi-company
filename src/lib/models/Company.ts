@@ -106,7 +106,7 @@ if (process.env.NODE_ENV === 'development' && mongoose.models.Company) {
   delete mongoose.models.Company;
 }
 
-// @ts-ignore - Schema type is too complex for TypeScript to infer, but works at runtime
+  // @ts-ignore - Schema type is too complex for TypeScript to infer, but works at runtime
 const CompanyModel = mongoose.models.Company || mongoose.model<ICompany>('Company', CompanySchema);
 
 export default CompanyModel;

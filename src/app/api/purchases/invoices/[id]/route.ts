@@ -136,6 +136,9 @@ export async function PUT(
     if (body.devise !== undefined) {
       invoice.devise = body.devise;
     }
+    if (body.tauxChange !== undefined) {
+      invoice.tauxChange = body.tauxChange;
+    }
     if (body.conditionsPaiement !== undefined) {
       invoice.conditionsPaiement = body.conditionsPaiement;
     }

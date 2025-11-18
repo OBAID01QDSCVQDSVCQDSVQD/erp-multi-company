@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     if (searchParams.get('current') === 'true') {
       const companyIdString = session.user.companyId;
       
-      // Convertir companyId إلى ObjectId إذا كان string
+      // Convertir companyId en ObjectId si c'est une string
       const companyId = typeof companyIdString === 'string' 
         ? new mongoose.Types.ObjectId(companyIdString)
         : companyIdString;
@@ -194,7 +194,7 @@ export async function PUT(request: NextRequest) {
 
     const companyIdString = session.user.companyId;
     
-    // Convertir companyId إلى ObjectId إذا كان string
+    // Convertir companyId en ObjectId si c'est une string
     const companyId = typeof companyIdString === 'string' 
       ? new mongoose.Types.ObjectId(companyIdString)
       : companyIdString;
@@ -221,7 +221,7 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    // Préparer les données de mise à jour - merger avec البيانات الموجودة
+    // Préparer les données de mise à jour - merger avec les données existantes
     const currentCompany = await (Company as any).findById(companyId);
     if (!currentCompany) {
       return NextResponse.json(

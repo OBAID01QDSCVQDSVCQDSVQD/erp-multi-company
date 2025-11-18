@@ -533,13 +533,6 @@ export default function PurchaseInvoiceDetailPage() {
                     Valider
                   </button>
                   <button
-                    onClick={() => router.push(`/purchases/invoices/${invoice._id}/edit`)}
-                    className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm font-medium"
-                  >
-                    <PencilIcon className="w-5 h-5" />
-                    Modifier
-                  </button>
-                  <button
                     onClick={handleDelete}
                     disabled={deleting}
                     className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium disabled:opacity-50"
@@ -548,6 +541,17 @@ export default function PurchaseInvoiceDetailPage() {
                     Supprimer
                   </button>
                 </>
+              )}
+              {(invoice.statut === 'BROUILLON' || invoice.statut === 'VALIDEE' || invoice.statut === 'PARTIELLEMENT_PAYEE') && (
+                <button
+                  onClick={() => {
+                    router.push(`/purchases/invoices/${invoice._id}/edit`);
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm font-medium"
+                >
+                  <PencilIcon className="w-5 h-5" />
+                  Modifier
+                </button>
               )}
               {(invoice.statut === 'VALIDEE' || invoice.statut === 'PARTIELLEMENT_PAYEE') && (
                 <button
@@ -604,7 +608,7 @@ export default function PurchaseInvoiceDetailPage() {
                 <div>
                   <label className="text-xs text-gray-500">FODEC</label>
                   <p className="text-sm font-medium text-gray-900 mt-1">
-                    {invoice.fodec.tauxPct}% - {invoice.fodec.montant?.toFixed(3) || 0} DT
+                    {invoice.fodec.tauxPct}% - {invoice.fodec.montant?.toFixed(3) || 0} {invoice.devise}
                   </p>
                 </div>
               )}
@@ -612,7 +616,7 @@ export default function PurchaseInvoiceDetailPage() {
                 <div>
                   <label className="text-xs text-gray-500">Timbre fiscal</label>
                   <p className="text-sm font-medium text-gray-900 mt-1">
-                    {invoice.timbre.montant?.toFixed(3) || 1.000} DT
+                    {invoice.timbre.montant?.toFixed(3) || 1.000} {invoice.devise}
                   </p>
                 </div>
               )}
@@ -645,7 +649,7 @@ export default function PurchaseInvoiceDetailPage() {
                       <td className="px-4 sm:px-6 py-4 text-sm text-gray-900">{line.designation}</td>
                       <td className="px-3 sm:px-4 py-4 whitespace-nowrap text-sm text-right text-gray-900">{line.quantite}</td>
                       <td className="px-3 sm:px-4 py-4 whitespace-nowrap text-sm text-right text-gray-900">
-                        {line.prixUnitaireHT.toFixed(3)} DT
+                        {line.prixUnitaireHT.toFixed(3)} {invoice.devise}
                       </td>
                       <td className="px-3 sm:px-4 py-4 whitespace-nowrap text-sm text-right text-gray-900">
                         {line.remisePct ? `${line.remisePct} %` : '—'}
@@ -654,7 +658,7 @@ export default function PurchaseInvoiceDetailPage() {
                         {line.tvaPct ? `${line.tvaPct} %` : '—'}
                       </td>
                       <td className="px-3 sm:px-4 py-4 whitespace-nowrap text-sm text-right font-medium text-gray-900">
-                        {line.totalLigneHT?.toFixed(3) || '0.000'} DT
+                        {line.totalLigneHT?.toFixed(3) || '0.000'} {invoice.devise}
                       </td>
                     </tr>
                   ))}
@@ -666,7 +670,7 @@ export default function PurchaseInvoiceDetailPage() {
                         Total Remise:
                       </td>
                       <td className="px-3 sm:px-4 py-3 text-right text-sm font-bold text-red-600">
-                        -{invoice.totaux.totalRemise.toFixed(3)} DT
+                        -{invoice.totaux.totalRemise.toFixed(3)} {invoice.devise}
                       </td>
                     </tr>
                   )}
@@ -675,7 +679,7 @@ export default function PurchaseInvoiceDetailPage() {
                       Total HT:
                     </td>
                     <td className="px-3 sm:px-4 py-3 text-right text-sm font-bold text-gray-900">
-                      {invoice.totaux.totalHT.toFixed(3)} DT
+                      {invoice.totaux.totalHT.toFixed(3)} {invoice.devise}
                     </td>
                   </tr>
                   {invoice.fodec.enabled && (
@@ -684,7 +688,7 @@ export default function PurchaseInvoiceDetailPage() {
                         FODEC ({invoice.fodec.tauxPct}%):
                       </td>
                       <td className="px-3 sm:px-4 py-3 text-right text-sm font-bold text-gray-900">
-                        {(invoice.totaux.totalFodec || 0).toFixed(3)} DT
+                        {(invoice.totaux.totalFodec || 0).toFixed(3)} {invoice.devise}
                       </td>
                     </tr>
                   )}
@@ -693,7 +697,7 @@ export default function PurchaseInvoiceDetailPage() {
                       Total TVA:
                     </td>
                     <td className="px-3 sm:px-4 py-3 text-right text-sm font-bold text-gray-900">
-                      {invoice.totaux.totalTVA.toFixed(3)} DT
+                      {invoice.totaux.totalTVA.toFixed(3)} {invoice.devise}
                     </td>
                   </tr>
                   {invoice.timbre.enabled && (
@@ -702,7 +706,7 @@ export default function PurchaseInvoiceDetailPage() {
                         Timbre fiscal:
                       </td>
                       <td className="px-3 sm:px-4 py-3 text-right text-sm font-bold text-gray-900">
-                        {(invoice.totaux.totalTimbre || 0).toFixed(3)} DT
+                        {(invoice.totaux.totalTimbre || 0).toFixed(3)} {invoice.devise}
                       </td>
                     </tr>
                   )}
@@ -711,7 +715,7 @@ export default function PurchaseInvoiceDetailPage() {
                       Total TTC:
                     </td>
                     <td className="px-3 sm:px-4 py-3 text-right text-sm font-bold text-blue-600">
-                      {invoice.totaux.totalTTC.toFixed(3)} DT
+                      {invoice.totaux.totalTTC.toFixed(3)} {invoice.devise}
                     </td>
                   </tr>
                   <tr>
@@ -719,7 +723,7 @@ export default function PurchaseInvoiceDetailPage() {
                       Montant à payer:
                     </td>
                     <td className="px-3 sm:px-4 py-3 text-right text-sm font-bold text-orange-600">
-                      {montantRestant.toFixed(3)} DT
+                      {montantRestant.toFixed(3)} {invoice.devise}
                     </td>
                   </tr>
                 </tfoot>

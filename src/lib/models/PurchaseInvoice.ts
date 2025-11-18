@@ -46,6 +46,7 @@ export interface IPurchaseInvoice extends Document {
   fournisseurId: string;
   fournisseurNom?: string;
   devise: string;
+  tauxChange?: number; // Taux de change pour conversion en TND
   conditionsPaiement?: string;
   statut: 'BROUILLON' | 'VALIDEE' | 'PARTIELLEMENT_PAYEE' | 'PAYEE' | 'ANNULEE';
   lignes: IPurchaseInvoiceLine[];
@@ -61,6 +62,7 @@ export interface IPurchaseInvoice extends Document {
   updatedAt: Date;
 }
 
+// @ts-ignore - Complex union type inference issue with Mongoose
 const PurchaseInvoiceLineSchema = new Schema({
   produitId: { type: String },
   designation: { type: String, required: true },
@@ -72,17 +74,20 @@ const PurchaseInvoiceLineSchema = new Schema({
   totalLigneHT: { type: Number, default: 0 },
 }, { _id: false });
 
+// @ts-ignore - Complex union type inference issue with Mongoose
 const PurchaseInvoiceFodecSchema = new Schema({
   enabled: { type: Boolean, default: false },
   tauxPct: { type: Number, default: 1, min: 0, max: 100 },
   montant: { type: Number, default: 0, min: 0 },
 }, { _id: false });
 
+// @ts-ignore - Complex union type inference issue with Mongoose
 const PurchaseInvoiceTimbreSchema = new Schema({
   enabled: { type: Boolean, default: true },
   montant: { type: Number, default: 1.000, min: 0 },
 }, { _id: false });
 
+// @ts-ignore - Complex union type inference issue with Mongoose
 const PurchaseInvoiceTotauxSchema = new Schema({
   totalHT: { type: Number, default: 0, min: 0 },
   totalRemise: { type: Number, default: 0, min: 0 },
@@ -92,6 +97,7 @@ const PurchaseInvoiceTotauxSchema = new Schema({
   totalTTC: { type: Number, default: 0, min: 0 },
 }, { _id: false });
 
+// @ts-ignore - Complex union type inference issue with Mongoose
 const PurchaseInvoicePaiementSchema = new Schema({
   date: { type: Date, required: true },
   montant: { type: Number, required: true, min: 0 },
@@ -99,6 +105,7 @@ const PurchaseInvoicePaiementSchema = new Schema({
   notes: { type: String },
 }, { _id: false });
 
+// @ts-ignore - Complex union type inference issue with Mongoose
 const PurchaseInvoiceSchema = new Schema({
   societeId: { type: String, required: true, index: true },
   numero: { type: String, required: true },
@@ -107,6 +114,7 @@ const PurchaseInvoiceSchema = new Schema({
   fournisseurId: { type: String, required: true, ref: 'Supplier' },
   fournisseurNom: { type: String },
   devise: { type: String, default: 'TND' },
+  tauxChange: { type: Number, default: 1 }, // Taux de change pour conversion en TND
   conditionsPaiement: { type: String },
   statut: {
     type: String,

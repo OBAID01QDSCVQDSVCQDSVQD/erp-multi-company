@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const crypto = require('crypto');
 require('dotenv').config({ path: '.env.local' });
 
 async function testMongoAtlasWithDifferentConfigs() {
@@ -47,12 +48,23 @@ async function testMongoAtlasWithDifferentConfigs() {
       
       // Mettre à jour le fichier .env.local
       const fs = require('fs');
+      
+      // Préserver le secret existant ou en générer un nouveau
+      let nextAuthSecret;
+      if (fs.existsSync('.env.local')) {
+        const existingEnv = fs.readFileSync('.env.local', 'utf8');
+        const secretMatch = existingEnv.match(/NEXTAUTH_SECRET=(.+?)(\n|$)/);
+        nextAuthSecret = secretMatch ? secretMatch[1].trim() : crypto.randomBytes(32).toString('base64');
+      } else {
+        nextAuthSecret = crypto.randomBytes(32).toString('base64');
+      }
+      
       const envContent = `# Base de données MongoDB
 MONGODB_URI=${config.uri}
 
 # NextAuth.js
 NEXTAUTH_URL=http://localhost:3000
-NEXTAUTH_SECRET=1OgP4bUmlbEvo0DpHcS1ctxnNGMi0KTn
+NEXTAUTH_SECRET=${nextAuthSecret}
 
 # Configuration de l'application
 NEXT_PUBLIC_APP_NAME=ERP Multi-Entreprises

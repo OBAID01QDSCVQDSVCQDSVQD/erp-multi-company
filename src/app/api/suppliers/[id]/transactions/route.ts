@@ -301,46 +301,46 @@ export async function GET(
     // Calculate summary using ALL transactions (not filtered by type)
     // This ensures summary doesn't change when switching between Factures/Paiements tabs
     const summary = {
-      // Total Factures: مجموع كل مبالغ الفواتير (من نوع 'facture')
+      // Total Factures: Somme de tous les montants des factures (de type 'facture')
       // Formula: Sum of all invoice amounts (montantTotal TTC)
       totalFactures: allTransactions
         .filter(t => t.type === 'facture')
         .reduce((sum, t) => sum + t.montant, 0),
-      // Total Paiements: مجموع المبالغ المدفوعة للفواتير فقط (بدون دفعات على الحساب)
+      // Total Paiements: Somme des montants payés pour les factures uniquement (sans paiements sur compte)
       // Formula: Sum of payment amounts for invoices only (exclude payments on account)
       // This includes:
-      // 1. Regular payments linked to invoices (دفعات عادية مرتبطة بفواتير)
-      // 2. Does NOT include payments on account (لا يشمل دفعات على الحساب)
+      // 1. Regular payments linked to invoices (paiements réguliers liés aux factures)
+      // 2. Does NOT include payments on account (n'inclut pas les paiements sur compte)
       // The payment on account are tracked separately in soldeAvanceDisponible
       totalPaiements: allTransactions
         .filter(t => t.type === 'paiement' && !t.isPaymentOnAccount)
         .reduce((sum, t) => sum + t.montant, 0),
-      // Total Avoirs: مجموع كل مبالغ الأور (credit notes)
+      // Total Avoirs: Somme de tous les montants des avoirs (notes de crédit)
       // Formula: Sum of all credit note amounts (montantTotal when negative)
       totalAvoirs: allTransactions
         .filter(t => t.type === 'avoir')
         .reduce((sum, t) => sum + t.montant, 0),
       // Solde Actuel calculation:
-      // الرصيد الحالي = مجموع الفواتير - مجموع المدفوعات
+      // Solde actuel = Somme des factures - Somme des paiements
       // 
-      // 1. الفواتير (facture): montant = المبلغ الكامل للفاتورة (موجب)
-      // 2. الأور (avoir): montant = المبلغ الكامل للائتمان (موجب، لكن سيُطرح)
-      // 3. المدفوعات (paiement): montant = المبلغ المدفوع (موجب، لكن سيُطرح)
+      // 1. Factures (facture): montant = Montant complet de la facture (positif)
+      // 2. Avoirs (avoir): montant = Montant complet du crédit (positif, mais sera soustrait)
+      // 3. Paiements (paiement): montant = Montant payé (positif, mais sera soustrait)
       // 
-      // الصيغة: Solde Actuel = (مجموع الفواتير + الأور) - (مجموع المدفوعات)
-      // أو: Solde Actuel = مجموع الفواتير - مجموع المدفوعات (حيث الأور تُحسب كفواتير سالبة)
+      // Formule: Solde Actuel = (Somme des factures + Avoirs) - (Somme des paiements)
+      // Ou: Solde Actuel = Somme des factures - Somme des paiements (où les avoirs sont comptés comme factures négatives)
       // 
       // Use allTransactions for summary (not filtered by type)
       soldeActuel: allTransactions.reduce((sum, t) => {
         if (t.type === 'facture') {
-          // الفواتير: أضف المبلغ الكامل (موجب)
+          // Factures: Ajouter le montant complet (positif)
           return sum + (t.montant || 0);
         } else if (t.type === 'avoir') {
-          // الأور: اطرح المبلغ (لأنها تقلل الرصيد)
-          // أو يمكن اعتبارها فواتير سالبة
+          // Avoirs: Soustraire le montant (car ils réduisent le solde)
+          // Ou peuvent être considérés comme factures négatives
           return sum - (t.montant || 0);
         } else if (t.type === 'paiement') {
-          // المدفوعات: اطرح المبلغ (لأنها تقلل الرصيد)
+          // Paiements: Soustraire le montant (car ils réduisent le solde)
           return sum - (t.montant || 0);
         }
         return sum;
@@ -349,7 +349,7 @@ export async function GET(
       facturesOuvertes: allTransactions
         .filter(t => t.type === 'facture' && t.soldeRestant > 0)
         .reduce((sum, t) => sum + t.soldeRestant, 0),
-      // Solde avance disponible = المدفوعات على الحساب - المبلغ المستخدم من الرصيد المتقدم
+      // Solde avance disponible = Paiements sur compte - Montant utilisé du solde d'avance
       soldeAvanceDisponible: netAdvanceBalance,
     };
 

@@ -79,6 +79,7 @@ export default function InvoicesPage() {
     dateDoc: new Date().toISOString().split('T')[0],
     referenceExterne: '',
     devise: 'TND',
+    tauxChange: 1,
     modePaiement: 'Espèces',
     dateEcheance: '',
     conditionsPaiement: '',
@@ -689,6 +690,7 @@ export default function InvoicesPage() {
             dateDoc: fullInvoice.dateDoc?.split('T')[0] || new Date().toISOString().split('T')[0],
             referenceExterne: fullInvoice.referenceExterne || '',
             devise: fullInvoice.devise || 'TND',
+            tauxChange: fullInvoice.tauxChange || 1,
             modePaiement: fullInvoice.modePaiement || '',
             dateEcheance: fullInvoice.dateEcheance?.split('T')[0] || '',
             conditionsPaiement: fullInvoice.conditionsPaiement || '',
@@ -804,6 +806,7 @@ export default function InvoicesPage() {
           dateEcheance: formData.dateEcheance || undefined,
           referenceExterne: formData.referenceExterne,
           devise: formData.devise,
+          tauxChange: formData.tauxChange || 1,
           modePaiement: formData.modePaiement || undefined,
           conditionsPaiement: formData.conditionsPaiement || undefined,
           notes: formData.notes,
@@ -823,6 +826,7 @@ export default function InvoicesPage() {
           dateDoc: new Date().toISOString().split('T')[0],
           referenceExterne: '',
           devise: 'TND',
+          tauxChange: 1,
           modePaiement: 'Espèces',
           dateEcheance: '',
           conditionsPaiement: '',
@@ -896,6 +900,7 @@ export default function InvoicesPage() {
           dateDoc: fullInvoice.dateDoc?.split('T')[0] || new Date().toISOString().split('T')[0],
           referenceExterne: fullInvoice.referenceExterne || '',
           devise: fullInvoice.devise || 'TND',
+          tauxChange: fullInvoice.tauxChange || 1,
           modePaiement: fullInvoice.modePaiement || '',
           dateEcheance: fullInvoice.dateEcheance?.split('T')[0] || '',
           conditionsPaiement: fullInvoice.conditionsPaiement || '',
@@ -1362,6 +1367,25 @@ export default function InvoicesPage() {
                       <option value="USD">USD - Dollar</option>
                     </select>
                   </div>
+                  {formData.devise !== 'TND' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Taux de change (1 {formData.devise} = ? TND)
+                      </label>
+                      <input
+                        type="number"
+                        step="0.0001"
+                        min="0"
+                        value={formData.tauxChange}
+                        onChange={(e) => setFormData({ ...formData, tauxChange: parseFloat(e.target.value) || 1 })}
+                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                        placeholder="Ex: 3.25"
+                      />
+                      <p className="mt-1 text-xs text-gray-500">
+                        Taux de change utilisé pour convertir les montants en TND dans les rapports
+                      </p>
+                    </div>
+                  )}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Date échéance

@@ -13,6 +13,7 @@ interface PurchaseInvoice {
   dateFacture: string;
   referenceFournisseur?: string;
   fournisseurNom: string;
+  devise: string;
   statut: 'BROUILLON' | 'VALIDEE' | 'PARTIELLEMENT_PAYEE' | 'PAYEE' | 'ANNULEE';
   totaux: {
     totalHT: number;
@@ -253,7 +254,7 @@ export default function PurchaseInvoicesPage() {
                       </td>
                       <td className="px-4 sm:px-6 py-4 text-sm text-gray-900">{invoice.fournisseurNom}</td>
                       <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-right font-medium text-gray-900">
-                        {invoice.totaux.totalTTC.toFixed(3)} DT
+                        {invoice.totaux.totalTTC.toFixed(3)} {invoice.devise || 'TND'}
                       </td>
                       <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-center">
                         <div className="flex items-center justify-center gap-2">

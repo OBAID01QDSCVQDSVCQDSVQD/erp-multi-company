@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'react-hot-toast';
+import Image from 'next/image';
 
 const societeSchema = z.object({
   nom: z.string().min(1, 'Le nom de l\'entreprise est requis'),
@@ -121,7 +122,7 @@ export default function SocieteTab({ tenantId }: SocieteTabProps) {
   const fetchSettings = async (showLoader = true) => {
     try {
       if (showLoader) {
-        setLoading(true);
+      setLoading(true);
       }
       const response = await fetch('/api/companies?current=true');
 
@@ -168,7 +169,7 @@ export default function SocieteTab({ tenantId }: SocieteTabProps) {
       toast.error('Erreur lors du chargement des informations de l\'entreprise');
     } finally {
       if (showLoader) {
-        setLoading(false);
+      setLoading(false);
       }
     }
   };
@@ -425,10 +426,13 @@ export default function SocieteTab({ tenantId }: SocieteTabProps) {
             {/* Logo Preview */}
             {logoPreview && (
               <div className="mb-3">
-                <img
+                <Image
                   src={logoPreview}
                   alt="Logo preview"
-                  className="w-32 h-32 object-contain border border-gray-300 rounded-lg p-2 bg-white"
+                  width={128}
+                  height={128}
+                  className="object-contain border border-gray-300 rounded-lg p-2 bg-white"
+                  unoptimized={logoPreview.startsWith('data:')}
                 />
               </div>
             )}

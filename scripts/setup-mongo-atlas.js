@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 console.log('🔧 Configuration MongoDB Atlas...\n');
 
@@ -26,7 +27,8 @@ async function setupMongoAtlas() {
     const projectId = await askQuestion('Project ID (optionnel): ');
     
     // Construire l'URI MongoDB Atlas
-    let mongoUri = `mongodb+srv://${username}:${password}@${cluster}.zx9lgam.mongodb.net/erp-multi-company?retryWrites=true&w=majority`;
+    // Format standard: cluster.mongodb.net
+    let mongoUri = `mongodb+srv://${username}:${password}@${cluster}.mongodb.net/erp-multi-company?retryWrites=true&w=majority`;
     
     if (projectId) {
       mongoUri += `&projectId=${projectId}`;
@@ -35,13 +37,16 @@ async function setupMongoAtlas() {
     console.log('\n🔗 URI MongoDB généré:');
     console.log(mongoUri.substring(0, 50) + '...');
     
+    // Générer un secret sécurisé pour NextAuth
+    const nextAuthSecret = crypto.randomBytes(32).toString('base64');
+    
     // Créer le fichier .env.local
     const envContent = `# Base de données MongoDB Atlas
 MONGODB_URI=${mongoUri}
 
 # NextAuth.js
 NEXTAUTH_URL=http://localhost:3000
-NEXTAUTH_SECRET=1OgP4bUmlbEvo0DpHcS1ctxnNGMi0KTn
+NEXTAUTH_SECRET=${nextAuthSecret}
 
 # Configuration de l'application
 NEXT_PUBLIC_APP_NAME=ERP Multi-Entreprises

@@ -46,14 +46,14 @@ export async function POST(request: NextRequest) {
     
     if (!isSetupMode) {
       // Mode normal: nécessite une session
-      if (!session) {
-        return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
-      }
+    if (!session) {
+      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+    }
 
-      // Vérifier que l'utilisateur est admin
-      if (session.user.role !== 'admin') {
-        return NextResponse.json({ error: 'Accès refusé. Seuls les administrateurs peuvent créer des utilisateurs.' }, { status: 403 });
-      }
+    // Vérifier que l'utilisateur est admin
+    if (session.user.role !== 'admin') {
+      return NextResponse.json({ error: 'Accès refusé. Seuls les administrateurs peuvent créer des utilisateurs.' }, { status: 403 });
+    }
     }
     
     if (!email || !password || !firstName || !lastName) {

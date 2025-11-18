@@ -136,6 +136,7 @@ export async function POST(request: NextRequest) {
       fournisseurId: body.fournisseurId,
       fournisseurNom,
       devise: body.devise || 'TND',
+      tauxChange: body.tauxChange || 1,
       conditionsPaiement: body.conditionsPaiement || undefined,
       statut: body.statut || 'BROUILLON',
       lignes,
