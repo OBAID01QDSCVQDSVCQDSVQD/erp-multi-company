@@ -3,9 +3,11 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
-import { PlusIcon, EyeIcon, TrashIcon, ArrowDownTrayIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, EyeIcon, TrashIcon, ArrowDownTrayIcon, MagnifyingGlassIcon, PhotoIcon, XMarkIcon, PlusCircleIcon } from '@heroicons/react/24/outline';
 import { useTenantId } from '@/hooks/useTenantId';
 import toast from 'react-hot-toast';
+import ImageGallery, { ImageItem } from '@/components/common/ImageGallery';
+import ImageUploader, { ImageData } from '@/components/common/ImageUploader';
 
 interface PaiementFournisseur {
   _id: string;
@@ -26,6 +28,7 @@ interface PaiementFournisseur {
     soldeRestant: number;
   }>;
   notes?: string;
+  images?: ImageItem[];
 }
 
 export default function PurchasePaymentsPage() {
@@ -35,6 +38,11 @@ export default function PurchasePaymentsPage() {
   const [paiements, setPaiements] = useState<PaiementFournisseur[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [fournisseurFilter, setFournisseurFilter] = useState<string>('');
+  const [selectedPaymentImages, setSelectedPaymentImages] = useState<{ paymentNumero: string; images: ImageItem[] } | null>(null);
+  const [showAddImagesModal, setShowAddImagesModal] = useState(false);
+  const [selectedPaymentForImages, setSelectedPaymentForImages] = useState<PaiementFournisseur | null>(null);
+  const [newImages, setNewImages] = useState<ImageData[]>([]);
+  const [uploadingImages, setUploadingImages] = useState(false);
 
   useEffect(() => {
     if (tenantId) {
@@ -102,6 +110,56 @@ export default function PurchasePaymentsPage() {
     window.open(`/api/purchases/payments/${paymentId}/pdf`, '_blank');
   }
 
+  function handleAddImages(payment: PaiementFournisseur) {
+    setSelectedPaymentForImages(payment);
+    setNewImages([]);
+    setShowAddImagesModal(true);
+  }
+
+  async function handleSaveImages() {
+    if (!selectedPaymentForImages || !tenantId) return;
+    
+    if (newImages.length === 0) {
+      toast.error('Veuillez ajouter au moins une image');
+      return;
+    }
+
+    setUploadingImages(true);
+    try {
+      // Get current payment to merge images
+      const currentPayment = paiements.find(p => p._id === selectedPaymentForImages._id);
+      const existingImages = currentPayment?.images || [];
+      const allImages = [...existingImages, ...newImages];
+
+      const response = await fetch(`/api/purchases/payments/${selectedPaymentForImages._id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Tenant-Id': tenantId,
+        },
+        body: JSON.stringify({
+          images: allImages,
+        }),
+      });
+
+      if (response.ok) {
+        toast.success(`${newImages.length} image(s) ajoutée(s) avec succès`);
+        setShowAddImagesModal(false);
+        setSelectedPaymentForImages(null);
+        setNewImages([]);
+        fetchPayments(); // Refresh the list
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Erreur lors de l\'ajout des images');
+      }
+    } catch (error) {
+      console.error('Error saving images:', error);
+      toast.error('Erreur lors de l\'ajout des images');
+    } finally {
+      setUploadingImages(false);
+    }
+  }
+
   return (
     <DashboardLayout>
       <div className="p-4 sm:p-6">
@@ -165,7 +223,8 @@ export default function PurchasePaymentsPage() {
                     <th className="px-4 sm:px-6 py-3 text-left text-sm font-bold text-gray-800">Mode de paiement</th>
                     <th className="px-4 sm:px-6 py-3 text-left text-sm font-bold text-gray-800">Référence</th>
                     <th className="px-4 sm:px-6 py-3 text-right text-sm font-bold text-gray-800 whitespace-nowrap">Montant</th>
-                    <th className="px-4 sm:px-6 py-3 text-right text-sm font-bold text-gray-800 whitespace-nowrap">Actions</th>
+                    <th className="px-4 sm:px-6 py-3 text-center text-sm font-bold text-gray-800 whitespace-nowrap">Images</th>
+                    <th className="px-2 py-3 text-right text-sm font-bold text-gray-800 whitespace-nowrap">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -192,28 +251,49 @@ export default function PurchasePaymentsPage() {
                       <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-right font-medium text-gray-900">
                         {paiement.montantTotal.toFixed(3)} DT
                       </td>
-                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-1 sm:gap-2">
+                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-center">
+                        {paiement.images && paiement.images.length > 0 ? (
+                          <button
+                            onClick={() => setSelectedPaymentImages({ paymentNumero: paiement.numero, images: paiement.images! })}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors text-xs font-medium"
+                            title={`${paiement.images.length} image(s) jointe(s)`}
+                          >
+                            <PhotoIcon className="w-4 h-4" />
+                            <span>{paiement.images.length}</span>
+                          </button>
+                        ) : (
+                          <span className="text-gray-400 text-xs">—</span>
+                        )}
+                      </td>
+                      <td className="px-2 py-2 whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-0.5">
                           <button
                             onClick={() => router.push(`/purchases/payments/${paiement._id}`)}
-                            className="p-1.5 sm:p-2 text-blue-600 hover:text-blue-900 hover:bg-blue-50 rounded transition-colors"
+                            className="p-1.5 text-blue-600 hover:text-blue-900 hover:bg-blue-50 rounded transition-colors"
                             title="Voir les détails"
                           >
-                            <EyeIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                            <EyeIcon className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleDownloadPdf(paiement._id)}
-                            className="p-1.5 sm:p-2 text-green-600 hover:text-green-900 hover:bg-green-50 rounded transition-colors"
+                            className="p-1.5 text-green-600 hover:text-green-900 hover:bg-green-50 rounded transition-colors"
                             title="Télécharger PDF"
                           >
-                            <ArrowDownTrayIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                            <ArrowDownTrayIcon className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleAddImages(paiement)}
+                            className="p-1.5 text-purple-600 hover:text-purple-900 hover:bg-purple-50 rounded transition-colors"
+                            title="Ajouter des images"
+                          >
+                            <PlusCircleIcon className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleDelete(paiement._id)}
-                            className="p-1.5 sm:p-2 text-red-600 hover:text-red-900 hover:bg-red-50 rounded transition-colors"
+                            className="p-1.5 text-red-600 hover:text-red-900 hover:bg-red-50 rounded transition-colors"
                             title="Supprimer"
                           >
-                            <TrashIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                            <TrashIcon className="w-4 h-4" />
                           </button>
                         </div>
                       </td>
@@ -221,6 +301,80 @@ export default function PurchasePaymentsPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {/* Add Images Modal */}
+        {showAddImagesModal && selectedPaymentForImages && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between p-6 border-b">
+                <h2 className="text-xl font-bold text-gray-900">
+                  Ajouter des images - Paiement {selectedPaymentForImages.numero}
+                </h2>
+                <button
+                  onClick={() => {
+                    setShowAddImagesModal(false);
+                    setSelectedPaymentForImages(null);
+                    setNewImages([]);
+                  }}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <XMarkIcon className="w-6 h-6" />
+                </button>
+              </div>
+              <div className="p-6">
+                <ImageUploader
+                  images={newImages}
+                  onChange={setNewImages}
+                  maxImages={10}
+                  maxSizeMB={5}
+                  label="Images jointes (Chèque, Virement, etc.)"
+                  folder="erp-uploads"
+                />
+              </div>
+              <div className="flex items-center justify-end gap-3 p-6 border-t bg-gray-50">
+                <button
+                  onClick={() => {
+                    setShowAddImagesModal(false);
+                    setSelectedPaymentForImages(null);
+                    setNewImages([]);
+                  }}
+                  className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleSaveImages}
+                  disabled={uploadingImages || newImages.length === 0}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {uploadingImages ? 'Enregistrement...' : `Enregistrer ${newImages.length} image(s)`}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Images Modal */}
+        {selectedPaymentImages && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between p-6 border-b">
+                <h2 className="text-xl font-bold text-gray-900">
+                  Images - Paiement {selectedPaymentImages.paymentNumero}
+                </h2>
+                <button
+                  onClick={() => setSelectedPaymentImages(null)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <XMarkIcon className="w-6 h-6" />
+                </button>
+              </div>
+              <div className="p-6">
+                <ImageGallery images={selectedPaymentImages.images} title="" />
+              </div>
             </div>
           </div>
         )}

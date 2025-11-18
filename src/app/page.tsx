@@ -456,12 +456,24 @@ export default function Home() {
                 Se connecter
                 <ArrowRightIcon className="ml-2 h-5 w-5" />
               </Link>
-              <Link
-                href="/auth/signup"
-                className="inline-flex items-center px-8 py-4 border-2 border-gray-300 text-base font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 transform hover:scale-105"
-              >
-                Créer une entreprise
-              </Link>
+              {session?.user ? (
+                <button
+                  onClick={async () => {
+                    await signOut({ redirect: false });
+                    router.push('/auth/signup');
+                  }}
+                  className="inline-flex items-center px-8 py-4 border-2 border-gray-300 text-base font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 transform hover:scale-105"
+                >
+                  Créer une entreprise
+                </button>
+              ) : (
+                <Link
+                  href="/auth/signup"
+                  className="inline-flex items-center px-8 py-4 border-2 border-gray-300 text-base font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 transform hover:scale-105"
+                >
+                  Créer une entreprise
+                </Link>
+              )}
             </div>
           </div>
         </div>
@@ -571,13 +583,26 @@ export default function Home() {
             <p className="text-xl text-blue-100 mb-8">
               Créez votre compte gratuitement et commencez à gérer votre entreprise dès aujourd'hui
             </p>
-            <Link
-              href="/auth/signup"
-              className="inline-flex items-center px-8 py-4 border-2 border-white text-base font-medium rounded-lg text-blue-600 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white transition-all duration-200 transform hover:scale-105 shadow-lg"
-            >
-              Créer mon entreprise
-              <ArrowRightIcon className="ml-2 h-5 w-5" />
-            </Link>
+            {session?.user ? (
+              <button
+                onClick={async () => {
+                  await signOut({ redirect: false });
+                  router.push('/auth/signup');
+                }}
+                className="inline-flex items-center px-8 py-4 border-2 border-white text-base font-medium rounded-lg text-blue-600 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white transition-all duration-200 transform hover:scale-105 shadow-lg"
+              >
+                Créer mon entreprise
+                <ArrowRightIcon className="ml-2 h-5 w-5" />
+              </button>
+            ) : (
+              <Link
+                href="/auth/signup"
+                className="inline-flex items-center px-8 py-4 border-2 border-white text-base font-medium rounded-lg text-blue-600 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white transition-all duration-200 transform hover:scale-105 shadow-lg"
+              >
+                Créer mon entreprise
+                <ArrowRightIcon className="ml-2 h-5 w-5" />
+              </Link>
+            )}
           </div>
         </div>
       </div>

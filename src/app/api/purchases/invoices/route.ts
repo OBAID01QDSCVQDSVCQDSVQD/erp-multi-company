@@ -43,6 +43,7 @@ export async function GET(request: NextRequest) {
     // Ensure default values for fodec and timbre
     const normalizedInvoices = invoices.map((inv: any) => ({
       ...inv,
+      images: inv.images || [], // Ensure images array is always present
       fodec: {
         enabled: inv.fodec?.enabled ?? false,
         tauxPct: inv.fodec?.tauxPct ?? 1,
@@ -59,6 +60,7 @@ export async function GET(request: NextRequest) {
         totalTimbre: inv.totaux?.totalTimbre ?? 0,
       },
     }));
+
 
     return NextResponse.json({
       items: normalizedInvoices,
@@ -87,6 +89,11 @@ export async function POST(request: NextRequest) {
 
     const tenantId = session.user.companyId?.toString() || '';
     const body = await request.json();
+    
+    // Debug: Log images if present
+    if (body.images && body.images.length > 0) {
+      console.log('[API POST] Received images:', body.images.length);
+    }
 
     // Generate invoice number
     const numero = await NumberingService.next(tenantId, 'facfo');
@@ -152,10 +159,31 @@ export async function POST(request: NextRequest) {
       },
       bonsReceptionIds: body.bonsReceptionIds || [],
       fichiers: body.fichiers || [],
+      images: Array.isArray(body.images) ? body.images : [],
       paiements: body.paiements || [],
       notes: body.notes || '',
       createdBy: session.user.email,
     });
+
+    // Force Mongoose to recognize images as modified if it's an array
+    if (Array.isArray(body.images) && body.images.length > 0) {
+      // Clear and set images array
+      invoice.images = [];
+      body.images.forEach((img: any) => {
+        invoice.images.push({
+          id: img.id || `${Date.now()}-${Math.random()}`,
+          name: img.name || '',
+          url: img.url || '',
+          publicId: img.publicId || undefined,
+          type: img.type || 'image/jpeg',
+          size: img.size || 0,
+          width: img.width || undefined,
+          height: img.height || undefined,
+          format: img.format || undefined,
+        });
+      });
+      (invoice as any).markModified('images');
+    }
 
     // Totals will be calculated by pre-save hook
     await (invoice as any).save();

@@ -90,10 +90,12 @@ export async function PUT(
 
     // Allow status change for any status (except PAYEE and ANNULEE)
     // But only allow other field updates if status is BROUILLON
+    // Exception: images can always be added/updated (for adding check/virement images)
     const isStatusOnlyUpdate = Object.keys(body).length === 1 && body.statut !== undefined;
-    const hasOtherFields = Object.keys(body).some(key => key !== 'statut');
+    const isImagesOnlyUpdate = Object.keys(body).length === 1 && body.images !== undefined;
+    const hasOtherFields = Object.keys(body).some(key => key !== 'statut' && key !== 'images');
 
-    // If updating other fields (not just status), check if invoice is BROUILLON
+    // If updating other fields (not just status or images), check if invoice is BROUILLON
     if (hasOtherFields && invoice.statut !== 'BROUILLON') {
       return NextResponse.json(
         { error: 'Impossible de modifier une facture qui n\'est pas en brouillon' },
@@ -185,6 +187,26 @@ export async function PUT(
     }
     if (body.fichiers !== undefined) {
       invoice.fichiers = body.fichiers;
+    }
+    if (body.images !== undefined) {
+      // Force Mongoose to recognize images as modified
+      invoice.images = [];
+      if (Array.isArray(body.images) && body.images.length > 0) {
+        body.images.forEach((img: any) => {
+          invoice.images.push({
+            id: img.id || `${Date.now()}-${Math.random()}`,
+            name: img.name || '',
+            url: img.url || '',
+            publicId: img.publicId || undefined,
+            type: img.type || 'image/jpeg',
+            size: img.size || 0,
+            width: img.width || undefined,
+            height: img.height || undefined,
+            format: img.format || undefined,
+          });
+        });
+      }
+      (invoice as any).markModified('images');
     }
     if (body.notes !== undefined) {
       invoice.notes = body.notes;

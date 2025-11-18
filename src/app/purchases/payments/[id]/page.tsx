@@ -6,6 +6,7 @@ import DashboardLayout from '@/components/Layout/DashboardLayout';
 import { ArrowLeftIcon, TrashIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
 import { useTenantId } from '@/hooks/useTenantId';
 import toast from 'react-hot-toast';
+import ImageGallery, { ImageItem } from '@/components/common/ImageGallery';
 
 interface PaiementFournisseur {
   _id: string;
@@ -26,6 +27,7 @@ interface PaiementFournisseur {
     soldeRestant: number;
   }>;
   notes?: string;
+  images?: ImageItem[];
 }
 
 export default function PurchasePaymentDetailPage() {
@@ -51,6 +53,8 @@ export default function PurchasePaymentDetailPage() {
       });
       if (response.ok) {
         const data = await response.json();
+        console.log('Payment data received:', data);
+        console.log('Payment images:', data.images);
         setPaiement(data);
       } else {
         toast.error('Paiement non trouvé');
@@ -247,6 +251,17 @@ export default function PurchasePaymentDetailPage() {
               </table>
             </div>
           </div>
+
+          {/* Images Gallery */}
+          {paiement.images && paiement.images.length > 0 ? (
+            <div className="p-6 border-t border-gray-200">
+              <ImageGallery images={paiement.images} title="Images jointes (Chèques, Virements, etc.)" />
+            </div>
+          ) : (
+            <div className="p-6 border-t border-gray-200">
+              <p className="text-sm text-gray-500">Aucune image jointe</p>
+            </div>
+          )}
         </div>
       </div>
     </DashboardLayout>

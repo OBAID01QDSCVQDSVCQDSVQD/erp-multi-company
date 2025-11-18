@@ -3,9 +3,11 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
-import { PlusIcon, MagnifyingGlassIcon, EyeIcon, PencilIcon, TrashIcon, ArrowDownTrayIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, MagnifyingGlassIcon, EyeIcon, PencilIcon, TrashIcon, ArrowDownTrayIcon, ChevronDownIcon, PhotoIcon, XMarkIcon, PlusCircleIcon } from '@heroicons/react/24/outline';
 import { useTenantId } from '@/hooks/useTenantId';
 import toast from 'react-hot-toast';
+import ImageGallery, { ImageItem } from '@/components/common/ImageGallery';
+import ImageUploader, { ImageData } from '@/components/common/ImageUploader';
 
 interface PurchaseInvoice {
   _id: string;
@@ -22,6 +24,7 @@ interface PurchaseInvoice {
     totalTimbre?: number;
     totalTTC: number;
   };
+  images?: ImageItem[];
 }
 
 export default function PurchaseInvoicesPage() {
@@ -31,6 +34,11 @@ export default function PurchaseInvoicesPage() {
   const [invoices, setInvoices] = useState<PurchaseInvoice[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
+  const [selectedInvoiceImages, setSelectedInvoiceImages] = useState<{ invoiceNumero: string; images: ImageItem[] } | null>(null);
+  const [showAddImagesModal, setShowAddImagesModal] = useState(false);
+  const [selectedInvoiceForImages, setSelectedInvoiceForImages] = useState<PurchaseInvoice | null>(null);
+  const [newImages, setNewImages] = useState<ImageData[]>([]);
+  const [uploadingImages, setUploadingImages] = useState(false);
 
   useEffect(() => {
     if (tenantId) {
@@ -117,6 +125,56 @@ export default function PurchaseInvoicesPage() {
 
   function handleDownloadPdf(invoiceId: string) {
     window.open(`/api/purchases/invoices/${invoiceId}/pdf`, '_blank');
+  }
+
+  function handleAddImages(invoice: PurchaseInvoice) {
+    setSelectedInvoiceForImages(invoice);
+    setNewImages([]);
+    setShowAddImagesModal(true);
+  }
+
+  async function handleSaveImages() {
+    if (!selectedInvoiceForImages || !tenantId) return;
+    
+    if (newImages.length === 0) {
+      toast.error('Veuillez ajouter au moins une image');
+      return;
+    }
+
+    setUploadingImages(true);
+    try {
+      // Get current invoice to merge images
+      const currentInvoice = invoices.find(inv => inv._id === selectedInvoiceForImages._id);
+      const existingImages = currentInvoice?.images || [];
+      const allImages = [...existingImages, ...newImages];
+
+      const response = await fetch(`/api/purchases/invoices/${selectedInvoiceForImages._id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Tenant-Id': tenantId,
+        },
+        body: JSON.stringify({
+          images: allImages,
+        }),
+      });
+
+      if (response.ok) {
+        toast.success(`${newImages.length} image(s) ajoutée(s) avec succès`);
+        setShowAddImagesModal(false);
+        setSelectedInvoiceForImages(null);
+        setNewImages([]);
+        fetchInvoices(); // Refresh the list
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Erreur lors de l\'ajout des images');
+      }
+    } catch (error) {
+      console.error('Error saving images:', error);
+      toast.error('Erreur lors de l\'ajout des images');
+    } finally {
+      setUploadingImages(false);
+    }
   }
 
   async function handleStatusChange(invoiceId: string, newStatus: string) {
@@ -236,6 +294,7 @@ export default function PurchaseInvoicesPage() {
                     <th className="px-4 sm:px-6 py-3 text-left text-sm font-bold text-gray-800">N° Facture Fournisseur</th>
                     <th className="px-4 sm:px-6 py-3 text-left text-sm font-bold text-gray-800">Fournisseur</th>
                     <th className="px-4 sm:px-6 py-3 text-right text-sm font-bold text-gray-800 whitespace-nowrap">Total TTC</th>
+                    <th className="px-4 sm:px-6 py-3 text-center text-sm font-bold text-gray-800 whitespace-nowrap">Images</th>
                     <th className="px-4 sm:px-6 py-3 text-center text-sm font-bold text-gray-800 whitespace-nowrap">Statut</th>
                     <th className="px-4 sm:px-6 py-3 text-right text-sm font-bold text-gray-800 whitespace-nowrap">Actions</th>
                   </tr>
@@ -255,6 +314,20 @@ export default function PurchaseInvoicesPage() {
                       <td className="px-4 sm:px-6 py-4 text-sm text-gray-900">{invoice.fournisseurNom}</td>
                       <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-right font-medium text-gray-900">
                         {invoice.totaux.totalTTC.toFixed(3)} {invoice.devise || 'TND'}
+                      </td>
+                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-center">
+                        {invoice.images && invoice.images.length > 0 ? (
+                          <button
+                            onClick={() => setSelectedInvoiceImages({ invoiceNumero: invoice.numero, images: invoice.images! })}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors text-xs font-medium"
+                            title={`${invoice.images.length} image(s) jointe(s)`}
+                          >
+                            <PhotoIcon className="w-4 h-4" />
+                            <span>{invoice.images.length}</span>
+                          </button>
+                        ) : (
+                          <span className="text-gray-400 text-xs">—</span>
+                        )}
                       </td>
                       <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-center">
                         <div className="flex items-center justify-center gap-2">
@@ -312,12 +385,93 @@ export default function PurchaseInvoicesPage() {
                           >
                             <ArrowDownTrayIcon className="w-4 h-4 sm:w-5 sm:h-5" />
                           </button>
+                          <button
+                            onClick={() => handleAddImages(invoice)}
+                            className="p-1.5 sm:p-2 text-purple-600 hover:text-purple-900 hover:bg-purple-50 rounded transition-colors"
+                            title="Ajouter des images"
+                          >
+                            <PlusCircleIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                          </button>
                         </div>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {/* Add Images Modal */}
+        {showAddImagesModal && selectedInvoiceForImages && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between p-6 border-b">
+                <h2 className="text-xl font-bold text-gray-900">
+                  Ajouter des images - Facture {selectedInvoiceForImages.numero}
+                </h2>
+                <button
+                  onClick={() => {
+                    setShowAddImagesModal(false);
+                    setSelectedInvoiceForImages(null);
+                    setNewImages([]);
+                  }}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <XMarkIcon className="w-6 h-6" />
+                </button>
+              </div>
+              <div className="p-6">
+                <ImageUploader
+                  images={newImages}
+                  onChange={setNewImages}
+                  maxImages={10}
+                  maxSizeMB={5}
+                  label="Images jointes (Chèque, Virement, etc.)"
+                  folder="erp-uploads"
+                />
+              </div>
+              <div className="flex items-center justify-end gap-3 p-6 border-t bg-gray-50">
+                <button
+                  onClick={() => {
+                    setShowAddImagesModal(false);
+                    setSelectedInvoiceForImages(null);
+                    setNewImages([]);
+                  }}
+                  className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleSaveImages}
+                  disabled={uploadingImages || newImages.length === 0}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {uploadingImages ? 'Enregistrement...' : `Enregistrer ${newImages.length} image(s)`}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Images Modal */}
+        {selectedInvoiceImages && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between p-6 border-b">
+                <h2 className="text-xl font-bold text-gray-900">
+                  Images - Facture {selectedInvoiceImages.invoiceNumero}
+                </h2>
+                <button
+                  onClick={() => setSelectedInvoiceImages(null)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <XMarkIcon className="w-6 h-6" />
+                </button>
+              </div>
+              <div className="p-6">
+                <ImageGallery images={selectedInvoiceImages.images} title="" />
+              </div>
             </div>
           </div>
         )}

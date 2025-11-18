@@ -11,6 +11,18 @@ export interface IPaiementFournisseurLigne {
   isPaymentOnAccount?: boolean; // Flag for payment on account
 }
 
+export interface IPaiementFournisseurImage {
+  id: string;
+  name: string;
+  url: string; // Cloudinary URL
+  publicId?: string; // Cloudinary public ID
+  type: string;
+  size: number;
+  width?: number;
+  height?: number;
+  format?: string;
+}
+
 export interface IPaiementFournisseur extends Document {
   societeId: mongoose.Types.ObjectId;
   numero: string;
@@ -21,6 +33,7 @@ export interface IPaiementFournisseur extends Document {
   reference?: string; // Numéro de chèque, référence virement, etc.
   montantTotal: number;
   lignes: IPaiementFournisseurLigne[];
+  images?: IPaiementFournisseurImage[]; // الصور المرفقة
   notes?: string;
   createdBy?: string;
   isPaymentOnAccount?: boolean; // Flag to indicate if this is a payment on account
@@ -78,6 +91,17 @@ const PaiementFournisseurSchema = new Schema<IPaiementFournisseur>({
   },
   isPaymentOnAccount: { type: Boolean, default: false }, // Flag to indicate if this is a payment on account
   advanceUsed: { type: Number, default: 0, min: 0 }, // Amount of advance balance used in this payment
+  images: [{
+    id: { type: String, required: true },
+    name: { type: String, required: true },
+    url: { type: String, required: true }, // Cloudinary URL
+    publicId: { type: String }, // Cloudinary public ID
+    type: { type: String, required: true },
+    size: { type: Number, required: true },
+    width: { type: Number },
+    height: { type: Number },
+    format: { type: String },
+  }],
   notes: { type: String },
   createdBy: { type: String },
 }, { timestamps: true });

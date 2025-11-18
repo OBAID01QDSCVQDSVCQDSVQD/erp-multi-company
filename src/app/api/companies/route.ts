@@ -18,25 +18,84 @@ export async function GET(request: NextRequest) {
     // Si on demande la company courante
     const { searchParams } = new URL(request.url);
     if (searchParams.get('current') === 'true') {
+      console.log('=== API: GET COMPANY CURRENT ===');
+      console.log('Session user:', JSON.stringify(session.user, null, 2));
+      
       const companyIdString = session.user.companyId;
+      console.log('Company ID from session:', companyIdString);
       
       // Convertir companyId en ObjectId si c'est une string
       const companyId = typeof companyIdString === 'string' 
         ? new mongoose.Types.ObjectId(companyIdString)
         : companyIdString;
       
+      console.log('Company ID (ObjectId):', companyId);
+      
       const company = await (Company as any).findById(companyId)
         .select('-__v')
         .lean();
       
+      console.log('Company found in database:', company ? 'YES' : 'NO');
+      
       if (!company) {
+        console.log('ERROR: Company not found in database');
         return NextResponse.json(
           { error: 'Entreprise non trouvée' },
           { status: 404 }
         );
       }
       
-      return NextResponse.json(company);
+      // تحويل البيانات إلى البنية المتوقعة
+      const formattedCompany = {
+        _id: company._id,
+        name: company.name || '',
+        code: company.code || '',
+        address: company.address || {
+          street: '',
+          city: '',
+          postalCode: '',
+          country: '',
+        },
+        contact: company.contact || {
+          email: company.email || '',
+          phone: company.phone || '',
+          website: company.website || '',
+        },
+        fiscal: company.fiscal || {
+          taxNumber: company.taxNumber || '',
+          registrationNumber: company.registrationNumber || '',
+          vatNumber: company.vatNumber || company.taxNumber || '',
+        },
+        enTete: company.enTete || {
+          slogan: '',
+          capitalSocial: '',
+        },
+        piedPage: company.piedPage || {
+          texte: '',
+          conditionsGenerales: '',
+          mentionsLegales: '',
+          coordonneesBancaires: {
+            banque: '',
+            rib: '',
+            swift: '',
+          },
+        },
+        settings: company.settings || {
+          currency: 'TND',
+          timezone: 'Africa/Tunis',
+          language: 'fr',
+          dateFormat: 'DD/MM/YYYY',
+        },
+        logoUrl: company.logoUrl || '',
+        isActive: company.isActive !== undefined ? company.isActive : true,
+        createdAt: company.createdAt,
+        updatedAt: company.updatedAt,
+      };
+      
+      console.log('Company data to return (formatted):', JSON.stringify(formattedCompany, null, 2));
+      console.log('================================');
+      
+      return NextResponse.json(formattedCompany);
     }
     
     const companies = await (Company as any).find({ isActive: true })
@@ -123,8 +182,8 @@ export async function POST(request: NextRequest) {
         ...(body.vatNumber && { vatNumber: body.vatNumber }),
       },
       settings: {
-        currency: 'EUR',
-        timezone: 'Europe/Paris',
+        currency: 'TND',
+        timezone: 'Africa/Tunis',
         language: 'fr',
         dateFormat: 'DD/MM/YYYY',
       },
@@ -230,6 +289,46 @@ export async function PUT(request: NextRequest) {
       );
     }
 
+    // تحديد قيم email و phone
+    // أولاً: استخدام القيمة المرسلة إذا كانت موجودة وغير فارغة
+    // ثانياً: استخدام القيمة الحالية من قاعدة البيانات
+    // ثالثاً: إذا كانت كلاهما فارغة، نرجع خطأ واضح
+    
+    let emailValue = '';
+    let phoneValue = '';
+    
+    // للبريد الإلكتروني
+    const sentEmail = body.contact?.email?.trim() || '';
+    const currentEmail = currentCompany.contact?.email?.trim() || '';
+    
+    if (sentEmail !== '') {
+      emailValue = sentEmail;
+    } else if (currentEmail !== '') {
+      emailValue = currentEmail;
+    } else {
+      // كلاهما فارغة، نرجع خطأ
+      return NextResponse.json(
+        { error: 'L\'email de contact est requis. Veuillez remplir le champ email dans la section En-tête.' },
+        { status: 400 }
+      );
+    }
+    
+    // للهاتف
+    const sentPhone = body.contact?.phone?.trim() || '';
+    const currentPhone = currentCompany.contact?.phone?.trim() || '';
+    
+    if (sentPhone !== '') {
+      phoneValue = sentPhone;
+    } else if (currentPhone !== '') {
+      phoneValue = currentPhone;
+    } else {
+      // كلاهما فارغة، نرجع خطأ
+      return NextResponse.json(
+        { error: 'Le téléphone de contact est requis. Veuillez remplir le champ téléphone dans la section En-tête.' },
+        { status: 400 }
+      );
+    }
+
     // Merger les données
     const updateData: any = {
       name: body.name || currentCompany.name,
@@ -240,9 +339,9 @@ export async function PUT(request: NextRequest) {
         country: body.address?.country || currentCompany.address?.country || '',
       },
       contact: {
-        email: body.contact?.email || currentCompany.contact?.email || '',
-        phone: body.contact?.phone || currentCompany.contact?.phone || '',
-        website: body.contact?.website || currentCompany.contact?.website || '',
+        email: emailValue,
+        phone: phoneValue,
+        website: body.contact?.website !== undefined ? body.contact.website : (currentCompany.contact?.website || ''),
       },
       fiscal: {
         taxNumber: body.fiscal?.taxNumber || currentCompany.fiscal?.taxNumber || '',
@@ -264,11 +363,12 @@ export async function PUT(request: NextRequest) {
         },
       },
       settings: {
-        currency: body.settings?.currency || currentCompany.settings?.currency || 'EUR',
-        timezone: body.settings?.timezone || currentCompany.settings?.timezone || 'Europe/Paris',
+        currency: body.settings?.currency || currentCompany.settings?.currency || 'TND',
+        timezone: body.settings?.timezone || currentCompany.settings?.timezone || 'Africa/Tunis',
         language: body.settings?.language || currentCompany.settings?.language || 'fr',
         dateFormat: body.settings?.dateFormat || currentCompany.settings?.dateFormat || 'DD/MM/YYYY',
       },
+      logoUrl: body.logoUrl !== undefined ? body.logoUrl : currentCompany.logoUrl,
     };
 
     console.log('Final update data:', JSON.stringify(updateData, null, 2));

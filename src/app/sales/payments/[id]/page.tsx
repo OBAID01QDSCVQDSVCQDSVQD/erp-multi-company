@@ -6,6 +6,7 @@ import DashboardLayout from '@/components/Layout/DashboardLayout';
 import { ArrowLeftIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { useTenantId } from '@/hooks/useTenantId';
 import toast from 'react-hot-toast';
+import ImageGallery, { ImageItem } from '@/components/common/ImageGallery';
 
 interface Payment {
   _id: string;
@@ -29,6 +30,7 @@ interface Payment {
   notes?: string;
   isPaymentOnAccount?: boolean;
   advanceUsed?: number;
+  images?: ImageItem[];
 }
 
 export default function PaymentDetailPage() {
@@ -54,6 +56,8 @@ export default function PaymentDetailPage() {
       });
       if (response.ok) {
         const data = await response.json();
+        console.log('📦 [Sales Payment Detail] API Response:', data);
+        console.log('📦 [Sales Payment Detail] Payment images:', data.images);
         setPayment(data);
       } else {
         toast.error('Paiement non trouvé');
@@ -263,6 +267,11 @@ export default function PaymentDetailPage() {
                 Avance utilisée: {formatCurrency(payment.advanceUsed)} TND
               </div>
             </div>
+          )}
+
+          {/* Images Gallery */}
+          {payment.images && payment.images.length > 0 && (
+            <ImageGallery images={payment.images} title="Images jointes" />
           )}
         </div>
       </div>

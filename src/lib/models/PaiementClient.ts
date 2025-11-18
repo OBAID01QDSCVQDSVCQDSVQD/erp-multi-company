@@ -11,6 +11,18 @@ export interface IPaiementClientLigne {
   isPaymentOnAccount?: boolean; // Flag for payment on account
 }
 
+export interface IPaiementClientImage {
+  id: string;
+  name: string;
+  url: string; // Cloudinary URL
+  publicId?: string; // Cloudinary public ID
+  type: string;
+  size: number;
+  width?: number;
+  height?: number;
+  format?: string;
+}
+
 export interface IPaiementClient extends Document {
   societeId: mongoose.Types.ObjectId;
   numero: string;
@@ -21,6 +33,7 @@ export interface IPaiementClient extends Document {
   reference?: string; // Numéro de chèque, référence virement, etc.
   montantTotal: number;
   lignes: IPaiementClientLigne[];
+  images?: IPaiementClientImage[]; // الصور المرفقة
   notes?: string;
   createdBy?: string;
   isPaymentOnAccount?: boolean; // Flag to indicate if this is a payment on account
@@ -78,6 +91,17 @@ const PaiementClientSchema = new Schema<IPaiementClient>({
   },
   isPaymentOnAccount: { type: Boolean, default: false },
   advanceUsed: { type: Number, default: 0, min: 0 },
+  images: [{
+    id: { type: String, required: true },
+    name: { type: String, required: true },
+    url: { type: String, required: true }, // Cloudinary URL
+    publicId: { type: String }, // Cloudinary public ID
+    type: { type: String, required: true },
+    size: { type: Number, required: true },
+    width: { type: Number },
+    height: { type: Number },
+    format: { type: String },
+  }],
   notes: { type: String },
   createdBy: { type: String },
 }, { timestamps: true });

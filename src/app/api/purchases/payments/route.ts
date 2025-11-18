@@ -48,6 +48,11 @@ export async function GET(request: NextRequest) {
     // Enrich payment lines with referenceFournisseur from invoices if missing
     const enrichedPaiements = await Promise.all(
       paiements.map(async (paiement: any) => {
+        const enriched: any = {
+          ...paiement,
+          images: paiement.images || [], // Ensure images array is always present
+        };
+        
         if (paiement.lignes && paiement.lignes.length > 0) {
           const enrichedLignes = await Promise.all(
             paiement.lignes.map(async (ligne: any) => {
@@ -65,9 +70,9 @@ export async function GET(request: NextRequest) {
               return ligne;
             })
           );
-          return { ...paiement, lignes: enrichedLignes };
+          enriched.lignes = enrichedLignes;
         }
-        return paiement;
+        return enriched;
       })
     );
 
@@ -284,6 +289,7 @@ export async function POST(request: NextRequest) {
       reference: body.reference || '',
       montantTotal,
       lignes: cleanedLignes,
+      images: Array.isArray(body.images) ? body.images : [],
       notes: body.notes || '',
       createdBy: session.user.email,
       isPaymentOnAccount: isPaymentOnAccount,
@@ -292,6 +298,25 @@ export async function POST(request: NextRequest) {
     };
 
     const paiement = new PaiementFournisseur(paiementData);
+
+    // Force Mongoose to recognize images as modified if present
+    if (Array.isArray(paiementData.images) && paiementData.images.length > 0) {
+      paiement.images = [];
+      paiementData.images.forEach((img: any) => {
+        paiement.images.push({
+          id: img.id || `${Date.now()}-${Math.random()}`,
+          name: img.name || '',
+          url: img.url || '',
+          publicId: img.publicId || undefined,
+          type: img.type || 'image/jpeg',
+          size: img.size || 0,
+          width: img.width || undefined,
+          height: img.height || undefined,
+          format: img.format || undefined,
+        });
+      });
+      (paiement as any).markModified('images');
+    }
 
     // Save with validation skipped for payment on account (since factureId is optional in schema)
     await paiement.save({ validateBeforeSave: true });

@@ -10,10 +10,14 @@ export interface IExpenseItem {
 
 export interface IPieceJointe {
   nom: string;
-  url: string;
+  url: string; // Cloudinary URL
+  publicId?: string; // Cloudinary public ID
   type: string;
   taille: number;
   uploadedAt: Date;
+  width?: number;
+  height?: number;
+  format?: string;
 }
 
 export interface IExpense extends Document {
@@ -41,10 +45,14 @@ export interface IExpense extends Document {
 
 const PieceJointeSchema = new Schema<IPieceJointe>({
   nom: { type: String, required: true },
-  url: { type: String, required: true },
+  url: { type: String, required: true }, // Cloudinary URL
+  publicId: { type: String }, // Cloudinary public ID
   type: { type: String, required: true },
   taille: { type: Number, required: true },
   uploadedAt: { type: Date, default: Date.now },
+  width: { type: Number },
+  height: { type: Number },
+  format: { type: String },
 });
 
 const ExpenseSchema = new Schema<IExpense>({

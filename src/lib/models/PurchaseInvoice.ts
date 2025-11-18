@@ -54,12 +54,25 @@ export interface IPurchaseInvoice extends Document {
   timbre: IPurchaseInvoiceTimbre;
   totaux: IPurchaseInvoiceTotaux;
   bonsReceptionIds?: mongoose.Types.ObjectId[];
-  fichiers?: string[];
+  fichiers?: string[]; // للحفاظ على التوافق مع البيانات القديمة
+  images?: IPurchaseInvoiceImage[]; // الصور المرفقة (Base64)
   paiements?: IPurchaseInvoicePaiement[];
   notes?: string;
   createdBy?: string;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface IPurchaseInvoiceImage {
+  id: string;
+  name: string;
+  url: string; // Cloudinary URL
+  publicId?: string; // Cloudinary public ID
+  type: string;
+  size: number;
+  width?: number;
+  height?: number;
+  format?: string;
 }
 
 // @ts-ignore - Complex union type inference issue with Mongoose
@@ -136,7 +149,18 @@ const PurchaseInvoiceSchema = new Schema({
   timbre: { type: PurchaseInvoiceTimbreSchema, default: () => ({ enabled: true, montant: 1.000 }) },
   totaux: { type: PurchaseInvoiceTotauxSchema, default: () => ({ totalHT: 0, totalFodec: 0, totalTVA: 0, totalTimbre: 0, totalTTC: 0 }) },
   bonsReceptionIds: [{ type: Schema.Types.ObjectId, ref: 'Reception' }],
-  fichiers: [{ type: String }],
+  fichiers: [{ type: String }], // للحفاظ على التوافق مع البيانات القديمة
+  images: [{
+    id: { type: String, required: true },
+    name: { type: String, required: true },
+    url: { type: String, required: true }, // Cloudinary URL
+    publicId: { type: String }, // Cloudinary public ID
+    type: { type: String, required: true },
+    size: { type: Number, required: true },
+    width: { type: Number },
+    height: { type: Number },
+    format: { type: String },
+  }],
   paiements: [PurchaseInvoicePaiementSchema],
   notes: { type: String },
   createdBy: { type: String },

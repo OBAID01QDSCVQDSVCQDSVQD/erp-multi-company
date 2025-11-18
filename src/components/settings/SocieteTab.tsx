@@ -56,6 +56,7 @@ export default function SocieteTab({ tenantId }: SocieteTabProps) {
   const [saving, setSaving] = useState(false);
   const [logoPreview, setLogoPreview] = useState<string>('');
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [currentCompanyData, setCurrentCompanyData] = useState<any>(null);
 
   const {
     register,
@@ -66,17 +67,29 @@ export default function SocieteTab({ tenantId }: SocieteTabProps) {
     watch,
   } = useForm<SocieteForm>({
     resolver: zodResolver(societeSchema),
+    defaultValues: {
+      devise: 'TND',
+    },
   });
 
   const logoUrl = watch('logoUrl');
 
   useEffect(() => {
-    fetchSettings();
+    console.log('=== SocieteTab useEffect triggered ===');
+    console.log('SocieteTab mounted, tenantId:', tenantId);
+    if (tenantId) {
+      console.log('✅ tenantId available, calling fetchSettings()...');
+      fetchSettings();
+    } else {
+      console.warn('❌ No tenantId available, cannot fetch settings');
+    }
   }, [tenantId]);
 
   useEffect(() => {
     if (logoUrl) {
       setLogoPreview(logoUrl);
+    } else {
+      setLogoPreview('');
     }
   }, [logoUrl]);
 
@@ -124,45 +137,122 @@ export default function SocieteTab({ tenantId }: SocieteTabProps) {
       if (showLoader) {
       setLoading(true);
       }
-      const response = await fetch('/api/companies?current=true');
+      console.log('Fetching company data from API...');
+      // استخدام /api/settings بدلاً من /api/companies?current=true
+      const response = await fetch('/api/settings', {
+        headers: {
+          'X-Tenant-Id': tenantId || '',
+        },
+      });
+      console.log('API response status:', response.status);
 
       if (response.ok) {
-        const company = await response.json();
-        console.log('Fetched company data:', company);
-        reset({
-          nom: company.name || '',
+        const settings = await response.json();
+        console.log('=== FETCHED SETTINGS DATA FROM DATABASE ===');
+        console.log('Full settings object:', JSON.stringify(settings, null, 2));
+        console.log('Settings societe:', settings.societe);
+        console.log('==========================================');
+        
+        // البيانات تأتي من CompanySettings model في بنية settings.societe
+        const societe = settings.societe || {};
+        
+        // التأكد من أن جميع البيانات موجودة قبل إنشاء formData
+        const formData: SocieteForm = {
+          nom: societe.nom || '',
           adresse: {
-            rue: company.address?.street || '',
-            ville: company.address?.city || '',
-            codePostal: company.address?.postalCode || '',
-            pays: company.address?.country || 'Tunisie',
+            rue: societe.adresse?.rue || '',
+            ville: societe.adresse?.ville || '',
+            codePostal: societe.adresse?.codePostal || '',
+            pays: societe.adresse?.pays || 'Tunisie',
           },
-          tva: company.fiscal?.vatNumber || company.fiscal?.taxNumber || '',
-          devise: company.settings?.currency || 'TND',
-          langue: company.settings?.language || 'fr',
-          fuseau: company.settings?.timezone || 'Africa/Tunis',
-          logoUrl: '', // Logo non stocké dans Company model pour l'instant
-          theme: {},
+          tva: societe.tva || '',
+          devise: societe.devise || 'TND',
+          langue: societe.langue || 'fr',
+          fuseau: societe.fuseau || 'Africa/Tunis',
+          logoUrl: societe.logoUrl || '',
+          theme: societe.theme || {},
           enTete: {
-            slogan: company.enTete?.slogan || '',
-            telephone: company.contact?.phone || '',
-            email: company.contact?.email || '',
-            siteWeb: company.contact?.website || '',
-            matriculeFiscal: company.fiscal?.taxNumber || '',
-            registreCommerce: company.fiscal?.registrationNumber || '',
-            capitalSocial: company.enTete?.capitalSocial || '',
+            slogan: societe.enTete?.slogan || '',
+            telephone: societe.enTete?.telephone || '',
+            email: societe.enTete?.email || '',
+            siteWeb: societe.enTete?.siteWeb || '',
+            matriculeFiscal: societe.enTete?.matriculeFiscal || '',
+            registreCommerce: societe.enTete?.registreCommerce || '',
+            capitalSocial: societe.enTete?.capitalSocial || '',
           },
           piedPage: {
-            texte: company.piedPage?.texte || '',
-            conditionsGenerales: company.piedPage?.conditionsGenerales || '',
-            mentionsLegales: company.piedPage?.mentionsLegales || '',
+            texte: societe.piedPage?.texte || '',
+            conditionsGenerales: societe.piedPage?.conditionsGenerales || '',
+            mentionsLegales: societe.piedPage?.mentionsLegales || '',
             coordonneesBancaires: {
-              banque: company.piedPage?.coordonneesBancaires?.banque || '',
-              rib: company.piedPage?.coordonneesBancaires?.rib || '',
-              swift: company.piedPage?.coordonneesBancaires?.swift || '',
+              banque: societe.piedPage?.coordonneesBancaires?.banque || '',
+              rib: societe.piedPage?.coordonneesBancaires?.rib || '',
+              swift: societe.piedPage?.coordonneesBancaires?.swift || '',
             },
           },
+        };
+        
+        // التحقق من أن formData يحتوي على البيانات الصحيحة
+        console.log('=== VALIDATING FORM DATA ===');
+        console.log('formData.nom:', formData.nom);
+        console.log('formData.adresse.rue:', formData.adresse.rue);
+        console.log('formData.adresse.ville:', formData.adresse.ville);
+        console.log('formData.enTete.email:', formData.enTete?.email);
+        console.log('formData.enTete.telephone:', formData.enTete?.telephone);
+        console.log('formData.devise:', formData.devise);
+        console.log('===========================');
+        
+        console.log('=== FORM DATA TO BE SET ===');
+        console.log('Form data:', JSON.stringify(formData, null, 2));
+        console.log('Form data nom:', formData.nom);
+        console.log('Form data adresse:', formData.adresse);
+        console.log('Form data contact email:', formData.enTete?.email);
+        console.log('Form data contact phone:', formData.enTete?.telephone);
+        console.log('Form data devise:', formData.devise);
+        console.log('===========================');
+        
+        setCurrentCompanyData(settings);
+        
+        console.log('Calling reset() with form data...');
+        reset(formData, {
+          keepDefaultValues: false,
         });
+        
+        console.log('=== FORM RESET COMPLETED ===');
+        
+        // التحقق من أن البيانات تم تعيينها بعد reset
+        setTimeout(() => {
+          const currentValues = watch();
+          console.log('=== CURRENT FORM VALUES AFTER RESET ===');
+          console.log('Current nom:', currentValues.nom);
+          console.log('Current adresse:', currentValues.adresse);
+          console.log('Current enTete:', currentValues.enTete);
+          console.log('Current devise:', currentValues.devise);
+          console.log('Current langue:', currentValues.langue);
+          console.log('Current fuseau:', currentValues.fuseau);
+          console.log('========================================');
+          
+          // التحقق من أن البيانات تظهر في الحقول
+          if (currentValues.nom !== formData.nom) {
+            console.error('❌ ERROR: nom not set correctly!');
+            console.error('Expected:', formData.nom);
+            console.error('Got:', currentValues.nom);
+          } else {
+            console.log('✅ nom set correctly');
+          }
+        }, 200);
+        
+        // تحديث logoPreview بعد تحميل البيانات
+        if (societe.logoUrl) {
+          setLogoPreview(societe.logoUrl);
+        } else {
+          setLogoPreview('');
+        }
+      } else {
+        console.error('Failed to fetch company data. Status:', response.status);
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Error data:', errorData);
+        toast.error('Erreur lors du chargement des informations de l\'entreprise');
       }
     } catch (error) {
       console.error('Error fetching settings:', error);
@@ -183,55 +273,57 @@ export default function SocieteTab({ tenantId }: SocieteTabProps) {
     try {
       setSaving(true);
       
-      // Convertir les données du formulaire vers le format Company
-      const companyData = {
-        name: data.nom,
-        address: {
-          street: data.adresse.rue,
-          city: data.adresse.ville,
-          postalCode: data.adresse.codePostal,
-          country: data.adresse.pays,
-        },
-        contact: {
-          email: data.enTete?.email || '',
-          phone: data.enTete?.telephone || '',
-          website: data.enTete?.siteWeb || '',
-        },
-        fiscal: {
-          taxNumber: data.enTete?.matriculeFiscal || data.tva || '',
-          registrationNumber: data.enTete?.registreCommerce || '',
-          vatNumber: data.tva || '',
-        },
-        enTete: {
-          slogan: data.enTete?.slogan || '',
-          capitalSocial: data.enTete?.capitalSocial || '',
-        },
-        piedPage: {
-          texte: data.piedPage?.texte || '',
-          conditionsGenerales: data.piedPage?.conditionsGenerales || '',
-          mentionsLegales: data.piedPage?.mentionsLegales || '',
-          coordonneesBancaires: {
-            banque: data.piedPage?.coordonneesBancaires?.banque || '',
-            rib: data.piedPage?.coordonneesBancaires?.rib || '',
-            swift: data.piedPage?.coordonneesBancaires?.swift || '',
+      // Convertir les données du formulaire vers le format CompanySettings
+      const settingsData = {
+        societe: {
+          nom: data.nom,
+          adresse: {
+            rue: data.adresse.rue,
+            ville: data.adresse.ville,
+            codePostal: data.adresse.codePostal,
+            pays: data.adresse.pays,
           },
-        },
-        settings: {
-          currency: data.devise,
-          language: data.langue,
-          timezone: data.fuseau,
-          dateFormat: 'DD/MM/YYYY', // Garder le format par défaut
+          tva: data.tva || '',
+          devise: data.devise,
+          langue: data.langue,
+          fuseau: data.fuseau,
+          logoUrl: data.logoUrl || '',
+          theme: data.theme || {},
+          enTete: {
+            slogan: data.enTete?.slogan || '',
+            telephone: (data.enTete?.telephone && data.enTete.telephone.trim() !== '') 
+              ? data.enTete.telephone.trim() 
+              : (currentCompanyData?.societe?.enTete?.telephone || ''),
+            email: (data.enTete?.email && data.enTete.email.trim() !== '') 
+              ? data.enTete.email.trim() 
+              : (currentCompanyData?.societe?.enTete?.email || ''),
+            siteWeb: data.enTete?.siteWeb || '',
+            matriculeFiscal: data.enTete?.matriculeFiscal || '',
+            registreCommerce: data.enTete?.registreCommerce || '',
+            capitalSocial: data.enTete?.capitalSocial || '',
+          },
+          piedPage: {
+            texte: data.piedPage?.texte || '',
+            conditionsGenerales: data.piedPage?.conditionsGenerales || '',
+            mentionsLegales: data.piedPage?.mentionsLegales || '',
+            coordonneesBancaires: {
+              banque: data.piedPage?.coordonneesBancaires?.banque || '',
+              rib: data.piedPage?.coordonneesBancaires?.rib || '',
+              swift: data.piedPage?.coordonneesBancaires?.swift || '',
+            },
+          },
         },
       };
 
-      console.log('Sending company data:', companyData);
+      console.log('Sending settings data:', settingsData);
 
-      const response = await fetch('/api/companies', {
-        method: 'PUT',
+      const response = await fetch('/api/settings', {
+        method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
+          'X-Tenant-Id': tenantId || '',
         },
-        body: JSON.stringify(companyData),
+        body: JSON.stringify(settingsData),
       });
 
       const responseData = await response.json();
@@ -240,7 +332,7 @@ export default function SocieteTab({ tenantId }: SocieteTabProps) {
 
       if (response.ok) {
         toast.success('Informations de l\'entreprise mises à jour');
-        // Recharger les données sans afficher le loader
+        // Recharger les données بدون إظهار loader
         await fetchSettings(false);
       } else {
         toast.error(responseData.error || 'Erreur lors de la mise à jour');
@@ -423,22 +515,8 @@ export default function SocieteTab({ tenantId }: SocieteTabProps) {
               Logo de l'entreprise
             </label>
             
-            {/* Logo Preview */}
-            {logoPreview && (
-              <div className="mb-3">
-                <Image
-                  src={logoPreview}
-                  alt="Logo preview"
-                  width={128}
-                  height={128}
-                  className="object-contain border border-gray-300 rounded-lg p-2 bg-white"
-                  unoptimized={logoPreview.startsWith('data:')}
-                />
-              </div>
-            )}
-            
             {/* Upload Button */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 mb-3">
               <label className="flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 cursor-pointer disabled:opacity-50">
                 {uploadingLogo ? 'Téléchargement...' : 'Choisir un fichier'}
                 <input
@@ -463,6 +541,20 @@ export default function SocieteTab({ tenantId }: SocieteTabProps) {
                 </button>
               )}
             </div>
+            
+            {/* Logo Preview - تحت زر التحميل */}
+            {logoPreview && (
+              <div className="mb-3">
+                <Image
+                  src={logoPreview}
+                  alt="Logo preview"
+                  width={128}
+                  height={128}
+                  className="object-contain border border-gray-300 rounded-lg p-2 bg-white"
+                  unoptimized={logoPreview.startsWith('data:')}
+                />
+              </div>
+            )}
             
             <p className="mt-2 text-sm text-gray-500">
               Formats acceptés: JPG, PNG, GIF. Taille max: 5MB

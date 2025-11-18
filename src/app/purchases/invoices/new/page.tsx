@@ -6,6 +6,7 @@ import DashboardLayout from '@/components/Layout/DashboardLayout';
 import { PlusIcon, XMarkIcon, MagnifyingGlassIcon, ArrowLeftIcon, ClipboardDocumentCheckIcon } from '@heroicons/react/24/outline';
 import { useTenantId } from '@/hooks/useTenantId';
 import toast from 'react-hot-toast';
+import ImageUploader, { ImageData } from '@/components/common/ImageUploader';
 
 interface Supplier {
   _id: string;
@@ -119,6 +120,7 @@ export default function NewPurchaseInvoicePage() {
   });
   
   const [lines, setLines] = useState<InvoiceLine[]>([]);
+  const [images, setImages] = useState<ImageData[]>([]);
 
   useEffect(() => {
     if (tenantId) {
@@ -656,17 +658,28 @@ export default function NewPurchaseInvoicePage() {
     
     setSaving(true);
     try {
+      // Create payload without images in formData, then add images separately
+      const { images: formDataImages, ...formDataWithoutImages } = formData as any;
+      
+      // Ensure images is an array
+      const imagesToSend = Array.isArray(images) ? images : [];
+      
+      const payload: any = {
+        ...formDataWithoutImages,
+        lignes: lines,
+        bonsReceptionIds: selectedBRId ? [selectedBRId] : [],
+        images: imagesToSend,
+      };
+      
+      const payloadString = JSON.stringify(payload);
+      
       const response = await fetch('/api/purchases/invoices', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'X-Tenant-Id': tenantId,
         },
-        body: JSON.stringify({
-          ...formData,
-          lignes: lines,
-          bonsReceptionIds: selectedBRId ? [selectedBRId] : [],
-        }),
+        body: payloadString,
       });
       
       if (response.ok) {
@@ -963,6 +976,16 @@ export default function NewPurchaseInvoicePage() {
                   rows={3}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                   placeholder="Notes additionnelles..."
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <ImageUploader
+                  images={images}
+                  onChange={setImages}
+                  maxImages={10}
+                  maxSizeMB={5}
+                  label="Images jointes"
                 />
               </div>
             </div>

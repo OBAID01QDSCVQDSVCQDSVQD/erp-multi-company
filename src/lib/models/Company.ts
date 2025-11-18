@@ -39,6 +39,7 @@ export interface ICompany extends Document {
     language: string;
     dateFormat: string;
   };
+  logoUrl?: string;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -88,11 +89,12 @@ const CompanySchema = new Schema({
     },
   },
   settings: {
-    currency: { type: String, default: 'EUR' },
-    timezone: { type: String, default: 'Europe/Paris' },
+    currency: { type: String, default: 'TND' },
+    timezone: { type: String, default: 'Africa/Tunis' },
     language: { type: String, default: 'fr' },
     dateFormat: { type: String, default: 'DD/MM/YYYY' },
   },
+  logoUrl: { type: String },
   isActive: {
     type: Boolean,
     default: true,

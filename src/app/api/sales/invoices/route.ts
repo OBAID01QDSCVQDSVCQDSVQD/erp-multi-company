@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
       tenantId,
       type: 'FAC',
       numero,
-      statut: 'brouillon',
+      statut: 'BROUILLON',
       createdBy: session.user.email
     });
 

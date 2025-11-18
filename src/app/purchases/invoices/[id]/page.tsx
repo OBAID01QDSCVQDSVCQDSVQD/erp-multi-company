@@ -6,6 +6,7 @@ import DashboardLayout from '@/components/Layout/DashboardLayout';
 import { ArrowLeftIcon, PencilIcon, TrashIcon, ArrowDownTrayIcon, CheckCircleIcon, ChevronDownIcon, BanknotesIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { useTenantId } from '@/hooks/useTenantId';
 import toast from 'react-hot-toast';
+import ImageGallery, { ImageItem } from '@/components/common/ImageGallery';
 
 interface PurchaseInvoice {
   _id: string;
@@ -46,6 +47,7 @@ interface PurchaseInvoice {
   };
   bonsReceptionIds?: string[];
   notes?: string;
+  images?: ImageItem[];
 }
 
 export default function PurchaseInvoiceDetailPage() {
@@ -61,6 +63,8 @@ export default function PurchaseInvoiceDetailPage() {
   const [savingPayment, setSavingPayment] = useState(false);
   const [montantRestant, setMontantRestant] = useState<number>(0);
   const [soldeRestantActuel, setSoldeRestantActuel] = useState<number>(0);
+  const [paymentImages, setPaymentImages] = useState<ImageItem[]>([]);
+  const [loadingPaymentImages, setLoadingPaymentImages] = useState(false);
   const [paymentData, setPaymentData] = useState({
     datePaiement: new Date().toISOString().split('T')[0],
     modePaiement: 'Espèces',
@@ -76,6 +80,49 @@ export default function PurchaseInvoiceDetailPage() {
       fetchInvoice();
     }
   }, [tenantId, params.id]);
+
+  useEffect(() => {
+    if (invoice && invoice.fournisseurId && tenantId) {
+      fetchPaymentImages();
+    }
+  }, [invoice, tenantId]);
+
+  async function fetchPaymentImages() {
+    if (!tenantId || !params.id || !invoice?.fournisseurId) return;
+    setLoadingPaymentImages(true);
+    try {
+      // Fetch all payments for this supplier (with high limit to get all)
+      const response = await fetch(`/api/purchases/payments?fournisseurId=${invoice.fournisseurId}&limit=1000`, {
+        headers: { 'X-Tenant-Id': tenantId },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const payments = data.items || [];
+        
+        // Filter payments that contain this invoice and collect images
+        const allImages: ImageItem[] = [];
+        const invoiceId = params.id.toString();
+        payments.forEach((payment: any) => {
+          if (payment.lignes && Array.isArray(payment.lignes)) {
+            const hasInvoice = payment.lignes.some((ligne: any) => {
+              const ligneFactureId = ligne.factureId?.toString();
+              return ligneFactureId === invoiceId;
+            });
+            
+            if (hasInvoice && payment.images && Array.isArray(payment.images) && payment.images.length > 0) {
+              allImages.push(...payment.images);
+            }
+          }
+        });
+        
+        setPaymentImages(allImages);
+      }
+    } catch (error) {
+      console.error('Error fetching payment images:', error);
+    } finally {
+      setLoadingPaymentImages(false);
+    }
+  }
 
   useEffect(() => {
     if (showPaymentModal && invoice && tenantId) {
@@ -280,6 +327,8 @@ export default function PurchaseInvoiceDetailPage() {
         setShowPaymentModal(false);
         // Refresh invoice data to update montantRestant
         await fetchInvoice();
+        // Refresh payment images after adding payment
+        await fetchPaymentImages();
         // Refresh advance balance after payment
         await fetchAdvanceBalance();
         // Reset payment data
@@ -730,6 +779,16 @@ export default function PurchaseInvoiceDetailPage() {
               </table>
             </div>
           </div>
+
+          {/* Images Gallery - Invoice Images */}
+          {invoice.images && invoice.images.length > 0 && (
+            <ImageGallery images={invoice.images} title="Images jointes (Facture)" />
+          )}
+
+          {/* Payment Images Gallery */}
+          {paymentImages.length > 0 && (
+            <ImageGallery images={paymentImages} title="Images des paiements (Chèques, Virements, etc.)" />
+          )}
         </div>
 
         {/* Payment Modal */}

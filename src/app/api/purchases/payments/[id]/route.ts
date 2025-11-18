@@ -51,9 +51,74 @@ export async function GET(
     return NextResponse.json({
       ...paiement,
       lignes: enrichedLignes,
+      images: paiement.images || [], // Ensure images array is always present
     });
   } catch (error) {
     console.error('Erreur GET /api/purchases/payments/[id]:', error);
+    return NextResponse.json(
+      { error: 'Erreur serveur', details: (error as Error).message },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+    }
+
+    await connectDB();
+
+    const tenantId = session.user.companyId?.toString() || '';
+    const { id } = await params;
+    const body = await request.json();
+
+    const paiement = await PaiementFournisseur.findOne({
+      _id: id,
+      societeId: new mongoose.Types.ObjectId(tenantId),
+    });
+
+    if (!paiement) {
+      return NextResponse.json({ error: 'Paiement non trouvé' }, { status: 404 });
+    }
+
+    // Update images if provided
+    if (body.images !== undefined) {
+      // Force Mongoose to recognize images as modified
+      paiement.images = [];
+      if (Array.isArray(body.images) && body.images.length > 0) {
+        body.images.forEach((img: any) => {
+          paiement.images.push({
+            id: img.id || `${Date.now()}-${Math.random()}`,
+            name: img.name || '',
+            url: img.url || '',
+            publicId: img.publicId || undefined,
+            type: img.type || 'image/jpeg',
+            size: img.size || 0,
+            width: img.width || undefined,
+            height: img.height || undefined,
+            format: img.format || undefined,
+          });
+        });
+      }
+      (paiement as any).markModified('images');
+    }
+
+    await paiement.save();
+
+    const updatedPaiement = await PaiementFournisseur.findOne({
+      _id: id,
+      societeId: new mongoose.Types.ObjectId(tenantId),
+    }).lean();
+
+    return NextResponse.json(updatedPaiement);
+  } catch (error) {
+    console.error('Erreur PUT /api/purchases/payments/[id]:', error);
     return NextResponse.json(
       { error: 'Erreur serveur', details: (error as Error).message },
       { status: 500 }

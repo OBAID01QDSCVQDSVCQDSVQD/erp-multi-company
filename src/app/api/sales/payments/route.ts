@@ -44,10 +44,21 @@ export async function GET(request: NextRequest) {
       .skip((page - 1) * limit)
       .limit(limit)
       .lean();
+    
+    console.log('🔍 [API Sales Payments GET] Found payments:', paiements.length);
+    if (paiements.length > 0) {
+      console.log('🔍 [API Sales Payments GET] First payment raw:', paiements[0]);
+      console.log('🔍 [API Sales Payments GET] First payment images:', paiements[0].images);
+    }
 
     // Enrich payment lines with referenceExterne from invoices if missing
     const enrichedPaiements = await Promise.all(
       paiements.map(async (paiement: any) => {
+        const enriched: any = {
+          ...paiement,
+          images: paiement.images || [], // Ensure images array is always present
+        };
+        
         if (paiement.lignes && paiement.lignes.length > 0) {
           const enrichedLignes = await Promise.all(
             paiement.lignes.map(async (ligne: any) => {
@@ -66,11 +77,17 @@ export async function GET(request: NextRequest) {
               return ligne;
             })
           );
-          return { ...paiement, lignes: enrichedLignes };
+          enriched.lignes = enrichedLignes;
         }
-        return paiement;
+        return enriched;
       })
     );
+
+    console.log('🔍 [API Sales Payments GET] Enriched payments:', enrichedPaiements.length);
+    if (enrichedPaiements.length > 0) {
+      console.log('🔍 [API Sales Payments GET] First enriched payment:', enrichedPaiements[0]);
+      console.log('🔍 [API Sales Payments GET] First enriched payment images:', enrichedPaiements[0].images);
+    }
 
     return NextResponse.json({
       items: enrichedPaiements,
@@ -98,6 +115,10 @@ export async function POST(request: NextRequest) {
 
     const tenantId = session.user.companyId?.toString() || '';
     const body = await request.json();
+    
+    console.log('📥 [API Sales Payments POST] Received body:', body);
+    console.log('📥 [API Sales Payments POST] Images in body:', body.images);
+    
     const {
       customerId,
       datePaiement,
@@ -239,13 +260,43 @@ export async function POST(request: NextRequest) {
       reference,
       montantTotal,
       lignes: processedLignes,
+      images: Array.isArray(body.images) ? body.images : [],
       notes,
       isPaymentOnAccount: processedLignes.every((l) => l.isPaymentOnAccount),
       advanceUsed: Math.round(advanceUsed * 1000) / 1000, // Round to 3 decimal places
       createdBy: session.user.email,
     });
 
+    // Force Mongoose to recognize images as modified if present
+    console.log('💾 [API Sales Payments POST] Before saving - body.images:', body.images);
+    console.log('💾 [API Sales Payments POST] Before saving - paiement.images:', paiement.images);
+    
+    if (Array.isArray(body.images) && body.images.length > 0) {
+      console.log('💾 [API Sales Payments POST] Processing images, count:', body.images.length);
+      paiement.images = [];
+      body.images.forEach((img: any) => {
+        const imageObj = {
+          id: img.id || `${Date.now()}-${Math.random()}`,
+          name: img.name || '',
+          url: img.url || '',
+          publicId: img.publicId || undefined,
+          type: img.type || 'image/jpeg',
+          size: img.size || 0,
+          width: img.width || undefined,
+          height: img.height || undefined,
+          format: img.format || undefined,
+        };
+        console.log('💾 [API Sales Payments POST] Adding image:', imageObj);
+        paiement.images.push(imageObj);
+      });
+      (paiement as any).markModified('images');
+      console.log('💾 [API Sales Payments POST] After adding images, paiement.images:', paiement.images);
+    } else {
+      console.log('💾 [API Sales Payments POST] No images to save or images is not an array');
+    }
+
     await paiement.save();
+    console.log('💾 [API Sales Payments POST] Payment saved, images:', paiement.images);
 
     // Update invoice payment status
     for (const ligne of processedLignes) {

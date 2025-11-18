@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
 import { useTenantId } from '@/hooks/useTenantId';
 import { ArrowLeftIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
+import ImageGallery, { ImageItem } from '@/components/common/ImageGallery';
 
 interface Expense {
   _id: string;
@@ -39,9 +40,13 @@ interface Expense {
   piecesJointes: Array<{
     nom: string;
     url: string;
+    publicId?: string;
     type: string;
     taille: number;
     uploadedAt: string;
+    width?: number;
+    height?: number;
+    format?: string;
   }>;
   notesInterne?: string;
   createdAt: string;
@@ -279,39 +284,67 @@ export default function ExpenseDetailPage() {
               </div>
             )}
 
-            {/* Pièces jointes */}
+            {/* Pièces jointes - Images seulement */}
             {expense.piecesJointes && expense.piecesJointes.length > 0 && (
-              <div className="bg-white p-6 rounded-lg shadow">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Pièces jointes</h3>
-                <div className="space-y-3">
-                  {expense.piecesJointes.map((file, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0">
-                          <span className="text-2xl">
-                            {file.type.startsWith('image/') ? '🖼️' : 
-                             file.type === 'application/pdf' ? '📄' : '📎'}
-                          </span>
-                        </div>
-                        <div className="ml-3">
-                          <p className="text-sm font-medium text-gray-900">{file.nom}</p>
-                          <p className="text-sm text-gray-500">
-                            {formatFileSize(file.taille)} • {formatDate(file.uploadedAt)}
-                          </p>
+              (() => {
+                // Filtrer uniquement les images
+                const images = expense.piecesJointes
+                  .filter(file => file.type.startsWith('image/'))
+                  .map((file, index) => ({
+                    id: `${file.url}-${index}`,
+                    name: file.nom,
+                    url: file.url,
+                    publicId: file.publicId,
+                    type: file.type,
+                    size: file.taille,
+                    width: file.width,
+                    height: file.height,
+                    format: file.format,
+                  }));
+
+                // Afficher les fichiers non-images (PDF, etc.) dans une liste
+                const nonImages = expense.piecesJointes.filter(file => !file.type.startsWith('image/'));
+
+                return (
+                  <>
+                    {images.length > 0 && (
+                      <ImageGallery images={images} title="Images jointes" />
+                    )}
+                    {nonImages.length > 0 && (
+                      <div className="bg-white p-6 rounded-lg shadow">
+                        <h3 className="text-lg font-medium text-gray-900 mb-4">Autres pièces jointes</h3>
+                        <div className="space-y-3">
+                          {nonImages.map((file, index) => (
+                            <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                              <div className="flex items-center">
+                                <div className="flex-shrink-0">
+                                  <span className="text-2xl">
+                                    {file.type === 'application/pdf' ? '📄' : '📎'}
+                                  </span>
+                                </div>
+                                <div className="ml-3">
+                                  <p className="text-sm font-medium text-gray-900">{file.nom}</p>
+                                  <p className="text-sm text-gray-500">
+                                    {formatFileSize(file.taille)} • {formatDate(file.uploadedAt)}
+                                  </p>
+                                </div>
+                              </div>
+                              <a
+                                href={file.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-indigo-600 hover:text-indigo-900 text-sm font-medium"
+                              >
+                                Ouvrir
+                              </a>
+                            </div>
+                          ))}
                         </div>
                       </div>
-                      <a
-                        href={file.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-indigo-600 hover:text-indigo-900 text-sm font-medium"
-                      >
-                        Ouvrir
-                      </a>
-                    </div>
-                  ))}
-                </div>
-              </div>
+                    )}
+                  </>
+                );
+              })()
             )}
           </div>
 
