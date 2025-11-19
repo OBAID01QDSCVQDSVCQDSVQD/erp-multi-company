@@ -295,7 +295,6 @@ export default function PurchaseInvoicesPage() {
                     <th className="px-4 sm:px-6 py-3 text-left text-sm font-bold text-gray-800">Fournisseur</th>
                     <th className="px-4 sm:px-6 py-3 text-right text-sm font-bold text-gray-800 whitespace-nowrap">Total TTC</th>
                     <th className="px-4 sm:px-6 py-3 text-center text-sm font-bold text-gray-800 whitespace-nowrap">Images</th>
-                    <th className="px-4 sm:px-6 py-3 text-center text-sm font-bold text-gray-800 whitespace-nowrap">Statut</th>
                     <th className="px-4 sm:px-6 py-3 text-right text-sm font-bold text-gray-800 whitespace-nowrap">Actions</th>
                   </tr>
                 </thead>
@@ -328,28 +327,6 @@ export default function PurchaseInvoicesPage() {
                         ) : (
                           <span className="text-gray-400 text-xs">—</span>
                         )}
-                      </td>
-                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-center">
-                        <div className="flex items-center justify-center gap-2">
-                          {getStatusBadge(invoice.statut)}
-                          <div className="relative inline-block">
-                            <select
-                              value={invoice.statut}
-                              onChange={(e) => handleStatusChange(invoice._id, e.target.value)}
-                              className="appearance-none bg-white border border-gray-300 rounded px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer"
-                              disabled={invoice.statut === 'PAYEE' || invoice.statut === 'ANNULEE'}
-                            >
-                              <option value="BROUILLON">Brouillon</option>
-                              <option value="VALIDEE">Validée</option>
-                              <option value="PARTIELLEMENT_PAYEE">Partiellement payée</option>
-                              <option value="PAYEE">Payée</option>
-                              {invoice.statut !== 'PAYEE' && (
-                                <option value="ANNULEE">Annulée</option>
-                              )}
-                            </select>
-                            <ChevronDownIcon className="absolute right-1 top-1/2 transform -translate-y-1/2 h-3 w-3 text-gray-500 pointer-events-none" />
-                          </div>
-                        </div>
                       </td>
                       <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1 sm:gap-2">
