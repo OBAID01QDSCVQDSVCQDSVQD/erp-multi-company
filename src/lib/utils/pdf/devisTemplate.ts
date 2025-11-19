@@ -242,14 +242,17 @@ function drawInfoBlocks(doc: jsPDF, quoteData: QuoteData, companyInfo: CompanyIn
   // Determine document type
   const docType = quoteData.documentType?.toLowerCase() || '';
   const isInvoice = docType.includes('facture');
+  const isCreditNote = docType.includes('avoir');
   const isDeliveryNote = docType.includes('livraison') || docType.includes('bon de livraison');
   const isPurchaseOrder = docType.includes('commande') && (docType.includes('achat') || docType.includes('réception') || docType.includes('reception'));
-  const isQuote = !isDeliveryNote && !isPurchaseOrder && !isInvoice;
+  const isQuote = !isDeliveryNote && !isPurchaseOrder && !isInvoice && !isCreditNote;
   
   // Set document number label based on type
   let docNumberLabel = 'Numéro de devis';
   if (isInvoice) {
     docNumberLabel = 'Numéro de facture';
+  } else if (isCreditNote) {
+    docNumberLabel = 'Numéro d\'avoir';
   } else if (isDeliveryNote) {
     docNumberLabel = 'Numéro de bon de livraison';
   } else if (isPurchaseOrder) {
@@ -271,6 +274,9 @@ function drawInfoBlocks(doc: jsPDF, quoteData: QuoteData, companyInfo: CompanyIn
       doc.text('Date échéance', col1X, startY + 17);
       doc.text(new Date(quoteData.dateValidite).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }), col1X, startY + 23);
     }
+  } else if (isCreditNote) {
+    doc.text('Date avoir', col1X, startY + 17);
+    doc.text(new Date(quoteData.dateDoc).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }), col1X, startY + 23);
   } else if (isDeliveryNote) {
     // For delivery notes, show dateLivraisonPrevue or lieuLivraison
     if (quoteData.dateLivraisonPrevue) {
@@ -377,30 +383,42 @@ function parseHtml(html: string): string {
 }
 
 function drawLinesTable(doc: jsPDF, quoteData: QuoteData, startY: number): number {
-  const body = quoteData.lignes.map((l) => {
-    const remise = l.remisePct || 0;
-    const prixHTAfterDiscount = l.prixUnitaireHT * (1 - remise / 100);
-    const montantHT = prixHTAfterDiscount * l.quantite;
-    const montantTTC = montantHT * (1 + (l.tvaPct || 0) / 100);
-    const ref = l.codeAchat || l.categorieCode || '';
+  const body = quoteData.lignes.map((l, index) => {
+    const quantRaw = typeof l.quantite === 'number' ? l.quantite : parseFloat(String(l.quantite || 0));
+    const quantite = Math.abs(Number.isFinite(quantRaw) ? quantRaw : 0);
+    const puRaw = typeof l.prixUnitaireHT === 'number' ? l.prixUnitaireHT : parseFloat(String(l.prixUnitaireHT || 0));
+    const prixUnitaire = Number.isFinite(puRaw) ? puRaw : 0;
+    const remiseRaw = typeof l.remisePct === 'number' ? l.remisePct : parseFloat(String(l.remisePct || 0));
+    const remise = Number.isFinite(remiseRaw) ? remiseRaw : 0;
+    const tvaRaw = typeof l.tvaPct === 'number' ? l.tvaPct : parseFloat(String(l.tvaPct || 0));
+    const tvaPct = Number.isFinite(tvaRaw) ? tvaRaw : 0;
+    const prixHTAfterDiscount = prixUnitaire * (1 - remise / 100);
+    const montantHT = prixHTAfterDiscount * quantite;
+    const montantTTC = montantHT * (1 + tvaPct / 100);
+    const ref =
+      l.codeAchat ||
+      l.categorieCode ||
+      l.produit ||
+      l.designation ||
+      `Ligne ${index + 1}`;
     
-    // Build product name based on type
     let displayText = '';
-    
-    // If it's a service (estStocke = false), show only description
     if (l.estStocke === false && l.descriptionProduit) {
       displayText = parseHtml(l.descriptionProduit);
     } else {
       displayText = parseHtml(l.produit || l.designation || l.description || '');
     }
+    if (!displayText) {
+      displayText = ref || `Produit ${index + 1}`;
+    }
     
     return [
-      ref,
+      ref || `Ligne ${index + 1}`,
       displayText,
-      l.quantite.toString(),
-      `${l.prixUnitaireHT.toFixed(3)}`,
+      quantite.toString(),
+      `${prixUnitaire.toFixed(3)}`,
       `${remise} %`,
-      `${l.tvaPct || 0} %`,
+      `${tvaPct || 0} %`,
       `${montantHT.toFixed(3)}`,
       `${montantTTC.toFixed(3)}`,
     ];

@@ -94,6 +94,37 @@ export async function PATCH(
     // Store old lines for stock movement updates
     const oldLignes = invoice.lignes ? JSON.parse(JSON.stringify(invoice.lignes)) : [];
 
+    // Handle custom invoice number change
+    if (body.numero !== undefined) {
+      const requestedNumero = typeof body.numero === 'string' ? body.numero.trim() : '';
+      if (!requestedNumero) {
+        return NextResponse.json(
+          { error: 'Le numéro de facture ne peut pas être vide.' },
+          { status: 400 }
+        );
+      }
+
+      if (requestedNumero !== invoice.numero) {
+        const duplicate = await (Document as any).findOne({
+          tenantId,
+          type: 'FAC',
+          numero: requestedNumero,
+          _id: { $ne: id },
+        });
+
+        if (duplicate) {
+          return NextResponse.json(
+            { error: 'Ce numéro de facture est déjà utilisé.' },
+            { status: 409 }
+          );
+        }
+
+        invoice.numero = requestedNumero;
+      }
+
+      delete body.numero;
+    }
+
     // Update fields
     Object.assign(invoice, body);
 

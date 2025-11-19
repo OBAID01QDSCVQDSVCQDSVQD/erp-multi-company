@@ -95,15 +95,12 @@ export default function ViewInvoicePage() {
         console.error('No tenantId found');
         return;
       }
-      console.log('Fetching invoice:', params.id, 'for tenant:', tenantId);
       setLoading(true);
       const response = await fetch(`/api/sales/invoices/${params.id}`, {
         headers: { 'X-Tenant-Id': tenantId }
       });
-      console.log('Response status:', response.status);
       if (response.ok) {
         const data = await response.json();
-        console.log('Invoice data:', data);
         setInvoice(data);
         
         // Fetch customer if customerId exists
@@ -153,7 +150,6 @@ export default function ViewInvoicePage() {
       });
       if (response.ok) {
         const data = await response.json();
-        console.log('Customer data:', data);
         setCustomer(data);
       }
     } catch (err) {

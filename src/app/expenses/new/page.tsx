@@ -195,7 +195,7 @@ export default function NewExpensePage() {
             height: img.height,
             format: img.format,
           }));
-
+          
           // Nettoyer les champs optionnels pour éviter les erreurs de validation
           const expenseData = {
             ...data,

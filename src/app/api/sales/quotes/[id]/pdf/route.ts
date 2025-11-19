@@ -98,13 +98,6 @@ export async function GET(
     );
 
     // Prepare quote data
-    console.log('Quote totals from DB:', {
-      totalBaseHT: quote.totalBaseHT,
-      totalTVA: quote.totalTVA,
-      timbreFiscal: quote.timbreFiscal,
-      totalTTC: quote.totalTTC
-    });
-    
     const quoteData = {
       numero: quote.numero,
       dateDoc: quote.dateDoc.toISOString(),
@@ -130,13 +123,6 @@ export async function GET(
       modePaiement: quote.modePaiement || '',
       notes: quote.notes || ''
     };
-    
-    console.log('Quote data for PDF:', {
-      totalBaseHT: quoteData.totalBaseHT,
-      totalTVA: quoteData.totalTVA,
-      timbreFiscal: quoteData.timbreFiscal,
-      totalTTC: quoteData.totalTTC
-    });
 
     // Generate PDF
     const pdfDoc = generateDevisPdf(quoteData, settings.societe);

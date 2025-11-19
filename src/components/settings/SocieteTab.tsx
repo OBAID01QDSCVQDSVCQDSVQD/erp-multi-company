@@ -79,7 +79,7 @@ export default function SocieteTab({ tenantId }: SocieteTabProps) {
     console.log('SocieteTab mounted, tenantId:', tenantId);
     if (tenantId) {
       console.log('✅ tenantId available, calling fetchSettings()...');
-      fetchSettings();
+    fetchSettings();
     } else {
       console.warn('❌ No tenantId available, cannot fetch settings');
     }
@@ -282,15 +282,15 @@ export default function SocieteTab({ tenantId }: SocieteTabProps) {
             ville: data.adresse.ville,
             codePostal: data.adresse.codePostal,
             pays: data.adresse.pays,
-          },
+        },
           tva: data.tva || '',
           devise: data.devise,
           langue: data.langue,
           fuseau: data.fuseau,
           logoUrl: data.logoUrl || '',
           theme: data.theme || {},
-          enTete: {
-            slogan: data.enTete?.slogan || '',
+        enTete: {
+          slogan: data.enTete?.slogan || '',
             telephone: (data.enTete?.telephone && data.enTete.telephone.trim() !== '') 
               ? data.enTete.telephone.trim() 
               : (currentCompanyData?.societe?.enTete?.telephone || ''),
@@ -300,18 +300,18 @@ export default function SocieteTab({ tenantId }: SocieteTabProps) {
             siteWeb: data.enTete?.siteWeb || '',
             matriculeFiscal: data.enTete?.matriculeFiscal || '',
             registreCommerce: data.enTete?.registreCommerce || '',
-            capitalSocial: data.enTete?.capitalSocial || '',
+          capitalSocial: data.enTete?.capitalSocial || '',
+        },
+        piedPage: {
+          texte: data.piedPage?.texte || '',
+          conditionsGenerales: data.piedPage?.conditionsGenerales || '',
+          mentionsLegales: data.piedPage?.mentionsLegales || '',
+          coordonneesBancaires: {
+            banque: data.piedPage?.coordonneesBancaires?.banque || '',
+            rib: data.piedPage?.coordonneesBancaires?.rib || '',
+            swift: data.piedPage?.coordonneesBancaires?.swift || '',
           },
-          piedPage: {
-            texte: data.piedPage?.texte || '',
-            conditionsGenerales: data.piedPage?.conditionsGenerales || '',
-            mentionsLegales: data.piedPage?.mentionsLegales || '',
-            coordonneesBancaires: {
-              banque: data.piedPage?.coordonneesBancaires?.banque || '',
-              rib: data.piedPage?.coordonneesBancaires?.rib || '',
-              swift: data.piedPage?.coordonneesBancaires?.swift || '',
-            },
-          },
+        },
         },
       };
 

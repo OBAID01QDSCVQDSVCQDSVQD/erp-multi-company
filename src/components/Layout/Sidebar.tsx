@@ -23,6 +23,7 @@ import {
   CubeIcon,
   BanknotesIcon,
   CreditCardIcon,
+  ArrowUturnLeftIcon,
 } from '@heroicons/react/24/outline';
 
 const navigation = [
@@ -36,6 +37,7 @@ const navigation = [
     { name: 'Commandes clients', href: '/sales/orders', icon: ShoppingCartIcon, permission: 'sales_orders' },
     { name: 'Bons de livraison', href: '/sales/deliveries', icon: TruckIcon, permission: 'deliveries' },
     { name: 'Factures clients', href: '/sales/invoices', icon: DocumentTextIcon, permission: 'sales_invoices' },
+    { name: 'Avoirs clients', href: '/sales/credit-notes', icon: ArrowUturnLeftIcon, permission: 'sales_invoices' },
     { name: 'Paiements clients', href: '/sales/payments', icon: BanknotesIcon, permission: 'customer_payments' },
     { name: 'Soldes clients', href: '/customers/balances', icon: BanknotesIcon, permission: 'customer_balances' },
   ]},

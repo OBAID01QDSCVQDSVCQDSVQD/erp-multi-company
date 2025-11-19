@@ -89,11 +89,6 @@ export async function POST(request: NextRequest) {
 
     const tenantId = session.user.companyId?.toString() || '';
     const body = await request.json();
-    
-    // Debug: Log images if present
-    if (body.images && body.images.length > 0) {
-      console.log('[API POST] Received images:', body.images.length);
-    }
 
     // Generate invoice number
     const numero = await NumberingService.next(tenantId, 'facfo');

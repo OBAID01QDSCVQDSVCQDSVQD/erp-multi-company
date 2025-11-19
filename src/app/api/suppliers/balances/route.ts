@@ -200,19 +200,20 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    // Track credit notes (avoir) - invoices with negative total
+    // Track credit notes (avoir) - invoices with negative total or type AVOIRFO
     const creditNotes: { [key: string]: number } = {};
 
     // Process invoices
     invoices.forEach((invoice: any) => {
       const invoiceId = invoice._id.toString();
       const supplierId = invoice.fournisseurId.toString();
-      const montantTotal = invoice.totaux?.totalTTC || 0;
+      const montantTotal = (invoice.totalTTC ?? invoice.totaux?.totalTTC) || 0;
       const montantPaye = invoicePayments[invoiceId] || 0;
       const soldeRestant = montantTotal - montantPaye; // Allow negative values
 
-      // Check if this is a credit note (avoir) - if total is negative
-      if (montantTotal < 0) {
+      // Check if this is a credit note (avoir)
+      const isCreditNote = invoice.type === 'AVOIRFO' || montantTotal < 0;
+      if (isCreditNote) {
         creditNotes[supplierId] = (creditNotes[supplierId] || 0) + Math.abs(montantTotal);
         // For credit notes, we still track them but they reduce the balance
         return;

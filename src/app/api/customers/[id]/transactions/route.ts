@@ -147,7 +147,7 @@ export async function GET(
       const montantTotal = invoice.totalTTC || 0;
       const montantPaye = allInvoicePayments[invoiceId] || 0;
       const soldeRestant = montantTotal - montantPaye;
-      const isCreditNote = montantTotal < 0;
+      const isCreditNote = invoice.type === 'AVOIR' || montantTotal < 0;
 
       const dateEcheance = calculateDateEcheance(
         new Date(invoice.dateDoc),
@@ -175,13 +175,20 @@ export async function GET(
       allTransactions.push(transaction);
 
       // Add to filtered transactions if matches type filter
-      if (!type || type === 'all' || type === 'facture') {
-        // Apply search filter for filtered transactions
-        if (!search || 
-            invoice.numero?.toLowerCase().includes(search.toLowerCase()) ||
-            (invoice.referenceExterne && invoice.referenceExterne.toLowerCase().includes(search.toLowerCase()))) {
-          filteredTransactions.push(transaction);
-        }
+      const matchesType =
+        !type ||
+        type === 'all' ||
+        (type === 'facture' && !isCreditNote) ||
+        (type === 'avoir' && isCreditNote);
+
+      if (
+        matchesType &&
+        (!search ||
+          invoice.numero?.toLowerCase().includes(search.toLowerCase()) ||
+          (invoice.referenceExterne &&
+            invoice.referenceExterne.toLowerCase().includes(search.toLowerCase())))
+      ) {
+        filteredTransactions.push(transaction);
       }
     });
 

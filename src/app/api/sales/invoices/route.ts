@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     if (customerId) query.customerId = customerId;
 
     const invoices = await (Document as any).find(query)
-      .sort('-createdAt')
+      .sort({ numero: -1 })
       .skip((page - 1) * limit)
       .limit(limit)
       .lean();
@@ -54,7 +54,26 @@ export async function POST(request: NextRequest) {
     await connectDB();
 
     const tenantId = session.user.companyId?.toString() || '';
-    const numero = await NumberingService.next(tenantId, 'fac');
+    let numero =
+      typeof body.numero === 'string' && body.numero.trim().length > 0
+        ? body.numero.trim()
+        : '';
+
+    if (numero) {
+      const exists = await (Document as any).findOne({
+        tenantId,
+        type: 'FAC',
+        numero,
+      });
+      if (exists) {
+        return NextResponse.json(
+          { error: 'Ce numéro de facture existe déjà. Merci de choisir un autre numéro.' },
+          { status: 409 }
+        );
+      }
+    } else {
+      numero = await NumberingService.next(tenantId, 'fac');
+    }
 
     const invoice = new Document({
       ...body,

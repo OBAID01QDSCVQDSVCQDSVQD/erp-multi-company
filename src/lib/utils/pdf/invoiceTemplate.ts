@@ -85,3 +85,13 @@ export function generateInvoicePdf(invoiceData: InvoiceData, companyInfo: Compan
   return generateDevisPdf(quoteData, companyInfo);
 }
 
+export function generateCreditNotePdf(invoiceData: InvoiceData, companyInfo: CompanyInfo): jsPDF {
+  const quoteData = {
+    ...invoiceData,
+    documentType: 'AVOIR',
+    dateValidite: invoiceData.dateEcheance,
+  };
+
+  return generateDevisPdf(quoteData, companyInfo);
+}
+

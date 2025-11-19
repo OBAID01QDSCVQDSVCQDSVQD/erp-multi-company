@@ -77,7 +77,7 @@ const DocumentLineSchema = new Schema<IDocumentLine>({
   categorieCode: { type: String },
   designation: { type: String, required: true },
   uomCode: { type: String },
-  quantite: { type: Number, required: true, min: 0 },
+  quantite: { type: Number, required: true },
   prixUnitaireHT: { type: Number, required: true, min: 0 },
   taxCode: { type: String },
   tvaPct: { type: Number, min: 0, max: 100 },

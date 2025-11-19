@@ -143,10 +143,10 @@ export async function GET(
       if (invoice.statut === 'ANNULEE') return;
 
       const invoiceId = invoice._id.toString();
-      const montantTotal = invoice.totaux?.totalTTC || 0;
+      const montantTotal = (invoice.totalTTC ?? invoice.totaux?.totalTTC) || 0;
       const montantPaye = allInvoicePayments[invoiceId] || 0;
       const soldeRestant = montantTotal - montantPaye;
-      const isCreditNote = montantTotal < 0;
+      const isCreditNote = invoice.type === 'AVOIRFO' || montantTotal < 0;
 
       const dateEcheance = calculateDateEcheance(
         new Date(invoice.dateFacture),
@@ -175,13 +175,19 @@ export async function GET(
 
       // Add to filtered transactions if matches type filter
       // Note: Date filter is already applied in the query, search filter is applied here
-      if (!type || type === 'all' || type === 'facture') {
-        // Apply search filter for filtered transactions
-        if (!search || 
-            invoice.numero?.toLowerCase().includes(search.toLowerCase()) ||
-            invoice.referenceFournisseur?.toLowerCase().includes(search.toLowerCase())) {
-          filteredTransactions.push(transaction);
-        }
+      const matchesType =
+        !type ||
+        type === 'all' ||
+        (type === 'facture' && !isCreditNote) ||
+        (type === 'avoir' && isCreditNote);
+
+      if (
+        matchesType &&
+        (!search ||
+          invoice.numero?.toLowerCase().includes(search.toLowerCase()) ||
+          invoice.referenceFournisseur?.toLowerCase().includes(search.toLowerCase()))
+      ) {
+        filteredTransactions.push(transaction);
       }
     });
 

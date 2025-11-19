@@ -282,10 +282,6 @@ export default function NewCustomerPaymentPage() {
         }));
       }
 
-      console.log('📤 [New Payment] Sending payload:', payload);
-      console.log('📤 [New Payment] Images in payload:', payload.images);
-      console.log('📤 [New Payment] Images state:', images);
-
       const response = await fetch('/api/sales/payments', {
         method: 'POST',
         headers: {

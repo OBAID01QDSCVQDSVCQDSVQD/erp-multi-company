@@ -226,22 +226,23 @@ export default function ReportsPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6 p-4 sm:p-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Rapports & Statistiques</h1>
-            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Rapports & Statistiques</h1>
+            <p className="mt-1 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
               Rapports comptables détaillés pour votre entreprise
             </p>
           </div>
           <button
             onClick={() => handleExportPDF('all')}
             disabled={exporting}
-            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+            className="inline-flex items-center justify-center px-3 sm:px-4 py-2 border border-transparent rounded-md shadow-sm text-xs sm:text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 w-full sm:w-auto"
           >
-            <ArrowDownTrayIcon className="h-5 w-5 mr-2" />
-            {exporting ? 'Exportation...' : 'Exporter tout en PDF'}
+            <ArrowDownTrayIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+            <span className="hidden sm:inline">{exporting ? 'Exportation...' : 'Exporter tout en PDF'}</span>
+            <span className="sm:hidden">{exporting ? 'Export...' : 'Exporter PDF'}</span>
           </button>
         </div>
 
@@ -253,12 +254,12 @@ export default function ReportsPage() {
         )}
 
         {/* Filtres */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-          <div className="flex items-center gap-4 mb-4">
-            <FunnelIcon className="h-5 w-5 text-gray-500" />
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white">Filtres</h3>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 sm:p-6">
+          <div className="flex items-center gap-2 sm:gap-4 mb-3 sm:mb-4">
+            <FunnelIcon className="h-4 w-4 sm:h-5 sm:w-5 text-gray-500" />
+            <h3 className="text-base sm:text-lg font-medium text-gray-900 dark:text-white">Filtres</h3>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Date de début
@@ -281,10 +282,10 @@ export default function ReportsPage() {
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white text-sm"
               />
             </div>
-            <div className="flex items-end">
+            <div className="flex items-end sm:col-span-2 lg:col-span-1">
               <button
                 onClick={resetFilters}
-                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
+                className="w-full sm:w-auto px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
               >
                 Réinitialiser
               </button>
@@ -294,21 +295,21 @@ export default function ReportsPage() {
 
         {/* Summary Cards */}
         {reportData && (
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {/* Dépenses */}
             {reportData.expensesSummary && (
               <div className="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
-                <div className="p-5">
+                <div className="p-4 sm:p-5">
                   <div className="flex items-center">
                     <div className="flex-shrink-0">
-                      <BanknotesIcon className="h-6 w-6 text-red-400" />
+                      <BanknotesIcon className="h-5 w-5 sm:h-6 sm:w-6 text-red-400" />
                     </div>
-                    <div className="ml-5 w-0 flex-1">
+                    <div className="ml-3 sm:ml-5 w-0 flex-1 min-w-0">
                       <dl>
-                        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
+                        <dt className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
                           Dépenses
                         </dt>
-                        <dd className="text-lg font-medium text-gray-900 dark:text-white">
+                        <dd className="text-base sm:text-lg font-medium text-gray-900 dark:text-white truncate">
                           {formatPrice(reportData.expensesSummary.totalTTC)}
                         </dd>
                         <dd className="text-xs text-gray-500 dark:text-gray-400">
@@ -324,17 +325,17 @@ export default function ReportsPage() {
             {/* Ventes */}
             {reportData.salesSummary && (
               <div className="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
-                <div className="p-5">
+                <div className="p-4 sm:p-5">
                   <div className="flex items-center">
                     <div className="flex-shrink-0">
-                      <ShoppingBagIcon className="h-6 w-6 text-green-400" />
+                      <ShoppingBagIcon className="h-5 w-5 sm:h-6 sm:w-6 text-green-400" />
                     </div>
-                    <div className="ml-5 w-0 flex-1">
+                    <div className="ml-3 sm:ml-5 w-0 flex-1 min-w-0">
                       <dl>
-                        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
+                        <dt className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
                           Ventes TTC
                         </dt>
-                        <dd className="text-lg font-medium text-gray-900 dark:text-white">
+                        <dd className="text-base sm:text-lg font-medium text-gray-900 dark:text-white truncate">
                           {formatPrice(reportData.salesSummary.totalTTC)}
                         </dd>
                         <dd className="text-xs text-gray-500 dark:text-gray-400">
@@ -350,17 +351,17 @@ export default function ReportsPage() {
             {/* Achats */}
             {reportData.purchasesSummary && (
               <div className="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
-                <div className="p-5">
+                <div className="p-4 sm:p-5">
                   <div className="flex items-center">
                     <div className="flex-shrink-0">
-                      <DocumentTextIcon className="h-6 w-6 text-blue-400" />
+                      <DocumentTextIcon className="h-5 w-5 sm:h-6 sm:w-6 text-blue-400" />
                     </div>
-                    <div className="ml-5 w-0 flex-1">
+                    <div className="ml-3 sm:ml-5 w-0 flex-1 min-w-0">
                       <dl>
-                        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
+                        <dt className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
                           Achats TTC
                         </dt>
-                        <dd className="text-lg font-medium text-gray-900 dark:text-white">
+                        <dd className="text-base sm:text-lg font-medium text-gray-900 dark:text-white truncate">
                           {formatPrice(reportData.purchasesSummary.totalTTC)}
                         </dd>
                         <dd className="text-xs text-gray-500 dark:text-gray-400">
@@ -376,17 +377,17 @@ export default function ReportsPage() {
             {/* Paiements */}
             {reportData.paymentsSummary && (
               <div className="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
-                <div className="p-5">
+                <div className="p-4 sm:p-5">
                   <div className="flex items-center">
                     <div className="flex-shrink-0">
-                      <CreditCardIcon className="h-6 w-6 text-purple-400" />
+                      <CreditCardIcon className="h-5 w-5 sm:h-6 sm:w-6 text-purple-400" />
                     </div>
-                    <div className="ml-5 w-0 flex-1">
+                    <div className="ml-3 sm:ml-5 w-0 flex-1 min-w-0">
                       <dl>
-                        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
+                        <dt className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
                           Paiements
                         </dt>
-                        <dd className="text-lg font-medium text-gray-900 dark:text-white">
+                        <dd className="text-base sm:text-lg font-medium text-gray-900 dark:text-white truncate">
                           {formatPrice(reportData.paymentsSummary.total)}
                         </dd>
                         <dd className="text-xs text-gray-500 dark:text-gray-400">
@@ -402,27 +403,28 @@ export default function ReportsPage() {
         )}
 
         {/* Tabs Navigation */}
-        <div className="border-b border-gray-200 dark:border-gray-700">
-          <nav className="-mb-px flex space-x-8">
+        <div className="border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
+          <nav className="-mb-px flex space-x-4 sm:space-x-8 min-w-max sm:min-w-0">
             {[
-              { id: 'expenses', label: 'Dépenses', icon: BanknotesIcon },
-              { id: 'sales', label: 'Factures de Vente', icon: ShoppingBagIcon },
-              { id: 'purchases', label: 'Factures d\'Achat', icon: DocumentTextIcon },
-              { id: 'payments', label: 'Paiements', icon: CreditCardIcon },
+              { id: 'expenses', label: 'Dépenses', icon: BanknotesIcon, shortLabel: 'Dépenses' },
+              { id: 'sales', label: 'Factures de Vente', icon: ShoppingBagIcon, shortLabel: 'Ventes' },
+              { id: 'purchases', label: 'Factures d\'Achat', icon: DocumentTextIcon, shortLabel: 'Achats' },
+              { id: 'payments', label: 'Paiements', icon: CreditCardIcon, shortLabel: 'Paiements' },
             ].map((tab) => {
               const Icon = tab.icon;
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 ${
+                  className={`py-3 sm:py-4 px-2 sm:px-1 border-b-2 font-medium text-xs sm:text-sm flex items-center space-x-1 sm:space-x-2 whitespace-nowrap ${
                     activeTab === tab.id
                       ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
                   }`}
                 >
-                  <Icon className="h-5 w-5" />
-                  <span>{tab.label}</span>
+                  <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
+                  <span className="hidden sm:inline">{tab.label}</span>
+                  <span className="sm:hidden">{tab.shortLabel}</span>
                 </button>
               );
             })}
@@ -434,14 +436,14 @@ export default function ReportsPage() {
           {/* Dépenses Table */}
           {activeTab === 'expenses' && reportData?.expenses && (
             <div>
-              <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+              <div className="px-3 sm:px-6 py-3 sm:py-4 border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <h3 className="text-base sm:text-lg font-medium text-gray-900 dark:text-white">
                   Dépenses ({reportData.expenses.length})
                 </h3>
                 <button
                   onClick={() => handleExportPDF('expenses')}
                   disabled={exporting}
-                  className="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50"
+                  className="inline-flex items-center justify-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 w-full sm:w-auto"
                 >
                   <ArrowDownTrayIcon className="h-4 w-4 mr-1" />
                   PDF
@@ -451,28 +453,28 @@ export default function ReportsPage() {
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                   <thead className="bg-gray-50 dark:bg-gray-900">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Date
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Numéro
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden sm:table-cell">
                         Nom de l'entreprise
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         TVA (%)
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden md:table-cell">
                         Timbre
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Total HT
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Total TTC
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden lg:table-cell">
                         Statut
                       </th>
                     </tr>
@@ -480,35 +482,35 @@ export default function ReportsPage() {
                   <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                     {reportData.expenses.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                        <td colSpan={8} className="px-3 sm:px-6 py-4 text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                           Aucune dépense trouvée
                         </td>
                       </tr>
                     ) : (
                       reportData.expenses.map((expense) => (
                         <tr key={expense._id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900 dark:text-white">
                             {formatDate(expense.date)}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
                             {expense.numero}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden sm:table-cell">
                             {expense.companyName}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                             {expense.tva}%
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden md:table-cell">
                             {formatPrice(expense.timbre || 0, expense.devise || 'TND')}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900 dark:text-white">
                             {formatPrice(expense.totalHT, expense.devise || 'TND')}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
                             {formatPrice(expense.totalTTC, expense.devise || 'TND')}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap hidden lg:table-cell">
                             <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                               expense.statut === 'paye' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
                               expense.statut === 'valide' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
@@ -526,16 +528,16 @@ export default function ReportsPage() {
                     <tfoot className="bg-gray-50 dark:bg-gray-900">
                       {Object.entries(reportData.expensesSummaryByCurrency).map(([currency, summary]: [string, any]) => (
                         <tr key={currency} className="border-t border-gray-200 dark:border-gray-700">
-                          <td colSpan={4} className="px-6 py-3 text-right text-sm font-medium text-gray-900 dark:text-white">
+                          <td colSpan={4} className="px-3 sm:px-6 py-2 sm:py-3 text-right text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
                             Total ({currency}):
                           </td>
-                          <td className="px-6 py-3 text-sm font-medium text-gray-900 dark:text-white">
+                          <td className="px-3 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm font-medium text-gray-900 dark:text-white hidden md:table-cell">
                             {formatPrice(summary.totalHT, currency)}
                           </td>
-                          <td className="px-6 py-3 text-sm font-medium text-gray-900 dark:text-white">
+                          <td className="px-3 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
                             {formatPrice(summary.totalTTC, currency)}
                           </td>
-                          <td className="px-6 py-3 text-sm text-gray-500 dark:text-gray-400">
+                          <td className="px-3 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden lg:table-cell">
                             ({summary.count} dépense{summary.count > 1 ? 's' : ''})
                           </td>
                         </tr>
@@ -550,14 +552,14 @@ export default function ReportsPage() {
           {/* Factures de Vente Table */}
           {activeTab === 'sales' && reportData?.salesInvoices && (
             <div>
-              <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+              <div className="px-3 sm:px-6 py-3 sm:py-4 border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <h3 className="text-base sm:text-lg font-medium text-gray-900 dark:text-white">
                   Factures de Vente ({reportData.salesInvoices.length})
                 </h3>
                 <button
                   onClick={() => handleExportPDF('sales')}
                   disabled={exporting}
-                  className="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50"
+                  className="inline-flex items-center justify-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 w-full sm:w-auto"
                 >
                   <ArrowDownTrayIcon className="h-4 w-4 mr-1" />
                   PDF
@@ -567,28 +569,28 @@ export default function ReportsPage() {
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                   <thead className="bg-gray-50 dark:bg-gray-900">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Date
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Numéro
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden sm:table-cell">
                         Nom du client
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         TVA
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden md:table-cell">
                         Timbre
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Total HT
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Total TTC
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden lg:table-cell">
                         Statut
                       </th>
                     </tr>
@@ -596,35 +598,35 @@ export default function ReportsPage() {
                   <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                     {reportData.salesInvoices.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                        <td colSpan={8} className="px-3 sm:px-6 py-4 text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                           Aucune facture de vente trouvée
                         </td>
                       </tr>
                     ) : (
                       reportData.salesInvoices.map((invoice) => (
                         <tr key={invoice._id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900 dark:text-white">
                             {formatDate(invoice.date)}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
                             {invoice.numero}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden sm:table-cell">
                             {invoice.companyName}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                             {formatPrice(invoice.tva, invoice.devise || 'TND')}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden md:table-cell">
                             {formatPrice(invoice.timbre || 0, invoice.devise || 'TND')}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900 dark:text-white">
                             {formatPrice(invoice.totalHT, invoice.devise || 'TND')}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
                             {formatPrice(invoice.totalTTC, invoice.devise || 'TND')}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap hidden lg:table-cell">
                             <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                               invoice.statut === 'PAYEE' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
                               invoice.statut === 'PARTIELLEMENT_PAYEE' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
@@ -642,16 +644,16 @@ export default function ReportsPage() {
                     <tfoot className="bg-gray-50 dark:bg-gray-900">
                       {Object.entries(reportData.salesSummaryByCurrency).map(([currency, summary]: [string, any]) => (
                         <tr key={currency} className="border-t border-gray-200 dark:border-gray-700">
-                          <td colSpan={5} className="px-6 py-3 text-right text-sm font-medium text-gray-900 dark:text-white">
+                          <td colSpan={5} className="px-3 sm:px-6 py-2 sm:py-3 text-right text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
                             Total ({currency}):
                           </td>
-                          <td className="px-6 py-3 text-sm font-medium text-gray-900 dark:text-white">
+                          <td className="px-3 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
                             {formatPrice(summary.totalHT, currency)}
                           </td>
-                          <td className="px-6 py-3 text-sm font-medium text-gray-900 dark:text-white">
+                          <td className="px-3 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
                             {formatPrice(summary.totalTTC, currency)}
                           </td>
-                          <td className="px-6 py-3 text-sm text-gray-500 dark:text-gray-400">
+                          <td className="px-3 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden lg:table-cell">
                             ({summary.count} facture{summary.count > 1 ? 's' : ''})
                           </td>
                         </tr>
@@ -666,14 +668,14 @@ export default function ReportsPage() {
           {/* Factures d'Achat Table */}
           {activeTab === 'purchases' && reportData?.purchaseInvoices && (
             <div>
-              <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+              <div className="px-3 sm:px-6 py-3 sm:py-4 border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <h3 className="text-base sm:text-lg font-medium text-gray-900 dark:text-white">
                   Factures d'Achat ({reportData.purchaseInvoices.length})
                 </h3>
                 <button
                   onClick={() => handleExportPDF('purchases')}
                   disabled={exporting}
-                  className="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50"
+                  className="inline-flex items-center justify-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 w-full sm:w-auto"
                 >
                   <ArrowDownTrayIcon className="h-4 w-4 mr-1" />
                   PDF
@@ -683,31 +685,31 @@ export default function ReportsPage() {
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                   <thead className="bg-gray-50 dark:bg-gray-900">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Date
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Numéro
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden sm:table-cell">
                         Nom du fournisseur
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         TVA
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden md:table-cell">
                         Fodec
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden lg:table-cell">
                         Timbre
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Total HT
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Total TTC
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden xl:table-cell">
                         Statut
                       </th>
                     </tr>
@@ -715,38 +717,38 @@ export default function ReportsPage() {
                   <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                     {reportData.purchaseInvoices.length === 0 ? (
                       <tr>
-                        <td colSpan={9} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                        <td colSpan={9} className="px-3 sm:px-6 py-4 text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                           Aucune facture d'achat trouvée
                         </td>
                       </tr>
                     ) : (
                       reportData.purchaseInvoices.map((invoice) => (
                         <tr key={invoice._id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900 dark:text-white">
                             {formatDate(invoice.date)}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
                             {invoice.numero}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden sm:table-cell">
                             {invoice.companyName}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                             {formatPrice(invoice.tva, invoice.devise || 'TND')}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden md:table-cell">
                             {formatPrice(invoice.fodec, invoice.devise || 'TND')}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden lg:table-cell">
                             {formatPrice(invoice.timbre || 0, invoice.devise || 'TND')}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900 dark:text-white">
                             {formatPrice(invoice.totalHT, invoice.devise || 'TND')}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
                             {formatPrice(invoice.totalTTC, invoice.devise || 'TND')}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap hidden xl:table-cell">
                             <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                               invoice.statut === 'PAYEE' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
                               invoice.statut === 'PARTIELLEMENT_PAYEE' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
@@ -764,16 +766,16 @@ export default function ReportsPage() {
                     <tfoot className="bg-gray-50 dark:bg-gray-900">
                       {Object.entries(reportData.purchasesSummaryByCurrency).map(([currency, summary]: [string, any]) => (
                         <tr key={currency} className="border-t border-gray-200 dark:border-gray-700">
-                          <td colSpan={6} className="px-6 py-3 text-right text-sm font-medium text-gray-900 dark:text-white">
+                          <td colSpan={6} className="px-3 sm:px-6 py-2 sm:py-3 text-right text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
                             Total ({currency}):
                           </td>
-                          <td className="px-6 py-3 text-sm font-medium text-gray-900 dark:text-white">
+                          <td className="px-3 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
                             {formatPrice(summary.totalHT, currency)}
                           </td>
-                          <td className="px-6 py-3 text-sm font-medium text-gray-900 dark:text-white">
+                          <td className="px-3 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
                             {formatPrice(summary.totalTTC, currency)}
                           </td>
-                          <td className="px-6 py-3 text-sm text-gray-500 dark:text-gray-400">
+                          <td className="px-3 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden xl:table-cell">
                             ({summary.count} facture{summary.count > 1 ? 's' : ''})
                           </td>
                         </tr>
@@ -788,14 +790,14 @@ export default function ReportsPage() {
           {/* Paiements Table */}
           {activeTab === 'payments' && reportData?.payments && (
             <div>
-              <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+              <div className="px-3 sm:px-6 py-3 sm:py-4 border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <h3 className="text-base sm:text-lg font-medium text-gray-900 dark:text-white">
                   Paiements ({reportData.payments.length})
                 </h3>
                 <button
                   onClick={() => handleExportPDF('payments')}
                   disabled={exporting}
-                  className="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50"
+                  className="inline-flex items-center justify-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 w-full sm:w-auto"
                 >
                   <ArrowDownTrayIcon className="h-4 w-4 mr-1" />
                   PDF
@@ -805,25 +807,25 @@ export default function ReportsPage() {
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                   <thead className="bg-gray-50 dark:bg-gray-900">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Date
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Numéro
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden sm:table-cell">
                         Nom
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Type
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Montant
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden md:table-cell">
                         Mode de paiement
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden lg:table-cell">
                         Référence
                       </th>
                     </tr>
@@ -831,23 +833,23 @@ export default function ReportsPage() {
                   <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                     {reportData.payments.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                        <td colSpan={7} className="px-3 sm:px-6 py-4 text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                           Aucun paiement trouvé
                         </td>
                       </tr>
                     ) : (
                       reportData.payments.map((payment) => (
                         <tr key={payment._id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900 dark:text-white">
                             {formatDate(payment.date)}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
                             {payment.numero}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden sm:table-cell">
                             {payment.companyName}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
                             <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                               payment.type === 'client' 
                                 ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
@@ -856,13 +858,13 @@ export default function ReportsPage() {
                               {payment.type === 'client' ? 'Client' : 'Fournisseur'}
                             </span>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
                             {formatPrice(payment.montant)}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden md:table-cell">
                             {payment.modePaiement}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden lg:table-cell">
                             {payment.reference || '-'}
                           </td>
                         </tr>
@@ -872,10 +874,10 @@ export default function ReportsPage() {
                   {reportData.paymentsSummary && reportData.payments.length > 0 && (
                     <tfoot className="bg-gray-50 dark:bg-gray-900">
                       <tr>
-                        <td colSpan={4} className="px-6 py-3 text-right text-sm font-medium text-gray-900 dark:text-white">
+                        <td colSpan={4} className="px-3 sm:px-6 py-2 sm:py-3 text-right text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
                           Total:
                         </td>
-                        <td className="px-6 py-3 text-sm font-medium text-gray-900 dark:text-white">
+                        <td className="px-3 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
                           {formatPrice(reportData.paymentsSummary.total)}
                         </td>
                         <td colSpan={2}></td>
@@ -890,13 +892,13 @@ export default function ReportsPage() {
 
         {/* Statistiques supplémentaires */}
         {reportData && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
             {/* Résumé financier */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 sm:p-6">
+              <h3 className="text-base sm:text-lg font-medium text-gray-900 dark:text-white mb-3 sm:mb-4">
                 Résumé Financier (TND)
               </h3>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-3 sm:mb-4">
                 Tous les montants sont convertis en TND selon le taux de change à la date de la facture
               </p>
               <div className="space-y-3">
@@ -1012,8 +1014,8 @@ export default function ReportsPage() {
             </div>
 
             {/* TVA Summary */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 sm:p-6">
+              <h3 className="text-base sm:text-lg font-medium text-gray-900 dark:text-white mb-3 sm:mb-4">
                 Résumé TVA
               </h3>
               <div className="space-y-3">

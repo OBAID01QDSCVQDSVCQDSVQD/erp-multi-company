@@ -108,12 +108,6 @@ export default function PaymentsPage() {
       });
       if (response.ok) {
         const data = await response.json();
-        console.log('📦 [Sales Payments List] API Response:', data);
-        console.log('📦 [Sales Payments List] Payments items:', data.items);
-        if (data.items && data.items.length > 0) {
-          console.log('📦 [Sales Payments List] First payment:', data.items[0]);
-          console.log('📦 [Sales Payments List] First payment images:', data.items[0].images);
-        }
         setPayments(data.items || []);
       } else {
         console.error('❌ [Sales Payments List] API Error:', response.status, response.statusText);
@@ -473,7 +467,6 @@ export default function PaymentsPage() {
                 </tr>
               ) : (
                 filtered.map((payment) => {
-                  console.log('🖼️ [Sales Payments List] Rendering payment:', payment.numero, 'images:', payment.images);
                   return (
                   <tr key={payment._id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">

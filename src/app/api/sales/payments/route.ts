@@ -44,12 +44,6 @@ export async function GET(request: NextRequest) {
       .skip((page - 1) * limit)
       .limit(limit)
       .lean();
-    
-    console.log('🔍 [API Sales Payments GET] Found payments:', paiements.length);
-    if (paiements.length > 0) {
-      console.log('🔍 [API Sales Payments GET] First payment raw:', paiements[0]);
-      console.log('🔍 [API Sales Payments GET] First payment images:', paiements[0].images);
-    }
 
     // Enrich payment lines with referenceExterne from invoices if missing
     const enrichedPaiements = await Promise.all(
@@ -83,12 +77,6 @@ export async function GET(request: NextRequest) {
       })
     );
 
-    console.log('🔍 [API Sales Payments GET] Enriched payments:', enrichedPaiements.length);
-    if (enrichedPaiements.length > 0) {
-      console.log('🔍 [API Sales Payments GET] First enriched payment:', enrichedPaiements[0]);
-      console.log('🔍 [API Sales Payments GET] First enriched payment images:', enrichedPaiements[0].images);
-    }
-
     return NextResponse.json({
       items: enrichedPaiements,
       total,
@@ -115,9 +103,6 @@ export async function POST(request: NextRequest) {
 
     const tenantId = session.user.companyId?.toString() || '';
     const body = await request.json();
-    
-    console.log('📥 [API Sales Payments POST] Received body:', body);
-    console.log('📥 [API Sales Payments POST] Images in body:', body.images);
     
     const {
       customerId,
@@ -268,11 +253,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Force Mongoose to recognize images as modified if present
-    console.log('💾 [API Sales Payments POST] Before saving - body.images:', body.images);
-    console.log('💾 [API Sales Payments POST] Before saving - paiement.images:', paiement.images);
-    
     if (Array.isArray(body.images) && body.images.length > 0) {
-      console.log('💾 [API Sales Payments POST] Processing images, count:', body.images.length);
       paiement.images = [];
       body.images.forEach((img: any) => {
         const imageObj = {
@@ -286,17 +267,12 @@ export async function POST(request: NextRequest) {
           height: img.height || undefined,
           format: img.format || undefined,
         };
-        console.log('💾 [API Sales Payments POST] Adding image:', imageObj);
         paiement.images.push(imageObj);
       });
       (paiement as any).markModified('images');
-      console.log('💾 [API Sales Payments POST] After adding images, paiement.images:', paiement.images);
-    } else {
-      console.log('💾 [API Sales Payments POST] No images to save or images is not an array');
     }
 
     await paiement.save();
-    console.log('💾 [API Sales Payments POST] Payment saved, images:', paiement.images);
 
     // Update invoice payment status
     for (const ligne of processedLignes) {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
 import { PlusIcon, DocumentTextIcon, MagnifyingGlassIcon, EyeIcon, PencilIcon, ArrowDownTrayIcon, TrashIcon } from '@heroicons/react/24/outline';
@@ -43,6 +43,21 @@ interface Product {
 }
 
 export default function InvoicesPage() {
+  const createDefaultFormData = () => ({
+    customerId: '',
+    dateDoc: new Date().toISOString().split('T')[0],
+    referenceExterne: '',
+    devise: 'TND',
+    tauxChange: 1,
+    modePaiement: 'Espèces',
+    dateEcheance: '',
+    conditionsPaiement: '',
+    notes: '',
+    numero: '',
+    timbreActif: true,
+    remiseGlobalePct: 0
+  });
+
   const router = useRouter();
   const { tenantId } = useTenantId();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -72,21 +87,11 @@ export default function InvoicesPage() {
   const [showProductDropdowns, setShowProductDropdowns] = useState<{ [key: number]: boolean }>({});
   const [selectedProductIndices, setSelectedProductIndices] = useState<{ [key: number]: number }>({});
   const [productDropdownPositions, setProductDropdownPositions] = useState<{ [key: number]: { top: number; left: number; width: number } }>({});
+  const [invoiceNumberPreview, setInvoiceNumberPreview] = useState<string | null>(null);
+  const [invoiceNumberLoading, setInvoiceNumberLoading] = useState(false);
   
   // Form state
-  const [formData, setFormData] = useState({
-    customerId: '',
-    dateDoc: new Date().toISOString().split('T')[0],
-    referenceExterne: '',
-    devise: 'TND',
-    tauxChange: 1,
-    modePaiement: 'Espèces',
-    dateEcheance: '',
-    conditionsPaiement: '',
-    notes: '',
-    timbreActif: false,
-    remiseGlobalePct: 0
-  });
+  const [formData, setFormData] = useState(() => createDefaultFormData());
   
   const [lines, setLines] = useState<Array<{
     productId: string;
@@ -199,6 +204,154 @@ export default function InvoicesPage() {
       setShowCustomerDropdown(false);
       setSelectedCustomerIndex(-1);
     }
+  };
+
+  const incrementInvoiceNumber = (numero?: string | null): string | null => {
+    if (!numero) return null;
+    const match = numero.match(/^(.*?)(\d+)$/);
+    if (!match) return null;
+    const prefix = match[1];
+    const digits = match[2];
+    const nextValue = (parseInt(digits, 10) + 1).toString().padStart(digits.length, '0');
+    return `${prefix}${nextValue}`;
+  };
+
+  const computeNextInvoiceNumberFromExisting = (): string | null => {
+    if (!invoices || invoices.length === 0) return null;
+    let candidateNumero: string | null = null;
+    let highestValue = -Infinity;
+
+    invoices.forEach((invoice) => {
+      const numero = invoice.numero;
+      if (!numero) return;
+      const match = numero.match(/(\d+)(?!.*\d)/);
+      if (!match) return;
+      const value = parseInt(match[1], 10);
+      if (Number.isNaN(value)) return;
+      if (value > highestValue) {
+        highestValue = value;
+        candidateNumero = numero;
+      }
+    });
+
+    return incrementInvoiceNumber(candidateNumero);
+  };
+
+  const findMissingInvoiceNumbers = useMemo(() => {
+    const groups = new Map<string, { numbers: number[]; padding: number }>();
+
+    invoices.forEach((invoice) => {
+      if (!invoice.numero) return;
+      const match = invoice.numero.match(/^(.*?)(\d+)$/);
+      if (!match) return;
+      const prefix = match[1];
+      const digits = match[2];
+      const value = parseInt(digits, 10);
+      if (Number.isNaN(value)) return;
+
+      if (!groups.has(prefix)) {
+        groups.set(prefix, { numbers: [], padding: digits.length });
+      }
+
+      const group = groups.get(prefix)!;
+      group.numbers.push(value);
+      if (digits.length > group.padding) {
+        group.padding = digits.length;
+      }
+    });
+
+    const missing: string[] = [];
+    groups.forEach(({ numbers, padding }, prefix) => {
+      if (numbers.length < 2) return;
+      const sorted = [...numbers].sort((a, b) => a - b);
+      for (let i = 1; i < sorted.length; i++) {
+        const prev = sorted[i - 1];
+        const current = sorted[i];
+        if (current - prev <= 1) continue;
+
+        for (let val = prev + 1; val < current; val++) {
+          missing.push(`${prefix}${val.toString().padStart(padding, '0')}`);
+          if (missing.length >= 20) {
+            return;
+          }
+        }
+      }
+    });
+
+    return missing;
+  }, [invoices]);
+
+  const fetchInvoiceNumberPreview = async () => {
+    if (!tenantId) {
+      setInvoiceNumberPreview(null);
+      return;
+    }
+
+    try {
+      setInvoiceNumberLoading(true);
+      const response = await fetch('/api/settings/numbering/preview?type=facture', {
+        headers: { 'X-Tenant-Id': tenantId }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setInvoiceNumberPreview(data.preview || null);
+        if (data.preview) {
+          setFormData((prev) => {
+            if (prev.numero && prev.numero.trim().length > 0) {
+              return prev;
+            }
+            return { ...prev, numero: data.preview };
+          });
+        }
+      } else {
+        setInvoiceNumberPreview(null);
+      }
+    } catch (error) {
+      console.error('Error fetching invoice number preview:', error);
+      setInvoiceNumberPreview(null);
+    } finally {
+      setInvoiceNumberLoading(false);
+    }
+  };
+
+  const handleCopyInvoiceNumber = async () => {
+    const valueToCopy = formData.numero?.trim() || invoiceNumberPreview;
+    if (!valueToCopy || typeof navigator === 'undefined') return;
+    try {
+      await navigator.clipboard.writeText(valueToCopy);
+      toast.success('Numéro copié dans le presse-papiers');
+    } catch (error) {
+      console.error('Error copying invoice number:', error);
+      toast.error('Impossible de copier le numéro');
+    }
+  };
+
+  const handleOpenNewInvoiceModal = () => {
+    setEditingInvoiceId(null);
+    setLines([]);
+    setProductSearches({});
+    setShowProductDropdowns({});
+    setSelectedProductIndices({});
+    setProductDropdownPositions({});
+    setCustomerSearch('');
+    setShowCustomerDropdown(false);
+    setSelectedCustomerIndex(-1);
+    const defaultForm = createDefaultFormData();
+    const nextNumero = computeNextInvoiceNumberFromExisting();
+    const resolvedForm = {
+      ...defaultForm,
+      numero: nextNumero || defaultForm.numero,
+    };
+    setFormData(resolvedForm);
+    if (nextNumero) {
+      setInvoiceNumberPreview(nextNumero);
+      setInvoiceNumberLoading(false);
+    } else {
+      setInvoiceNumberPreview(null);
+      setInvoiceNumberLoading(true);
+      fetchInvoiceNumberPreview();
+    }
+    setShowModal(true);
   };
 
   // Handle alphabet filter click
@@ -380,8 +533,6 @@ export default function InvoicesPage() {
       });
       if (response.ok) {
         const data = await response.json();
-        console.log('Settings data:', data);
-        console.log('achats.modesReglement:', data.achats?.modesReglement);
         setModesReglement(data.achats?.modesReglement || []);
       }
     } catch (err) {
@@ -450,7 +601,6 @@ export default function InvoicesPage() {
     if (field === 'productId' && value) {
       const product = products.find(p => p._id === value);
       if (product) {
-        console.log('Product selected:', product);
         newLines[index].designation = product.nom;
         newLines[index].codeAchat = product.referenceClient || product.sku || '';
         newLines[index].categorieCode = (product as any).categorieCode || '';
@@ -695,9 +845,12 @@ export default function InvoicesPage() {
             dateEcheance: fullInvoice.dateEcheance?.split('T')[0] || '',
             conditionsPaiement: fullInvoice.conditionsPaiement || '',
             notes: fullInvoice.notes || '',
+            numero: fullInvoice.numero || '',
             timbreActif: (fullInvoice.timbreFiscal || 0) > 0,
             remiseGlobalePct: fullInvoice.remiseGlobalePct || 0
           });
+          setInvoiceNumberPreview(fullInvoice.numero || null);
+          setInvoiceNumberLoading(false);
           
           // Set customer search based on selected customer
           if (fullInvoice.customerId) {
@@ -810,6 +963,7 @@ export default function InvoicesPage() {
           modePaiement: formData.modePaiement || undefined,
           conditionsPaiement: formData.conditionsPaiement || undefined,
           notes: formData.notes,
+          numero: formData.numero?.trim() || undefined,
           lignes: lignesData,
           timbreFiscal: totals.timbreAmount || 0,
           remiseGlobalePct: formData.remiseGlobalePct || 0
@@ -821,19 +975,8 @@ export default function InvoicesPage() {
         setShowModal(false);
         setLines([]);
         setEditingInvoiceId(null);
-        setFormData({
-          customerId: '',
-          dateDoc: new Date().toISOString().split('T')[0],
-          referenceExterne: '',
-          devise: 'TND',
-          tauxChange: 1,
-          modePaiement: 'Espèces',
-          dateEcheance: '',
-          conditionsPaiement: '',
-          notes: '',
-          timbreActif: false,
-          remiseGlobalePct: 0
-        });
+        setFormData(createDefaultFormData());
+        setInvoiceNumberPreview(null);
         setCustomerSearch('');
         setShowCustomerDropdown(false);
         setSelectedCustomerIndex(-1);
@@ -854,19 +997,13 @@ export default function InvoicesPage() {
   // Handle view invoice
   const handleView = async (invoice: Invoice) => {
     try {
-      console.log('🔍 Viewing invoice:', invoice._id);
-      console.log('📋 Invoice details:', invoice);
-      
       // Fetch full invoice details
       const response = await fetch(`/api/sales/invoices/${invoice._id}`, {
         headers: { 'X-Tenant-Id': tenantId }
       });
       
-      console.log('📡 Response status:', response.status);
-      
       if (response.ok) {
         const data = await response.json();
-        console.log('✅ Full invoice data:', data);
         toast.success(`Facture ${invoice.numero} chargée avec succès`);
         router.push(`/sales/invoices/${invoice._id}`);
       } else {
@@ -882,8 +1019,6 @@ export default function InvoicesPage() {
 
   // Handle edit invoice
   const handleEdit = async (invoice: Invoice) => {
-    console.log('✏️ Editing invoice:', invoice._id);
-    
     // Fetch full invoice details
     try {
       const response = await fetch(`/api/sales/invoices/${invoice._id}`, {
@@ -892,7 +1027,6 @@ export default function InvoicesPage() {
       
       if (response.ok) {
         const fullInvoice = await response.json();
-        console.log('📋 Full invoice data:', fullInvoice);
         
         // Populate form with invoice data
         setFormData({
@@ -905,9 +1039,12 @@ export default function InvoicesPage() {
           dateEcheance: fullInvoice.dateEcheance?.split('T')[0] || '',
           conditionsPaiement: fullInvoice.conditionsPaiement || '',
           notes: fullInvoice.notes || '',
+          numero: fullInvoice.numero || '',
           timbreActif: (fullInvoice.timbreFiscal || 0) > 0,
           remiseGlobalePct: 0 // Will be calculated from existing remise if needed
         });
+        setInvoiceNumberPreview(fullInvoice.numero || null);
+        setInvoiceNumberLoading(false);
         
         // Set customer search based on selected customer
         if (fullInvoice.customerId) {
@@ -1038,13 +1175,35 @@ export default function InvoicesPage() {
               <span>Depuis BL</span>
             </button>
             <button 
-              onClick={() => setShowModal(true)} 
+              onClick={handleOpenNewInvoiceModal} 
               className="flex items-center gap-2 bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-blue-700 text-sm sm:text-base w-full sm:w-auto justify-center"
             >
               <PlusIcon className="w-5 h-5" /> <span>Nouvelle facture</span>
             </button>
           </div>
         </div>
+
+        {findMissingInvoiceNumbers.length > 0 && (
+          <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg space-y-2">
+            <div className="font-semibold">Factures manquantes détectées</div>
+            <p className="text-sm">
+              Les numéros suivants semblent absents de la séquence :
+            </p>
+            <div className="flex flex-wrap gap-2 text-sm font-mono">
+              {findMissingInvoiceNumbers.map((numero) => (
+                <span
+                  key={numero}
+                  className="px-2 py-1 bg-white border border-red-200 rounded"
+                >
+                  {numero}
+                </span>
+              ))}
+            </div>
+            <p className="text-xs text-red-700">
+              Vérifiez vos factures pour combler ces numéros ou ajustez la numérotation manuellement.
+            </p>
+          </div>
+        )}
 
         {/* Search */}
         <div className="relative">
@@ -1116,7 +1275,6 @@ export default function InvoicesPage() {
                       <div className="flex gap-0.5">
                         <button 
                           onClick={() => {
-                            console.log('🔵 BUTTON CLICKED - Delivery ID:', invoice._id);
                             handleView(invoice);
                           }}
                           className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
@@ -1126,7 +1284,6 @@ export default function InvoicesPage() {
                         </button>
                         <button 
                           onClick={() => {
-                            console.log('🟢 MODIFY BUTTON CLICKED - Delivery:', invoice);
                             handleEdit(invoice);
                           }}
                           className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
@@ -1248,6 +1405,44 @@ export default function InvoicesPage() {
               <div className="p-4 sm:p-6 flex-1 overflow-y-auto">
                 {/* Basic Info */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
+                  <div className="sm:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Numéro de facture
+                    </label>
+                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                      <div className="flex-1 relative">
+                        <input
+                          type="text"
+                          value={formData.numero || ''}
+                          onChange={(e) => setFormData({ ...formData, numero: e.target.value })}
+                          placeholder={
+                            invoiceNumberLoading
+                              ? 'Chargement...'
+                              : invoiceNumberPreview || 'Saisissez un numéro'
+                          }
+                          className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                        />
+                        {invoiceNumberLoading && (
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">
+                            ...
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleCopyInvoiceNumber}
+                        className="px-4 py-2 border rounded-lg text-sm font-medium text-blue-600 hover:bg-blue-50 disabled:text-gray-400 disabled:border-gray-200 disabled:bg-gray-50"
+                        disabled={!formData.numero?.trim() && !invoiceNumberPreview}
+                      >
+                        Copier
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {editingInvoiceId
+                        ? 'Vous pouvez ajuster le numéro de cette facture avant de sauvegarder.'
+                        : 'Le numéro proposé est généré automatiquement mais reste modifiable avant création.'}
+                    </p>
+                  </div>
                   <div className="relative customer-autocomplete">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Client *

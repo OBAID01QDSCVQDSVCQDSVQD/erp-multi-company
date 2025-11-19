@@ -56,8 +56,6 @@ export default function PaymentDetailPage() {
       });
       if (response.ok) {
         const data = await response.json();
-        console.log('📦 [Sales Payment Detail] API Response:', data);
-        console.log('📦 [Sales Payment Detail] Payment images:', data.images);
         setPayment(data);
       } else {
         toast.error('Paiement non trouvé');

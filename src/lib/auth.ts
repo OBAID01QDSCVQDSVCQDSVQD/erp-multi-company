@@ -15,7 +15,6 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
-          console.log('Missing credentials');
           return null;
         }
 
@@ -26,7 +25,7 @@ export const authOptions: NextAuthOptions = {
           email: credentials.email.toLowerCase().trim(),
           isActive: true 
         }).lean();
-        
+
         if (!userRaw) {
           return null;
         }
@@ -96,14 +95,13 @@ export const authOptions: NextAuthOptions = {
         );
 
         if (!isPasswordValid) {
-          console.log('Invalid password for user:', credentials.email);
           return null;
         }
 
         // Mettre à jour la dernière connexion
         await (User as any).findByIdAndUpdate(user._id, { lastLogin: new Date() });
         
-        return {
+        const payload = {
           id: user._id.toString(),
           email: user.email,
           name: `${user.firstName} ${user.lastName}`,
@@ -112,6 +110,7 @@ export const authOptions: NextAuthOptions = {
           companyName: companyName,
           permissions: user.permissions || [],
         };
+        return payload;
       }
     })
   ],

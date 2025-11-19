@@ -30,9 +30,6 @@ export async function GET(
       return NextResponse.json({ error: 'Paiement non trouvé' }, { status: 404 });
     }
 
-    console.log('🔍 [API Sales Payment GET] Payment found:', paiement.numero);
-    console.log('🔍 [API Sales Payment GET] Payment images (raw):', paiement.images);
-
     // Enrich payment lines with referenceExterne from invoices if missing
     if (paiement.lignes && paiement.lignes.length > 0) {
       const enrichedLignes = await Promise.all(
@@ -58,9 +55,6 @@ export async function GET(
       ...paiement,
       images: paiement.images || [], // Ensure images array is always present
     };
-    
-    console.log('🔍 [API Sales Payment GET] Response data:', responseData);
-    console.log('🔍 [API Sales Payment GET] Response images:', responseData.images);
     
     return NextResponse.json(responseData);
   } catch (error) {
