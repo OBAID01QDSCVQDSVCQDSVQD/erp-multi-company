@@ -12,6 +12,12 @@ const numerotationSchema = z.object({
   bl: z.string().min(1, 'Le format BL est requis'),
   facture: z.string().min(1, 'Le format facture est requis'),
   avoir: z.string().min(1, 'Le format avoir est requis'),
+  startingNumbers: z.object({
+    devis: z.number().min(0).optional(),
+    bl: z.number().min(0).optional(),
+    facture: z.number().min(0).optional(),
+    avoir: z.number().min(0).optional(),
+  }).optional(),
 });
 
 type NumerotationForm = z.infer<typeof numerotationSchema>;
@@ -32,6 +38,12 @@ export default function NumerotationTab({ tenantId }: NumerotationTabProps) {
   const [saving, setSaving] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previews, setPreviews] = useState<Record<string, string>>({});
+  
+  const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    if (e.target.value === '0') {
+      e.target.value = '';
+    }
+  };
 
   const {
     register,
@@ -63,6 +75,12 @@ export default function NumerotationTab({ tenantId }: NumerotationTabProps) {
           bl: data.numerotation?.bl || 'BL-{{YY}}{{MM}}-{{SEQ:4}}',
           facture: data.numerotation?.facture || 'FAC-{{YYYY}}-{{SEQ:5}}',
           avoir: data.numerotation?.avoir || 'AVR-{{YYYY}}-{{SEQ:5}}',
+          startingNumbers: {
+            devis: data.numerotation?.startingNumbers?.devis || 0,
+            bl: data.numerotation?.startingNumbers?.bl || 0,
+            facture: data.numerotation?.startingNumbers?.fac || 0,
+            avoir: data.numerotation?.startingNumbers?.avoir || 0,
+          },
         });
       }
     } catch (error) {
@@ -75,6 +93,25 @@ export default function NumerotationTab({ tenantId }: NumerotationTabProps) {
   const onSubmit = async (data: NumerotationForm) => {
     try {
       setSaving(true);
+      
+      // Préparer les données pour l'API
+      const numerotationData: any = {
+        devis: data.devis,
+        bl: data.bl,
+        fac: data.facture,
+        avoir: data.avoir,
+      };
+      
+      // Ajouter startingNumbers si défini
+      if (data.startingNumbers) {
+        numerotationData.startingNumbers = {
+          devis: data.startingNumbers.devis || 0,
+          bl: data.startingNumbers.bl || 0,
+          fac: data.startingNumbers.facture || 0,
+          avoir: data.startingNumbers.avoir || 0,
+        };
+      }
+      
       const response = await fetch('/api/settings', {
         method: 'PATCH',
         headers: {
@@ -82,12 +119,32 @@ export default function NumerotationTab({ tenantId }: NumerotationTabProps) {
           'X-Tenant-Id': tenantId,
         },
         body: JSON.stringify({
-          numerotation: data,
+          numerotation: numerotationData,
         }),
       });
 
       if (response.ok) {
-        toast.success('Formats de numérotation mis à jour');
+        // Si des startingNumbers ont été définis, les appliquer aux compteurs
+        if (data.startingNumbers && Object.values(data.startingNumbers).some(v => v && v > 0)) {
+          const applyResponse = await fetch('/api/settings/numbering/apply-starting', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Tenant-Id': tenantId,
+            },
+            body: JSON.stringify({
+              startingNumbers: numerotationData.startingNumbers,
+            }),
+          });
+          
+          if (applyResponse.ok) {
+            toast.success('Formats et numéros de départ mis à jour');
+          } else {
+            toast.success('Formats mis à jour, mais erreur lors de l\'application des numéros de départ');
+          }
+        } else {
+          toast.success('Formats de numérotation mis à jour');
+        }
       } else {
         toast.error('Erreur lors de la mise à jour');
       }
@@ -124,6 +181,12 @@ export default function NumerotationTab({ tenantId }: NumerotationTabProps) {
       bl: 'BL-{{YY}}{{MM}}-{{SEQ:4}}',
       facture: 'FAC-{{YYYY}}-{{SEQ:5}}',
       avoir: 'AVR-{{YYYY}}-{{SEQ:5}}',
+      startingNumbers: {
+        devis: 0,
+        bl: 0,
+        facture: 0,
+        avoir: 0,
+      },
     });
   };
 
@@ -193,6 +256,24 @@ export default function NumerotationTab({ tenantId }: NumerotationTabProps) {
                 Aperçu: <code className="bg-green-100 px-1 rounded">{previews.devis}</code>
               </p>
             )}
+            <div className="mt-2">
+              <label className="block text-xs text-gray-600 mb-1">
+                Numéro de départ (optionnel)
+              </label>
+              <input
+                type="text"
+                {...register('startingNumbers.devis', { 
+                  setValueAs: (v) => v === '' ? undefined : parseInt(v, 10) || 0
+                })}
+                onFocus={handleFocus}
+                className="w-32 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                placeholder="0"
+                pattern="[0-9]*"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Le compteur commencera à partir de ce numéro (ex: 100 pour commencer à 101)
+              </p>
+            </div>
           </div>
 
           {/* BL */}
@@ -224,6 +305,24 @@ export default function NumerotationTab({ tenantId }: NumerotationTabProps) {
                 Aperçu: <code className="bg-green-100 px-1 rounded">{previews.bl}</code>
               </p>
             )}
+            <div className="mt-2">
+              <label className="block text-xs text-gray-600 mb-1">
+                Numéro de départ (optionnel)
+              </label>
+              <input
+                type="text"
+                {...register('startingNumbers.bl', { 
+                  setValueAs: (v) => v === '' ? undefined : parseInt(v, 10) || 0
+                })}
+                onFocus={handleFocus}
+                className="w-32 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                placeholder="0"
+                pattern="[0-9]*"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Le compteur commencera à partir de ce numéro (ex: 100 pour commencer à 101)
+              </p>
+            </div>
           </div>
 
           {/* Facture */}
@@ -255,6 +354,24 @@ export default function NumerotationTab({ tenantId }: NumerotationTabProps) {
                 Aperçu: <code className="bg-green-100 px-1 rounded">{previews.facture}</code>
               </p>
             )}
+            <div className="mt-2">
+              <label className="block text-xs text-gray-600 mb-1">
+                Numéro de départ (optionnel)
+              </label>
+              <input
+                type="text"
+                {...register('startingNumbers.facture', { 
+                  setValueAs: (v) => v === '' ? undefined : parseInt(v, 10) || 0
+                })}
+                onFocus={handleFocus}
+                className="w-32 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                placeholder="0"
+                pattern="[0-9]*"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Le compteur commencera à partir de ce numéro (ex: 100 pour commencer à 101)
+              </p>
+            </div>
           </div>
 
           {/* Avoir */}
@@ -286,6 +403,24 @@ export default function NumerotationTab({ tenantId }: NumerotationTabProps) {
                 Aperçu: <code className="bg-green-100 px-1 rounded">{previews.avoir}</code>
               </p>
             )}
+            <div className="mt-2">
+              <label className="block text-xs text-gray-600 mb-1">
+                Numéro de départ (optionnel)
+              </label>
+              <input
+                type="text"
+                {...register('startingNumbers.avoir', { 
+                  setValueAs: (v) => v === '' ? undefined : parseInt(v, 10) || 0
+                })}
+                onFocus={handleFocus}
+                className="w-32 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                placeholder="0"
+                pattern="[0-9]*"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Le compteur commencera à partir de ce numéro (ex: 100 pour commencer à 101)
+              </p>
+            </div>
           </div>
 
           {/* Boutons */}

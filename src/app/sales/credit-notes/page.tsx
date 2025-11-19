@@ -13,6 +13,7 @@ import {
   InformationCircleIcon,
   EyeIcon,
   ArrowDownTrayIcon,
+  TrashIcon,
 } from '@heroicons/react/24/outline';
 
 interface CreditNote {
@@ -317,6 +318,32 @@ export default function CreditNotesPage() {
     }
   };
 
+  const handleDeleteCreditNote = async (note: CreditNote) => {
+    if (!tenantId) return;
+    
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer l'avoir ${note.numero} ?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/sales/credit-notes/${note._id}`, {
+        method: 'DELETE',
+        headers: { 'X-Tenant-Id': tenantId },
+      });
+
+      if (response.ok) {
+        toast.success('Avoir supprimé avec succès');
+        fetchCreditNotes();
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Erreur lors de la suppression');
+      }
+    } catch (error) {
+      console.error('Error deleting credit note:', error);
+      toast.error('Erreur lors de la suppression de l\'avoir');
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -430,7 +457,7 @@ export default function CreditNotesPage() {
                           <button
                             onClick={() => handleViewCreditNote(note)}
                             className="p-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50"
-                            title="Voir l’avoir"
+                            title="Voir l'avoir"
                           >
                             <EyeIcon className="w-4 h-4" />
                           </button>
@@ -440,6 +467,13 @@ export default function CreditNotesPage() {
                             title="Télécharger le PDF"
                           >
                             <ArrowDownTrayIcon className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteCreditNote(note)}
+                            className="p-2 rounded-lg border border-gray-200 text-red-600 hover:bg-red-50"
+                            title="Supprimer l'avoir"
+                          >
+                            <TrashIcon className="w-4 h-4" />
                           </button>
                         </div>
                       </td>

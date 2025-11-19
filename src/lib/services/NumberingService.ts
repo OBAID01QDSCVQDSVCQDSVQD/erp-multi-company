@@ -39,11 +39,24 @@ export class NumberingService {
       throw new Error(`Template de numérotation non trouvé pour ${seqName}`);
     }
 
-    // Incrémenter le compteur dans une transaction
-    const counter = await (Counter as any).findOneAndUpdate(
+    // Vérifier si le compteur existe déjà
+    let counter = await (Counter as any).findOne({ tenantId, seqName });
+    
+    if (!counter) {
+      // Si le compteur n'existe pas, utiliser la valeur de départ si définie
+      const startingNumber = settings.numerotation.startingNumbers?.[seqName] || 0;
+      counter = await (Counter as any).findOneAndUpdate(
+        { tenantId, seqName },
+        { $set: { value: startingNumber } },
+        { upsert: true, new: true }
+      );
+    }
+    
+    // Incrémenter le compteur
+    counter = await (Counter as any).findOneAndUpdate(
       { tenantId, seqName },
       { $inc: { value: 1 } },
-      { upsert: true, new: true }
+      { new: true }
     );
 
     // Générer le numéro à partir du template

@@ -50,6 +50,19 @@ export interface INumerotation {
   facfo: string;
   avoirfo: string;
   pafo: string;
+  startingNumbers?: {
+    devis?: number;
+    bc?: number;
+    bl?: number;
+    fac?: number;
+    avoir?: number;
+    ca?: number;
+    br?: number;
+    facfo?: number;
+    avoirfo?: number;
+    pafo?: number;
+    pac?: number;
+  };
 }
 
 export interface IVentes {
@@ -216,6 +229,19 @@ const NumerotationSchema = new Schema({
   facfo: { type: String, required: true, default: 'FACFO-{{YYYY}}-{{SEQ:5}}' },
   avoirfo: { type: String, required: true, default: 'AVOIRFO-{{YYYY}}-{{SEQ:5}}' },
   pafo: { type: String, required: true, default: 'PAFO-{{YYYY}}-{{SEQ:5}}' },
+  startingNumbers: {
+    devis: { type: Number, default: 0 },
+    bc: { type: Number, default: 0 },
+    bl: { type: Number, default: 0 },
+    fac: { type: Number, default: 0 },
+    avoir: { type: Number, default: 0 },
+    ca: { type: Number, default: 0 },
+    br: { type: Number, default: 0 },
+    facfo: { type: Number, default: 0 },
+    avoirfo: { type: Number, default: 0 },
+    pafo: { type: Number, default: 0 },
+    pac: { type: Number, default: 0 },
+  },
 }, { _id: false });
 
 const VentesSchema = new Schema({
