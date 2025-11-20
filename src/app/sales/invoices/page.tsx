@@ -40,6 +40,7 @@ interface Product {
   taxCode?: string;
   uomVenteCode?: string;
   tvaPct?: number;
+  estStocke?: boolean;
 }
 
 export default function InvoicesPage() {
@@ -107,6 +108,7 @@ export default function InvoicesPage() {
     tvaPct: number;
     remisePct?: number;
     totalLine: number;
+    estStocke?: boolean;
   }>>([]);
 
   useEffect(() => {
@@ -436,11 +438,19 @@ export default function InvoicesPage() {
       newLines[lineIndex].tvaPct = 0;
     }
     
+    newLines[lineIndex].estStocke = product.estStocke !== false;
     setLines(newLines);
     
-    // Fetch stock for the selected product only if NOT from BL
-    if (!isFromBL) {
+    // Fetch stock for the selected product only if it's an article (estStocke !== false) and NOT from BL
+    if (!isFromBL && product.estStocke !== false) {
       fetchProductStock(product._id);
+    } else {
+      setProductStocks(prev => {
+        if (!prev[product._id]) return prev;
+        const updated = { ...prev };
+        delete updated[product._id];
+        return updated;
+      });
     }
     
     // Update search and dropdown state
@@ -612,7 +622,8 @@ export default function InvoicesPage() {
       taxCode: '',
       tvaPct: 0,
       remisePct: 0,
-      totalLine: 0
+      totalLine: 0,
+      estStocke: true
     }]);
   };
 
@@ -940,14 +951,15 @@ export default function InvoicesPage() {
               remisePct: line.remisePct || 0,
               taxCode: line.taxCode || '',
               tvaPct: line.tvaPct || 0,
-              totalLine: 0
+              totalLine: 0,
+              estStocke: line.estStocke !== false
             }));
             setLines(mappedLines);
             
             // Fetch stock for all products in lines only if NOT from BL
             if (!hasBL) {
               mappedLines.forEach((line: any) => {
-                if (line.productId) {
+                if (line.productId && line.estStocke !== false) {
                   fetchProductStock(line.productId);
                 }
               });
@@ -1147,14 +1159,15 @@ export default function InvoicesPage() {
             remisePct: line.remisePct || 0,
             taxCode: line.taxCode || '',
             tvaPct: line.tvaPct || 0,
-            totalLine: 0
+            totalLine: 0,
+            estStocke: line.estStocke !== false
           }));
           setLines(mappedLines);
           
           // Fetch stock for all products in lines only if NOT from BL
           if (!hasBL) {
             mappedLines.forEach((line: any) => {
-              if (line.productId) {
+              if (line.productId && line.estStocke !== false) {
                 fetchProductStock(line.productId);
               }
             });
@@ -1829,13 +1842,13 @@ export default function InvoicesPage() {
                                       setLines(updatedLines);
                                     }}
                                     className={`w-20 px-2 py-1 border rounded text-sm ${
-                                      !isFromBL && line.productId && productStocks[line.productId] !== undefined && 
+                                      !isFromBL && line.estStocke !== false && line.productId && productStocks[line.productId] !== undefined && 
                                       (line.quantite || 0) > productStocks[line.productId]
                                         ? 'border-red-500' : ''
                                     }`}
                                     placeholder="0"
                                   />
-                                  {!isFromBL && line.productId && productStocks[line.productId] !== undefined && 
+                                  {!isFromBL && line.estStocke !== false && line.productId && productStocks[line.productId] !== undefined && 
                                    (line.quantite || 0) > productStocks[line.productId] && (
                                     <span className="text-xs text-red-600 mt-1">
                                       Stock disponible: {productStocks[line.productId]}

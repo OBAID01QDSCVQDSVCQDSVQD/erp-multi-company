@@ -223,6 +223,11 @@ async function createStockMovementsForInvoice(
         continue;
       }
 
+      // Skip services (non-stocked products)
+      if (product.estStocke === false) {
+        continue;
+      }
+
       // Check if stock movement already exists for this invoice and product
       const existingMovement = await (MouvementStock as any).findOne({
         societeId: tenantId,

@@ -364,6 +364,86 @@ function drawInfoBlocks(doc: jsPDF, quoteData: QuoteData, companyInfo: CompanyIn
 }
 
 // Helper function to parse HTML and convert to plain text with line breaks
+function decodeHtmlEntities(text: string): string {
+  if (!text) return '';
+  
+  const entityMap: Record<string, string> = {
+    amp: '&',
+    lt: '<',
+    gt: '>',
+    quot: '"',
+    apos: "'",
+    nbsp: ' ',
+    Agrave: 'À',
+    Aacute: 'Á',
+    Acirc: 'Â',
+    Atilde: 'Ã',
+    Auml: 'Ä',
+    Aring: 'Å',
+    AElig: 'Æ',
+    Ccedil: 'Ç',
+    Egrave: 'È',
+    Eacute: 'É',
+    Ecirc: 'Ê',
+    Euml: 'Ë',
+    Igrave: 'Ì',
+    Iacute: 'Í',
+    Icirc: 'Î',
+    Iuml: 'Ï',
+    ETH: 'Ð',
+    Ntilde: 'Ñ',
+    Ograve: 'Ò',
+    Oacute: 'Ó',
+    Ocirc: 'Ô',
+    Otilde: 'Õ',
+    Ouml: 'Ö',
+    Oslash: 'Ø',
+    Ugrave: 'Ù',
+    Uacute: 'Ú',
+    Ucirc: 'Û',
+    Uuml: 'Ü',
+    Yacute: 'Ý',
+    THORN: 'Þ',
+    szlig: 'ß',
+    agrave: 'à',
+    aacute: 'á',
+    acirc: 'â',
+    atilde: 'ã',
+    auml: 'ä',
+    aring: 'å',
+    aelig: 'æ',
+    ccedil: 'ç',
+    egrave: 'è',
+    eacute: 'é',
+    ecirc: 'ê',
+    euml: 'ë',
+    igrave: 'ì',
+    iacute: 'í',
+    icirc: 'î',
+    iuml: 'ï',
+    eth: 'ð',
+    ntilde: 'ñ',
+    ograve: 'ò',
+    oacute: 'ó',
+    ocirc: 'ô',
+    otilde: 'õ',
+    ouml: 'ö',
+    oslash: 'ø',
+    ugrave: 'ù',
+    uacute: 'ú',
+    ucirc: 'û',
+    uuml: 'ü',
+    yacute: 'ý',
+    thorn: 'þ',
+    yuml: 'ÿ'
+  };
+
+  return text
+    .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(parseInt(dec, 10)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+    .replace(/&([a-zA-Z]+);/g, (_, name) => entityMap[name] || `&${name};`);
+}
+
 function parseHtml(html: string): string {
   if (!html) return '';
   
@@ -378,6 +458,11 @@ function parseHtml(html: string): string {
     .replace(/&#39;/g, "'")
     .replace(/\n\s*\n/g, '\n') // Remove multiple newlines
     .trim();
+  
+  text = decodeHtmlEntities(text);
+  text = text.replace(/&(?![a-zA-Z]+;|#[0-9]+;|#x[0-9a-f]+;)/g, ' ');
+  
+  text = text.replace(/\\n/g, '***LINE_BREAK***');
   
   return text;
 }
@@ -412,9 +497,21 @@ function drawLinesTable(doc: jsPDF, quoteData: QuoteData, startY: number): numbe
       displayText = ref || `Produit ${index + 1}`;
     }
     
+    const displayLines = displayText.split('***LINE_BREAK***');
+    const formattedDisplay = displayLines.map((line, idx) => {
+      if (idx === 0) return line;
+      const bulletMatch = line.match(/^([0-9]+[.)]|[-•*])/);
+      if (bulletMatch) {
+        const bullet = bulletMatch[0];
+        const content = line.slice(bullet.length).trim();
+        return `${bullet} ${content}`;
+      }
+      return `• ${line.trim()}`;
+    }).join('\n');
+
     return [
       ref || `Ligne ${index + 1}`,
-      displayText,
+      { content: formattedDisplay },
       quantite.toString(),
       `${prixUnitaire.toFixed(3)}`,
       `${remise} %`,
@@ -465,7 +562,7 @@ function drawLinesTable(doc: jsPDF, quoteData: QuoteData, startY: number): numbe
     // نقسم الـ 190 على الكولونات
     columnStyles: {
       0: { cellWidth: 18 },              // Réf
-      1: { cellWidth: 70 },              // Produit
+      1: { cellWidth: 70, cellPadding: { top: 2, right: 3, bottom: 2, left: 3 } }, // Produit
       2: { cellWidth: 12, halign: 'right' }, // Qté
       3: { cellWidth: 22, halign: 'right' }, // Prix HT
       4: { cellWidth: 16, halign: 'right' }, // Remise %

@@ -170,6 +170,10 @@ async function createStockMovementsForDelivery(
         continue;
       }
 
+      if (product.estStocke === false) {
+        continue;
+      }
+
       // Check if stock movement already exists for this delivery and product
       const existingMovement = await (MouvementStock as any).findOne({
         societeId: tenantId,

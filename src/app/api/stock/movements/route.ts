@@ -86,6 +86,55 @@ export async function GET(request: NextRequest) {
         });
       }
     }
+
+    // Restrict to stockable products only (estStocke !== false)
+    const stockableProducts = await (Product as any).find({
+      tenantId,
+      $or: [
+        { estStocke: { $exists: false } },
+        { estStocke: true }
+      ]
+    }).select('_id').lean();
+
+    const stockableIds = stockableProducts.map((p: any) => {
+      const id = p._id;
+      return id instanceof mongoose.Types.ObjectId ? id.toString() : id;
+    });
+
+    if (stockableIds.length === 0) {
+      return NextResponse.json({
+        movements: [],
+        total: 0,
+        page,
+        limit,
+      });
+    }
+
+    const stockableIdSet = new Set(stockableIds);
+
+    if (!filter.productId) {
+      filter.productId = { $in: stockableIds };
+    } else if (typeof filter.productId === 'string') {
+      if (!stockableIdSet.has(filter.productId)) {
+        return NextResponse.json({
+          movements: [],
+          total: 0,
+          page,
+          limit,
+        });
+      }
+    } else if (filter.productId.$in) {
+      const intersection = filter.productId.$in.filter((id: string) => stockableIdSet.has(id));
+      if (intersection.length === 0) {
+        return NextResponse.json({
+          movements: [],
+          total: 0,
+          page,
+          limit,
+        });
+      }
+      filter.productId.$in = intersection;
+    }
     
 
     // Get total count
@@ -109,7 +158,7 @@ export async function GET(request: NextRequest) {
         // Convert string to ObjectId if valid
         return mongoose.Types.ObjectId.isValid(id) ? new mongoose.Types.ObjectId(id) : id;
       }) },
-    }).select('_id nom sku uomStockCode uomVenteCode referenceClient').lean();
+    }).select('_id nom sku uomStockCode uomVenteCode referenceClient estStocke').lean();
     
     // Create product map
     const productMap = new Map();
@@ -223,8 +272,12 @@ export async function GET(request: NextRequest) {
     });
 
     // Format movements
-    const formattedMovements = movements.map((movement: any) => {
+    const formattedMovements = movements
+      .map((movement: any) => {
       const product = productMap.get(movement.productId);
+        if (product && product.estStocke === false) {
+          return null; // Skip services
+        }
       const document = movement.sourceId ? documentMap.get(movement.sourceId) : null;
       
       // Determine reference name based on type and source
@@ -246,7 +299,7 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      return {
+        return {
         _id: movement._id.toString(),
         productId: movement.productId,
         productName: product?.nom || 'Produit supprimé',
@@ -262,8 +315,9 @@ export async function GET(request: NextRequest) {
         createdBy: movement.createdBy,
         createdAt: movement.createdAt,
         updatedAt: movement.updatedAt,
-      };
-    });
+        };
+      })
+      .filter((movement): movement is Record<string, any> => movement !== null);
 
     return NextResponse.json({
       movements: formattedMovements,

@@ -271,8 +271,20 @@ async function updateStockMovementsForDelivery(
         continue;
       }
 
-      // Create stock movements for ALL products that have a productId
-      // This allows tracking stock even if estStocke=false
+      // Skip services (non-stocked products)
+      if (product.estStocke === false) {
+        if (oldLine) {
+          await (MouvementStock as any).deleteMany({
+            societeId: tenantId,
+            productId: productIdStr,
+            source: 'BL',
+            sourceId: deliveryId,
+          });
+        }
+        continue;
+      }
+
+      // Create stock movements for stocked products only
 
       // Find existing movement
       const existingMovement = await (MouvementStock as any).findOne({
