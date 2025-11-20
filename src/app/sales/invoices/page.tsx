@@ -89,6 +89,8 @@ export default function InvoicesPage() {
   const [productDropdownPositions, setProductDropdownPositions] = useState<{ [key: number]: { top: number; left: number; width: number } }>({});
   const [invoiceNumberPreview, setInvoiceNumberPreview] = useState<string | null>(null);
   const [invoiceNumberLoading, setInvoiceNumberLoading] = useState(false);
+  const [productStocks, setProductStocks] = useState<{ [productId: string]: number }>({});
+  const [isFromBL, setIsFromBL] = useState(false); // Track if invoice is created from BL
   
   // Form state
   const [formData, setFormData] = useState(() => createDefaultFormData());
@@ -327,6 +329,7 @@ export default function InvoicesPage() {
   };
 
   const handleOpenNewInvoiceModal = () => {
+    setIsFromBL(false); // Reset isFromBL for new invoices
     setEditingInvoiceId(null);
     setLines([]);
     setProductSearches({});
@@ -393,6 +396,25 @@ export default function InvoicesPage() {
     };
   };
 
+  // Fetch stock for a product
+  const fetchProductStock = async (productId: string) => {
+    if (!tenantId || !productId) return;
+    try {
+      const response = await fetch(`/api/stock/product/${productId}`, {
+        headers: { 'X-Tenant-Id': tenantId },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setProductStocks((prev) => ({
+          ...prev,
+          [productId]: data.stockActuel || 0,
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching product stock:', error);
+    }
+  };
+
   // Handle product selection for a specific line
   const handleSelectProduct = (lineIndex: number, product: Product) => {
     const newLines = [...lines];
@@ -415,6 +437,11 @@ export default function InvoicesPage() {
     }
     
     setLines(newLines);
+    
+    // Fetch stock for the selected product only if NOT from BL
+    if (!isFromBL) {
+      fetchProductStock(product._id);
+    }
     
     // Update search and dropdown state
     setProductSearches({ ...productSearches, [lineIndex]: product.nom });
@@ -750,9 +777,43 @@ export default function InvoicesPage() {
         const data = await response.json();
         const documents = data.items || [];
         
+        // If sourceType is BL, filter out BLs that have already been converted to invoices
+        let availableDocuments = documents;
+        if (sourceType === 'BL') {
+          try {
+            // Fetch all invoices that have linkedDocuments (converted from BL)
+            const invoicesResponse = await fetch('/api/sales/invoices', {
+              headers: { 'X-Tenant-Id': tenantId }
+            });
+            if (invoicesResponse.ok) {
+              const invoicesData = await invoicesResponse.json();
+              const invoices = invoicesData.items || [];
+              
+              // Extract BL IDs that have been converted (from linkedDocuments)
+              const convertedBLIds = new Set<string>();
+              invoices.forEach((invoice: any) => {
+                if (invoice.linkedDocuments && Array.isArray(invoice.linkedDocuments)) {
+                  invoice.linkedDocuments.forEach((linkedId: string) => {
+                    convertedBLIds.add(linkedId.toString());
+                  });
+                }
+              });
+              
+              // Filter out BLs that have been converted
+              availableDocuments = documents.filter((doc: any) => {
+                const docId = doc._id?.toString();
+                return !convertedBLIds.has(docId);
+              });
+            }
+          } catch (err) {
+            console.error('Error checking converted BLs:', err);
+            // Continue with all documents if check fails
+          }
+        }
+        
         // Fetch customer names for each document
         const documentsWithCustomers = await Promise.all(
-          documents.map(async (doc: any) => {
+          availableDocuments.map(async (doc: any) => {
             if (doc.customerId) {
               try {
                 const customerResponse = await fetch(`/api/customers/${doc.customerId}`, {
@@ -834,6 +895,10 @@ export default function InvoicesPage() {
         if (invoiceResponse.ok) {
           const fullInvoice = await invoiceResponse.json();
           
+          // Check if invoice is created from BL by checking linkedDocuments
+          const hasBL = fullInvoice.linkedDocuments && fullInvoice.linkedDocuments.length > 0;
+          setIsFromBL(hasBL || false);
+          
           // Populate form with invoice data
           setFormData({
             customerId: fullInvoice.customerId || '',
@@ -878,6 +943,15 @@ export default function InvoicesPage() {
               totalLine: 0
             }));
             setLines(mappedLines);
+            
+            // Fetch stock for all products in lines only if NOT from BL
+            if (!hasBL) {
+              mappedLines.forEach((line: any) => {
+                if (line.productId) {
+                  fetchProductStock(line.productId);
+                }
+              });
+            }
             
             // Populate product searches immediately using designation from API
             const searches: { [key: number]: string } = {};
@@ -1028,6 +1102,10 @@ export default function InvoicesPage() {
       if (response.ok) {
         const fullInvoice = await response.json();
         
+        // Check if invoice is created from BL by checking linkedDocuments
+        const hasBL = fullInvoice.linkedDocuments && fullInvoice.linkedDocuments.length > 0;
+        setIsFromBL(hasBL || false);
+        
         // Populate form with invoice data
         setFormData({
           customerId: fullInvoice.customerId || '',
@@ -1072,6 +1150,15 @@ export default function InvoicesPage() {
             totalLine: 0
           }));
           setLines(mappedLines);
+          
+          // Fetch stock for all products in lines only if NOT from BL
+          if (!hasBL) {
+            mappedLines.forEach((line: any) => {
+              if (line.productId) {
+                fetchProductStock(line.productId);
+              }
+            });
+          }
           
           // Populate product searches immediately using designation from API
           // This ensures products are visible even before products list is loaded
@@ -1731,18 +1818,30 @@ export default function InvoicesPage() {
                                 </div>
                               </td>
                               <td className="px-4 py-3">
-                                <input 
-                                  type="text" 
-                                  value={line.quantite || ''}
-                                  onChange={(e) => {
-                                    const val = e.target.value;
-                                    const updatedLines = [...lines];
-                                    updatedLines[index] = { ...updatedLines[index], quantite: parseFloat(val) || 0 };
-                                    setLines(updatedLines);
-                                  }}
-                                  className="w-20 px-2 py-1 border rounded text-sm"
-                                  placeholder="0"
-                                />
+                                <div className="flex flex-col">
+                                  <input 
+                                    type="text" 
+                                    value={line.quantite || ''}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      const updatedLines = [...lines];
+                                      updatedLines[index] = { ...updatedLines[index], quantite: parseFloat(val) || 0 };
+                                      setLines(updatedLines);
+                                    }}
+                                    className={`w-20 px-2 py-1 border rounded text-sm ${
+                                      !isFromBL && line.productId && productStocks[line.productId] !== undefined && 
+                                      (line.quantite || 0) > productStocks[line.productId]
+                                        ? 'border-red-500' : ''
+                                    }`}
+                                    placeholder="0"
+                                  />
+                                  {!isFromBL && line.productId && productStocks[line.productId] !== undefined && 
+                                   (line.quantite || 0) > productStocks[line.productId] && (
+                                    <span className="text-xs text-red-600 mt-1">
+                                      Stock disponible: {productStocks[line.productId]}
+                                    </span>
+                                  )}
+                                </div>
                               </td>
                               <td className="px-4 py-3">
                                 <input 

@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import Reception from '@/lib/models/Reception';
+import MouvementStock from '@/lib/models/MouvementStock';
 
 export async function GET(
   request: NextRequest,
@@ -114,6 +115,9 @@ export async function PUT(
       }
     }
 
+    // Check if status is being changed to VALIDE
+    const isStatusChangeToValide = body.statut === 'VALIDE' && existingReception.statut !== 'VALIDE';
+
     // Update reception
     const updatedReception = await (Reception as any).findOneAndUpdate(
       { _id: id, societeId: tenantId, statut: 'BROUILLON' },
@@ -128,6 +132,7 @@ export async function PUT(
           timbreActif: body.timbreActif !== undefined ? body.timbreActif : existingReception.timbreActif,
           montantTimbre: body.montantTimbre !== undefined ? body.montantTimbre : existingReception.montantTimbre,
           notes: body.notes !== undefined ? body.notes : existingReception.notes,
+          statut: body.statut || existingReception.statut,
         },
       },
       { new: true }
@@ -138,6 +143,11 @@ export async function PUT(
         { error: 'Bon de réception non trouvé ou ne peut pas être modifié' },
         { status: 404 }
       );
+    }
+
+    // Create stock movements if status changed to VALIDE
+    if (isStatusChangeToValide || updatedReception.statut === 'VALIDE') {
+      await createStockMovementsForReception(id, tenantId, session.user.email || '');
     }
 
     return NextResponse.json(updatedReception);
@@ -199,5 +209,60 @@ export async function DELETE(
       { error: 'Erreur serveur', details: (error as Error).message },
       { status: 500 }
     );
+  }
+}
+
+// Helper function to create stock movements for a reception
+async function createStockMovementsForReception(receptionId: string, tenantId: string, createdBy: string) {
+  try {
+    const reception = await (Reception as any).findOne({
+      _id: receptionId,
+      societeId: tenantId,
+    }).lean();
+
+    if (!reception || reception.statut !== 'VALIDE') {
+      return;
+    }
+
+    // Check if stock movements already exist for this reception
+    const existingMovements = await (MouvementStock as any).find({
+      societeId: tenantId,
+      source: 'BR',
+      sourceId: receptionId,
+    });
+
+    if (existingMovements.length > 0) {
+      // Movements already exist, skip
+      return;
+    }
+
+    // Create stock movements for each line with qteRecue > 0
+    const stockMovements = [];
+    if (reception.lignes && reception.lignes.length > 0) {
+      for (const ligne of reception.lignes) {
+        if (ligne.qteRecue > 0 && ligne.productId) {
+          const mouvement = new MouvementStock({
+            societeId: tenantId,
+            productId: ligne.productId.toString(),
+            type: 'ENTREE',
+            qte: ligne.qteRecue,
+            date: reception.dateDoc || new Date(),
+            source: 'BR',
+            sourceId: receptionId,
+            notes: `Réception ${reception.numero} - ${ligne.designation || ''}`,
+            createdBy,
+          });
+          stockMovements.push(mouvement);
+        }
+      }
+    }
+
+    // Save all stock movements
+    if (stockMovements.length > 0) {
+      await MouvementStock.insertMany(stockMovements);
+    }
+  } catch (error) {
+    console.error('Erreur lors de la création des mouvements de stock pour la réception:', error);
+    // Don't throw error, just log it
   }
 }

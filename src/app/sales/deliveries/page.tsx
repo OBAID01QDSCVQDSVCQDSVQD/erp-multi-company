@@ -67,6 +67,7 @@ export default function DeliveriesPage() {
   const [showProductDropdowns, setShowProductDropdowns] = useState<{ [key: number]: boolean }>({});
   const [selectedProductIndices, setSelectedProductIndices] = useState<{ [key: number]: number }>({});
   const [productDropdownPositions, setProductDropdownPositions] = useState<{ [key: number]: { top: number; left: number; width: number } }>({});
+  const [productStocks, setProductStocks] = useState<{ [productId: string]: number }>({});
   
   // Calculate default delivery date (today)
   const getDefaultDeliveryDate = () => {
@@ -240,6 +241,25 @@ export default function DeliveriesPage() {
   };
 
   // Handle product selection for a specific line
+  // Fetch stock for a product
+  const fetchProductStock = async (productId: string) => {
+    if (!tenantId || !productId) return;
+    try {
+      const response = await fetch(`/api/stock/product/${productId}`, {
+        headers: { 'X-Tenant-Id': tenantId },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setProductStocks((prev) => ({
+          ...prev,
+          [productId]: data.stockActuel || 0,
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching product stock:', error);
+    }
+  };
+
   const handleSelectProduct = (lineIndex: number, product: Product) => {
     const newLines = [...lines];
     newLines[lineIndex].productId = product._id;
@@ -261,6 +281,9 @@ export default function DeliveriesPage() {
     }
     
     setLines(newLines);
+    
+    // Fetch stock for the selected product
+    fetchProductStock(product._id);
     
     // Update search and dropdown state
     setProductSearches({ ...productSearches, [lineIndex]: product.nom });
@@ -748,6 +771,13 @@ export default function DeliveriesPage() {
             totalLine: 0
           }));
           setLines(mappedLines);
+          
+          // Fetch stock for all products in lines
+          mappedLines.forEach((line: any) => {
+            if (line.productId) {
+              fetchProductStock(line.productId);
+            }
+          });
           
           // Populate product searches immediately using designation from API
           // This ensures products are visible even before products list is loaded
@@ -1343,18 +1373,30 @@ export default function DeliveriesPage() {
                                 </div>
                               </td>
                               <td className="px-4 py-3">
-                                <input 
-                                  type="text" 
-                                  value={line.quantite || ''}
-                                  onChange={(e) => {
-                                    const val = e.target.value;
-                                    const updatedLines = [...lines];
-                                    updatedLines[index] = { ...updatedLines[index], quantite: parseFloat(val) || 0 };
-                                    setLines(updatedLines);
-                                  }}
-                                  className="w-20 px-2 py-1 border rounded text-sm"
-                                  placeholder="0"
-                                />
+                                <div className="flex flex-col">
+                                  <input 
+                                    type="text" 
+                                    value={line.quantite || ''}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      const updatedLines = [...lines];
+                                      updatedLines[index] = { ...updatedLines[index], quantite: parseFloat(val) || 0 };
+                                      setLines(updatedLines);
+                                    }}
+                                    className={`w-20 px-2 py-1 border rounded text-sm ${
+                                      line.productId && productStocks[line.productId] !== undefined && 
+                                      (line.quantite || 0) > productStocks[line.productId]
+                                        ? 'border-red-500' : ''
+                                    }`}
+                                    placeholder="0"
+                                  />
+                                  {line.productId && productStocks[line.productId] !== undefined && 
+                                   (line.quantite || 0) > productStocks[line.productId] && (
+                                    <span className="text-xs text-red-600 mt-1">
+                                      Stock disponible: {productStocks[line.productId]}
+                                    </span>
+                                  )}
+                                </div>
                               </td>
                               <td className="px-4 py-3">
                                 <input 

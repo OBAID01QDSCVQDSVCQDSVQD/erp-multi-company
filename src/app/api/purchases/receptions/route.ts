@@ -6,6 +6,7 @@ import Reception from '@/lib/models/Reception';
 import PurchaseOrder from '@/lib/models/PurchaseOrder';
 import Supplier from '@/lib/models/Supplier';
 import Product from '@/lib/models/Product';
+import MouvementStock from '@/lib/models/MouvementStock';
 import { NumberingService } from '@/lib/services/NumberingService';
 
 export async function GET(request: NextRequest) {
@@ -98,6 +99,61 @@ export async function GET(request: NextRequest) {
       { error: 'Erreur serveur', details: (error as Error).message },
       { status: 500 }
     );
+  }
+}
+
+// Helper function to create stock movements for a reception
+async function createStockMovementsForReception(receptionId: string, tenantId: string, createdBy: string) {
+  try {
+    const reception = await (Reception as any).findOne({
+      _id: receptionId,
+      societeId: tenantId,
+    }).lean();
+
+    if (!reception || reception.statut !== 'VALIDE') {
+      return;
+    }
+
+    // Check if stock movements already exist for this reception
+    const existingMovements = await (MouvementStock as any).find({
+      societeId: tenantId,
+      source: 'BR',
+      sourceId: receptionId,
+    });
+
+    if (existingMovements.length > 0) {
+      // Movements already exist, skip
+      return;
+    }
+
+    // Create stock movements for each line with qteRecue > 0
+    const stockMovements = [];
+    if (reception.lignes && reception.lignes.length > 0) {
+      for (const ligne of reception.lignes) {
+        if (ligne.qteRecue > 0 && ligne.productId) {
+          const mouvement = new MouvementStock({
+            societeId: tenantId,
+            productId: ligne.productId.toString(),
+            type: 'ENTREE',
+            qte: ligne.qteRecue,
+            date: reception.dateDoc || new Date(),
+            source: 'BR',
+            sourceId: receptionId,
+            notes: `Réception ${reception.numero} - ${ligne.designation || ''}`,
+            createdBy,
+          });
+          stockMovements.push(mouvement);
+        }
+      }
+    }
+
+    // Save all stock movements
+    if (stockMovements.length > 0) {
+      await MouvementStock.insertMany(stockMovements);
+    }
+  } catch (error) {
+    console.error('Erreur lors de la création des mouvements de stock pour la réception:', error);
+    // Don't throw error, just log it
   }
 }
 
@@ -280,6 +336,11 @@ export async function POST(request: NextRequest) {
 
     // Totals will be calculated by pre-save hook
     await (reception as any).save();
+
+    // Create stock movements if reception is VALIDE
+    if (body.statut === 'VALIDE' || reception.statut === 'VALIDE') {
+      await createStockMovementsForReception(reception._id.toString(), tenantId, session.user.email);
+    }
 
     return NextResponse.json(reception, { status: 201 });
   } catch (error) {

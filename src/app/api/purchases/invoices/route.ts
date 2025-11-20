@@ -5,6 +5,7 @@ import connectDB from '@/lib/mongodb';
 import PurchaseInvoice from '@/lib/models/PurchaseInvoice';
 import { NumberingService } from '@/lib/services/NumberingService';
 import Supplier from '@/lib/models/Supplier';
+import MouvementStock from '@/lib/models/MouvementStock';
 import mongoose from 'mongoose';
 
 export async function GET(request: NextRequest) {
@@ -183,6 +184,11 @@ export async function POST(request: NextRequest) {
     // Totals will be calculated by pre-save hook
     await (invoice as any).save();
 
+    // Create stock movements if invoice is VALIDEE
+    if (body.statut === 'VALIDEE' || invoice.statut === 'VALIDEE') {
+      await createStockMovementsForPurchaseInvoice(invoice._id.toString(), tenantId, session.user.email);
+    }
+
     return NextResponse.json(invoice, { status: 201 });
   } catch (error) {
     console.error('Erreur POST /api/purchases/invoices:', error);
@@ -190,5 +196,60 @@ export async function POST(request: NextRequest) {
       { error: 'Erreur serveur', details: (error as Error).message },
       { status: 500 }
     );
+  }
+}
+
+// Helper function to create stock movements for a purchase invoice
+async function createStockMovementsForPurchaseInvoice(invoiceId: string, tenantId: string, createdBy: string) {
+  try {
+    const invoice = await (PurchaseInvoice as any).findOne({
+      _id: invoiceId,
+      societeId: tenantId,
+    }).lean();
+
+    if (!invoice || invoice.statut !== 'VALIDEE') {
+      return;
+    }
+
+    // Check if stock movements already exist for this invoice
+    const existingMovements = await (MouvementStock as any).find({
+      societeId: tenantId,
+      source: 'FAC',
+      sourceId: invoiceId,
+    });
+
+    if (existingMovements.length > 0) {
+      // Movements already exist, skip
+      return;
+    }
+
+    // Create stock movements for each line with quantite > 0 and produitId
+    const stockMovements = [];
+    if (invoice.lignes && invoice.lignes.length > 0) {
+      for (const ligne of invoice.lignes) {
+        if (ligne.quantite > 0 && ligne.produitId) {
+          const mouvement = new MouvementStock({
+            societeId: tenantId,
+            productId: ligne.produitId.toString(),
+            type: 'ENTREE',
+            qte: ligne.quantite,
+            date: invoice.dateFacture || new Date(),
+            source: 'FAC',
+            sourceId: invoiceId,
+            notes: `Facture d'achat ${invoice.numero} - ${ligne.designation || ''}`,
+            createdBy,
+          });
+          stockMovements.push(mouvement);
+        }
+      }
+    }
+
+    // Save all stock movements
+    if (stockMovements.length > 0) {
+      await MouvementStock.insertMany(stockMovements);
+    }
+  } catch (error) {
+    console.error('Erreur lors de la création des mouvements de stock pour la facture d\'achat:', error);
+    // Don't throw error, just log it
   }
 }

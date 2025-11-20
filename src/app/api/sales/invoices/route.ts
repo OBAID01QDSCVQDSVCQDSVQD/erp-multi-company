@@ -6,6 +6,7 @@ import Document from '@/lib/models/Document';
 import Product from '@/lib/models/Product';
 import MouvementStock from '@/lib/models/MouvementStock';
 import { NumberingService } from '@/lib/services/NumberingService';
+import mongoose from 'mongoose';
 
 export async function GET(request: NextRequest) {
   try {
@@ -54,6 +55,7 @@ export async function POST(request: NextRequest) {
     await connectDB();
 
     const tenantId = session.user.companyId?.toString() || '';
+    
     let numero =
       typeof body.numero === 'string' && body.numero.trim().length > 0
         ? body.numero.trim()
@@ -72,7 +74,38 @@ export async function POST(request: NextRequest) {
         );
       }
     } else {
-      numero = await NumberingService.next(tenantId, 'fac');
+      // Generate invoice number based on last invoice number + 1
+      // Find the last invoice (FAC) for this tenant
+      const lastInvoice = await (Document as any).findOne({
+        tenantId,
+        type: 'FAC'
+      })
+      .sort({ createdAt: -1 })
+      .lean();
+
+      if (lastInvoice && lastInvoice.numero) {
+        // Extract numeric part from last invoice number
+        const lastNumero = lastInvoice.numero;
+        // Try to extract the numeric part (handle formats like "FAC-001", "001", "1", etc.)
+        const numericMatch = lastNumero.match(/(\d+)$/);
+        
+        if (numericMatch) {
+          const lastNumber = parseInt(numericMatch[1], 10);
+          const nextNumber = lastNumber + 1;
+          
+          // Preserve the prefix if it exists (e.g., "FAC-" from "FAC-001")
+          const prefix = lastNumero.substring(0, lastNumero.length - numericMatch[1].length);
+          // Preserve padding if it exists (e.g., "001" -> "002")
+          const padding = numericMatch[1].length;
+          numero = prefix + nextNumber.toString().padStart(padding, '0');
+        } else {
+          // If no numeric part found, use NumberingService as fallback
+          numero = await NumberingService.next(tenantId, 'fac');
+        }
+      } else {
+        // No invoices exist yet, use NumberingService to generate first number
+        numero = await NumberingService.next(tenantId, 'fac');
+      }
     }
 
     const invoice = new Document({
@@ -87,8 +120,14 @@ export async function POST(request: NextRequest) {
     calculateDocumentTotals(invoice);
     await (invoice as any).save();
 
-    // Create stock movements for stored products (estStocke === true)
-    await createStockMovementsForInvoice(invoice, tenantId, session.user.email);
+    // Create stock movements for all products
+    // Check if invoice is created from BL - if so, do NOT create stock movements
+    const isFromBL = invoice.linkedDocuments && invoice.linkedDocuments.length > 0;
+    if (!isFromBL) {
+      await createStockMovementsForInvoice(invoice, tenantId, session.user.email);
+    } else {
+      console.log(`[Create Invoice] Skipping stock movements for invoice ${invoice._id} - created from BL`);
+    }
 
     return NextResponse.json(invoice, { status: 201 });
   } catch (error) {
@@ -151,7 +190,6 @@ async function createStockMovementsForInvoice(
   const dateDoc = invoice.dateDoc || new Date();
   const invoiceId = invoice._id.toString();
 
-  // Process each line
   for (const line of invoice.lignes) {
     // Skip if no productId or quantity is 0
     if (!line.productId || !line.quantite || line.quantite <= 0) {
@@ -159,20 +197,36 @@ async function createStockMovementsForInvoice(
     }
 
     try {
-      // Check if product is stored (estStocke === true)
-      const product = await (Product as any).findOne({
-        _id: line.productId,
-        tenantId,
-      }).lean();
+      // Convert productId to string for consistency
+      const productIdStr = line.productId.toString();
+      
+      // Find product using ObjectId first, then string
+      let product = null;
+      try {
+        product = await (Product as any).findOne({
+          $or: [
+            { _id: new mongoose.Types.ObjectId(productIdStr) },
+            { _id: productIdStr },
+          ],
+          tenantId,
+        }).lean();
+      } catch (err) {
+        // If ObjectId conversion fails, try string directly
+        product = await (Product as any).findOne({
+          _id: productIdStr,
+          tenantId,
+        }).lean();
+      }
 
-      if (!product || !product.estStocke) {
-        continue; // Skip non-stored products
+      if (!product) {
+        console.warn(`[Stock] Product not found for ID: ${productIdStr}`);
+        continue;
       }
 
       // Check if stock movement already exists for this invoice and product
       const existingMovement = await (MouvementStock as any).findOne({
         societeId: tenantId,
-        productId: line.productId,
+        productId: productIdStr,
         source: 'FAC',
         sourceId: invoiceId,
       });
@@ -186,7 +240,7 @@ async function createStockMovementsForInvoice(
         // Create new stock movement
         const mouvement = new MouvementStock({
           societeId: tenantId,
-          productId: line.productId,
+          productId: productIdStr,
           type: 'SORTIE',
           qte: line.quantite,
           date: dateDoc,

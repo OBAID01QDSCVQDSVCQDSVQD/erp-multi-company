@@ -6,6 +6,7 @@ import Document from '@/lib/models/Document';
 import Product from '@/lib/models/Product';
 import MouvementStock from '@/lib/models/MouvementStock';
 import { NumberingService } from '@/lib/services/NumberingService';
+import mongoose from 'mongoose';
 
 export async function GET(request: NextRequest) {
   try {
@@ -75,7 +76,7 @@ export async function POST(request: NextRequest) {
 
     await (delivery as any).save();
 
-    // Create stock movements for stored products (estStocke === true)
+    // Create stock movements for all products
     await createStockMovementsForDelivery(delivery, tenantId, session.user.email);
 
     return NextResponse.json(delivery, { status: 201 });
@@ -136,7 +137,6 @@ async function createStockMovementsForDelivery(
   const dateDoc = delivery.dateDoc || new Date();
   const deliveryId = delivery._id.toString();
 
-  // Process each line
   for (const line of delivery.lignes) {
     // Skip if no productId or quantity is 0
     if (!line.productId || !line.quantite || line.quantite <= 0) {
@@ -144,20 +144,36 @@ async function createStockMovementsForDelivery(
     }
 
     try {
-      // Check if product is stored (estStocke === true)
-      const product = await (Product as any).findOne({
-        _id: line.productId,
-        tenantId,
-      }).lean();
+      // Convert productId to string for consistency
+      const productIdStr = line.productId.toString();
+      
+      // Find product using ObjectId first, then string
+      let product = null;
+      try {
+        product = await (Product as any).findOne({
+          $or: [
+            { _id: new mongoose.Types.ObjectId(productIdStr) },
+            { _id: productIdStr },
+          ],
+          tenantId,
+        }).lean();
+      } catch (err) {
+        // If ObjectId conversion fails, try string directly
+        product = await (Product as any).findOne({
+          _id: productIdStr,
+          tenantId,
+        }).lean();
+      }
 
-      if (!product || !product.estStocke) {
-        continue; // Skip non-stored products
+      if (!product) {
+        console.warn(`[Stock] Product not found for ID: ${productIdStr}`);
+        continue;
       }
 
       // Check if stock movement already exists for this delivery and product
       const existingMovement = await (MouvementStock as any).findOne({
         societeId: tenantId,
-        productId: line.productId,
+        productId: productIdStr,
         source: 'BL',
         sourceId: deliveryId,
       });
@@ -171,7 +187,7 @@ async function createStockMovementsForDelivery(
         // Create new stock movement
         const mouvement = new MouvementStock({
           societeId: tenantId,
-          productId: line.productId,
+          productId: productIdStr,
           type: 'SORTIE',
           qte: line.quantite,
           date: dateDoc,

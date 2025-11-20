@@ -18,6 +18,7 @@ interface StockMovement {
   date: string;
   source: 'BR' | 'BL' | 'INV' | 'AJUST' | 'TRANSFERT' | 'AUTRE';
   sourceId?: string;
+  referenceName?: string;
   notes?: string;
   createdBy?: string;
   createdAt: string;
@@ -133,7 +134,7 @@ export default function StockMovementsPage() {
             SOURCE_LABELS[m.source] || m.source,
             m.qte.toFixed(2),
             m.productUom,
-            m.sourceId || '-',
+            m.referenceName || m.sourceId || '-',
             `"${m.notes || ''}"`,
           ].join(','))
         ].join('\n');
@@ -177,10 +178,18 @@ export default function StockMovementsPage() {
     if (!sourceId) return;
     
     if (source === 'BR') {
-      router.push(`/purchases/receipts/${sourceId}`);
+      router.push(`/purchases/receptions/${sourceId}`);
     } else if (source === 'BL') {
-      // Handle delivery note navigation if needed
-      toast('Navigation vers le bon de livraison non implémentée');
+      router.push(`/sales/deliveries/${sourceId}`);
+    } else if (source === 'FAC') {
+      // Check if it's a sales invoice or purchase invoice by checking the movement type
+      // SORTIE = sales invoice, ENTREE = purchase invoice
+      const movement = movements.find(m => m.sourceId === sourceId);
+      if (movement?.type === 'SORTIE') {
+        router.push(`/sales/invoices/${sourceId}`);
+      } else if (movement?.type === 'ENTREE') {
+        router.push(`/purchases/invoices/${sourceId}`);
+      }
     } else {
       toast('Source non navigable');
     }
@@ -419,7 +428,7 @@ export default function StockMovementsPage() {
                               onClick={() => handleViewSource(movement.source, movement.sourceId)}
                               className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
                             >
-                              {movement.sourceId}
+                              {movement.referenceName || movement.sourceId}
                             </button>
                           ) : (
                             <span className="text-sm text-gray-400">—</span>
@@ -474,7 +483,7 @@ export default function StockMovementsPage() {
                             onClick={() => handleViewSource(movement.source, movement.sourceId)}
                             className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
                           >
-                            {movement.sourceId}
+                            {movement.referenceName || movement.sourceId}
                           </button>
                         </div>
                       )}

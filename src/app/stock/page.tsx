@@ -50,7 +50,8 @@ export default function StockPage() {
         const data = await response.json();
         setStockItems(data.items || []);
       } else {
-        toast.error('Erreur lors du chargement du stock');
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        toast.error(errorData.error || 'Erreur lors du chargement du stock');
       }
     } catch (error) {
       console.error('Error fetching stock:', error);
@@ -96,6 +97,16 @@ export default function StockPage() {
         return 'Stock faible';
       default:
         return 'En stock';
+    }
+  };
+
+  const getStockColor = (stockActuel: number) => {
+    if (stockActuel < 0) {
+      return 'text-red-600';
+    } else if (stockActuel > 0) {
+      return 'text-green-600';
+    } else {
+      return 'text-gray-900';
     }
   };
 
@@ -206,9 +217,7 @@ export default function StockPage() {
                           <div className="text-sm text-gray-900">{item.sku}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className={`text-sm font-semibold ${
-                            status === 'out' ? 'text-red-600' : status === 'low' ? 'text-yellow-600' : 'text-gray-900'
-                          }`}>
+                          <div className={`text-sm font-semibold ${getStockColor(item.stockActuel)}`}>
                             {item.stockActuel.toFixed(2)}
                           </div>
                         </td>
@@ -251,9 +260,7 @@ export default function StockPage() {
                     <div className="grid grid-cols-2 gap-4 mt-3">
                       <div>
                         <div className="text-xs text-gray-500">Stock actuel</div>
-                        <div className={`text-sm font-semibold ${
-                          status === 'out' ? 'text-red-600' : status === 'low' ? 'text-yellow-600' : 'text-gray-900'
-                        }`}>
+                        <div className={`text-sm font-semibold ${getStockColor(item.stockActuel)}`}>
                           {item.stockActuel.toFixed(2)} {item.uomStock}
                         </div>
                       </div>

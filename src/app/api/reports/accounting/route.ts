@@ -294,7 +294,57 @@ export async function GET(request: NextRequest) {
 
     results.financialSummary = financialSummary;
 
-    // 4. Paiements (Payments)
+    // 4. افوار (Invoices) - Combine Sales and Purchase Invoices
+    if (!type || type === 'invoices' || type === 'all') {
+      const allInvoices: any[] = [];
+      
+      // Add sales invoices
+      if (results.salesInvoices) {
+        results.salesInvoices.forEach((inv: any) => {
+          allInvoices.push({
+            _id: inv._id,
+            numero: inv.numero,
+            date: inv.date,
+            companyName: inv.companyName,
+            type: 'vente',
+            tva: inv.tva,
+            fodec: 0, // Fodec non applicable pour les ventes
+            timbre: inv.timbre,
+            totalHT: inv.totalHT,
+            totalTTC: inv.totalTTC,
+            devise: inv.devise,
+            statut: inv.statut,
+            referenceExterne: inv.referenceExterne,
+          });
+        });
+      }
+      
+      // Add purchase invoices
+      if (results.purchaseInvoices) {
+        results.purchaseInvoices.forEach((inv: any) => {
+          allInvoices.push({
+            _id: inv._id,
+            numero: inv.numero,
+            date: inv.date,
+            companyName: inv.companyName,
+            type: 'achat',
+            tva: inv.tva,
+            fodec: inv.fodec,
+            timbre: inv.timbre,
+            totalHT: inv.totalHT,
+            totalTTC: inv.totalTTC,
+            devise: inv.devise,
+            statut: inv.statut,
+            referenceFournisseur: inv.referenceFournisseur,
+          });
+        });
+      }
+      
+      // Sort by date descending
+      results.invoices = allInvoices.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    }
+
+    // 5. Paiements (Payments)
     if (!type || type === 'payments' || type === 'all') {
       // Paiements clients
       const customerPaymentsQuery: any = { 

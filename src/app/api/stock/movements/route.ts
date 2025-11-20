@@ -4,6 +4,11 @@ import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import MouvementStock from '@/lib/models/MouvementStock';
 import Product from '@/lib/models/Product';
+import Document from '@/lib/models/Document';
+import PurchaseInvoice from '@/lib/models/PurchaseInvoice';
+import Reception from '@/lib/models/Reception';
+import Customer from '@/lib/models/Customer';
+import Supplier from '@/lib/models/Supplier';
 import mongoose from 'mongoose';
 
 export async function GET(request: NextRequest) {
@@ -113,9 +118,134 @@ export async function GET(request: NextRequest) {
       productMap.set(id, p);
     });
 
+    // Separate source IDs by type
+    const documentSourceIds = Array.from(new Set(
+      movements
+        .filter((m: any) => m.sourceId && (m.source === 'BL' || (m.source === 'FAC' && m.type === 'SORTIE')))
+        .map((m: any) => m.sourceId)
+    ));
+
+    const receptionSourceIds = Array.from(new Set(
+      movements
+        .filter((m: any) => m.sourceId && m.source === 'BR')
+        .map((m: any) => m.sourceId)
+    ));
+
+    const purchaseInvoiceSourceIds = Array.from(new Set(
+      movements
+        .filter((m: any) => m.sourceId && m.source === 'FAC' && m.type === 'ENTREE')
+        .map((m: any) => m.sourceId)
+    ));
+
+    // Fetch documents (BL, BR, FAC sales)
+    const documents = documentSourceIds.length > 0 ? await (Document as any).find({
+      _id: { $in: documentSourceIds.map((id: string) => {
+        return mongoose.Types.ObjectId.isValid(id) ? new mongoose.Types.ObjectId(id) : id;
+      }) },
+      tenantId,
+    }).select('_id type customerId supplierId').lean() : [];
+
+    const documentMap = new Map();
+    documents.forEach((doc: any) => {
+      const id = doc._id instanceof mongoose.Types.ObjectId ? doc._id.toString() : doc._id;
+      documentMap.set(id, { ...doc, isDocument: true });
+    });
+
+    // Fetch receptions (BR)
+    const receptions = receptionSourceIds.length > 0 ? await (Reception as any).find({
+      _id: { $in: receptionSourceIds.map((id: string) => {
+        return mongoose.Types.ObjectId.isValid(id) ? new mongoose.Types.ObjectId(id) : id;
+      }) },
+      societeId: tenantId,
+    }).select('_id fournisseurId').lean() : [];
+
+    receptions.forEach((reception: any) => {
+      const id = reception._id instanceof mongoose.Types.ObjectId ? reception._id.toString() : reception._id;
+      documentMap.set(id, { ...reception, isReception: true });
+    });
+
+    // Fetch purchase invoices (FAC purchase)
+    const purchaseInvoices = purchaseInvoiceSourceIds.length > 0 ? await (PurchaseInvoice as any).find({
+      _id: { $in: purchaseInvoiceSourceIds.map((id: string) => {
+        return mongoose.Types.ObjectId.isValid(id) ? new mongoose.Types.ObjectId(id) : id;
+      }) },
+      societeId: tenantId,
+    }).select('_id fournisseurId').lean() : [];
+
+    purchaseInvoices.forEach((invoice: any) => {
+      const id = invoice._id instanceof mongoose.Types.ObjectId ? invoice._id.toString() : invoice._id;
+      documentMap.set(id, { ...invoice, isPurchaseInvoice: true });
+    });
+
+    // Get unique customer IDs and supplier IDs
+    const customerIds = Array.from(new Set(
+      Array.from(documentMap.values())
+        .filter((d: any) => d.customerId)
+        .map((d: any) => d.customerId)
+    ));
+    const supplierIds = Array.from(new Set([
+      ...Array.from(documentMap.values())
+        .filter((d: any) => d.supplierId)
+        .map((d: any) => d.supplierId),
+      ...Array.from(documentMap.values())
+        .filter((d: any) => d.fournisseurId)
+        .map((d: any) => d.fournisseurId),
+    ].filter(Boolean)));
+
+    // Fetch customers
+    const customers = customerIds.length > 0 ? await (Customer as any).find({
+      _id: { $in: customerIds.map((id: string) => {
+        return mongoose.Types.ObjectId.isValid(id) ? new mongoose.Types.ObjectId(id) : id;
+      }) },
+      tenantId,
+    }).select('_id raisonSociale nom prenom').lean() : [];
+
+    const customerMap = new Map();
+    customers.forEach((c: any) => {
+      const id = c._id instanceof mongoose.Types.ObjectId ? c._id.toString() : c._id;
+      const name = c.raisonSociale || `${c.nom || ''} ${c.prenom || ''}`.trim() || 'Client inconnu';
+      customerMap.set(id, name);
+    });
+
+    // Fetch suppliers
+    const suppliers = supplierIds.length > 0 ? await (Supplier as any).find({
+      _id: { $in: supplierIds.map((id: string) => {
+        return mongoose.Types.ObjectId.isValid(id) ? new mongoose.Types.ObjectId(id) : id;
+      }) },
+      tenantId,
+    }).select('_id raisonSociale nom prenom').lean() : [];
+
+    const supplierMap = new Map();
+    suppliers.forEach((s: any) => {
+      const id = s._id instanceof mongoose.Types.ObjectId ? s._id.toString() : s._id;
+      const name = s.raisonSociale || `${s.nom || ''} ${s.prenom || ''}`.trim() || 'Fournisseur inconnu';
+      supplierMap.set(id, name);
+    });
+
     // Format movements
     const formattedMovements = movements.map((movement: any) => {
       const product = productMap.get(movement.productId);
+      const document = movement.sourceId ? documentMap.get(movement.sourceId) : null;
+      
+      // Determine reference name based on type and source
+      let referenceName = movement.sourceId || '-';
+      if (document) {
+        // For Sortie (BL or FAC sales invoice), show customer name
+        if (movement.type === 'SORTIE' && (movement.source === 'BL' || (movement.source === 'FAC' && document.isDocument && document.type === 'FAC'))) {
+          if (document.customerId) {
+            referenceName = customerMap.get(document.customerId) || movement.sourceId || '-';
+          }
+        } 
+        // For Entree (BR or FAC purchase invoice), show supplier name
+        else if (movement.type === 'ENTREE') {
+          if (movement.source === 'BR' && document.isReception && document.fournisseurId) {
+            referenceName = supplierMap.get(document.fournisseurId) || movement.sourceId || '-';
+          } else if (movement.source === 'FAC' && document.isPurchaseInvoice && document.fournisseurId) {
+            referenceName = supplierMap.get(document.fournisseurId) || movement.sourceId || '-';
+          }
+        }
+      }
+
       return {
         _id: movement._id.toString(),
         productId: movement.productId,
@@ -127,6 +257,7 @@ export async function GET(request: NextRequest) {
         date: movement.date,
         source: movement.source,
         sourceId: movement.sourceId,
+        referenceName,
         notes: movement.notes,
         createdBy: movement.createdBy,
         createdAt: movement.createdAt,

@@ -388,7 +388,150 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 4. Paiements
+    // 4. افوار (Invoices) - Combine Sales and Purchase Invoices
+    if (type === 'invoices' || type === 'all') {
+      // Combine sales and purchase invoices
+      const allInvoices: any[] = [];
+      
+      // Add sales invoices
+      if (salesInvoices && salesInvoices.length > 0) {
+        const customerIds = Array.from(new Set(salesInvoices.map((inv: any) => inv.customerId).filter(Boolean)));
+        const customers = customerIds.length > 0
+          ? await (Customer as any).find({ 
+              _id: { $in: customerIds.map((id: string) => new mongoose.Types.ObjectId(id)) },
+              tenantId 
+            }).lean()
+          : [];
+        const customersMap = new Map(customers.map((c: any) => [c._id.toString(), c]));
+
+        salesInvoices.forEach((inv: any) => {
+          const customer = inv.customerId ? (customersMap.get(inv.customerId) as any) : null;
+          allInvoices.push({
+            date: inv.dateDoc,
+            numero: inv.numero,
+            type: 'Vente',
+            companyName: customer
+              ? (customer.raisonSociale || `${customer.nom || ''} ${customer.prenom || ''}`.trim())
+              : 'N/A',
+            tva: inv.totalTVA || 0,
+            fodec: 0,
+            timbre: inv.timbreFiscal || 0,
+            totalHT: inv.totalBaseHT || 0,
+            totalTTC: inv.totalTTC || 0,
+            devise: inv.devise || 'TND',
+          });
+        });
+      }
+      
+      // Add purchase invoices
+      if (purchaseInvoices && purchaseInvoices.length > 0) {
+        purchaseInvoices.forEach((inv: any) => {
+          allInvoices.push({
+            date: inv.dateFacture,
+            numero: inv.numero,
+            type: 'Achat',
+            companyName: inv.fournisseurNom || 'N/A',
+            tva: inv.totaux?.totalTVA || 0,
+            fodec: inv.totaux?.totalFodec || 0,
+            timbre: inv.totaux?.totalTimbre || 0,
+            totalHT: inv.totaux?.totalHT || 0,
+            totalTTC: inv.totaux?.totalTTC || 0,
+            devise: inv.devise || 'TND',
+          });
+        });
+      }
+      
+      // Sort by date descending
+      allInvoices.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+      if (allInvoices.length > 0) {
+        if (yPosition > 180) {
+          doc.addPage();
+          yPosition = 20;
+        }
+
+        doc.setFontSize(14);
+        doc.text('افوار (Factures)', 14, yPosition);
+        yPosition += 10;
+
+        const invoiceData = allInvoices.map((inv: any) => {
+          const currency = inv.devise || 'TND';
+          return [
+            new Date(inv.date).toLocaleDateString('fr-FR'),
+            inv.numero,
+            inv.type,
+            inv.companyName,
+            formatPrice(inv.tva, currency),
+            formatPrice(inv.fodec || 0, currency),
+            formatPrice(inv.timbre || 0, currency),
+            formatPrice(inv.totalHT, currency),
+            formatPrice(inv.totalTTC, currency),
+          ];
+        });
+
+        autoTable(doc, {
+          startY: yPosition,
+          head: [['Date', 'Numéro', 'Type', 'Nom', 'TVA', 'Fodec', 'Timbre', 'Total HT', 'Total TTC']],
+          body: invoiceData,
+          theme: 'striped',
+          headStyles: { fillColor: [108, 117, 125], fontSize: 9, cellPadding: { top: 1, bottom: 1, left: 1, right: 1 } },
+          bodyStyles: { fontSize: 8, cellPadding: { top: 1, bottom: 1, left: 1, right: 1 } },
+          columnStyles: {
+            0: { cellWidth: 16 }, // Date
+            1: { cellWidth: 28 }, // Numéro
+            2: { cellWidth: 22 }, // Type
+            3: { cellWidth: 35 }, // Nom
+            4: { cellWidth: 22, halign: 'right' }, // TVA
+            5: { cellWidth: 20, halign: 'right' }, // Fodec
+            6: { cellWidth: 20, halign: 'right' }, // Timbre
+            7: { cellWidth: 26, halign: 'right' }, // Total HT
+            8: { cellWidth: 26, halign: 'right' }, // Total TTC
+          },
+          styles: { overflow: 'linebreak', cellPadding: { top: 1, bottom: 1, left: 1, right: 1 }, fontSize: 8 },
+          margin: { left: 5, right: 5 },
+        });
+
+        yPosition = (doc as any).lastAutoTable.finalY + 15;
+
+        // Totaux par devise
+        const invoicesByCurrency: Record<string, { totalHT: number; totalTVA: number; totalFodec: number; totalTimbre: number; totalTTC: number }> = {};
+        allInvoices.forEach((inv: any) => {
+          const currency = inv.devise || 'TND';
+          if (!invoicesByCurrency[currency]) {
+            invoicesByCurrency[currency] = { totalHT: 0, totalTVA: 0, totalFodec: 0, totalTimbre: 0, totalTTC: 0 };
+          }
+          invoicesByCurrency[currency].totalHT += inv.totalHT;
+          invoicesByCurrency[currency].totalTVA += inv.tva;
+          invoicesByCurrency[currency].totalFodec += inv.fodec || 0;
+          invoicesByCurrency[currency].totalTimbre += inv.timbre || 0;
+          invoicesByCurrency[currency].totalTTC += inv.totalTTC;
+        });
+
+        // Résumé par devise
+        doc.setFontSize(10);
+        doc.setFont(undefined, 'bold');
+        doc.text('Résumé par devise:', 14, yPosition);
+        yPosition += 6;
+        doc.setFont(undefined, 'normal');
+        doc.setFontSize(9);
+        
+        Object.entries(invoicesByCurrency).forEach(([currency, totals]) => {
+          doc.setFont(undefined, 'bold');
+          doc.text(`${currency}:`, 14, yPosition);
+          doc.setFont(undefined, 'normal');
+          doc.text(`Total HT: ${formatPrice(totals.totalHT, currency)}`, 35, yPosition);
+          doc.text(`Total TVA: ${formatPrice(totals.totalTVA, currency)}`, 90, yPosition);
+          doc.text(`Total Fodec: ${formatPrice(totals.totalFodec, currency)}`, 140, yPosition);
+          yPosition += 5;
+          doc.text(`Total Timbre: ${formatPrice(totals.totalTimbre, currency)}`, 35, yPosition);
+          doc.text(`Total TTC: ${formatPrice(totals.totalTTC, currency)}`, 90, yPosition);
+          yPosition += 5;
+        });
+        yPosition += 5;
+      }
+    }
+
+    // 5. Paiements
     if (type === 'payments' || type === 'all') {
       const customerPaymentsQuery: any = { 
         societeId: new mongoose.Types.ObjectId(tenantId) 

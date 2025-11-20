@@ -6,6 +6,7 @@ import Document from '@/lib/models/Document';
 import Product from '@/lib/models/Product';
 import MouvementStock from '@/lib/models/MouvementStock';
 import { NumberingService } from '@/lib/services/NumberingService';
+import mongoose from 'mongoose';
 
 export async function POST(request: NextRequest) {
   try {
@@ -48,8 +49,43 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate invoice number
-    const numero = await NumberingService.next(tenantId, 'fac');
+    // Generate invoice number based on last invoice number + 1
+    // Find the last invoice (FAC) for this tenant
+    const lastInvoice = await (Document as any).findOne({
+      tenantId,
+      type: 'FAC'
+    })
+    .sort({ createdAt: -1 })
+    .lean();
+
+    let numero: string;
+    
+    if (lastInvoice && lastInvoice.numero) {
+      // Extract numeric part from last invoice number
+      const lastNumero = lastInvoice.numero;
+      // Try to extract the numeric part (handle formats like "FAC-001", "001", "1", etc.)
+      const numericMatch = lastNumero.match(/(\d+)$/);
+      
+      if (numericMatch) {
+        const lastNumber = parseInt(numericMatch[1], 10);
+        const nextNumber = lastNumber + 1;
+        
+        // Preserve the prefix if it exists (e.g., "FAC-" from "FAC-001")
+        const prefix = lastNumero.substring(0, lastNumero.length - numericMatch[1].length);
+        // Preserve padding if it exists (e.g., "001" -> "002")
+        const padding = numericMatch[1].length;
+        numero = prefix + nextNumber.toString().padStart(padding, '0');
+      } else {
+        // If no numeric part found, just append "-1" or use NumberingService as fallback
+        numero = await NumberingService.next(tenantId, 'fac');
+      }
+    } else {
+      // No invoices exist yet, use NumberingService to generate first number
+      numero = await NumberingService.next(tenantId, 'fac');
+    }
+    
+    // Log for debugging
+    console.log(`[Convert] Source ${sourceType} ${sourceDoc.numero} -> Invoice ${numero} (last: ${lastInvoice?.numero || 'none'})`);
 
     // Create invoice from source document
     const invoice = new Document({
@@ -87,8 +123,18 @@ export async function POST(request: NextRequest) {
 
     await (invoice as any).save();
 
-    // Create stock movements for stored products (estStocke === true)
-    await createStockMovementsForInvoice(invoice, tenantId, session.user.email);
+    // Handle stock movements based on source type
+    // If converting from BL, do NOT create or update stock movements
+    // because stock was already reduced when BL was created
+    // If converting from DEVIS, create new stock movements
+    if (sourceType === 'BL') {
+      // Do nothing - stock movements already exist from BL creation
+      // We should NOT update or create new movements to avoid double stock reduction
+      console.log(`[Convert] Skipping stock movements for invoice from BL ${sourceId} - stock already reduced when BL was created`);
+    } else {
+      // For DEVIS or other sources, create new stock movements
+      await createStockMovementsForInvoice(invoice, tenantId, session.user.email);
+    }
 
     return NextResponse.json(invoice, { status: 201 });
   } catch (error) {
@@ -138,6 +184,103 @@ function calculateDocumentTotals(doc: any) {
   doc.netAPayer = doc.totalTTC;
 }
 
+// Helper function to update stock movements from BL to Invoice
+// This prevents double stock reduction when converting BL to FAC
+async function updateStockMovementsFromBLToInvoice(
+  invoice: any,
+  blId: string,
+  tenantId: string,
+  createdBy: string
+): Promise<void> {
+  if (!invoice.lignes || invoice.lignes.length === 0) {
+    return;
+  }
+
+  const dateDoc = invoice.dateDoc || new Date();
+  const invoiceId = invoice._id.toString();
+
+  // Process each line
+  for (const line of invoice.lignes) {
+    // Skip if no productId or quantity is 0
+    if (!line.productId || !line.quantite || line.quantite <= 0) {
+      continue;
+    }
+
+    try {
+      const productIdStr = line.productId.toString();
+
+      // Find existing stock movement from BL for this product
+      // Use $or to search for both ObjectId and string formats
+      let existingMovement = null;
+      
+      try {
+        // Try to convert blId to ObjectId
+        const blIdObjectId = new mongoose.Types.ObjectId(blId);
+        existingMovement = await (MouvementStock as any).findOne({
+          societeId: tenantId,
+          productId: productIdStr,
+          source: 'BL',
+          $or: [
+            { sourceId: blId },
+            { sourceId: blIdObjectId },
+            { sourceId: blId.toString() }
+          ],
+          type: 'SORTIE',
+        });
+      } catch (err) {
+        // If ObjectId conversion fails, try string only
+        existingMovement = await (MouvementStock as any).findOne({
+          societeId: tenantId,
+          productId: productIdStr,
+          source: 'BL',
+          sourceId: blId,
+          type: 'SORTIE',
+        });
+      }
+
+      // If still not found, try finding all BL movements for this product and match by string
+      if (!existingMovement) {
+        const allBLMovements = await (MouvementStock as any).find({
+          societeId: tenantId,
+          productId: productIdStr,
+          source: 'BL',
+          type: 'SORTIE',
+        }).lean();
+        
+        // Find the one that matches blId (as string)
+        existingMovement = allBLMovements.find((mov: any) => 
+          mov.sourceId?.toString() === blId.toString()
+        );
+      }
+
+      if (existingMovement) {
+        // Update existing movement to reference the invoice instead of BL
+        // This prevents double stock reduction
+        const movementDoc = await (MouvementStock as any).findById(existingMovement._id);
+        if (movementDoc) {
+          movementDoc.source = 'FAC';
+          movementDoc.sourceId = invoiceId;
+          movementDoc.date = dateDoc;
+          movementDoc.qte = line.quantite;
+          movementDoc.notes = `Facture ${invoice.numero}`;
+          await movementDoc.save();
+          console.log(`[Convert] Updated stock movement ${existingMovement._id} for product ${productIdStr} from BL ${blId} to FAC ${invoiceId}`);
+        }
+      } else {
+        // If no existing movement found, this is an error
+        // When converting from BL, the stock movement should already exist from the BL creation
+        // We should NOT create a new movement as this would cause double stock reduction
+        console.error(`[Convert] WARNING: No stock movement found for BL ${blId}, product ${productIdStr}. Stock was not reduced when BL was created.`);
+        // Do NOT create a new movement - this would cause double stock reduction
+        // The stock should have been reduced when the BL was created
+      }
+    } catch (error) {
+      console.error(`Error updating stock movement for product ${line.productId}:`, error);
+      // Continue processing other lines even if one fails
+    }
+  }
+}
+
 // Helper function to create stock movements for invoice
 async function createStockMovementsForInvoice(
   invoice: any,
@@ -159,30 +302,47 @@ async function createStockMovementsForInvoice(
     }
 
     try {
-      // Check if product is stored (estStocke === true)
+      const productIdStr = line.productId.toString();
+
+      // Check if product exists
       const product = await (Product as any).findOne({
-        _id: line.productId,
+        _id: productIdStr,
         tenantId,
       }).lean();
 
-      if (!product || !product.estStocke) {
-        continue; // Skip non-stored products
+      if (!product) {
+        continue; // Skip if product not found
       }
 
-      // Create new stock movement
-      const mouvement = new MouvementStock({
+      // Check if stock movement already exists for this invoice and product
+      const existingMovement = await (MouvementStock as any).findOne({
         societeId: tenantId,
-        productId: line.productId,
-        type: 'SORTIE',
-        qte: line.quantite,
-        date: dateDoc,
+        productId: productIdStr,
         source: 'FAC',
         sourceId: invoiceId,
-        notes: `Facture ${invoice.numero}`,
-        createdBy,
       });
 
-      await (mouvement as any).save();
+      if (existingMovement) {
+        // Update existing movement
+        existingMovement.qte = line.quantite;
+        existingMovement.date = dateDoc;
+        await (existingMovement as any).save();
+      } else {
+        // Create new stock movement
+        const mouvement = new MouvementStock({
+          societeId: tenantId,
+          productId: productIdStr,
+          type: 'SORTIE',
+          qte: line.quantite,
+          date: dateDoc,
+          source: 'FAC',
+          sourceId: invoiceId,
+          notes: `Facture ${invoice.numero}`,
+          createdBy,
+        });
+
+        await (mouvement as any).save();
+      }
     } catch (error) {
       console.error(`Error creating stock movement for product ${line.productId}:`, error);
       // Continue processing other lines even if one fails

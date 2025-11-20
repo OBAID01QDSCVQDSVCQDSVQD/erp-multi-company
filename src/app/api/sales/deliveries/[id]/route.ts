@@ -5,6 +5,7 @@ import connectDB from '@/lib/mongodb';
 import Document from '@/lib/models/Document';
 import Product from '@/lib/models/Product';
 import MouvementStock from '@/lib/models/MouvementStock';
+import mongoose from 'mongoose';
 
 export async function GET(
   request: NextRequest,
@@ -234,18 +235,35 @@ async function updateStockMovementsForDelivery(
       const oldLine = oldLinesMap.get(productId);
       const currentLine = currentLinesMap.get(productId);
 
+      // Convert productId to string for consistency
+      const productIdStr = productId.toString();
+      
       // Check if product is stored
-      const product = await (Product as any).findOne({
-        _id: productId,
-        tenantId,
-      }).lean();
+      // Try to find product using ObjectId first, then string
+      let product = null;
+      try {
+        product = await (Product as any).findOne({
+          $or: [
+            { _id: new mongoose.Types.ObjectId(productIdStr) },
+            { _id: productIdStr },
+          ],
+          tenantId,
+        }).lean();
+      } catch (err) {
+        // If ObjectId conversion fails, try string directly
+        product = await (Product as any).findOne({
+          _id: productIdStr,
+          tenantId,
+        }).lean();
+      }
 
-      if (!product || !product.estStocke) {
-        // If product is not stored, delete any existing movements
+      if (!product) {
+        console.warn(`[Stock] Product not found for ID: ${productIdStr}`);
+        // Delete any existing movements
         if (oldLine) {
           await (MouvementStock as any).deleteMany({
             societeId: tenantId,
-            productId,
+            productId: productIdStr,
             source: 'BL',
             sourceId: deliveryId,
           });
@@ -253,10 +271,13 @@ async function updateStockMovementsForDelivery(
         continue;
       }
 
+      // Create stock movements for ALL products that have a productId
+      // This allows tracking stock even if estStocke=false
+
       // Find existing movement
       const existingMovement = await (MouvementStock as any).findOne({
         societeId: tenantId,
-        productId,
+        productId: productIdStr,
         source: 'BL',
         sourceId: deliveryId,
       });
@@ -277,7 +298,7 @@ async function updateStockMovementsForDelivery(
           // Create new movement
           const mouvement = new MouvementStock({
             societeId: tenantId,
-            productId,
+            productId: productIdStr, // Ensure it's a string
             type: 'SORTIE',
             qte: currentLine.quantite,
             date: dateDoc,

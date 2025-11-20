@@ -695,16 +695,9 @@ export default function NewReceptionPage() {
                     setSelectedSupplierIndex(-1);
                     setTimeout(() => calculateSupplierDropdownPosition(), 0);
                   }}
-                  onFocus={(e) => {
+                  onFocus={() => {
                     setShowSupplierDropdown(true);
-                    setTimeout(() => {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      setSupplierDropdownPosition({
-                        top: rect.bottom + window.scrollY + 4,
-                        left: rect.left + window.scrollX,
-                        width: rect.width,
-                      });
-                    }, 0);
+                    setTimeout(() => calculateSupplierDropdownPosition(), 0);
                   }}
                   onKeyDown={handleSupplierKeyDown}
                   placeholder="Rechercher un fournisseur..."

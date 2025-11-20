@@ -16,6 +16,14 @@ export async function GET(request: NextRequest) {
     await connectDB();
 
     const tenantId = request.headers.get('X-Tenant-Id') || session.user.companyId?.toString() || '';
+    
+    if (!tenantId) {
+      return NextResponse.json(
+        { error: 'Tenant ID manquant' },
+        { status: 400 }
+      );
+    }
+    
     const { searchParams } = new URL(request.url);
     const q = searchParams.get('q') || '';
     const categorie = searchParams.get('categorie');
@@ -23,8 +31,13 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '50');
 
-    // Build product filter
-    const productFilter: any = { tenantId, estStocke: true, actif: true };
+    // Build product filter - Get all products that can potentially have stock
+    // Show all products except archived ones, regardless of estStocke or actif
+    const productFilter: any = { 
+      tenantId,
+      archive: { $ne: true }, // Exclude archived products
+    };
+    
     if (q) {
       productFilter.$or = [
         { nom: { $regex: q, $options: 'i' } },
@@ -36,11 +49,22 @@ export async function GET(request: NextRequest) {
       productFilter.categorieCode = categorie.toUpperCase();
     }
 
-    // Get all stocked products
+    // Get all products (not just stocked ones - we want to show all products with their stock levels)
     const products = await (Product as any).find(productFilter).lean();
+    
+    if (products.length === 0) {
+      return NextResponse.json({
+        items: [],
+        total: 0,
+        page,
+        limit,
+      });
+    }
+
     const productIds = products.map((p: any) => p._id.toString());
 
     // Calculate current stock for each product
+    // Note: productId in MouvementStock is stored as String
     const stockAggregation = await (MouvementStock as any).aggregate([
       {
         $match: {
@@ -70,15 +94,16 @@ export async function GET(request: NextRequest) {
       },
     ]);
 
-    // Create a map of stock by productId
+    // Create a map of stock by productId (as string)
     const stockMap = new Map();
     stockAggregation.forEach((item: any) => {
+      const productIdStr = item._id ? item._id.toString() : item._id;
       const stockActuel = item.totalEntree - item.totalSortie + (item.totalInventaire || 0);
-      stockMap.set(item._id.toString(), {
+      stockMap.set(productIdStr, {
         stockActuel,
-        totalEntree: item.totalEntree,
-        totalSortie: item.totalSortie,
-        totalInventaire: item.totalInventaire,
+        totalEntree: item.totalEntree || 0,
+        totalSortie: item.totalSortie || 0,
+        totalInventaire: item.totalInventaire || 0,
       });
     });
 
@@ -93,12 +118,18 @@ export async function GET(request: NextRequest) {
       };
 
       return {
-        ...product,
+        _id: product._id,
+        sku: product.sku,
+        nom: product.nom,
+        referenceClient: product.referenceClient,
+        categorieCode: product.categorieCode,
         stockActuel: stockData.stockActuel,
         totalEntree: stockData.totalEntree,
         totalSortie: stockData.totalSortie,
         totalInventaire: stockData.totalInventaire,
         uomStock: product.uomStockCode || product.uomVenteCode || 'PCE',
+        min: product.min,
+        max: product.max,
       };
     });
 

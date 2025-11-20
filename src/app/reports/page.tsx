@@ -76,10 +76,28 @@ interface Payment {
   isPaymentOnAccount: boolean;
 }
 
+interface Invoice {
+  _id: string;
+  numero: string;
+  date: string;
+  companyName: string;
+  type: 'vente' | 'achat';
+  tva: number;
+  fodec?: number;
+  timbre: number;
+  totalHT: number;
+  totalTTC: number;
+  devise: string;
+  statut: string;
+  referenceExterne?: string;
+  referenceFournisseur?: string;
+}
+
 interface AccountingReportData {
   expenses?: Expense[];
   salesInvoices?: SalesInvoice[];
   purchaseInvoices?: PurchaseInvoice[];
+  invoices?: Invoice[];
   payments?: Payment[];
   expensesSummary?: {
     total: number;
@@ -129,7 +147,7 @@ export default function ReportsPage() {
   const [reportData, setReportData] = useState<AccountingReportData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState<'expenses' | 'sales' | 'purchases' | 'payments'>('expenses');
+  const [activeTab, setActiveTab] = useState<'expenses' | 'sales' | 'purchases' | 'payments' | 'invoices'>('expenses');
   
   // Filtres
   const [dateFrom, setDateFrom] = useState('');
@@ -178,7 +196,7 @@ export default function ReportsPage() {
     }
   };
 
-  const handleExportPDF = async (type: 'expenses' | 'sales' | 'purchases' | 'payments' | 'all') => {
+  const handleExportPDF = async (type: 'expenses' | 'sales' | 'purchases' | 'payments' | 'invoices' | 'all') => {
     try {
       setExporting(true);
       const params = new URLSearchParams();
@@ -409,6 +427,7 @@ export default function ReportsPage() {
               { id: 'expenses', label: 'Dépenses', icon: BanknotesIcon, shortLabel: 'Dépenses' },
               { id: 'sales', label: 'Factures de Vente', icon: ShoppingBagIcon, shortLabel: 'Ventes' },
               { id: 'purchases', label: 'Factures d\'Achat', icon: DocumentTextIcon, shortLabel: 'Achats' },
+              { id: 'invoices', label: 'افوار', icon: DocumentTextIcon, shortLabel: 'افوار' },
               { id: 'payments', label: 'Paiements', icon: CreditCardIcon, shortLabel: 'Paiements' },
             ].map((tab) => {
               const Icon = tab.icon;
@@ -782,6 +801,107 @@ export default function ReportsPage() {
                       ))}
                     </tfoot>
                   )}
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* افوار (Invoices) Table */}
+          {activeTab === 'invoices' && reportData?.invoices && (
+            <div>
+              <div className="px-3 sm:px-6 py-3 sm:py-4 border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <h3 className="text-base sm:text-lg font-medium text-gray-900 dark:text-white">
+                  افوار ({reportData.invoices.length})
+                </h3>
+                <button
+                  onClick={() => handleExportPDF('invoices')}
+                  disabled={exporting}
+                  className="inline-flex items-center justify-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 w-full sm:w-auto"
+                >
+                  <ArrowDownTrayIcon className="h-4 w-4 mr-1" />
+                  PDF
+                </button>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead className="bg-gray-50 dark:bg-gray-900">
+                    <tr>
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Date
+                      </th>
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Numéro
+                      </th>
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Type
+                      </th>
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden sm:table-cell">
+                        Nom
+                      </th>
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        TVA
+                      </th>
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden md:table-cell">
+                        Fodec
+                      </th>
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden lg:table-cell">
+                        Timbre
+                      </th>
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Total HT
+                      </th>
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Total TTC
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {reportData.invoices.length === 0 ? (
+                      <tr>
+                        <td colSpan={9} className="px-3 sm:px-6 py-4 text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                          Aucune facture trouvée
+                        </td>
+                      </tr>
+                    ) : (
+                      reportData.invoices.map((invoice) => (
+                        <tr key={invoice._id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900 dark:text-white">
+                            {formatDate(invoice.date)}
+                          </td>
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
+                            {invoice.numero}
+                          </td>
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
+                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                              invoice.type === 'vente' 
+                                ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                            }`}>
+                              {invoice.type === 'vente' ? 'Vente' : 'Achat'}
+                            </span>
+                          </td>
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden sm:table-cell">
+                            {invoice.companyName}
+                          </td>
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                            {formatPrice(invoice.tva, invoice.devise || 'TND')}
+                          </td>
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden md:table-cell">
+                            {formatPrice(invoice.fodec || 0, invoice.devise || 'TND')}
+                          </td>
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden lg:table-cell">
+                            {formatPrice(invoice.timbre || 0, invoice.devise || 'TND')}
+                          </td>
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900 dark:text-white">
+                            {formatPrice(invoice.totalHT, invoice.devise || 'TND')}
+                          </td>
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
+                            {formatPrice(invoice.totalTTC, invoice.devise || 'TND')}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
                 </table>
               </div>
             </div>
