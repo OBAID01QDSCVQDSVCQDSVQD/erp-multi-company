@@ -32,6 +32,15 @@ export async function GET(request: NextRequest) {
 
     await connectDB();
 
+    // Ensure ExpenseCategory model is registered before using populate
+    // The import at the top should register it, but we verify it's available
+    if (!(mongoose.models as any)['ExpenseCategory']) {
+      // Force registration by accessing the default export
+      const ExpenseCategoryModel = await import('@/lib/models/ExpenseCategory');
+      // Access the default export to ensure it's registered
+      void ExpenseCategoryModel.default;
+    }
+
     // Construction du filtre
     const filter: any = { tenantId };
     
@@ -103,6 +112,15 @@ export async function POST(request: NextRequest) {
     console.log('POST /api/expenses - TenantId:', tenantId);
 
     await connectDB();
+
+    // Ensure ExpenseCategory model is registered before using populate
+    // The import at the top should register it, but we verify it's available
+    if (!(mongoose.models as any)['ExpenseCategory']) {
+      // Force registration by accessing the default export
+      const ExpenseCategoryModel = await import('@/lib/models/ExpenseCategory');
+      // Access the default export to ensure it's registered
+      void ExpenseCategoryModel.default;
+    }
 
     // Génération du numéro séquentiel
     const currentYear = new Date().getFullYear();
