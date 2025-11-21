@@ -83,7 +83,7 @@ export interface IExpense extends Document {
   updatedAt: Date;
 }
 
-const PieceJointeSchema = new Schema<IPieceJointe>({
+const PieceJointeSchema = new (Schema as any)({
   nom: { type: String, required: true },
   url: { type: String, required: true }, // Cloudinary URL
   publicId: { type: String }, // Cloudinary public ID
@@ -95,7 +95,7 @@ const PieceJointeSchema = new Schema<IPieceJointe>({
   format: { type: String },
 });
 
-const ExpenseSchema = new Schema<IExpense>({
+const ExpenseSchema = new (Schema as any)({
   tenantId: {
     type: String,
     required: true,
@@ -280,11 +280,19 @@ ExpenseSchema.index({ tenantId: 1, statut: 1 });
 ExpenseSchema.index({ tenantId: 1, projetId: 1 });
 
 // Delete existing model if it exists to ensure schema changes are applied
-if (mongoose.models.Expense) {
-  delete mongoose.models.Expense;
+if ((mongoose.models as any)['Expense']) {
+  delete (mongoose.models as any)['Expense'];
 }
 if ((mongoose as any).modelSchemas && (mongoose as any).modelSchemas.Expense) {
   delete (mongoose as any).modelSchemas.Expense;
 }
 
-export default mongoose.model<IExpense>('Expense', ExpenseSchema);
+let Expense: mongoose.Model<IExpense>;
+
+if ((mongoose.models as any)['Expense']) {
+  Expense = (mongoose.models as any)['Expense'] as mongoose.Model<IExpense>;
+} else {
+  Expense = (mongoose.model('Expense', ExpenseSchema) as any) as mongoose.Model<IExpense>;
+}
+
+export default Expense;
