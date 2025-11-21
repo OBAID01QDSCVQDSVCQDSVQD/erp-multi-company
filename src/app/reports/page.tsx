@@ -184,9 +184,14 @@ export default function ReportsPage() {
 
   const formatPrice = (price: number, currency: string = 'TND', decimals: number = 3) => {
     // Format manuel pour afficher 3 chiffres après la virgule
-    const formatted = price.toFixed(decimals).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+    // Utiliser toLocaleString pour un formatage correct avec espaces insécables
+    const formatted = new Intl.NumberFormat('fr-FR', {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    }).format(price);
     const currencySymbol = currency === 'TND' ? 'TND' : currency === 'EUR' ? '€' : currency === 'USD' ? '$' : currency;
-    return `${formatted.replace('.', ',')} ${currencySymbol}`;
+    // Utiliser un espace insécable (\u00A0) pour éviter le retour à la ligne
+    return `${formatted}\u00A0${currencySymbol}`;
   };
 
   const formatDate = (date: string | Date) => {
@@ -521,19 +526,19 @@ export default function ReportsPage() {
                           <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden sm:table-cell">
                             {expense.companyName}
                           </td>
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400" style={{ whiteSpace: 'nowrap' }}>
                             {formatPrice(expense.tvaAmount || ((expense.totalTTC || 0) - (expense.totalHT || 0) - (expense.timbre || 0) - (expense.fodec || 0)), expense.devise || 'TND')}
                           </td>
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden md:table-cell">
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden md:table-cell" style={{ whiteSpace: 'nowrap' }}>
                             {formatPrice(expense.fodec || 0, expense.devise || 'TND')}
                           </td>
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden md:table-cell">
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden md:table-cell" style={{ whiteSpace: 'nowrap' }}>
                             {formatPrice(expense.timbre || 0, expense.devise || 'TND')}
                           </td>
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900 dark:text-white">
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900 dark:text-white" style={{ whiteSpace: 'nowrap' }}>
                             {formatPrice(expense.totalHT, expense.devise || 'TND')}
                           </td>
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900 dark:text-white" style={{ whiteSpace: 'nowrap' }}>
                             {formatPrice(expense.totalTTC, expense.devise || 'TND')}
                           </td>
                           <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap hidden lg:table-cell">
