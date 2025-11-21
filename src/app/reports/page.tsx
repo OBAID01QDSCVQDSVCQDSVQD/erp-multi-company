@@ -182,6 +182,28 @@ export default function ReportsPage() {
     }
   };
 
+  const handleStatusChange = async (expenseId: string, newStatus: string) => {
+    try {
+      const response = await fetch(`/api/expenses/${expenseId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ statut: newStatus }),
+      });
+
+      if (response.ok) {
+        // Rafraîchir les données
+        await fetchReportData();
+      } else {
+        const errorData = await response.json();
+        setError(errorData.error || 'Erreur lors de la mise à jour du statut');
+      }
+    } catch (err) {
+      setError('Erreur de connexion lors de la mise à jour du statut');
+    }
+  };
+
   const formatPrice = (price: number, currency: string = 'TND', decimals: number = 3) => {
     // Format manuel pour afficher 3 chiffres après la virgule
     // Utiliser toLocaleString pour un formatage correct avec espaces insécables
@@ -502,7 +524,7 @@ export default function ReportsPage() {
                       <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Total TTC
                       </th>
-                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden lg:table-cell">
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Statut
                       </th>
                     </tr>
@@ -541,15 +563,23 @@ export default function ReportsPage() {
                           <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900 dark:text-white" style={{ whiteSpace: 'nowrap' }}>
                             {formatPrice(expense.totalTTC, expense.devise || 'TND')}
                           </td>
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap hidden lg:table-cell">
-                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                              expense.statut === 'paye' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
-                              expense.statut === 'valide' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
-                              expense.statut === 'en_attente' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
-                              'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
-                            }`}>
-                              {expense.statut}
-                            </span>
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
+                            <select
+                              value={expense.statut}
+                              onChange={(e) => handleStatusChange(expense._id, e.target.value)}
+                              className={`text-xs sm:text-sm font-semibold rounded-full px-2 py-1 border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                                expense.statut === 'paye' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                                expense.statut === 'valide' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
+                                expense.statut === 'en_attente' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
+                                'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                              }`}
+                            >
+                              <option value="brouillon">Brouillon</option>
+                              <option value="en_attente">En attente</option>
+                              <option value="valide">Validé</option>
+                              <option value="paye">Payé</option>
+                              <option value="rejete">Rejeté</option>
+                            </select>
                           </td>
                         </tr>
                       ))
