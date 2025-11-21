@@ -5,6 +5,8 @@ import connectDB from '@/lib/mongodb';
 import Expense from '@/lib/models/Expense';
 import ExpenseCategory from '@/lib/models/ExpenseCategory';
 import Counter from '@/lib/models/Counter';
+import Supplier from '@/lib/models/Supplier';
+import User from '@/lib/models/User';
 import mongoose from 'mongoose';
 
 // Force dynamic rendering since we use getServerSession which uses headers()
@@ -36,13 +38,23 @@ export async function GET(request: NextRequest) {
 
     await connectDB();
 
-    // Ensure ExpenseCategory model is registered before using populate
-    // The import at the top should register it, but we verify it's available
-    if (!(mongoose.models as any)['ExpenseCategory']) {
-      // Force registration by accessing the default export
-      const ExpenseCategoryModel = await import('@/lib/models/ExpenseCategory');
-      // Access the default export to ensure it's registered
-      void ExpenseCategoryModel.default;
+    // Ensure all models are registered before using populate
+    const modelsToRegister = [
+      { name: 'ExpenseCategory', import: () => import('@/lib/models/ExpenseCategory') },
+      { name: 'Supplier', import: () => import('@/lib/models/Supplier') },
+      { name: 'User', import: () => import('@/lib/models/User') },
+    ];
+
+    for (const model of modelsToRegister) {
+      if (!(mongoose.models as any)[model.name]) {
+        try {
+          const ModelModule = await model.import();
+          // Access the default export to ensure it's registered
+          void ModelModule.default;
+        } catch (err) {
+          console.error(`Failed to register model ${model.name}:`, err);
+        }
+      }
     }
 
     // Construction du filtre
@@ -199,13 +211,23 @@ export async function POST(request: NextRequest) {
 
     await connectDB();
 
-    // Ensure ExpenseCategory model is registered before using populate
-    // The import at the top should register it, but we verify it's available
-    if (!(mongoose.models as any)['ExpenseCategory']) {
-      // Force registration by accessing the default export
-      const ExpenseCategoryModel = await import('@/lib/models/ExpenseCategory');
-      // Access the default export to ensure it's registered
-      void ExpenseCategoryModel.default;
+    // Ensure all models are registered before using populate
+    const modelsToRegister = [
+      { name: 'ExpenseCategory', import: () => import('@/lib/models/ExpenseCategory') },
+      { name: 'Supplier', import: () => import('@/lib/models/Supplier') },
+      { name: 'User', import: () => import('@/lib/models/User') },
+    ];
+
+    for (const model of modelsToRegister) {
+      if (!(mongoose.models as any)[model.name]) {
+        try {
+          const ModelModule = await model.import();
+          // Access the default export to ensure it's registered
+          void ModelModule.default;
+        } catch (err) {
+          console.error(`Failed to register model ${model.name}:`, err);
+        }
+      }
     }
 
     // Génération du numéro séquentiel

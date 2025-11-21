@@ -152,7 +152,7 @@ const CatalogueSchema = new Schema<ISupplierCatalogue>({
   actif: { type: Boolean, default: true }
 }, { _id: false });
 
-const SupplierSchema = new Schema<ISupplier>({
+const SupplierSchema = new (Schema as any)({
   tenantId: { type: String, required: true, index: true },
   
   type: { type: String, enum: ['societe', 'particulier'], default: 'societe' },
@@ -218,9 +218,12 @@ SupplierSchema.index({
   tags: 'text' 
 });
 
-// Clear cache
-if (mongoose.models.Supplier) {
-  delete mongoose.models.Supplier;
+let Supplier: mongoose.Model<ISupplier>;
+
+if ((mongoose.models as any)['Supplier']) {
+  Supplier = (mongoose.models as any)['Supplier'] as mongoose.Model<ISupplier>;
+} else {
+  Supplier = (mongoose.model('Supplier', SupplierSchema) as any) as mongoose.Model<ISupplier>;
 }
 
-export default mongoose.model<ISupplier>('Supplier', SupplierSchema);
+export default Supplier;
