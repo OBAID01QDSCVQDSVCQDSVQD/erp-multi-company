@@ -39,22 +39,17 @@ export async function GET(request: NextRequest) {
     await connectDB();
 
     // Ensure all models are registered before using populate
-    const modelsToRegister = [
-      { name: 'ExpenseCategory', import: () => import('@/lib/models/ExpenseCategory') },
-      { name: 'Supplier', import: () => import('@/lib/models/Supplier') },
-      { name: 'User', import: () => import('@/lib/models/User') },
-    ];
-
-    for (const model of modelsToRegister) {
-      if (!(mongoose.models as any)[model.name]) {
-        try {
-          const ModelModule = await model.import();
-          // Access the default export to ensure it's registered
-          void ModelModule.default;
-        } catch (err) {
-          console.error(`Failed to register model ${model.name}:`, err);
-        }
-      }
+    if (!(mongoose.models as any)['ExpenseCategory']) {
+      const ExpenseCategoryModel = await import('@/lib/models/ExpenseCategory');
+      void ExpenseCategoryModel.default;
+    }
+    if (!(mongoose.models as any)['Supplier']) {
+      const SupplierModel = await import('@/lib/models/Supplier');
+      void SupplierModel.default;
+    }
+    if (!(mongoose.models as any)['User']) {
+      const UserModel = await import('@/lib/models/User');
+      void UserModel.default;
     }
 
     // Construction du filtre
@@ -212,22 +207,17 @@ export async function POST(request: NextRequest) {
     await connectDB();
 
     // Ensure all models are registered before using populate
-    const modelsToRegister = [
-      { name: 'ExpenseCategory', import: () => import('@/lib/models/ExpenseCategory') },
-      { name: 'Supplier', import: () => import('@/lib/models/Supplier') },
-      { name: 'User', import: () => import('@/lib/models/User') },
-    ];
-
-    for (const model of modelsToRegister) {
-      if (!(mongoose.models as any)[model.name]) {
-        try {
-          const ModelModule = await model.import();
-          // Access the default export to ensure it's registered
-          void ModelModule.default;
-        } catch (err) {
-          console.error(`Failed to register model ${model.name}:`, err);
-        }
-      }
+    if (!(mongoose.models as any)['ExpenseCategory']) {
+      const ExpenseCategoryModel = await import('@/lib/models/ExpenseCategory');
+      void ExpenseCategoryModel.default;
+    }
+    if (!(mongoose.models as any)['Supplier']) {
+      const SupplierModel = await import('@/lib/models/Supplier');
+      void SupplierModel.default;
+    }
+    if (!(mongoose.models as any)['User']) {
+      const UserModel = await import('@/lib/models/User');
+      void UserModel.default;
     }
 
     // Génération du numéro séquentiel
