@@ -7,9 +7,6 @@ import ExpenseCategory from '@/lib/models/ExpenseCategory';
 import Counter from '@/lib/models/Counter';
 import mongoose from 'mongoose';
 
-// Force dynamic rendering since we use getServerSession which uses headers()
-export const dynamic = 'force-dynamic';
-
 // GET /api/expenses - Récupérer les dépenses avec filtres
 export async function GET(request: NextRequest) {
   try {

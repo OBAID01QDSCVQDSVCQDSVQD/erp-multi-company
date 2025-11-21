@@ -12,7 +12,7 @@ export interface IExpenseCategory extends Document {
   updatedAt: Date;
 }
 
-const ExpenseCategorySchema = new (Schema as any)({
+const ExpenseCategorySchema = new Schema<IExpenseCategory>({
   tenantId: {
     type: String,
     required: true,
@@ -54,12 +54,4 @@ const ExpenseCategorySchema = new (Schema as any)({
 // Index unique pour tenantId + code
 ExpenseCategorySchema.index({ tenantId: 1, code: 1 }, { unique: true });
 
-let ExpenseCategory: mongoose.Model<IExpenseCategory>;
-
-if ((mongoose.models as any)['ExpenseCategory']) {
-  ExpenseCategory = (mongoose.models as any)['ExpenseCategory'] as mongoose.Model<IExpenseCategory>;
-} else {
-  ExpenseCategory = (mongoose.model('ExpenseCategory', ExpenseCategorySchema) as any) as mongoose.Model<IExpenseCategory>;
-}
-
-export default ExpenseCategory;
+export default mongoose.models.ExpenseCategory || mongoose.model<IExpenseCategory>('ExpenseCategory', ExpenseCategorySchema);

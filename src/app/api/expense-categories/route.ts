@@ -5,9 +5,6 @@ import connectDB from '@/lib/mongodb';
 import ExpenseCategory from '@/lib/models/ExpenseCategory';
 import GlobalExpenseCategory from '@/lib/models/GlobalExpenseCategory';
 
-// Force dynamic rendering since we use getServerSession which uses headers()
-export const dynamic = 'force-dynamic';
-
 // GET /api/expense-categories - Récupérer les catégories (globales + locales)
 export async function GET(request: NextRequest) {
   try {
