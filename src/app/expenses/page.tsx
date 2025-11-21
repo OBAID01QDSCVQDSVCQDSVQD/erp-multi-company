@@ -155,6 +155,8 @@ export default function ExpensesPage() {
           pagination: data.pagination,
           total: data.pagination?.total || 0
         });
+        
+        // Update state first
         setExpenses(data.expenses || []);
         if (data.pagination) {
           setPagination(prev => ({
@@ -165,6 +167,9 @@ export default function ExpensesPage() {
         }
         // Clear error on success
         setError('');
+        
+        // Keep loading for a brief moment to ensure smooth transition
+        await new Promise(resolve => setTimeout(resolve, 100));
       } else {
         // Only log error, don't show to user
         const errorData = await response.json().catch(() => ({}));
@@ -178,6 +183,7 @@ export default function ExpensesPage() {
       setExpenses([]);
       setError(''); // Don't show error message to user
     } finally {
+      // Set loading to false after all updates are complete
       setLoading(false);
     }
   };
@@ -281,11 +287,31 @@ export default function ExpensesPage() {
     return new Date(dateString).toLocaleDateString('fr-FR');
   };
 
-  if (loading) {
+  // Show loading state
+  if (loading && expenses.length === 0) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-indigo-600"></div>
+        <div className="space-y-6">
+          {/* Header skeleton */}
+          <div className="sm:flex sm:items-center sm:justify-between">
+            <div>
+              <div className="h-8 w-48 bg-gray-200 rounded animate-pulse mb-2"></div>
+              <div className="h-4 w-64 bg-gray-200 rounded animate-pulse"></div>
+            </div>
+            <div className="mt-4 sm:mt-0 flex space-x-3">
+              <div className="h-10 w-24 bg-gray-200 rounded animate-pulse"></div>
+              <div className="h-10 w-32 bg-gray-200 rounded animate-pulse"></div>
+              <div className="h-10 w-40 bg-gray-200 rounded animate-pulse"></div>
+            </div>
+          </div>
+          
+          {/* Loading spinner */}
+          <div className="flex items-center justify-center h-96">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+              <p className="text-sm text-gray-500">Chargement des dépenses...</p>
+            </div>
+          </div>
         </div>
       </DashboardLayout>
     );
