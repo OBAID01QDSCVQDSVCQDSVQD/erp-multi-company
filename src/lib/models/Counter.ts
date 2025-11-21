@@ -8,7 +8,7 @@ export interface ICounter extends Document {
   updatedAt: Date;
 }
 
-const CounterSchema = new Schema<ICounter>({
+const CounterSchema = new Schema({
   tenantId: {
     type: String,
     required: true,
@@ -17,7 +17,7 @@ const CounterSchema = new Schema<ICounter>({
   seqName: {
     type: String,
     required: true,
-    enum: ['devis', 'bc', 'bl', 'fac', 'avoir', 'ca', 'br', 'facfo', 'avoirfo'],
+    enum: ['devis', 'bc', 'bl', 'fac', 'avoir', 'ca', 'br', 'facfo', 'avoirfo', 'expense'],
   },
   value: {
     type: Number,
@@ -31,4 +31,12 @@ const CounterSchema = new Schema<ICounter>({
 // Index unique pour tenantId + seqName
 CounterSchema.index({ tenantId: 1, seqName: 1 }, { unique: true });
 
-export default mongoose.models.Counter || mongoose.model<ICounter>('Counter', CounterSchema);
+let Counter: mongoose.Model<ICounter>;
+
+if ((mongoose.models as any)['Counter']) {
+  Counter = (mongoose.models as any)['Counter'] as mongoose.Model<ICounter>;
+} else {
+  Counter = (mongoose.model('Counter', CounterSchema) as any) as mongoose.Model<ICounter>;
+}
+
+export default Counter;

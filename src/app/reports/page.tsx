@@ -23,7 +23,8 @@ interface Expense {
   numero: string;
   date: string;
   companyName: string;
-  tva: number;
+  tva: number; // Pourcentage TVA
+  tvaAmount?: number; // Montant TVA
   fodec: number;
   timbre: number;
   totalHT: number;
@@ -482,7 +483,10 @@ export default function ReportsPage() {
                         Nom de l'entreprise
                       </th>
                       <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        TVA (%)
+                        TVA
+                      </th>
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden md:table-cell">
+                        FODEC
                       </th>
                       <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden md:table-cell">
                         Timbre
@@ -501,7 +505,7 @@ export default function ReportsPage() {
                   <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                     {reportData.expenses.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="px-3 sm:px-6 py-4 text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                        <td colSpan={9} className="px-3 sm:px-6 py-4 text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                           Aucune dépense trouvée
                         </td>
                       </tr>
@@ -518,7 +522,10 @@ export default function ReportsPage() {
                             {expense.companyName}
                           </td>
                           <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-                            {expense.tva}%
+                            {formatPrice(expense.tvaAmount || ((expense.totalTTC || 0) - (expense.totalHT || 0) - (expense.timbre || 0) - (expense.fodec || 0)), expense.devise || 'TND')}
+                          </td>
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden md:table-cell">
+                            {formatPrice(expense.fodec || 0, expense.devise || 'TND')}
                           </td>
                           <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden md:table-cell">
                             {formatPrice(expense.timbre || 0, expense.devise || 'TND')}
@@ -547,7 +554,7 @@ export default function ReportsPage() {
                     <tfoot className="bg-gray-50 dark:bg-gray-900">
                       {Object.entries(reportData.expensesSummaryByCurrency).map(([currency, summary]: [string, any]) => (
                         <tr key={currency} className="border-t border-gray-200 dark:border-gray-700">
-                          <td colSpan={4} className="px-3 sm:px-6 py-2 sm:py-3 text-right text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
+                          <td colSpan={5} className="px-3 sm:px-6 py-2 sm:py-3 text-right text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
                             Total ({currency}):
                           </td>
                           <td className="px-3 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm font-medium text-gray-900 dark:text-white hidden md:table-cell">

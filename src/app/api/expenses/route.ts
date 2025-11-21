@@ -5,6 +5,7 @@ import connectDB from '@/lib/mongodb';
 import Expense from '@/lib/models/Expense';
 import ExpenseCategory from '@/lib/models/ExpenseCategory';
 import Counter from '@/lib/models/Counter';
+import mongoose from 'mongoose';
 
 // GET /api/expenses - Récupérer les dépenses avec filtres
 export async function GET(request: NextRequest) {
@@ -93,6 +94,7 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const tenantId = session.user.companyId;
+    const societeId = session.user.companyId; // Use companyId as societeId
     
     console.log('POST /api/expenses - Body received:', JSON.stringify(body, null, 2));
     console.log('POST /api/expenses - TenantId:', tenantId);
@@ -100,22 +102,32 @@ export async function POST(request: NextRequest) {
     await connectDB();
 
     // Génération du numéro séquentiel
-    const currentYear = new (Date as any)().getFullYear();
+    const currentYear = new Date().getFullYear();
     const counter = await (Counter as any).findOneAndUpdate(
-      { tenantId, type: 'expense', year: currentYear },
-      { $inc: { sequence: 1 } },
-      { upsert: true, new: true }
+      { tenantId, seqName: 'expense' },
+      { $inc: { value: 1 } },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
-    const numero = `EXP-${currentYear}-${counter.sequence.toString().padStart(5, '0')}`;
+    const numero = `EXP-${currentYear}-${counter.value.toString().padStart(5, '0')}`;
 
     // Création de la dépense
-    const expenseData = {
-      ...body,
+    // Remove societeId from body if present, and set it from session
+    const { societeId: _, description, ...bodyWithoutSocieteId } = body;
+    
+    // Build expenseData, only include description if it's not empty
+    const expenseData: any = {
+      ...bodyWithoutSocieteId,
       tenantId,
+      societeId: new mongoose.Types.ObjectId(societeId),
       numero,
       createdBy: session.user.id,
     };
+    
+    // Only add description if it's not empty
+    if (description && description.trim() !== '') {
+      expenseData.description = description.trim();
+    }
 
     const expense = new (Expense as any)(expenseData);
     await (expense as any).save();

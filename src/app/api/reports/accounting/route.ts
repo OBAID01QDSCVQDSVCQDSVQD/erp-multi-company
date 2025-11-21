@@ -69,13 +69,16 @@ export async function GET(request: NextRequest) {
       const fournisseursMap = new Map(fournisseurs.map((f: any) => [f._id.toString(), f]));
 
       results.expenses = expenses.map((exp: any) => {
-        // Calculer HT et TTC correctement
-        const tvaPct = exp.tvaPct || 0;
-        const montantTTC = exp.montant;
-        const montantHT = tvaPct > 0 ? montantTTC / (1 + tvaPct / 100) : montantTTC;
-        
         const categorie = exp.categorieId ? (categoriesMap.get(exp.categorieId.toString()) as any) : null;
         const fournisseur = exp.fournisseurId ? (fournisseursMap.get(exp.fournisseurId.toString()) as any) : null;
+        
+        // Utiliser les valeurs calculées du modèle Expense
+        const tvaPct = exp.tvaPct || 0;
+        const totalHT = exp.totalHT || 0;
+        const totalTTC = exp.totalTTC || 0;
+        const timbreFiscal = exp.timbreFiscal || 0;
+        const fodec = exp.fodec || 0;
+        const tvaAmount = exp.tva || 0; // Montant TVA calculé
         
         return {
           _id: exp._id,
@@ -84,15 +87,16 @@ export async function GET(request: NextRequest) {
           companyName: fournisseur
             ? (fournisseur.raisonSociale || `${fournisseur.nom || ''} ${fournisseur.prenom || ''}`.trim())
             : 'N/A',
-          tva: tvaPct,
-          fodec: 0, // Fodec non applicable pour les dépenses
-          timbre: 0, // Timbre non applicable pour les dépenses (ou peut être ajouté plus tard)
-          totalHT: Math.round(montantHT * 100) / 100,
-          totalTTC: montantTTC,
+          tva: tvaPct, // Pourcentage TVA pour l'affichage
+          tvaAmount: tvaAmount, // Montant TVA pour les calculs
+          fodec: fodec,
+          timbre: timbreFiscal,
+          totalHT: totalHT,
+          totalTTC: totalTTC,
           devise: exp.devise || 'TND',
           description: exp.description,
           categorie: categorie?.nom || 'N/A',
-          statut: exp.statut,
+          statut: exp.statut || 'brouillon',
         };
       });
 
@@ -103,8 +107,11 @@ export async function GET(request: NextRequest) {
         if (!expensesByCurrency[currency]) {
           expensesByCurrency[currency] = { totalHT: 0, totalTVA: 0, totalTimbre: 0, totalTTC: 0, count: 0 };
         }
+        // Récupérer la TVA réelle depuis l'expense
+        const tvaAmount = exp.tvaAmount || (exp.totalTTC - exp.totalHT - (exp.timbre || 0) - (exp.fodec || 0));
+        
         expensesByCurrency[currency].totalHT += exp.totalHT;
-        expensesByCurrency[currency].totalTVA += (exp.totalTTC - exp.totalHT);
+        expensesByCurrency[currency].totalTVA += tvaAmount;
         expensesByCurrency[currency].totalTimbre += exp.timbre || 0;
         expensesByCurrency[currency].totalTTC += exp.totalTTC;
         expensesByCurrency[currency].count += 1;
@@ -279,14 +286,15 @@ export async function GET(request: NextRequest) {
       results.expenses.forEach((exp: any) => {
         const tauxChange = 1; // TODO: Ajouter tauxChange dans Expense model si nécessaire
         const currency = exp.devise || 'TND';
+        const tvaAmount = exp.tvaAmount || (exp.totalTTC - exp.totalHT - (exp.timbre || 0) - (exp.fodec || 0));
         
         if (currency !== 'TND') {
           financialSummary.totalDepensesHT += (exp.totalHT || 0) * tauxChange;
-          financialSummary.totalDepensesTVA += (exp.tva || 0) * tauxChange;
+          financialSummary.totalDepensesTVA += tvaAmount * tauxChange;
           financialSummary.totalDepensesTTC += (exp.totalTTC || 0) * tauxChange;
         } else {
           financialSummary.totalDepensesHT += exp.totalHT || 0;
-          financialSummary.totalDepensesTVA += exp.tva || 0;
+          financialSummary.totalDepensesTVA += tvaAmount;
           financialSummary.totalDepensesTTC += exp.totalTTC || 0;
         }
       });
@@ -406,9 +414,11 @@ export async function GET(request: NextRequest) {
     if (results.expenses) {
       results.expensesSummary = {
         total: results.expenses.length,
-        totalHT: results.expenses.reduce((sum: number, e: any) => sum + e.totalHT, 0),
-        totalTVA: results.expenses.reduce((sum: number, e: any) => sum + (e.totalTTC - e.totalHT), 0),
-        totalTTC: results.expenses.reduce((sum: number, e: any) => sum + e.totalTTC, 0),
+        totalHT: results.expenses.reduce((sum: number, e: any) => sum + (e.totalHT || 0), 0),
+        totalTVA: results.expenses.reduce((sum: number, e: any) => {
+          return sum + (e.tvaAmount || (e.totalTTC - e.totalHT - (e.timbre || 0) - (e.fodec || 0)));
+        }, 0),
+        totalTTC: results.expenses.reduce((sum: number, e: any) => sum + (e.totalTTC || 0), 0),
       };
     }
 

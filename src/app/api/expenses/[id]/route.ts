@@ -32,14 +32,39 @@ export async function PATCH(
       );
     }
 
+    // Nettoyer les champs optionnels (convertir empty strings en undefined)
+    const expenseData: any = { ...body };
+    if (expenseData.description === '') {
+      expenseData.description = undefined;
+    }
+    if (expenseData.centreCoutId === '') {
+      expenseData.centreCoutId = undefined;
+    }
+    if (expenseData.projetId === '') {
+      expenseData.projetId = undefined;
+    }
+    if (expenseData.fournisseurId === '') {
+      expenseData.fournisseurId = undefined;
+    }
+    if (expenseData.employeId === '') {
+      expenseData.employeId = undefined;
+    }
+    if (expenseData.referencePiece === '') {
+      expenseData.referencePiece = undefined;
+    }
+    if (expenseData.notesInterne === '') {
+      expenseData.notesInterne = undefined;
+    }
+
     // Mise à jour de la dépense
     const updatedExpense = await (Expense as any).findByIdAndUpdate(
       id,
-      { ...body, updatedAt: new Date() },
+      { ...expenseData, updatedAt: new Date() },
       { new: true }
     ).populate([
       { path: 'categorieId', select: 'nom code icone' },
-      { path: 'fournisseurId', select: 'name' },
+      { path: 'centreCoutId', select: 'code nom' },
+      { path: 'fournisseurId', select: 'type raisonSociale nom prenom' },
       { path: 'employeId', select: 'firstName lastName' },
       { path: 'projetId', select: 'name' }
     ]);
@@ -75,7 +100,8 @@ export async function GET(
     const expense = await (Expense as any).findOne({ _id: id, tenantId })
       .populate([
         { path: 'categorieId', select: 'nom code icone' },
-        { path: 'fournisseurId', select: 'name' },
+        { path: 'centreCoutId', select: 'code nom' },
+        { path: 'fournisseurId', select: 'type raisonSociale nom prenom' },
         { path: 'employeId', select: 'firstName lastName' },
         { path: 'projetId', select: 'name' }
       ]);

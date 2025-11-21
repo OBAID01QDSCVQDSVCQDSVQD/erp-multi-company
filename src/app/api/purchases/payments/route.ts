@@ -103,8 +103,83 @@ export async function POST(request: NextRequest) {
     const tenantId = session.user.companyId?.toString() || '';
     const body = await request.json();
 
-    // Generate payment number
-    const numero = await NumberingService.next(tenantId, 'pafo');
+    // Helper function to extract numeric part from payment number
+    const extractNumericPart = (numero: string): { number: number; prefix: string; padding: number } | null => {
+      if (!numero) return null;
+      const numericMatch = numero.match(/(\d+)$/);
+      if (!numericMatch) return null;
+      
+      const number = parseInt(numericMatch[1], 10);
+      const prefix = numero.substring(0, numero.length - numericMatch[1].length);
+      const padding = numericMatch[1].length;
+      
+      return { number, prefix, padding };
+    };
+
+    // Helper function to generate next payment number
+    const generateNextPaymentNumber = async (): Promise<string> => {
+      try {
+        // Find all payments for this tenant, sorted by numero descending to get the highest first
+        const allPayments = await (PaiementFournisseur as any).find({
+          societeId: new mongoose.Types.ObjectId(tenantId)
+        })
+        .select('numero')
+        .sort({ numero: -1 }) // Sort descending to get highest number first
+        .limit(100) // Limit to last 100 payments for performance
+        .lean();
+
+        let maxNumber = 0;
+        let maxNumeroFormat = '';
+        let maxPrefix = '';
+        let maxPadding = 5; // Default padding
+
+        // Find the payment with the highest numeric value
+        for (const payment of allPayments) {
+          if (payment.numero) {
+            const extracted = extractNumericPart(payment.numero);
+            if (extracted && extracted.number > maxNumber) {
+              maxNumber = extracted.number;
+              maxNumeroFormat = payment.numero;
+              maxPrefix = extracted.prefix;
+              maxPadding = extracted.padding;
+            }
+          }
+        }
+
+        if (maxNumeroFormat && maxNumber > 0) {
+          const nextNumber = maxNumber + 1;
+          const newNumero = maxPrefix + nextNumber.toString().padStart(maxPadding, '0');
+          console.log(`Generated payment number: ${newNumero} (from max: ${maxNumeroFormat}, next: ${nextNumber})`);
+          return newNumero;
+        }
+        
+        // No payments found, use NumberingService to generate first number
+        const fallbackNumero = await NumberingService.next(tenantId, 'pafo');
+        console.log(`Using NumberingService for first payment: ${fallbackNumero}`);
+        return fallbackNumero;
+      } catch (error) {
+        console.error('Error generating payment number:', error);
+        // Fallback to NumberingService on error
+        try {
+          return await NumberingService.next(tenantId, 'pafo');
+        } catch (nsError) {
+          // If NumberingService also fails, generate a simple number
+          const year = new Date().getFullYear();
+          return `PAFO-${year}-00001`;
+        }
+      }
+    };
+
+    // Helper function to increment payment number
+    const incrementPaymentNumber = (currentNumero: string): string => {
+      const extracted = extractNumericPart(currentNumero);
+      if (extracted) {
+        const nextNumber = extracted.number + 1;
+        return extracted.prefix + nextNumber.toString().padStart(extracted.padding, '0');
+      }
+      // If we can't parse, return empty string to trigger regeneration
+      return '';
+    };
 
     // Get supplier name if not provided
     let fournisseurNom = body.fournisseurNom || '';
@@ -278,48 +353,144 @@ export async function POST(request: NextRequest) {
       return ligne;
     });
 
-    // Create payment
-    const paiementData: any = {
-      societeId: new mongoose.Types.ObjectId(tenantId),
-      numero,
-      datePaiement: body.datePaiement ? new Date(body.datePaiement) : new Date(),
-      fournisseurId: new mongoose.Types.ObjectId(body.fournisseurId),
-      fournisseurNom,
-      modePaiement: body.modePaiement || 'Espèces',
-      reference: body.reference || '',
-      montantTotal,
-      lignes: cleanedLignes,
-      images: Array.isArray(body.images) ? body.images : [],
-      notes: body.notes || '',
-      createdBy: session.user.email,
-      isPaymentOnAccount: isPaymentOnAccount,
-      // Track advance usage if applicable
-      advanceUsed: useAdvanceBalance ? advanceAmount : 0,
-    };
+    // Generate initial payment number
+    let numero = await generateNextPaymentNumber();
+    
+    // Retry logic for handling duplicate key errors
+    let paiement: any = null;
+    let retryCount = 0;
+    const maxRetries = 20; // Increased retries
 
-    const paiement = new PaiementFournisseur(paiementData);
+    while (retryCount < maxRetries) {
+      try {
+        // Check if number already exists before attempting to save
+        const existingPayment = await (PaiementFournisseur as any).findOne({
+          societeId: new mongoose.Types.ObjectId(tenantId),
+          numero: numero
+        }).lean();
 
-    // Force Mongoose to recognize images as modified if present
-    if (Array.isArray(paiementData.images) && paiementData.images.length > 0) {
-      paiement.images = [];
-      paiementData.images.forEach((img: any) => {
-        paiement.images.push({
-          id: img.id || `${Date.now()}-${Math.random()}`,
-          name: img.name || '',
-          url: img.url || '',
-          publicId: img.publicId || undefined,
-          type: img.type || 'image/jpeg',
-          size: img.size || 0,
-          width: img.width || undefined,
-          height: img.height || undefined,
-          format: img.format || undefined,
-        });
-      });
-      (paiement as any).markModified('images');
+        if (existingPayment) {
+          // Number exists, increment and try again
+          retryCount++;
+          
+          if (retryCount >= maxRetries) {
+            return NextResponse.json(
+              { error: 'Impossible de générer un numéro unique après plusieurs tentatives. Veuillez réessayer.' },
+              { status: 500 }
+            );
+          }
+          
+          const incremented = incrementPaymentNumber(numero);
+          if (incremented) {
+            numero = incremented;
+          } else {
+            // If we can't increment, generate a completely new one
+            numero = await generateNextPaymentNumber();
+          }
+          
+          // Small delay to avoid rapid retries
+          await new Promise(resolve => setTimeout(resolve, 100));
+          continue; // Skip to next iteration
+        }
+
+        // Number doesn't exist, proceed with creation
+        const paiementData: any = {
+          societeId: new mongoose.Types.ObjectId(tenantId),
+          numero,
+          datePaiement: body.datePaiement ? new Date(body.datePaiement) : new Date(),
+          fournisseurId: new mongoose.Types.ObjectId(body.fournisseurId),
+          fournisseurNom,
+          modePaiement: body.modePaiement || 'Espèces',
+          reference: body.reference || '',
+          montantTotal,
+          lignes: cleanedLignes,
+          images: Array.isArray(body.images) ? body.images : [],
+          notes: body.notes || '',
+          createdBy: session.user.email,
+          isPaymentOnAccount: isPaymentOnAccount,
+          // Track advance usage if applicable
+          advanceUsed: useAdvanceBalance ? advanceAmount : 0,
+        };
+
+        paiement = new PaiementFournisseur(paiementData);
+
+        // Force Mongoose to recognize images as modified if present
+        if (Array.isArray(paiementData.images) && paiementData.images.length > 0) {
+          paiement.images = [];
+          paiementData.images.forEach((img: any) => {
+            paiement.images.push({
+              id: img.id || `${Date.now()}-${Math.random()}`,
+              name: img.name || '',
+              url: img.url || '',
+              publicId: img.publicId || undefined,
+              type: img.type || 'image/jpeg',
+              size: img.size || 0,
+              width: img.width || undefined,
+              height: img.height || undefined,
+              format: img.format || undefined,
+            });
+          });
+          (paiement as any).markModified('images');
+        }
+
+        // Save with validation
+        await paiement.save({ validateBeforeSave: true });
+        
+        // Success! Exit retry loop
+        break;
+      } catch (saveError: any) {
+        // Check if it's a duplicate key error (race condition - number was created between check and save)
+        if (saveError.code === 11000 && saveError.keyPattern && saveError.keyPattern.numero) {
+          // Duplicate key error on numero field
+          retryCount++;
+          
+          if (retryCount >= maxRetries) {
+            console.error(`Failed to generate unique payment number after ${maxRetries} attempts. Last attempted number: ${numero}`);
+            return NextResponse.json(
+              { error: 'Impossible de générer un numéro unique après plusieurs tentatives. Veuillez réessayer.' },
+              { status: 500 }
+            );
+          }
+          
+          // Generate new number and try again
+          // First try to increment the current number
+          const incremented = incrementPaymentNumber(numero);
+          if (incremented && incremented !== numero) {
+            // Check if incremented number doesn't exist
+            const exists = await (PaiementFournisseur as any).findOne({
+              societeId: new mongoose.Types.ObjectId(tenantId),
+              numero: incremented
+            }).lean();
+            
+            if (!exists) {
+              numero = incremented;
+              console.log(`Incremented payment number to: ${numero}`);
+            } else {
+              // Incremented number also exists, regenerate from scratch
+              console.log(`Incremented number ${incremented} also exists, regenerating...`);
+              numero = await generateNextPaymentNumber();
+            }
+          } else {
+            // If we can't increment, generate a completely new one
+            console.log(`Cannot increment ${numero}, regenerating...`);
+            numero = await generateNextPaymentNumber();
+          }
+          
+          // Small delay to avoid rapid retries
+          await new Promise(resolve => setTimeout(resolve, 100));
+        } else {
+          // Different error, re-throw it
+          throw saveError;
+        }
+      }
     }
 
-    // Save with validation skipped for payment on account (since factureId is optional in schema)
-    await paiement.save({ validateBeforeSave: true });
+    if (!paiement) {
+      return NextResponse.json(
+        { error: 'Impossible de créer le paiement. Veuillez réessayer.' },
+        { status: 500 }
+      );
+    }
 
     // Handle advance balance usage
     // When we use advance balance to pay an invoice, we simply mark advanceUsed in the payment.

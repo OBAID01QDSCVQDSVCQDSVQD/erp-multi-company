@@ -17,26 +17,59 @@ interface Expense {
     code: string;
     icone?: string;
   };
-  description: string;
-  montant: number;
-  devise: string;
-  tvaPct: number;
-  tvaDeductiblePct: number;
-  modePaiement: string;
-  statut: string;
-  fournisseurId?: {
+  description?: string;
+  centreCoutId?: {
+    _id: string;
+    code: string;
+    nom: string;
+  };
+  projetId?: {
     _id: string;
     name: string;
+  };
+  montantType: 'HT' | 'TTC';
+  montant: number;
+  devise: string;
+  taxCode: string;
+  tvaPct: number;
+  tvaDeductiblePct: number;
+  fodecActif: boolean;
+  fodecRate: number;
+  fodecBase: 'avantRemise' | 'apresRemise';
+  retenueActif: boolean;
+  retenueRate: number;
+  retenueBase: 'TTC_TIMBRE';
+  timbreFiscal: number;
+  remiseGlobalePct: number;
+  modePaiement: string;
+  fournisseurId?: {
+    _id: string;
+    type: 'societe' | 'particulier';
+    raisonSociale?: string;
+    nom?: string;
+    prenom?: string;
   };
   employeId?: {
     _id: string;
     firstName: string;
     lastName: string;
   };
-  projetId?: {
-    _id: string;
-    name: string;
-  };
+  referencePiece?: string;
+  notesInterne?: string;
+  statut: string;
+  // Calculated totals
+  baseHT: number;
+  fodec: number;
+  remise: number;
+  baseHTApresRemise: number;
+  tvaBase: number;
+  tva: number;
+  tvaNonDeductible: number;
+  retenue: number;
+  totalHT: number;
+  totalTaxes: number;
+  totalTTC: number;
+  netADecaisser: number;
   piecesJointes: Array<{
     nom: string;
     url: string;
@@ -48,7 +81,6 @@ interface Expense {
     height?: number;
     format?: string;
   }>;
-  notesInterne?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -105,7 +137,11 @@ export default function ExpenseDetailPage() {
     }
   };
 
-  const formatCurrency = (amount: number, currency: string = 'EUR') => {
+  const formatCurrency = (amount: number, currency: string = 'TND') => {
+    // Format with 3 decimal places for TND
+    if (currency === 'TND') {
+      return `${amount.toFixed(3)} ${currency}`;
+    }
     return new Intl.NumberFormat('fr-FR', {
       style: 'currency',
       currency: currency,
@@ -222,14 +258,34 @@ export default function ExpenseDetailPage() {
                     {expense.categorieId.nom} ({expense.categorieId.code})
                   </dd>
                 </div>
-                <div className="sm:col-span-2">
-                  <dt className="text-sm font-medium text-gray-500">Description</dt>
-                  <dd className="mt-1 text-sm text-gray-900">{expense.description}</dd>
-                </div>
+                {expense.description && (
+                  <div className="sm:col-span-2">
+                    <dt className="text-sm font-medium text-gray-500">Description</dt>
+                    <dd className="mt-1 text-sm text-gray-900">{expense.description}</dd>
+                  </div>
+                )}
+                {expense.centreCoutId && (
+                  <div>
+                    <dt className="text-sm font-medium text-gray-500">Centre de coût</dt>
+                    <dd className="mt-1 text-sm text-gray-900">
+                      {expense.centreCoutId.code} - {expense.centreCoutId.nom}
+                    </dd>
+                  </div>
+                )}
+                {expense.projetId && (
+                  <div>
+                    <dt className="text-sm font-medium text-gray-500">Projet/Chantier</dt>
+                    <dd className="mt-1 text-sm text-gray-900">{expense.projetId.name}</dd>
+                  </div>
+                )}
                 {expense.fournisseurId && (
                   <div>
                     <dt className="text-sm font-medium text-gray-500">Fournisseur</dt>
-                    <dd className="mt-1 text-sm text-gray-900">{expense.fournisseurId.name}</dd>
+                    <dd className="mt-1 text-sm text-gray-900">
+                      {expense.fournisseurId.type === 'societe'
+                        ? expense.fournisseurId.raisonSociale
+                        : `${expense.fournisseurId.nom || ''} ${expense.fournisseurId.prenom || ''}`.trim()}
+                    </dd>
                   </div>
                 )}
                 {expense.employeId && (
@@ -240,12 +296,6 @@ export default function ExpenseDetailPage() {
                     </dd>
                   </div>
                 )}
-                {expense.projetId && (
-                  <div>
-                    <dt className="text-sm font-medium text-gray-500">Projet</dt>
-                    <dd className="mt-1 text-sm text-gray-900">{expense.projetId.name}</dd>
-                  </div>
-                )}
               </dl>
             </div>
 
@@ -254,10 +304,26 @@ export default function ExpenseDetailPage() {
               <h3 className="text-lg font-medium text-gray-900 mb-4">Montant et TVA</h3>
               <dl className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
                 <div>
-                  <dt className="text-sm font-medium text-gray-500">Montant</dt>
+                  <dt className="text-sm font-medium text-gray-500">Type de montant</dt>
+                  <dd className="mt-1 text-sm text-gray-900">{expense.montantType}</dd>
+                </div>
+                <div>
+                  <dt className="text-sm font-medium text-gray-500">Montant ({expense.montantType})</dt>
                   <dd className="mt-1 text-2xl font-semibold text-gray-900">
                     {formatCurrency(expense.montant, expense.devise)}
                   </dd>
+                </div>
+                <div>
+                  <dt className="text-sm font-medium text-gray-500">Devise</dt>
+                  <dd className="mt-1 text-sm text-gray-900">{expense.devise}</dd>
+                </div>
+                <div>
+                  <dt className="text-sm font-medium text-gray-500">Code TVA</dt>
+                  <dd className="mt-1 text-sm text-gray-900">{expense.taxCode} ({expense.tvaPct}%)</dd>
+                </div>
+                <div>
+                  <dt className="text-sm font-medium text-gray-500">TVA Déductible (%)</dt>
+                  <dd className="mt-1 text-sm text-gray-900">{expense.tvaDeductiblePct}%</dd>
                 </div>
                 <div>
                   <dt className="text-sm font-medium text-gray-500">Mode de paiement</dt>
@@ -265,15 +331,65 @@ export default function ExpenseDetailPage() {
                     {modePaiementLabels[expense.modePaiement as keyof typeof modePaiementLabels]}
                   </dd>
                 </div>
-                <div>
-                  <dt className="text-sm font-medium text-gray-500">TVA (%)</dt>
-                  <dd className="mt-1 text-sm text-gray-900">{expense.tvaPct}%</dd>
-                </div>
-                <div>
-                  <dt className="text-sm font-medium text-gray-500">TVA Déductible (%)</dt>
-                  <dd className="mt-1 text-sm text-gray-900">{expense.tvaDeductiblePct}%</dd>
-                </div>
+                {expense.referencePiece && (
+                  <div>
+                    <dt className="text-sm font-medium text-gray-500">Référence pièce / N° facture fournisseur</dt>
+                    <dd className="mt-1 text-sm text-gray-900">{expense.referencePiece}</dd>
+                  </div>
+                )}
               </dl>
+
+              {/* FODEC */}
+              {expense.fodecActif && (
+                <div className="mt-6 p-4 bg-gray-50 rounded-md">
+                  <h4 className="text-sm font-medium text-gray-900 mb-2">FODEC</h4>
+                  <dl className="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">
+                    <div>
+                      <dt className="text-xs text-gray-500">Taux</dt>
+                      <dd className="text-sm text-gray-900">{expense.fodecRate}%</dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-gray-500">Base de calcul</dt>
+                      <dd className="text-sm text-gray-900">
+                        {expense.fodecBase === 'avantRemise' ? 'Avant remise' : 'Après remise'}
+                      </dd>
+                    </div>
+                  </dl>
+                </div>
+              )}
+
+              {/* Retenue */}
+              {expense.retenueActif && (
+                <div className="mt-4 p-4 bg-gray-50 rounded-md">
+                  <h4 className="text-sm font-medium text-gray-900 mb-2">Retenue à la source</h4>
+                  <dl className="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">
+                    <div>
+                      <dt className="text-xs text-gray-500">Taux</dt>
+                      <dd className="text-sm text-gray-900">{expense.retenueRate}%</dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-gray-500">Base de calcul</dt>
+                      <dd className="text-sm text-gray-900">TTC - Timbre fiscal</dd>
+                    </div>
+                  </dl>
+                </div>
+              )}
+
+              {/* Remise globale */}
+              {expense.remiseGlobalePct > 0 && (
+                <div className="mt-4">
+                  <dt className="text-sm font-medium text-gray-500">Remise globale</dt>
+                  <dd className="mt-1 text-sm text-gray-900">{expense.remiseGlobalePct}%</dd>
+                </div>
+              )}
+
+              {/* Timbre fiscal */}
+              {expense.timbreFiscal > 0 && (
+                <div className="mt-4">
+                  <dt className="text-sm font-medium text-gray-500">Timbre fiscal</dt>
+                  <dd className="mt-1 text-sm text-gray-900">{formatCurrency(expense.timbreFiscal, expense.devise)}</dd>
+                </div>
+              )}
             </div>
 
             {/* Notes internes */}
@@ -351,28 +467,64 @@ export default function ExpenseDetailPage() {
           {/* Sidebar */}
           <div className="space-y-6">
             <div className="bg-white p-6 rounded-lg shadow">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Résumé</h3>
-              <div className="space-y-4">
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-500">Montant HT</span>
-                  <span className="text-sm font-medium text-gray-900">
-                    {formatCurrency(expense.montant / (1 + expense.tvaPct / 100), expense.devise)}
-                  </span>
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Totaux calculés</h3>
+              <div className="space-y-3">
+                <div className="flex justify-between py-2 border-b">
+                  <span className="text-sm text-gray-600">Base HT:</span>
+                  <span className="text-sm font-medium">{formatCurrency(expense.baseHT, expense.devise)}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-500">TVA</span>
-                  <span className="text-sm font-medium text-gray-900">
-                    {formatCurrency(expense.montant - (expense.montant / (1 + expense.tvaPct / 100)), expense.devise)}
-                  </span>
-                </div>
-                <div className="border-t pt-4">
-                  <div className="flex justify-between">
-                    <span className="text-base font-medium text-gray-900">Total TTC</span>
-                    <span className="text-base font-semibold text-gray-900">
-                      {formatCurrency(expense.montant, expense.devise)}
-                    </span>
+                {expense.remise > 0 && (
+                  <div className="flex justify-between py-2 border-b">
+                    <span className="text-sm text-gray-600">Remise:</span>
+                    <span className="text-sm font-medium text-red-600">-{formatCurrency(expense.remise, expense.devise)}</span>
                   </div>
+                )}
+                <div className="flex justify-between py-2 border-b">
+                  <span className="text-sm text-gray-600">Base HT après remise:</span>
+                  <span className="text-sm font-medium">{formatCurrency(expense.baseHTApresRemise, expense.devise)}</span>
                 </div>
+                {expense.fodec > 0 && (
+                  <div className="flex justify-between py-2 border-b">
+                    <span className="text-sm text-gray-600">FODEC:</span>
+                    <span className="text-sm font-medium">{formatCurrency(expense.fodec, expense.devise)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between py-2 border-b">
+                  <span className="text-sm text-gray-600">TVA ({expense.tvaPct}%):</span>
+                  <span className="text-sm font-medium">{formatCurrency(expense.tva, expense.devise)}</span>
+                </div>
+                {expense.tvaNonDeductible > 0 && (
+                  <div className="flex justify-between py-2 border-b">
+                    <span className="text-sm text-gray-600">TVA non déductible:</span>
+                    <span className="text-sm font-medium text-orange-600">{formatCurrency(expense.tvaNonDeductible, expense.devise)}</span>
+                  </div>
+                )}
+                {expense.timbreFiscal > 0 && (
+                  <div className="flex justify-between py-2 border-b">
+                    <span className="text-sm text-gray-600">Timbre fiscal:</span>
+                    <span className="text-sm font-medium">{formatCurrency(expense.timbreFiscal, expense.devise)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between py-2 border-b">
+                  <span className="text-sm text-gray-600">Total HT:</span>
+                  <span className="text-sm font-medium">{formatCurrency(expense.totalHT, expense.devise)}</span>
+                </div>
+                <div className="flex justify-between py-3 border-t-2 border-gray-300">
+                  <span className="text-base font-semibold text-gray-900">Total TTC:</span>
+                  <span className="text-base font-bold text-indigo-600">{formatCurrency(expense.totalTTC, expense.devise)}</span>
+                </div>
+                {expense.retenue > 0 && (
+                  <div className="flex justify-between py-2 border-b">
+                    <span className="text-sm text-gray-600">Retenue à la source:</span>
+                    <span className="text-sm font-medium text-orange-600">{formatCurrency(expense.retenue, expense.devise)}</span>
+                  </div>
+                )}
+                {expense.retenue > 0 && (
+                  <div className="flex justify-between py-3 border-t-2 border-gray-300 mt-2">
+                    <span className="text-base font-semibold text-gray-900">Net à décaisser:</span>
+                    <span className="text-base font-bold text-green-600">{formatCurrency(expense.netADecaisser, expense.devise)}</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
