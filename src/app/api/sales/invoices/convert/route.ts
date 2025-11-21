@@ -88,6 +88,39 @@ export async function POST(request: NextRequest) {
     console.log(`[Convert] Source ${sourceType} ${sourceDoc.numero} -> Invoice ${numero} (last: ${lastInvoice?.numero || 'none'})`);
 
     // Create invoice from source document
+    // Allow overriding quantities from body.lignes if provided (for quantity updates during conversion)
+    const sourceLignes = sourceDoc.lignes || [];
+    const bodyLignes = body.lignes || [];
+    
+    // Create a map of body lines by sourceLineId or productId for quick lookup
+    const bodyLinesMap = new Map();
+    bodyLignes.forEach((line: any) => {
+      const key = line.sourceLineId || line.productId?.toString();
+      if (key) {
+        bodyLinesMap.set(key, line);
+      }
+    });
+    
+    const invoiceLignes = sourceLignes.map((line: any) => {
+      const sourceLineId = line._id?.toString() || line.sourceLineId;
+      const bodyLine = bodyLinesMap.get(sourceLineId) || bodyLinesMap.get(line.productId?.toString());
+      
+      // Use quantity from body if provided, otherwise use source quantity
+      return {
+        productId: bodyLine?.productId || line.productId,
+        codeAchat: bodyLine?.codeAchat || line.codeAchat,
+        categorieCode: bodyLine?.categorieCode || line.categorieCode,
+        designation: bodyLine?.designation || line.designation,
+        quantite: bodyLine?.quantite !== undefined ? bodyLine.quantite : line.quantite,
+        uomCode: bodyLine?.uomCode || line.uomCode,
+        prixUnitaireHT: bodyLine?.prixUnitaireHT !== undefined ? bodyLine.prixUnitaireHT : line.prixUnitaireHT,
+        remisePct: bodyLine?.remisePct !== undefined ? bodyLine.remisePct : (line.remisePct || 0),
+        taxCode: bodyLine?.taxCode || line.taxCode,
+        tvaPct: bodyLine?.tvaPct !== undefined ? bodyLine.tvaPct : (line.tvaPct || 0),
+        sourceLineId: sourceLineId, // Track source line
+      };
+    });
+    
     const invoice = new Document({
       tenantId,
       type: 'FAC',
@@ -101,19 +134,7 @@ export async function POST(request: NextRequest) {
       modePaiement: body.modePaiement || sourceDoc.modePaiement,
       conditionsPaiement: body.conditionsPaiement || sourceDoc.conditionsPaiement,
       notes: body.notes || sourceDoc.notes,
-      lignes: sourceDoc.lignes ? sourceDoc.lignes.map((line: any) => ({
-        productId: line.productId,
-        codeAchat: line.codeAchat,
-        categorieCode: line.categorieCode,
-        designation: line.designation,
-        quantite: line.quantite,
-        uomCode: line.uomCode,
-        prixUnitaireHT: line.prixUnitaireHT,
-        remisePct: line.remisePct || 0,
-        taxCode: line.taxCode,
-        tvaPct: line.tvaPct || 0,
-        sourceLineId: line._id?.toString() || line.sourceLineId, // Track source line
-      })) : [],
+      lignes: invoiceLignes,
       linkedDocuments: [sourceId], // Link to source document
       createdBy: session.user.email
     });
@@ -124,13 +145,13 @@ export async function POST(request: NextRequest) {
     await (invoice as any).save();
 
     // Handle stock movements based on source type
-    // If converting from BL, do NOT create or update stock movements
-    // because stock was already reduced when BL was created
+    // If converting from BL, update existing stock movements to reference the invoice
+    // instead of creating new ones (to avoid double stock reduction)
     // If converting from DEVIS, create new stock movements
     if (sourceType === 'BL') {
-      // Do nothing - stock movements already exist from BL creation
-      // We should NOT update or create new movements to avoid double stock reduction
-      console.log(`[Convert] Skipping stock movements for invoice from BL ${sourceId} - stock already reduced when BL was created`);
+      // Update existing BL stock movements to reference the invoice
+      // This prevents double stock reduction and links movements to the invoice
+      await updateStockMovementsFromBLToInvoice(invoice, sourceId, tenantId, session.user.email);
     } else {
       // For DEVIS or other sources, create new stock movements
       await createStockMovementsForInvoice(invoice, tenantId, session.user.email);

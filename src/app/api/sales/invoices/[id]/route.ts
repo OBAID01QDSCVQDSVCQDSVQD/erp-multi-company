@@ -136,8 +136,28 @@ export async function PATCH(
 
     // Update stock movements for stored products
     // Check if invoice is created from BL - if so, do NOT create/update stock movements
+    // But if it's from DEVIS, we should update stock movements with new quantities
     const isFromBL = invoice.linkedDocuments && invoice.linkedDocuments.length > 0;
-    if (!isFromBL) {
+    
+    // Check if the linked document is a BL
+    let linkedDocIsBL = false;
+    if (isFromBL) {
+      try {
+        const linkedDoc = await (Document as any).findOne({
+          _id: invoice.linkedDocuments[0],
+          tenantId,
+        }).lean();
+        if (linkedDoc && linkedDoc.type === 'BL') {
+          linkedDocIsBL = true;
+        }
+      } catch (error) {
+        console.error('Error checking linked document type:', error);
+      }
+    }
+    
+    if (!linkedDocIsBL) {
+      // Update stock movements for invoices from DEVIS or direct creation
+      // This ensures quantities in stock movements match the updated invoice quantities
       await updateStockMovementsForInvoice(
         invoice,
         oldLignes,
@@ -354,12 +374,14 @@ async function updateStockMovementsForInvoice(
       } else {
         // Product exists, update or create movement
         if (existingMovement) {
-          // Update existing movement
+          // Update existing movement with new quantity from invoice
+          const oldQte = existingMovement.qte;
           existingMovement.qte = currentLine.quantite;
           existingMovement.date = dateDoc;
           await (existingMovement as any).save();
+          console.log(`[Update Invoice Stock] Updated movement for product ${productIdStr}: ${oldQte} -> ${currentLine.quantite} (invoice ${invoice.numero})`);
         } else {
-          // Create new movement
+          // Create new movement with quantity from invoice
           const mouvement = new MouvementStock({
             societeId: tenantId,
             productId: productIdStr, // Ensure it's a string
@@ -373,6 +395,7 @@ async function updateStockMovementsForInvoice(
           });
 
           await (mouvement as any).save();
+          console.log(`[Update Invoice Stock] Created movement for product ${productIdStr}: ${currentLine.quantite} (invoice ${invoice.numero})`);
         }
       }
     } catch (error) {
