@@ -5,6 +5,8 @@ import connectDB from '@/lib/mongodb';
 import Expense from '@/lib/models/Expense';
 import ExpenseCategory from '@/lib/models/ExpenseCategory';
 import Counter from '@/lib/models/Counter';
+import Supplier from '@/lib/models/Supplier';
+import User from '@/lib/models/User';
 import mongoose from 'mongoose';
 
 // Force dynamic rendering since we use getServerSession which uses headers()
