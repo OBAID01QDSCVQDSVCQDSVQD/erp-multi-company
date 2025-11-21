@@ -6,6 +6,9 @@ import Document from '@/lib/models/Document';
 import PurchaseInvoice from '@/lib/models/PurchaseInvoice';
 import mongoose from 'mongoose';
 
+// Force dynamic rendering since we use getServerSession which uses headers()
+export const dynamic = 'force-dynamic';
+
 // GET - Get monthly usage history for current company
 export async function GET(req: NextRequest) {
   try {
