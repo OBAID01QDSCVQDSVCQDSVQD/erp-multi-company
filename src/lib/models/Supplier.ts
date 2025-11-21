@@ -107,7 +107,7 @@ export interface ISupplier extends Document {
   createdBy?: string;
 }
 
-const AddressSchema = new Schema<ISupplierAddress>({
+const AddressSchema = new (Schema as any)({
   ligne1: { type: String },
   ligne2: { type: String },
   ville: { type: String },
@@ -116,7 +116,7 @@ const AddressSchema = new Schema<ISupplierAddress>({
   pays: { type: String, default: 'TN' }
 }, { _id: false });
 
-const ContactSchema = new Schema<ISupplierContact>({
+const ContactSchema = new (Schema as any)({
   nom: { type: String },
   prenom: { type: String },
   role: { type: String },
@@ -126,14 +126,14 @@ const ContactSchema = new Schema<ISupplierContact>({
   principal: { type: Boolean, default: false }
 }, { _id: true });
 
-const DocumentSchema = new Schema<ISupplierDocument>({
+const DocumentSchema = new (Schema as any)({
   url: { type: String },
   nom: { type: String },
   type: { type: String, enum: ['contrat', 'certificat', 'autre'] },
   expiration: { type: Date }
 }, { _id: false });
 
-const RatingSchema = new Schema<ISupplierRating>({
+const RatingSchema = new (Schema as any)({
   qualite: { type: Number, min: 0, max: 5 },
   delai: { type: Number, min: 0, max: 5 },
   prix: { type: Number, min: 0, max: 5 },
@@ -141,7 +141,7 @@ const RatingSchema = new Schema<ISupplierRating>({
   noteGlobale: { type: Number, min: 0, max: 5 }
 }, { _id: false });
 
-const CatalogueSchema = new Schema<ISupplierCatalogue>({
+const CatalogueSchema = new (Schema as any)({
   productId: { type: String, required: true },
   codeAchat: { type: String },
   designationFournisseur: { type: String },
