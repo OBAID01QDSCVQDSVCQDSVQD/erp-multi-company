@@ -65,12 +65,13 @@ export async function GET(request: NextRequest) {
     }
 
     // Récupération des dépenses avec pagination
+    // Tri par date (plus récent en premier), puis par createdAt si même date
     const expenses = await (Expense as any).find(filter)
       .populate('categorieId', 'nom code icone')
       .populate('fournisseurId', 'name')
       .populate('employeId', 'firstName lastName')
       .populate('projetId', 'name')
-      .sort({ date: -1 })
+      .sort({ date: -1, createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit);
 

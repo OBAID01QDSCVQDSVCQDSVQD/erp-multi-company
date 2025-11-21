@@ -108,6 +108,12 @@ export default function ExpensesPage() {
     statut: '',
     projetId: '',
   });
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 20,
+    total: 0,
+    pages: 0,
+  });
   const [showFilters, setShowFilters] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [editingCategory, setEditingCategory] = useState<ExpenseCategory | null>(null);
@@ -123,7 +129,7 @@ export default function ExpensesPage() {
       fetchExpenses();
       fetchCategories();
     }
-  }, [filters, tenantId]);
+  }, [filters, tenantId, pagination.page]);
 
   const fetchExpenses = async () => {
     try {
@@ -134,6 +140,8 @@ export default function ExpensesPage() {
       if (filters.categorieId) queryParams.append('categorieId', filters.categorieId);
       if (filters.statut) queryParams.append('statut', filters.statut);
       if (filters.projetId) queryParams.append('projetId', filters.projetId);
+      queryParams.append('page', pagination.page.toString());
+      queryParams.append('limit', pagination.limit.toString());
 
       const response = await fetch(`/api/expenses?${queryParams}`, {
         headers: {
@@ -143,6 +151,13 @@ export default function ExpensesPage() {
       if (response.ok) {
         const data = await response.json();
         setExpenses(data.expenses || []);
+        if (data.pagination) {
+          setPagination(prev => ({
+            ...prev,
+            total: data.pagination.total,
+            pages: data.pagination.pages,
+          }));
+        }
       } else {
         setError('Erreur lors du chargement des dépenses');
       }
@@ -180,6 +195,7 @@ export default function ExpensesPage() {
       return;
     }
     setFilters(prev => ({ ...prev, [key]: value }));
+    setPagination(prev => ({ ...prev, page: 1 })); // Reset to first page when filters change
   };
 
   const clearFilters = () => {
@@ -189,6 +205,12 @@ export default function ExpensesPage() {
       statut: '',
       projetId: '',
     });
+    setPagination(prev => ({ ...prev, page: 1 }));
+  };
+
+  const handlePageChange = (newPage: number) => {
+    setPagination(prev => ({ ...prev, page: newPage }));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleCategorySuccess = () => {
@@ -651,7 +673,7 @@ export default function ExpensesPage() {
         )}
 
         {/* Expenses list */}
-        {expenses.length === 0 ? (
+        {expenses.length === 0 && !loading ? (
           <div className="text-center py-12">
             <div className="text-6xl mb-4">💸</div>
             <h3 className="mt-2 text-sm font-medium text-gray-900">Aucune dépense</h3>
@@ -669,67 +691,162 @@ export default function ExpensesPage() {
             </div>
           </div>
         ) : (
-          <div className="bg-white shadow overflow-hidden sm:rounded-md">
-            <ul className="divide-y divide-gray-200">
-              {expenses.map((expense) => (
-                <li key={expense._id}>
-                  <div className="px-4 py-4 flex items-center justify-between">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0">
-                        <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
-                          <span className="text-indigo-600 font-medium">
-                            {expense.categorieId.icone || '💸'}
-                          </span>
+          <>
+            <div className="bg-white shadow overflow-hidden sm:rounded-md">
+              <ul className="divide-y divide-gray-200">
+                {expenses.map((expense) => (
+                  <li key={expense._id}>
+                    <div className="px-4 py-4 flex items-center justify-between">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0">
+                          <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
+                            <span className="text-indigo-600 font-medium">
+                              {expense.categorieId.icone || '💸'}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="ml-4">
+                          <div className="flex items-center">
+                            <p className="text-sm font-medium text-gray-900">
+                              {expense.numero}
+                            </p>
+                            <span className={`ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statutColors[expense.statut as keyof typeof statutColors]}`}>
+                              {expense.statut.replace('_', ' ')}
+                            </span>
+                          </div>
+                          <div className="mt-1">
+                            <p className="text-sm text-gray-500">
+                              {expense.description}
+                            </p>
+                            <p className="text-sm text-gray-500">
+                              {expense.categorieId.nom} {expense.categorieId._source === 'global' && '(Globale)'} • {modePaiementLabels[expense.modePaiement as keyof typeof modePaiementLabels]} • {formatDate(expense.date)}
+                            </p>
+                          </div>
                         </div>
                       </div>
-                      <div className="ml-4">
-                        <div className="flex items-center">
-                          <p className="text-sm font-medium text-gray-900">
-                            {expense.numero}
+                      <div className="flex items-center space-x-4">
+                        <div className="text-right">
+                          <p className="text-lg font-semibold text-gray-900">
+                            {formatCurrency(expense.montant, expense.devise)}
                           </p>
-                          <span className={`ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statutColors[expense.statut as keyof typeof statutColors]}`}>
-                            {expense.statut.replace('_', ' ')}
-                          </span>
+                          <p className="text-sm text-gray-500">
+                            TVA: {expense.tvaPct}%
+                          </p>
                         </div>
-                        <div className="mt-1">
-                          <p className="text-sm text-gray-500">
-                            {expense.description}
-                          </p>
-                          <p className="text-sm text-gray-500">
-                            {expense.categorieId.nom} {expense.categorieId._source === 'global' && '(Globale)'} • {modePaiementLabels[expense.modePaiement as keyof typeof modePaiementLabels]} • {formatDate(expense.date)}
-                          </p>
+                        <div className="flex space-x-2">
+                          <button 
+                            onClick={() => handleViewExpense(expense._id)}
+                            className="text-indigo-600 hover:text-indigo-900 text-sm font-medium"
+                          >
+                            Voir
+                          </button>
+                          <button 
+                            onClick={() => handleEditExpense(expense._id)}
+                            className="text-gray-600 hover:text-gray-900 text-sm font-medium"
+                          >
+                            Modifier
+                          </button>
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center space-x-4">
-                      <div className="text-right">
-                        <p className="text-lg font-semibold text-gray-900">
-                          {formatCurrency(expense.montant, expense.devise)}
-                        </p>
-                        <p className="text-sm text-gray-500">
-                          TVA: {expense.tvaPct}%
-                        </p>
-                      </div>
-                      <div className="flex space-x-2">
-                        <button 
-                          onClick={() => handleViewExpense(expense._id)}
-                          className="text-indigo-600 hover:text-indigo-900 text-sm font-medium"
-                        >
-                          Voir
-                        </button>
-                        <button 
-                          onClick={() => handleEditExpense(expense._id)}
-                          className="text-gray-600 hover:text-gray-900 text-sm font-medium"
-                        >
-                          Modifier
-                        </button>
-                      </div>
-                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Pagination */}
+            {pagination.pages > 1 && (
+              <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6 rounded-md shadow">
+                <div className="flex-1 flex justify-between sm:hidden">
+                  <button
+                    onClick={() => handlePageChange(pagination.page - 1)}
+                    disabled={pagination.page === 1}
+                    className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Précédent
+                  </button>
+                  <button
+                    onClick={() => handlePageChange(pagination.page + 1)}
+                    disabled={pagination.page === pagination.pages}
+                    className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Suivant
+                  </button>
+                </div>
+                <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm text-gray-700">
+                      Affichage de <span className="font-medium">{(pagination.page - 1) * pagination.limit + 1}</span> à{' '}
+                      <span className="font-medium">
+                        {Math.min(pagination.page * pagination.limit, pagination.total)}
+                      </span>{' '}
+                      sur <span className="font-medium">{pagination.total}</span> résultats
+                    </p>
                   </div>
-                </li>
-              ))}
-            </ul>
-          </div>
+                  <div>
+                    <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                      <button
+                        onClick={() => handlePageChange(pagination.page - 1)}
+                        disabled={pagination.page === 1}
+                        className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <span className="sr-only">Précédent</span>
+                        <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                          <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </button>
+                      {/* Page numbers */}
+                      {Array.from({ length: pagination.pages }, (_, i) => i + 1).map((pageNum) => {
+                        // Show first page, last page, current page, and pages around current
+                        if (
+                          pageNum === 1 ||
+                          pageNum === pagination.pages ||
+                          (pageNum >= pagination.page - 1 && pageNum <= pagination.page + 1)
+                        ) {
+                          return (
+                            <button
+                              key={pageNum}
+                              onClick={() => handlePageChange(pageNum)}
+                              className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                                pageNum === pagination.page
+                                  ? 'z-10 bg-indigo-50 border-indigo-500 text-indigo-600'
+                                  : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                              }`}
+                            >
+                              {pageNum}
+                            </button>
+                          );
+                        } else if (
+                          pageNum === pagination.page - 2 ||
+                          pageNum === pagination.page + 2
+                        ) {
+                          return (
+                            <span
+                              key={pageNum}
+                              className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700"
+                            >
+                              ...
+                            </span>
+                          );
+                        }
+                        return null;
+                      })}
+                      <button
+                        onClick={() => handlePageChange(pagination.page + 1)}
+                        disabled={pagination.page === pagination.pages}
+                        className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <span className="sr-only">Suivant</span>
+                        <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                          <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </button>
+                    </nav>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
         )}
 
         {/* Modale de catégorie */}
