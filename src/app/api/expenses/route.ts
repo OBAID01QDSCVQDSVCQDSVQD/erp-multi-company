@@ -22,6 +22,10 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const tenantId = session.user.companyId;
     
+    // Debug: Log tenantId
+    console.log('Expenses API - tenantId:', tenantId);
+    console.log('Expenses API - session.user:', JSON.stringify(session.user, null, 2));
+    
     // Filtres
     const periode = searchParams.get('periode');
     const categorieId = searchParams.get('categorieId');
@@ -42,7 +46,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Construction du filtre
-    const filter: any = { tenantId };
+    // Ensure tenantId is a string for comparison
+    const filter: any = { tenantId: String(tenantId) };
     
     if (periode) {
       const [startDate, endDate] = periode.split(',');
@@ -64,21 +69,66 @@ export async function GET(request: NextRequest) {
       filter.projetId = projetId;
     }
 
+    // Debug: Log filter and count
+    console.log('Expenses filter:', JSON.stringify(filter, null, 2));
+    
+    // Check total without filter first
+    const totalWithoutFilter = await (Expense as any).countDocuments({});
+    console.log('Total expenses in DB (all tenants):', totalWithoutFilter);
+    
+    const total = await (Expense as any).countDocuments(filter);
+    console.log('Total expenses found with filter:', total);
+    
+    // If no expenses found, check if there are expenses with different tenantId format
+    if (total === 0 && totalWithoutFilter > 0) {
+      const sampleExpense = await (Expense as any).findOne({}).lean();
+      if (sampleExpense) {
+        console.log('Sample expense tenantId:', sampleExpense.tenantId, 'Type:', typeof sampleExpense.tenantId);
+        console.log('Filter tenantId:', tenantId, 'Type:', typeof tenantId);
+      }
+    }
+
     // Récupération des dépenses avec pagination
     // Tri par date (plus récent en premier), puis par createdAt si même date
-    const expenses = await (Expense as any).find(filter)
-      .populate('categorieId', 'nom code icone')
-      .populate('fournisseurId', 'name')
-      .populate('employeId', 'firstName lastName')
-      .populate('projetId', 'name')
+    let expenses = await (Expense as any).find(filter)
+      .populate({
+        path: 'categorieId',
+        select: 'nom code icone',
+        options: { strictPopulate: false }
+      })
+      .populate({
+        path: 'fournisseurId',
+        select: 'name',
+        options: { strictPopulate: false }
+      })
+      .populate({
+        path: 'employeId',
+        select: 'firstName lastName',
+        options: { strictPopulate: false }
+      })
+      .populate({
+        path: 'projetId',
+        select: 'name',
+        options: { strictPopulate: false }
+      })
       .sort({ date: -1, createdAt: -1 })
       .skip((page - 1) * limit)
-      .limit(limit);
+      .limit(limit)
+      .lean();
 
-    const total = await (Expense as any).countDocuments(filter);
+    // Convert to plain objects and handle null populate results
+    expenses = expenses.map((exp: any) => ({
+      ...exp,
+      categorieId: exp.categorieId || { _id: exp.categorieId, nom: 'Catégorie supprimée', code: '', icone: '💸' },
+      fournisseurId: exp.fournisseurId || null,
+      employeId: exp.employeId || null,
+      projetId: exp.projetId || null,
+    }));
+
+    console.log('Expenses retrieved:', expenses?.length || 0);
 
     return NextResponse.json({
-      expenses,
+      expenses: expenses || [],
       pagination: {
         page,
         limit,
@@ -90,7 +140,16 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Erreur lors de la récupération des dépenses:', error);
     return NextResponse.json(
-      { error: 'Erreur serveur' },
+      { 
+        error: 'Erreur serveur',
+        expenses: [],
+        pagination: {
+          page: 1,
+          limit: 20,
+          total: 0,
+          pages: 0
+        }
+      },
       { status: 500 }
     );
   }

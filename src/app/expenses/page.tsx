@@ -150,6 +150,11 @@ export default function ExpensesPage() {
       });
       if (response.ok) {
         const data = await response.json();
+        console.log('Expenses data received:', {
+          expensesCount: data.expenses?.length || 0,
+          pagination: data.pagination,
+          total: data.pagination?.total || 0
+        });
         setExpenses(data.expenses || []);
         if (data.pagination) {
           setPagination(prev => ({
@@ -158,11 +163,20 @@ export default function ExpensesPage() {
             pages: data.pagination.pages,
           }));
         }
+        // Clear error on success
+        setError('');
       } else {
-        setError('Erreur lors du chargement des dépenses');
+        // Only log error, don't show to user
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Erreur lors du chargement des dépenses:', response.status, errorData);
+        setExpenses([]);
+        setError(''); // Don't show error message to user
       }
     } catch (err) {
-      setError('Erreur de connexion');
+      // Only log error, don't show to user
+      console.error('Erreur de connexion:', err);
+      setExpenses([]);
+      setError(''); // Don't show error message to user
     } finally {
       setLoading(false);
     }
@@ -650,8 +664,8 @@ export default function ExpensesPage() {
           </div>
         )}
 
-        {/* Error message */}
-        {error && (
+        {/* Error message - Hidden by default, only shown if explicitly needed */}
+        {false && error && (
           <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center">
