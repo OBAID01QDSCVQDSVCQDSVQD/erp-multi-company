@@ -7,7 +7,7 @@ import Expense from '@/lib/models/Expense';
 // PATCH /api/expenses/[id] - Mettre à jour une dépense (validation/paiement)
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> | { id: string } }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -16,7 +16,8 @@ export async function PATCH(
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }
 
-    const { id } = params;
+    const resolvedParams = await Promise.resolve(params);
+    const { id } = resolvedParams;
     const body = await request.json();
     const tenantId = session.user.companyId;
 
@@ -83,7 +84,7 @@ export async function PATCH(
 // GET /api/expenses/[id] - Récupérer une dépense spécifique
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> | { id: string } }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -92,7 +93,8 @@ export async function GET(
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }
 
-    const { id } = params;
+    const resolvedParams = await Promise.resolve(params);
+    const { id } = resolvedParams;
     const tenantId = session.user.companyId;
 
     await connectDB();
@@ -127,7 +129,7 @@ export async function GET(
 // DELETE /api/expenses/[id] - Supprimer une dépense
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> | { id: string } }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -136,7 +138,8 @@ export async function DELETE(
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }
 
-    const { id } = params;
+    const resolvedParams = await Promise.resolve(params);
+    const { id } = resolvedParams;
     const tenantId = session.user.companyId;
 
     await connectDB();

@@ -183,7 +183,18 @@ export default function ReportsPage() {
   };
 
   const handleStatusChange = async (expenseId: string, newStatus: string) => {
+    console.log('Changing status for expense:', expenseId, 'to:', newStatus);
     try {
+      // Mettre à jour l'état local immédiatement pour un feedback visuel rapide
+      if (reportData && reportData.expenses) {
+        setReportData({
+          ...reportData,
+          expenses: reportData.expenses.map(exp => 
+            exp._id === expenseId ? { ...exp, statut: newStatus } : exp
+          )
+        });
+      }
+
       const response = await fetch(`/api/expenses/${expenseId}`, {
         method: 'PATCH',
         headers: {
@@ -192,15 +203,25 @@ export default function ReportsPage() {
         body: JSON.stringify({ statut: newStatus }),
       });
 
+      console.log('Response status:', response.status);
+
       if (response.ok) {
-        // Rafraîchir les données
+        const updatedData = await response.json();
+        console.log('Updated expense:', updatedData);
+        // Rafraîchir les données pour s'assurer de la cohérence
         await fetchReportData();
       } else {
         const errorData = await response.json();
+        console.error('Erreur lors de la mise à jour:', errorData);
         setError(errorData.error || 'Erreur lors de la mise à jour du statut');
+        // Recharger les données pour annuler le changement local
+        await fetchReportData();
       }
     } catch (err) {
+      console.error('Erreur de connexion:', err);
       setError('Erreur de connexion lors de la mise à jour du statut');
+      // Recharger les données pour annuler le changement local
+      await fetchReportData();
     }
   };
 
@@ -483,7 +504,7 @@ export default function ReportsPage() {
           {/* Dépenses Table */}
           {activeTab === 'expenses' && reportData?.expenses && (
             <div>
-              <div className="px-3 sm:px-6 py-3 sm:py-4 border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div className="px-2 py-2 border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <h3 className="text-base sm:text-lg font-medium text-gray-900 dark:text-white">
                   Dépenses ({reportData.expenses.length})
                 </h3>
@@ -500,31 +521,31 @@ export default function ReportsPage() {
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                   <thead className="bg-gray-50 dark:bg-gray-900">
                     <tr>
-                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Date
                       </th>
-                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Numéro
                       </th>
-                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden sm:table-cell">
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden sm:table-cell">
                         Nom de l'entreprise
                       </th>
-                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         TVA
                       </th>
-                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden md:table-cell">
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden md:table-cell">
                         FODEC
                       </th>
-                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden md:table-cell">
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden md:table-cell">
                         Timbre
                       </th>
-                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Total HT
                       </th>
-                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Total TTC
                       </th>
-                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Statut
                       </th>
                     </tr>
@@ -539,47 +560,39 @@ export default function ReportsPage() {
                     ) : (
                       reportData.expenses.map((expense) => (
                         <tr key={expense._id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900 dark:text-white">
+                          <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">
                             {formatDate(expense.date)}
                           </td>
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
+                          <td className="px-2 py-2 whitespace-nowrap text-xs font-medium text-gray-900 dark:text-white">
                             {expense.numero}
                           </td>
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden sm:table-cell">
+                          <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400 hidden sm:table-cell">
                             {expense.companyName}
                           </td>
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400" style={{ whiteSpace: 'nowrap' }}>
+                          <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400" style={{ whiteSpace: 'nowrap' }}>
                             {formatPrice(expense.tvaAmount || ((expense.totalTTC || 0) - (expense.totalHT || 0) - (expense.timbre || 0) - (expense.fodec || 0)), expense.devise || 'TND')}
                           </td>
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden md:table-cell" style={{ whiteSpace: 'nowrap' }}>
+                          <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400 hidden md:table-cell" style={{ whiteSpace: 'nowrap' }}>
                             {formatPrice(expense.fodec || 0, expense.devise || 'TND')}
                           </td>
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden md:table-cell" style={{ whiteSpace: 'nowrap' }}>
+                          <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400 hidden md:table-cell" style={{ whiteSpace: 'nowrap' }}>
                             {formatPrice(expense.timbre || 0, expense.devise || 'TND')}
                           </td>
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900 dark:text-white" style={{ whiteSpace: 'nowrap' }}>
+                          <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white" style={{ whiteSpace: 'nowrap' }}>
                             {formatPrice(expense.totalHT, expense.devise || 'TND')}
                           </td>
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900 dark:text-white" style={{ whiteSpace: 'nowrap' }}>
+                          <td className="px-2 py-2 whitespace-nowrap text-xs font-medium text-gray-900 dark:text-white" style={{ whiteSpace: 'nowrap' }}>
                             {formatPrice(expense.totalTTC, expense.devise || 'TND')}
                           </td>
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
-                            <select
-                              value={expense.statut}
-                              onChange={(e) => handleStatusChange(expense._id, e.target.value)}
-                              className={`text-xs sm:text-sm font-semibold rounded-full px-2 py-1 border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                                expense.statut === 'paye' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
-                                expense.statut === 'valide' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
-                                expense.statut === 'en_attente' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
-                                'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
-                              }`}
-                            >
-                              <option value="brouillon">Brouillon</option>
-                              <option value="en_attente">En attente</option>
-                              <option value="valide">Validé</option>
-                              <option value="paye">Payé</option>
-                              <option value="rejete">Rejeté</option>
-                            </select>
+                          <td className="px-2 py-2 whitespace-nowrap">
+                            <span className={`px-1.5 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                              expense.statut === 'paye' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                              expense.statut === 'valide' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
+                              expense.statut === 'en_attente' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
+                              'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                            }`}>
+                              {expense.statut.replace('_', ' ')}
+                            </span>
                           </td>
                         </tr>
                       ))
@@ -613,7 +626,7 @@ export default function ReportsPage() {
           {/* Factures de Vente Table */}
           {activeTab === 'sales' && reportData?.salesInvoices && (
             <div>
-              <div className="px-3 sm:px-6 py-3 sm:py-4 border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div className="px-2 py-2 border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <h3 className="text-base sm:text-lg font-medium text-gray-900 dark:text-white">
                   Factures de Vente ({reportData.salesInvoices.length})
                 </h3>
@@ -666,28 +679,28 @@ export default function ReportsPage() {
                     ) : (
                       reportData.salesInvoices.map((invoice) => (
                         <tr key={invoice._id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900 dark:text-white">
+                          <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm text-gray-900 dark:text-white">
                             {formatDate(invoice.date)}
                           </td>
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
+                          <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
                             {invoice.numero}
                           </td>
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden sm:table-cell">
+                          <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden sm:table-cell">
                             {invoice.companyName}
                           </td>
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                          <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                             {formatPrice(invoice.tva, invoice.devise || 'TND')}
                           </td>
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden md:table-cell">
+                          <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden md:table-cell">
                             {formatPrice(invoice.timbre || 0, invoice.devise || 'TND')}
                           </td>
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900 dark:text-white">
+                          <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm text-gray-900 dark:text-white">
                             {formatPrice(invoice.totalHT, invoice.devise || 'TND')}
                           </td>
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
+                          <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
                             {formatPrice(invoice.totalTTC, invoice.devise || 'TND')}
                           </td>
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap hidden lg:table-cell">
+                          <td className="px-2 py-2 whitespace-nowrap hidden lg:table-cell">
                             <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                               invoice.statut === 'PAYEE' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
                               invoice.statut === 'PARTIELLEMENT_PAYEE' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
@@ -729,7 +742,7 @@ export default function ReportsPage() {
           {/* Factures d'Achat Table */}
           {activeTab === 'purchases' && reportData?.purchaseInvoices && (
             <div>
-              <div className="px-3 sm:px-6 py-3 sm:py-4 border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div className="px-2 py-2 border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <h3 className="text-base sm:text-lg font-medium text-gray-900 dark:text-white">
                   Factures d'Achat ({reportData.purchaseInvoices.length})
                 </h3>
@@ -785,31 +798,31 @@ export default function ReportsPage() {
                     ) : (
                       reportData.purchaseInvoices.map((invoice) => (
                         <tr key={invoice._id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900 dark:text-white">
+                          <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm text-gray-900 dark:text-white">
                             {formatDate(invoice.date)}
                           </td>
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
+                          <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
                             {invoice.numero}
                           </td>
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden sm:table-cell">
+                          <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden sm:table-cell">
                             {invoice.companyName}
                           </td>
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                          <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                             {formatPrice(invoice.tva, invoice.devise || 'TND')}
                           </td>
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden md:table-cell">
+                          <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden md:table-cell">
                             {formatPrice(invoice.fodec, invoice.devise || 'TND')}
                           </td>
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden lg:table-cell">
+                          <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden lg:table-cell">
                             {formatPrice(invoice.timbre || 0, invoice.devise || 'TND')}
                           </td>
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900 dark:text-white">
+                          <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm text-gray-900 dark:text-white">
                             {formatPrice(invoice.totalHT, invoice.devise || 'TND')}
                           </td>
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
+                          <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
                             {formatPrice(invoice.totalTTC, invoice.devise || 'TND')}
                           </td>
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap hidden xl:table-cell">
+                          <td className="px-2 py-2 whitespace-nowrap hidden xl:table-cell">
                             <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                               invoice.statut === 'PAYEE' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
                               invoice.statut === 'PARTIELLEMENT_PAYEE' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
@@ -851,7 +864,7 @@ export default function ReportsPage() {
           {/* افوار (Invoices) Table */}
           {activeTab === 'invoices' && reportData?.invoices && (
             <div>
-              <div className="px-3 sm:px-6 py-3 sm:py-4 border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div className="px-2 py-2 border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <h3 className="text-base sm:text-lg font-medium text-gray-900 dark:text-white">
                   افوار ({reportData.invoices.length})
                 </h3>
@@ -907,13 +920,13 @@ export default function ReportsPage() {
                     ) : (
                       reportData.invoices.map((invoice) => (
                         <tr key={invoice._id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900 dark:text-white">
+                          <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm text-gray-900 dark:text-white">
                             {formatDate(invoice.date)}
                           </td>
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
+                          <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
                             {invoice.numero}
                           </td>
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
+                          <td className="px-2 py-2 whitespace-nowrap">
                             <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                               invoice.type === 'vente' 
                                 ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
@@ -922,22 +935,22 @@ export default function ReportsPage() {
                               {invoice.type === 'vente' ? 'Vente' : 'Achat'}
                             </span>
                           </td>
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden sm:table-cell">
+                          <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden sm:table-cell">
                             {invoice.companyName}
                           </td>
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                          <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                             {formatPrice(invoice.tva, invoice.devise || 'TND')}
                           </td>
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden md:table-cell">
+                          <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden md:table-cell">
                             {formatPrice(invoice.fodec || 0, invoice.devise || 'TND')}
                           </td>
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden lg:table-cell">
+                          <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden lg:table-cell">
                             {formatPrice(invoice.timbre || 0, invoice.devise || 'TND')}
                           </td>
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900 dark:text-white">
+                          <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm text-gray-900 dark:text-white">
                             {formatPrice(invoice.totalHT, invoice.devise || 'TND')}
                           </td>
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
+                          <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
                             {formatPrice(invoice.totalTTC, invoice.devise || 'TND')}
                           </td>
                         </tr>
@@ -952,7 +965,7 @@ export default function ReportsPage() {
           {/* Paiements Table */}
           {activeTab === 'payments' && reportData?.payments && (
             <div>
-              <div className="px-3 sm:px-6 py-3 sm:py-4 border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div className="px-2 py-2 border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <h3 className="text-base sm:text-lg font-medium text-gray-900 dark:text-white">
                   Paiements ({reportData.payments.length})
                 </h3>
@@ -1002,16 +1015,16 @@ export default function ReportsPage() {
                     ) : (
                       reportData.payments.map((payment) => (
                         <tr key={payment._id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900 dark:text-white">
+                          <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm text-gray-900 dark:text-white">
                             {formatDate(payment.date)}
                           </td>
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
+                          <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
                             {payment.numero}
                           </td>
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden sm:table-cell">
+                          <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden sm:table-cell">
                             {payment.companyName}
                           </td>
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
+                          <td className="px-2 py-2 whitespace-nowrap">
                             <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                               payment.type === 'client' 
                                 ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
@@ -1020,13 +1033,13 @@ export default function ReportsPage() {
                               {payment.type === 'client' ? 'Client' : 'Fournisseur'}
                             </span>
                           </td>
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
+                          <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
                             {formatPrice(payment.montant)}
                           </td>
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden md:table-cell">
+                          <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden md:table-cell">
                             {payment.modePaiement}
                           </td>
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden lg:table-cell">
+                          <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden lg:table-cell">
                             {payment.reference || '-'}
                           </td>
                         </tr>

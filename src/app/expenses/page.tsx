@@ -19,10 +19,18 @@ interface Expense {
     icone?: string;
     _source?: 'tenant' | 'global';
   };
-  description: string;
+  description?: string;
   montant: number;
   devise: string;
   tvaPct: number;
+  tvaAmount?: number;
+  tva?: number;
+  fodec?: number;
+  timbre?: number;
+  timbreFiscal?: number;
+  baseHT?: number;
+  totalHT?: number;
+  totalTTC?: number;
   modePaiement: string;
   statut: string;
   fournisseurId?: {
@@ -156,6 +164,11 @@ export default function ExpensesPage() {
           total: data.pagination?.total || 0
         });
         
+        // Log first expense to see structure
+        if (data.expenses && data.expenses.length > 0) {
+          console.log('First expense structure:', data.expenses[0]);
+        }
+        
         // Update state first
         setExpenses(data.expenses || []);
         if (data.pagination) {
@@ -276,15 +289,59 @@ export default function ExpensesPage() {
     suggestion.description.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const formatCurrency = (amount: number, currency: string = 'EUR') => {
-    return new Intl.NumberFormat('fr-FR', {
-      style: 'currency',
-      currency: currency,
-    }).format(amount);
+  const formatPrice = (price: number, currency: string = 'TND', decimals: number = 3) => {
+    // Utiliser toLocaleString pour un formatage correct avec espaces insécables
+    const formatted = new Intl.NumberFormat('fr-FR', {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    }).format(price);
+    const currencySymbol = currency === 'TND' ? 'TND' : currency === 'EUR' ? '€' : currency === 'USD' ? '$' : currency;
+    // Utiliser un espace insécable (\u00A0) pour éviter le retour à la ligne
+    return `${formatted}\u00A0${currencySymbol}`;
   };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('fr-FR');
+  };
+
+  const handleStatusChange = async (expenseId: string, newStatus: string) => {
+    console.log('Changing status for expense:', expenseId, 'to:', newStatus);
+    try {
+      // Mettre à jour l'état local immédiatement pour un feedback visuel rapide
+      setExpenses(prevExpenses => 
+        prevExpenses.map(exp => 
+          exp._id === expenseId ? { ...exp, statut: newStatus } : exp
+        )
+      );
+
+      const response = await fetch(`/api/expenses/${expenseId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ statut: newStatus }),
+      });
+
+      console.log('Response status:', response.status);
+
+      if (response.ok) {
+        const updatedData = await response.json();
+        console.log('Updated expense:', updatedData);
+        // Rafraîchir les données pour s'assurer de la cohérence
+        await fetchExpenses();
+      } else {
+        const errorData = await response.json();
+        console.error('Erreur lors de la mise à jour:', errorData);
+        setError(errorData.error || 'Erreur lors de la mise à jour du statut');
+        // Recharger les données pour annuler le changement local
+        await fetchExpenses();
+      }
+    } catch (err) {
+      console.error('Erreur de connexion:', err);
+      setError('Erreur de connexion lors de la mise à jour du statut');
+      // Recharger les données pour annuler le changement local
+      await fetchExpenses();
+    }
   };
 
   // Show loading state
@@ -712,7 +769,7 @@ export default function ExpensesPage() {
           </div>
         )}
 
-        {/* Expenses list */}
+        {/* Expenses Table */}
         {expenses.length === 0 && !loading ? (
           <div className="text-center py-12">
             <div className="text-6xl mb-4">💸</div>
@@ -733,65 +790,108 @@ export default function ExpensesPage() {
         ) : (
           <>
             <div className="bg-white shadow overflow-hidden sm:rounded-md">
-              <ul className="divide-y divide-gray-200">
-                {expenses.map((expense) => (
-                  <li key={expense._id}>
-                    <div className="px-4 py-4 flex items-center justify-between">
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0">
-                          <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
-                            <span className="text-indigo-600 font-medium">
-                              {expense.categorieId.icone || '💸'}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="ml-4">
-                          <div className="flex items-center">
-                            <p className="text-sm font-medium text-gray-900">
-                              {expense.numero}
-                            </p>
-                            <span className={`ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statutColors[expense.statut as keyof typeof statutColors]}`}>
-                              {expense.statut.replace('_', ' ')}
-                            </span>
-                          </div>
-                          <div className="mt-1">
-                            <p className="text-sm text-gray-500">
-                              {expense.description}
-                            </p>
-                            <p className="text-sm text-gray-500">
-                              {expense.categorieId.nom} {expense.categorieId._source === 'global' && '(Globale)'} • {modePaiementLabels[expense.modePaiement as keyof typeof modePaiementLabels]} • {formatDate(expense.date)}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-4">
-                        <div className="text-right">
-                          <p className="text-lg font-semibold text-gray-900">
-                            {formatCurrency(expense.montant, expense.devise)}
-                          </p>
-                          <p className="text-sm text-gray-500">
-                            TVA: {expense.tvaPct}%
-                          </p>
-                        </div>
-                        <div className="flex space-x-2">
-                          <button 
-                            onClick={() => handleViewExpense(expense._id)}
-                            className="text-indigo-600 hover:text-indigo-900 text-sm font-medium"
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Date
+                      </th>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Numéro
+                      </th>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
+                        Catégorie
+                      </th>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        TVA
+                      </th>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">
+                        FODEC
+                      </th>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">
+                        Timbre
+                      </th>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Total HT
+                      </th>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Total TTC
+                      </th>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Statut
+                      </th>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {expenses.map((expense) => (
+                      <tr key={expense._id} className="hover:bg-gray-50">
+                        <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900">
+                          {formatDate(expense.date)}
+                        </td>
+                        <td className="px-2 py-2 whitespace-nowrap text-xs font-medium text-gray-900">
+                          {expense.numero}
+                        </td>
+                        <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-500 hidden sm:table-cell">
+                          {expense.categorieId.icone || '💸'} {expense.categorieId.nom}
+                        </td>
+                        <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-500" style={{ whiteSpace: 'nowrap' }}>
+                          {formatPrice(expense.tvaAmount || expense.tva || 0, expense.devise || 'TND')}
+                        </td>
+                        <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-500 hidden md:table-cell" style={{ whiteSpace: 'nowrap' }}>
+                          {formatPrice(expense.fodec || 0, expense.devise || 'TND')}
+                        </td>
+                        <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-500 hidden md:table-cell" style={{ whiteSpace: 'nowrap' }}>
+                          {formatPrice(expense.timbre || expense.timbreFiscal || 0, expense.devise || 'TND')}
+                        </td>
+                        <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900" style={{ whiteSpace: 'nowrap' }}>
+                          {formatPrice(expense.totalHT || expense.baseHT || expense.montant || 0, expense.devise || 'TND')}
+                        </td>
+                        <td className="px-2 py-2 whitespace-nowrap text-xs font-medium text-gray-900" style={{ whiteSpace: 'nowrap' }}>
+                          {formatPrice(expense.totalTTC || expense.montant || 0, expense.devise || 'TND')}
+                        </td>
+                        <td className="px-2 py-2 whitespace-nowrap">
+                          <select
+                            value={expense.statut}
+                            onChange={(e) => handleStatusChange(expense._id, e.target.value)}
+                            className={`text-xs font-semibold rounded-full px-1.5 py-0.5 border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                              expense.statut === 'paye' ? 'bg-green-100 text-green-800' :
+                              expense.statut === 'valide' ? 'bg-blue-100 text-blue-800' :
+                              expense.statut === 'en_attente' ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}
                           >
-                            Voir
-                          </button>
-                          <button 
-                            onClick={() => handleEditExpense(expense._id)}
-                            className="text-gray-600 hover:text-gray-900 text-sm font-medium"
-                          >
-                            Modifier
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
+                            <option value="brouillon">Brouillon</option>
+                            <option value="en_attente">En attente</option>
+                            <option value="valide">Validé</option>
+                            <option value="paye">Payé</option>
+                            <option value="rejete">Rejeté</option>
+                          </select>
+                        </td>
+                        <td className="px-2 py-2 whitespace-nowrap text-xs">
+                          <div className="flex space-x-1">
+                            <button 
+                              onClick={() => handleViewExpense(expense._id)}
+                              className="text-indigo-600 hover:text-indigo-900 font-medium"
+                            >
+                              Voir
+                            </button>
+                            <button 
+                              onClick={() => handleEditExpense(expense._id)}
+                              className="text-gray-600 hover:text-gray-900 font-medium"
+                            >
+                              Modifier
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
 
             {/* Pagination */}
