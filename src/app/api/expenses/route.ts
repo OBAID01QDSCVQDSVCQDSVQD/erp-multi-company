@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
     const currentYear = new Date().getFullYear();
     const counter = await (Counter as any).findOneAndUpdate(
       { tenantId, seqName: 'expense' },
-      { $inc: { value: 1 }, $setOnInsert: { value: 0 } },
+      { $inc: { value: 1 } },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
@@ -176,7 +176,7 @@ export async function POST(request: NextRequest) {
         const retryCounter = await (Counter as any).findOneAndUpdate(
           { tenantId, seqName: 'expense' },
           { $inc: { value: 1 } },
-          { new: true }
+          { upsert: true, new: true, setDefaultsOnInsert: true }
         );
         const retryCounterValue = retryCounter?.value ?? counterValue + 1;
         numero = `EXP-${currentYear}-${retryCounterValue.toString().padStart(5, '0')}`;
