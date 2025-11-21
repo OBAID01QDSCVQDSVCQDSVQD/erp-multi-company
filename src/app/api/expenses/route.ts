@@ -126,11 +126,26 @@ export async function POST(request: NextRequest) {
     const currentYear = new Date().getFullYear();
     const counter = await (Counter as any).findOneAndUpdate(
       { tenantId, seqName: 'expense' },
-      { $inc: { value: 1 } },
+      { $inc: { value: 1 }, $setOnInsert: { value: 0 } },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
-    const numero = `EXP-${currentYear}-${counter.value.toString().padStart(5, '0')}`;
+    // Ensure counter.value exists and is a number
+    const counterValue = counter?.value ?? 0;
+    let numero = `EXP-${currentYear}-${counterValue.toString().padStart(5, '0')}`;
+
+    // Check if numero already exists for this tenant (retry if needed)
+    let existingExpense = await (Expense as any).findOne({ tenantId, numero });
+    if (existingExpense) {
+      // If numero exists, increment counter and try again
+      const newCounter = await (Counter as any).findOneAndUpdate(
+        { tenantId, seqName: 'expense' },
+        { $inc: { value: 1 } },
+        { new: true }
+      );
+      const newCounterValue = newCounter?.value ?? counterValue + 1;
+      numero = `EXP-${currentYear}-${newCounterValue.toString().padStart(5, '0')}`;
+    }
 
     // Création de la dépense
     // Remove societeId from body if present, and set it from session
@@ -151,7 +166,38 @@ export async function POST(request: NextRequest) {
     }
 
     const expense = new (Expense as any)(expenseData);
-    await (expense as any).save();
+    
+    try {
+      await (expense as any).save();
+    } catch (saveError: any) {
+      // Handle duplicate key error (E11000)
+      if (saveError.code === 11000 || saveError.message?.includes('duplicate key')) {
+        // Retry with incremented counter
+        const retryCounter = await (Counter as any).findOneAndUpdate(
+          { tenantId, seqName: 'expense' },
+          { $inc: { value: 1 } },
+          { new: true }
+        );
+        const retryCounterValue = retryCounter?.value ?? counterValue + 1;
+        numero = `EXP-${currentYear}-${retryCounterValue.toString().padStart(5, '0')}`;
+        expenseData.numero = numero;
+        
+        // Try saving again with new numero
+        const retryExpense = new (Expense as any)(expenseData);
+        await (retryExpense as any).save();
+        
+        // Populate for response
+        await (retryExpense as any).populate([
+          { path: 'categorieId', select: 'nom code icone' },
+          { path: 'fournisseurId', select: 'name' },
+          { path: 'employeId', select: 'firstName lastName' },
+          { path: 'projetId', select: 'name' }
+        ]);
+        
+        return NextResponse.json(retryExpense, { status: 201 });
+      }
+      throw saveError; // Re-throw if it's not a duplicate key error
+    }
 
     // Populate pour la réponse
     await (expense as any).populate([

@@ -108,7 +108,6 @@ const ExpenseSchema = new (Schema as any)({
   numero: {
     type: String,
     required: true,
-    unique: true,
   },
   date: {
     type: Date,
@@ -273,7 +272,7 @@ const ExpenseSchema = new (Schema as any)({
 });
 
 // Index pour les recherches
-ExpenseSchema.index({ tenantId: 1, numero: 1 });
+ExpenseSchema.index({ tenantId: 1, numero: 1 }, { unique: true }); // Unique per tenant
 ExpenseSchema.index({ tenantId: 1, date: -1 });
 ExpenseSchema.index({ tenantId: 1, categorieId: 1 });
 ExpenseSchema.index({ tenantId: 1, statut: 1 });
