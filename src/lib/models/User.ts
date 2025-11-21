@@ -15,7 +15,7 @@ export interface IUser extends Document {
   updatedAt: Date;
 }
 
-const UserSchema = new (Schema as any)({
+const UserSchema = new Schema<IUser>({
   email: {
     type: String,
     required: true,
@@ -62,12 +62,4 @@ const UserSchema = new (Schema as any)({
   timestamps: true,
 });
 
-let User: mongoose.Model<IUser>;
-
-if ((mongoose.models as any)['User']) {
-  User = (mongoose.models as any)['User'] as mongoose.Model<IUser>;
-} else {
-  User = (mongoose.model('User', UserSchema) as any) as mongoose.Model<IUser>;
-}
-
-export default User;
+export default mongoose.models.User || mongoose.model<IUser>('User', UserSchema);
