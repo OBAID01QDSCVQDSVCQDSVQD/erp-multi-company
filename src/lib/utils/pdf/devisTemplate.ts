@@ -444,6 +444,183 @@ function decodeHtmlEntities(text: string): string {
     .replace(/&([a-zA-Z]+);/g, (_, name) => entityMap[name] || `&${name};`);
 }
 
+// Parse HTML and convert to jsPDF-compatible format with styling
+function parseHtmlToPdf(html: string): any {
+  if (!html) return { text: '', styles: [] };
+  
+  // Convert <br> to newlines
+  let text = html.replace(/<br\s*\/?>/gi, '\n');
+  
+  // Extract styled segments
+  const segments: Array<{ text: string; bold?: boolean; color?: number[] }> = [];
+  let currentText = '';
+  let currentBold = false;
+  let currentColor: number[] | undefined = undefined;
+  
+  // Simple HTML parser for common tags
+  const tagRegex = /<(?:strong|b|span[^>]*|font[^>]*)>(.*?)<\/(?:strong|b|span|font)>|([^<]+)/gi;
+  let match;
+  let lastIndex = 0;
+  
+  // Process HTML tags
+  const tempDiv = typeof document !== 'undefined' ? document.createElement('div') : null;
+  if (tempDiv) {
+    tempDiv.innerHTML = html;
+    const walker = document.createTreeWalker(
+      tempDiv,
+      NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT,
+      null
+    );
+    
+    let node;
+    while (node = walker.nextNode()) {
+      if (node.nodeType === Node.TEXT_NODE) {
+        const text = node.textContent || '';
+        if (text.trim()) {
+          // Check parent for styling
+          let parent = node.parentElement;
+          let isBold = false;
+          let color: number[] | undefined = undefined;
+          
+          while (parent && parent !== tempDiv) {
+            const tagName = parent.tagName.toLowerCase();
+            if (tagName === 'strong' || tagName === 'b') {
+              isBold = true;
+            }
+            if (parent.style && parent.style.color) {
+              const rgb = parseColor(parent.style.color);
+              if (rgb) color = rgb;
+            }
+            parent = parent.parentElement;
+          }
+          
+          segments.push({ text, bold: isBold, color });
+        }
+      }
+    }
+  } else {
+    // Fallback: simple text extraction with basic formatting
+    text = html
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<strong[^>]*>|<\/strong>|<b[^>]*>|<\/b>/gi, '***BOLD_START***')
+      .replace(/<[^>]*>/g, '')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/\n\s*\n/g, '\n')
+      .trim();
+    
+    // Split by bold markers
+    const parts = text.split('***BOLD_START***');
+    parts.forEach((part, index) => {
+      if (part.trim()) {
+        segments.push({ 
+          text: part, 
+          bold: index % 2 === 1 
+        });
+      }
+    });
+  }
+  
+  if (segments.length === 0) {
+    // Fallback to plain text
+    text = html
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<[^>]*>/g, '')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/\n\s*\n/g, '\n')
+      .trim();
+    segments.push({ text });
+  }
+  
+  return { segments, rawText: segments.map(s => s.text).join('') };
+}
+
+function parseColor(colorStr: string): number[] | undefined {
+  if (!colorStr) return undefined;
+  
+  // Parse CSS color to RGB array
+  const trimmed = colorStr.trim();
+  if (trimmed.startsWith('#')) {
+    const hex = trimmed.slice(1);
+    if (hex.length === 6) {
+      const r = parseInt(hex.slice(0, 2), 16);
+      const g = parseInt(hex.slice(2, 4), 16);
+      const b = parseInt(hex.slice(4, 6), 16);
+      return [r, g, b];
+    } else if (hex.length === 3) {
+      const r = parseInt(hex[0] + hex[0], 16);
+      const g = parseInt(hex[1] + hex[1], 16);
+      const b = parseInt(hex[2] + hex[2], 16);
+      return [r, g, b];
+    }
+  }
+  if (trimmed.startsWith('rgb')) {
+    const matches = trimmed.match(/\d+/g);
+    if (matches && matches.length >= 3) {
+      return [parseInt(matches[0]), parseInt(matches[1]), parseInt(matches[2])];
+    }
+  }
+  // Named colors
+  const namedColors: { [key: string]: number[] } = {
+    'black': [0, 0, 0],
+    'white': [255, 255, 255],
+    'red': [255, 0, 0],
+    'green': [0, 128, 0],
+    'blue': [0, 0, 255],
+    'yellow': [255, 255, 0],
+    'orange': [255, 165, 0],
+    'purple': [128, 0, 128],
+  };
+  const lower = trimmed.toLowerCase();
+  if (namedColors[lower]) {
+    return namedColors[lower];
+  }
+  return undefined;
+}
+
+function renderText(doc: jsPDF, text: string, x: number, y: number, maxWidth: number, lineHeight: number, bold: boolean, color?: number[]) {
+  if (!text || !text.trim()) return;
+  
+  doc.setFont('helvetica', bold ? 'bold' : 'normal');
+  if (color) {
+    doc.setTextColor(color[0], color[1], color[2]);
+  } else {
+    doc.setTextColor(0, 0, 0);
+  }
+  
+  // Split text into lines that fit within maxWidth
+  const words = text.split(/\s+/);
+  let currentLine = '';
+  let currentY = y;
+  
+  words.forEach((word) => {
+    const testLine = currentLine ? `${currentLine} ${word}` : word;
+    const textWidth = doc.getTextWidth(testLine);
+    
+    if (textWidth > maxWidth && currentLine) {
+      // Draw current line and start new line
+      doc.text(currentLine, x, currentY, { maxWidth });
+      currentLine = word;
+      currentY += lineHeight;
+    } else {
+      currentLine = testLine;
+    }
+  });
+  
+  if (currentLine) {
+    doc.text(currentLine, x, currentY, { maxWidth });
+  }
+}
+
 function parseHtml(html: string): string {
   if (!html) return '';
   
@@ -487,31 +664,20 @@ function drawLinesTable(doc: jsPDF, quoteData: QuoteData, startY: number): numbe
       l.designation ||
       `Ligne ${index + 1}`;
     
-    let displayText = '';
+    // Get the HTML content (same logic as web app)
+    let htmlContent = '';
     if (l.estStocke === false && l.descriptionProduit) {
-      displayText = parseHtml(l.descriptionProduit);
+      htmlContent = l.descriptionProduit;
     } else {
-      displayText = parseHtml(l.produit || l.designation || l.description || '');
+      htmlContent = l.designation || l.produit || l.description || '';
     }
-    if (!displayText) {
-      displayText = ref || `Produit ${index + 1}`;
+    if (!htmlContent) {
+      htmlContent = ref || `Produit ${index + 1}`;
     }
-    
-    const displayLines = displayText.split('***LINE_BREAK***');
-    const formattedDisplay = displayLines.map((line, idx) => {
-      if (idx === 0) return line;
-      const bulletMatch = line.match(/^([0-9]+[.)]|[-•*])/);
-      if (bulletMatch) {
-        const bullet = bulletMatch[0];
-        const content = line.slice(bullet.length).trim();
-        return `${bullet} ${content}`;
-      }
-      return `• ${line.trim()}`;
-    }).join('\n');
 
     return [
       ref || `Ligne ${index + 1}`,
-      { content: formattedDisplay },
+      { content: htmlContent, isHtml: true },
       quantite.toString(),
       `${prixUnitaire.toFixed(3)}`,
       `${remise} %`,
@@ -548,8 +714,9 @@ function drawLinesTable(doc: jsPDF, quoteData: QuoteData, startY: number): numbe
     },
     styles: {
       fontSize: 9,
-      cellPadding: 3,
-      valign: 'middle',
+      cellPadding: { top: 4, right: 3, bottom: 3, left: 3 },
+      valign: 'top',
+      minCellHeight: 8,
     },
     headStyles: {
       fillColor: [232, 241, 255],
@@ -562,13 +729,226 @@ function drawLinesTable(doc: jsPDF, quoteData: QuoteData, startY: number): numbe
     // نقسم الـ 190 على الكولونات
     columnStyles: {
       0: { cellWidth: 18 },              // Réf
-      1: { cellWidth: 70, cellPadding: { top: 2, right: 3, bottom: 2, left: 3 } }, // Produit
+      1: { cellWidth: 70, cellPadding: { top: 4, right: 3, bottom: 3, left: 3 }, valign: 'top' }, // Produit
       2: { cellWidth: 12, halign: 'right' }, // Qté
       3: { cellWidth: 22, halign: 'right' }, // Prix HT
       4: { cellWidth: 16, halign: 'right' }, // Remise %
       5: { cellWidth: 14, halign: 'right' }, // TVA
       6: { cellWidth: 19, halign: 'right' }, // Total HT
       7: { cellWidth: 19, halign: 'right' }, // Total TTC
+    },
+    willDrawCell: (data: any) => {
+      // Ensure all cells in the row have the same height as the tallest cell
+      if (data.row && data.row.height) {
+        data.cell.height = data.row.height;
+      }
+    },
+    didParseCell: (data: any) => {
+      // Handle HTML content in Produit column (column index 1)
+      if (data.column.index === 1 && data.cell.raw && typeof data.cell.raw === 'object' && data.cell.raw.isHtml) {
+        const html = data.cell.raw.content || '';
+        // Store HTML for custom rendering
+        (data.cell as any).htmlContent = html;
+        
+        // Calculate approximate height needed for content (including word wrapping)
+        const htmlText = html
+          .replace(/<br\s*\/?>/gi, '\n')
+          .replace(/<p[^>]*>/gi, '\n')
+          .replace(/<\/p>/gi, '\n')
+          .replace(/<div[^>]*>/gi, '\n')
+          .replace(/<\/div>/gi, '\n')
+          .replace(/<[^>]*>/g, '');
+        
+        // Estimate lines considering word wrapping
+        const lines = htmlText.split('\n');
+        const maxWidth = 70 - 4; // Approximate cell width minus padding
+        const fontSize = 9;
+        doc.setFontSize(fontSize);
+        doc.setFont('helvetica', 'normal');
+        
+        let totalEstimatedLines = 0;
+        lines.forEach((line) => {
+          if (line.trim()) {
+            const textWidth = doc.getTextWidth(line);
+            const wrappedLines = Math.ceil(textWidth / maxWidth) || 1;
+            totalEstimatedLines += wrappedLines;
+          } else {
+            totalEstimatedLines += 0.5; // Small spacing for empty lines
+          }
+        });
+        
+        const lineHeight = 4.5;
+        const minHeight = 8;
+        const padding = 4;
+        const calculatedHeight = Math.max(minHeight, (totalEstimatedLines * lineHeight) + padding);
+        
+        // Set cell height to accommodate content
+        data.cell.height = calculatedHeight;
+        
+        // Set row height to match the tallest cell (so all cells in the row have same height)
+        if (data.row) {
+          data.row.height = Math.max(data.row.height || 0, calculatedHeight);
+        }
+        
+        // Set empty text to prevent default rendering - use space to maintain cell height
+        data.cell.text = [' '];
+        // Disable default text rendering
+        data.cell.styles = { ...data.cell.styles, textColor: [255, 255, 255] }; // White text (invisible)
+      }
+    },
+    didDrawCell: (data: any) => {
+      // Custom rendering for HTML content in Produit column
+      if (data.column.index === 1 && (data.cell as any).htmlContent) {
+        const html = (data.cell as any).htmlContent;
+        const cell = data.cell;
+        const x = cell.x + 3;
+        let y = cell.y + 4; // Top padding
+        const maxWidth = cell.width - 4;
+        const lineHeight = 4.5;
+        const fontSize = 9;
+        const startY = y;
+        
+        doc.setFontSize(fontSize);
+        
+        // Parse HTML and render with formatting
+        // Convert HTML tags to newlines first
+        let htmlText = html
+          .replace(/<br\s*\/?>/gi, '\n')
+          .replace(/<p[^>]*>/gi, '\n')
+          .replace(/<\/p>/gi, '\n')
+          .replace(/<div[^>]*>/gi, '\n')
+          .replace(/<\/div>/gi, '\n')
+          .replace(/<li[^>]*>/gi, '• ')
+          .replace(/<\/li>/gi, '\n')
+          .replace(/<ul[^>]*>|<\/ul>|<ol[^>]*>|<\/ol>/gi, '');
+        
+        // Process HTML with a simple state machine
+        const segments: Array<{ text: string; bold: boolean; color?: number[] }> = [];
+        let currentText = '';
+        let inBold = false;
+        let currentColor: number[] | undefined = undefined;
+        
+        // Simple regex-based parser
+        const tagRegex = /<(?:strong|b)([^>]*)>|<\/(?:strong|b)>|<span[^>]*style="[^"]*color:\s*([^";]+)[^"]*"[^>]*>|<\/span>|([^<]+)/gi;
+        let match;
+        let lastIndex = 0;
+        
+        while ((match = tagRegex.exec(htmlText)) !== null) {
+          // Handle text before match
+          if (match.index > lastIndex) {
+            const beforeText = htmlText.substring(lastIndex, match.index);
+            if (beforeText.trim()) {
+              segments.push({ text: beforeText, bold: inBold, color: currentColor });
+            }
+          }
+          
+          // Handle match
+          if (match[1] !== undefined) {
+            // Opening <strong> or <b>
+            if (currentText) {
+              segments.push({ text: currentText, bold: inBold, color: currentColor });
+              currentText = '';
+            }
+            inBold = true;
+          } else if (match[0] === '</strong>' || match[0] === '</b>') {
+            // Closing </strong> or </b>
+            if (currentText) {
+              segments.push({ text: currentText, bold: inBold, color: currentColor });
+              currentText = '';
+            }
+            inBold = false;
+          } else if (match[2] !== undefined) {
+            // Opening <span> with color
+            if (currentText) {
+              segments.push({ text: currentText, bold: inBold, color: currentColor });
+              currentText = '';
+            }
+            currentColor = parseColor(match[2]);
+          } else if (match[0] === '</span>') {
+            // Closing </span>
+            if (currentText) {
+              segments.push({ text: currentText, bold: inBold, color: currentColor });
+              currentText = '';
+            }
+            currentColor = undefined;
+          } else if (match[3]) {
+            // Text content
+            currentText += match[3];
+          }
+          
+          lastIndex = match.index + match[0].length;
+        }
+        
+        // Handle remaining text
+        if (lastIndex < htmlText.length) {
+          const remainingText = htmlText.substring(lastIndex);
+          if (remainingText.trim()) {
+            segments.push({ text: remainingText, bold: inBold, color: currentColor });
+          }
+        }
+        if (currentText) {
+          segments.push({ text: currentText, bold: inBold, color: currentColor });
+        }
+        
+        // Render segments and count actual lines rendered
+        let totalLinesRendered = 0;
+        segments.forEach((segment) => {
+          const lines = segment.text.split('\n');
+          lines.forEach((line, lineIdx) => {
+            if (line.trim() || (lineIdx === 0 && lines.length === 1)) {
+              doc.setFont('helvetica', segment.bold ? 'bold' : 'normal');
+              if (segment.color) {
+                doc.setTextColor(segment.color[0], segment.color[1], segment.color[2]);
+              } else {
+                doc.setTextColor(0, 0, 0);
+              }
+              
+              // Wrap long lines and count wrapped lines
+              const words = line.split(/\s+/);
+              let currentLine = '';
+              
+              words.forEach((word) => {
+                const testLine = currentLine ? `${currentLine} ${word}` : word;
+                const textWidth = doc.getTextWidth(testLine);
+                
+                if (textWidth > maxWidth && currentLine) {
+                  doc.text(currentLine, x, y, { maxWidth });
+                  y += lineHeight;
+                  totalLinesRendered++;
+                  currentLine = word;
+                } else {
+                  currentLine = testLine;
+                }
+              });
+              
+              if (currentLine) {
+                doc.text(currentLine, x, y, { maxWidth });
+                y += lineHeight;
+                totalLinesRendered++;
+              }
+            } else if (lineIdx > 0) {
+              y += lineHeight / 2; // Small spacing for empty lines
+              totalLinesRendered += 0.5;
+            }
+          });
+        });
+        
+        // Calculate actual height needed based on content rendered
+        const actualHeight = (totalLinesRendered * lineHeight) + 4;
+        const finalHeight = Math.max(actualHeight, cell.height || 8);
+        
+        // Update cell height
+        cell.height = finalHeight;
+        
+        // Update row height to match - this ensures all cells in the row have the same height
+        if (data.row) {
+          data.row.height = Math.max(data.row.height || 0, finalHeight);
+        }
+        
+        // Reset text color and font
+        doc.setTextColor(0, 0, 0);
+        doc.setFont('helvetica', 'normal');
+      }
     },
     theme: 'grid',
   });

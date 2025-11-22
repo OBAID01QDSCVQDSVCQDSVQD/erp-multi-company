@@ -158,6 +158,10 @@ export interface ITVA {
     actif: boolean;
     montantFixe: number;
   };
+  fodec?: {
+    actif: boolean;
+    tauxPct: number;
+  };
   retenueSource?: {
     actif: boolean;
     tauxPct: number;
@@ -333,6 +337,10 @@ const TVASchema = new Schema({
   timbreFiscal: {
     actif: { type: Boolean, default: false },
     montantFixe: { type: Number, default: 1.0 },
+  },
+  fodec: {
+    actif: { type: Boolean, default: false },
+    tauxPct: { type: Number, default: 1, min: 0, max: 100 },
   },
   retenueSource: {
     actif: { type: Boolean, default: false },

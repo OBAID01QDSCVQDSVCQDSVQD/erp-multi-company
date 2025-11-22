@@ -28,9 +28,19 @@ export async function GET(request: NextRequest) {
     // Si aucun paramètre n'existe, créer avec les valeurs par défaut
     if (!settings) {
       settings = await createDefaultSettings(tenantId);
+    } else {
+      // Ensure fodec exists in existing settings
+      if (settings.tva && !settings.tva.fodec) {
+        settings.tva.fodec = { actif: false, tauxPct: 1 };
+        (settings as any).markModified('tva');
+        await (settings as any).save();
+      }
     }
 
-    return NextResponse.json(settings);
+    // Convert to plain object to ensure all nested properties are included
+    const settingsObj = settings.toObject ? settings.toObject() : settings;
+    
+    return NextResponse.json(settingsObj);
 
   } catch (error) {
     console.error('Erreur lors de la récupération des paramètres:', error);
@@ -157,6 +167,10 @@ async function createDefaultSettings(tenantId: string) {
       timbreFiscal: {
         actif: false,
         montantFixe: 1.0,
+      },
+      fodec: {
+        actif: false,
+        tauxPct: 1,
       },
       retenueSource: {
         actif: false,

@@ -34,6 +34,7 @@ export async function PATCH(request: NextRequest) {
       arrondi, 
       prixIncluentTVA, 
       timbreFiscal, 
+      fodec,
       retenueSource 
     } = body;
 
@@ -118,6 +119,10 @@ export async function PATCH(request: NextRequest) {
             actif: false,
             montantFixe: 1.0,
           },
+          fodec: {
+            actif: false,
+            tauxPct: 1,
+          },
           retenueSource: {
             actif: false,
             tauxPct: 0,
@@ -176,49 +181,87 @@ export async function PATCH(request: NextRequest) {
         regimeParDefautCode: 'TN19',
         arrondi: 'ligne',
         prixIncluentTVA: false,
-        timbreFiscal: { actif: false, montantFixe: 1.0 },
-        retenueSource: { actif: false, tauxPct: 0, appliquerSur: 'services' },
+          timbreFiscal: { actif: false, montantFixe: 1.0 },
+          fodec: { actif: false, tauxPct: 1 },
+          retenueSource: { actif: false, tauxPct: 0, appliquerSur: 'services' },
       } as any;
     }
     
-    // Apply updates
-    if (tauxParDefautPct !== undefined) {
-      settings.tva.tauxParDefautPct = tauxParDefautPct;
+    // Use findOne to get the document, then update it directly and save
+    // This ensures Mongoose properly handles nested objects
+    const settingsDoc = await (CompanySettings as any).findOne({ tenantId });
+    
+    if (!settingsDoc) {
+      return NextResponse.json({ error: 'Settings not found' }, { status: 404 });
     }
-    if (regimeParDefautCode !== undefined) {
-      settings.tva.regimeParDefautCode = regimeParDefautCode;
-    }
-    if (arrondi !== undefined) {
-      settings.tva.arrondi = arrondi;
-    }
-    if (prixIncluentTVA !== undefined) {
-      settings.tva.prixIncluentTVA = prixIncluentTVA;
-    }
+    
+    // Update all fields directly on the document
+    if (tauxParDefautPct !== undefined) settingsDoc.tva.tauxParDefautPct = tauxParDefautPct;
+    if (regimeParDefautCode !== undefined) settingsDoc.tva.regimeParDefautCode = regimeParDefautCode;
+    if (arrondi !== undefined) settingsDoc.tva.arrondi = arrondi;
+    if (prixIncluentTVA !== undefined) settingsDoc.tva.prixIncluentTVA = prixIncluentTVA;
+    
     if (timbreFiscal !== undefined) {
-      if (timbreFiscal.actif !== undefined) {
-        settings.tva.timbreFiscal.actif = timbreFiscal.actif;
+      if (!settingsDoc.tva.timbreFiscal) {
+        settingsDoc.tva.timbreFiscal = { actif: false, montantFixe: 1 };
       }
-      if (timbreFiscal.montantFixe !== undefined) {
-        settings.tva.timbreFiscal.montantFixe = timbreFiscal.montantFixe;
-      }
+      if (timbreFiscal.actif !== undefined) settingsDoc.tva.timbreFiscal.actif = timbreFiscal.actif;
+      if (timbreFiscal.montantFixe !== undefined) settingsDoc.tva.timbreFiscal.montantFixe = timbreFiscal.montantFixe;
+      (settingsDoc as any).markModified('tva.timbreFiscal');
     }
+    
+    if (fodec !== undefined) {
+      // Ensure fodec exists
+      if (!settingsDoc.tva.fodec) {
+        settingsDoc.tva.fodec = { actif: false, tauxPct: 1 };
+      }
+      if (fodec.actif !== undefined) settingsDoc.tva.fodec.actif = fodec.actif;
+      if (fodec.tauxPct !== undefined) settingsDoc.tva.fodec.tauxPct = fodec.tauxPct;
+      (settingsDoc as any).markModified('tva.fodec');
+    }
+    
     if (retenueSource !== undefined) {
-      if (retenueSource.actif !== undefined) {
-        settings.tva.retenueSource.actif = retenueSource.actif;
+      if (!settingsDoc.tva.retenueSource) {
+        settingsDoc.tva.retenueSource = { actif: false, tauxPct: 0, appliquerSur: 'tous' };
       }
-      if (retenueSource.tauxPct !== undefined) {
-        settings.tva.retenueSource.tauxPct = retenueSource.tauxPct;
-      }
-      if (retenueSource.appliquerSur !== undefined) {
-        settings.tva.retenueSource.appliquerSur = retenueSource.appliquerSur;
-      }
+      if (retenueSource.actif !== undefined) settingsDoc.tva.retenueSource.actif = retenueSource.actif;
+      if (retenueSource.tauxPct !== undefined) settingsDoc.tva.retenueSource.tauxPct = retenueSource.tauxPct;
+      if (retenueSource.appliquerSur !== undefined) settingsDoc.tva.retenueSource.appliquerSur = retenueSource.appliquerSur;
+      (settingsDoc as any).markModified('tva.retenueSource');
     }
     
-    // Save the settings
-    await (settings as any).save();
+    // Mark tva as modified to ensure all nested changes are saved
+    (settingsDoc as any).markModified('tva');
     
-    console.log('✅ Settings updated successfully:', settings.tva);
-    return NextResponse.json(settings);
+    // Save the document
+    await settingsDoc.save();
+    
+    // If fodec was updated, ensure it's saved to MongoDB directly
+    // This is necessary because Mongoose sometimes doesn't save new nested objects properly
+    if (fodec !== undefined && settingsDoc.tva.fodec) {
+      const db = (CompanySettings as any).db;
+      const collection = db.collection('companysettings');
+      
+      await collection.updateOne(
+        { tenantId },
+        { 
+          $set: { 
+            'tva.fodec': {
+              actif: settingsDoc.tva.fodec.actif,
+              tauxPct: settingsDoc.tva.fodec.tauxPct
+            }
+          } 
+        }
+      );
+    }
+    
+    // Reload to get the final state
+    const updatedSettings = await (CompanySettings as any).findOne({ tenantId });
+    
+    // Convert to plain object for JSON response
+    const responseData = updatedSettings?.toObject ? updatedSettings.toObject() : updatedSettings;
+    
+    return NextResponse.json(responseData);
 
   } catch (error) {
     console.error('Erreur lors de la mise à jour des paramètres TVA:', error);

@@ -56,7 +56,8 @@ export default function InvoicesPage() {
     notes: '',
     numero: '',
     timbreActif: true,
-    remiseGlobalePct: 0
+    remiseGlobalePct: 0,
+    fodec: { enabled: false, tauxPct: 1 }
   });
 
   const router = useRouter();
@@ -330,7 +331,7 @@ export default function InvoicesPage() {
     }
   };
 
-  const handleOpenNewInvoiceModal = () => {
+  const handleOpenNewInvoiceModal = async () => {
     setIsFromBL(false); // Reset isFromBL for new invoices
     setEditingInvoiceId(null);
     setLines([]);
@@ -341,11 +342,36 @@ export default function InvoicesPage() {
     setCustomerSearch('');
     setShowCustomerDropdown(false);
     setSelectedCustomerIndex(-1);
+    
+    // Ensure TVA settings are loaded before opening modal
+    let currentTvaSettings = tvaSettings;
+    if (!currentTvaSettings) {
+      try {
+        if (tenantId) {
+          const response = await fetch('/api/settings', {
+            headers: { 'X-Tenant-Id': tenantId }
+          });
+          if (response.ok) {
+            const data = await response.json();
+            currentTvaSettings = data.tva;
+            setTvaSettings(data.tva);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching TVA settings:', err);
+      }
+    }
+    
     const defaultForm = createDefaultFormData();
     const nextNumero = computeNextInvoiceNumberFromExisting();
     const resolvedForm = {
       ...defaultForm,
       numero: nextNumero || defaultForm.numero,
+      // Activate FODEC automatically if enabled in settings
+      fodec: currentTvaSettings?.fodec?.actif ? {
+        enabled: true,
+        tauxPct: currentTvaSettings.fodec.tauxPct || 1
+      } : { enabled: false, tauxPct: 1 }
     };
     setFormData(resolvedForm);
     if (nextNumero) {
@@ -746,13 +772,20 @@ export default function InvoicesPage() {
     const remiseGlobale = totalHTAfterLineDiscount - totalHT;
     const totalRemise = remiseFromLines + remiseGlobale;
     
-    // Calculate TVA per line (based on HT after line discount, before global remise)
+    // Calculate FODEC on Total HT AFTER discount (totalHT is already after all discounts)
+    // FODEC = totalHT * (tauxPct / 100)
+    const fodec = formData.fodec?.enabled ? totalHT * ((formData.fodec.tauxPct || 1) / 100) : 0;
+    
+    // Calculate TVA per line (based on HT after line discount, before global remise, plus FODEC)
     const totalTVA = lines.reduce((sum, line) => {
       const lineHTBeforeDiscount = (line.quantite || 0) * (line.prixUnitaireHT || 0);
       const lineHT = lineHTBeforeDiscount * (1 - ((line.remisePct || 0) / 100));
       // Apply global remise to line HT for TVA calculation
       const lineHTAfterGlobalRemise = lineHT * (1 - (remiseGlobalePct / 100));
-      const lineTVA = lineHTAfterGlobalRemise * (line.tvaPct || 0) / 100;
+      // Add FODEC to base for TVA calculation (proportional to line)
+      const lineFodec = formData.fodec?.enabled ? lineHTAfterGlobalRemise * ((formData.fodec.tauxPct || 1) / 100) : 0;
+      const lineBaseTVA = lineHTAfterGlobalRemise + lineFodec;
+      const lineTVA = lineBaseTVA * (line.tvaPct || 0) / 100;
       return sum + lineTVA;
     }, 0);
     
@@ -761,13 +794,15 @@ export default function InvoicesPage() {
       ? (tvaSettings?.timbreFiscal?.montantFixe || 1) 
       : 0;
     
-    const totalTTC = totalHT + totalTVA + timbreAmount;
+    const totalTTC = totalHT + fodec + totalTVA + timbreAmount;
     
     return { 
+      totalHTBeforeDiscount: totalHTBeforeDiscount,
       totalHT, 
       totalHTAfterLineDiscount,
       totalRemise, 
       remiseGlobale, 
+      fodec,
       totalTVA, 
       timbreAmount, 
       totalTTC 
@@ -923,7 +958,11 @@ export default function InvoicesPage() {
             notes: fullInvoice.notes || '',
             numero: fullInvoice.numero || '',
             timbreActif: (fullInvoice.timbreFiscal || 0) > 0,
-            remiseGlobalePct: fullInvoice.remiseGlobalePct || 0
+            remiseGlobalePct: fullInvoice.remiseGlobalePct || 0,
+            fodec: fullInvoice.fodec ? {
+              enabled: fullInvoice.fodec.enabled || false,
+              tauxPct: fullInvoice.fodec.tauxPct || 1
+            } : { enabled: false, tauxPct: 1 }
           });
           setInvoiceNumberPreview(fullInvoice.numero || null);
           setInvoiceNumberLoading(false);
@@ -1052,7 +1091,12 @@ export default function InvoicesPage() {
           numero: formData.numero?.trim() || undefined,
           lignes: lignesData,
           timbreFiscal: totals.timbreAmount || 0,
-          remiseGlobalePct: formData.remiseGlobalePct || 0
+          remiseGlobalePct: formData.remiseGlobalePct || 0,
+          fodec: formData.fodec?.enabled ? {
+            enabled: true,
+            tauxPct: formData.fodec.tauxPct || 1,
+            montant: totals.fodec || 0
+          } : { enabled: false, tauxPct: 1, montant: 0 }
         })
       });
 
@@ -1118,21 +1162,25 @@ export default function InvoicesPage() {
         const hasBL = fullInvoice.linkedDocuments && fullInvoice.linkedDocuments.length > 0;
         setIsFromBL(hasBL || false);
         
-        // Populate form with invoice data
-        setFormData({
-          customerId: fullInvoice.customerId || '',
-          dateDoc: fullInvoice.dateDoc?.split('T')[0] || new Date().toISOString().split('T')[0],
-          referenceExterne: fullInvoice.referenceExterne || '',
-          devise: fullInvoice.devise || 'TND',
-          tauxChange: fullInvoice.tauxChange || 1,
-          modePaiement: fullInvoice.modePaiement || '',
-          dateEcheance: fullInvoice.dateEcheance?.split('T')[0] || '',
-          conditionsPaiement: fullInvoice.conditionsPaiement || '',
-          notes: fullInvoice.notes || '',
-          numero: fullInvoice.numero || '',
-          timbreActif: (fullInvoice.timbreFiscal || 0) > 0,
-          remiseGlobalePct: 0 // Will be calculated from existing remise if needed
-        });
+          // Populate form with invoice data
+          setFormData({
+            customerId: fullInvoice.customerId || '',
+            dateDoc: fullInvoice.dateDoc?.split('T')[0] || new Date().toISOString().split('T')[0],
+            referenceExterne: fullInvoice.referenceExterne || '',
+            devise: fullInvoice.devise || 'TND',
+            tauxChange: fullInvoice.tauxChange || 1,
+            modePaiement: fullInvoice.modePaiement || '',
+            dateEcheance: fullInvoice.dateEcheance?.split('T')[0] || '',
+            conditionsPaiement: fullInvoice.conditionsPaiement || '',
+            notes: fullInvoice.notes || '',
+            numero: fullInvoice.numero || '',
+            timbreActif: (fullInvoice.timbreFiscal || 0) > 0,
+            remiseGlobalePct: 0, // Will be calculated from existing remise if needed
+            fodec: fullInvoice.fodec ? {
+              enabled: fullInvoice.fodec.enabled || false,
+              tauxPct: fullInvoice.fodec.tauxPct || 1
+            } : { enabled: false, tauxPct: 1 }
+          });
         setInvoiceNumberPreview(fullInvoice.numero || null);
         setInvoiceNumberLoading(false);
         
@@ -1206,23 +1254,58 @@ export default function InvoicesPage() {
       });
 
       if (!response.ok) {
+        // Check if response is JSON (error) or PDF
+        const contentType = response.headers.get('content-type');
+        if (contentType?.includes('application/json')) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Erreur lors de la génération du PDF');
+        }
         throw new Error('Erreur lors de la génération du PDF');
       }
 
+      // Check if response is actually a PDF
+      const contentType = response.headers.get('content-type');
+      if (!contentType?.includes('application/pdf')) {
+        const errorData = await response.json().catch(() => ({ error: 'Réponse invalide du serveur' }));
+        throw new Error(errorData.error || 'Le serveur n\'a pas retourné un PDF valide');
+      }
+
       const blob = await response.blob();
+      
+      // Verify blob is not empty and is a PDF
+      if (blob.size === 0) {
+        throw new Error('Le fichier PDF est vide');
+      }
+      
+      // Check if blob type is PDF
+      if (!blob.type.includes('pdf') && blob.size > 0) {
+        // Try to read as text to see if it's an error message
+        const text = await blob.text();
+        try {
+          const errorData = JSON.parse(text);
+          throw new Error(errorData.error || 'Erreur lors de la génération du PDF');
+        } catch {
+          throw new Error('Le serveur n\'a pas retourné un PDF valide');
+        }
+      }
+      
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = `Facture-${invoice.numero}.pdf`;
       document.body.appendChild(a);
       a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      
+      // Clean up after a short delay to ensure download starts
+      setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }, 100);
       
       toast.success('PDF téléchargé avec succès');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error downloading PDF:', error);
-      toast.error('Erreur lors du téléchargement du PDF');
+      toast.error(error.message || 'Erreur lors du téléchargement du PDF');
     }
   };
 
@@ -1943,7 +2026,7 @@ export default function InvoicesPage() {
                     <div className="w-80 space-y-3">
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-600">Sous-total HT</span>
-                        <span className="font-medium">{totals.totalHTAfterLineDiscount.toFixed(3)} {formData.devise}</span>
+                        <span className="font-medium">{totals.totalHTBeforeDiscount.toFixed(3)} {formData.devise}</span>
                       </div>
                       {(totals.totalRemise - totals.remiseGlobale) > 0 && (
                         <div className="flex justify-between text-sm">
@@ -1978,6 +2061,51 @@ export default function InvoicesPage() {
                         <span className="text-gray-700">Total HT</span>
                         <span className="font-bold text-gray-900">{totals.totalHT.toFixed(3)} {formData.devise}</span>
                       </div>
+                      <div className="flex justify-between text-sm items-center">
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-600">FODEC</span>
+                          <input
+                            type="checkbox"
+                            checked={formData.fodec?.enabled || false}
+                            onChange={(e) => setFormData({ 
+                              ...formData, 
+                              fodec: { 
+                                ...formData.fodec, 
+                                enabled: e.target.checked,
+                                tauxPct: formData.fodec?.tauxPct || 1
+                              } 
+                            })}
+                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                          />
+                        </div>
+                        {formData.fodec?.enabled && (
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="number"
+                              value={formData.fodec.tauxPct || 1}
+                              onChange={(e) => setFormData({ 
+                                ...formData, 
+                                fodec: { 
+                                  ...formData.fodec, 
+                                  tauxPct: parseFloat(e.target.value) || 1 
+                                } 
+                              })}
+                              min="0"
+                              max="100"
+                              step="0.1"
+                              className="w-16 px-2 py-1 border rounded text-sm"
+                            />
+                            <span className="text-gray-600">%</span>
+                            <span className="font-medium ml-2">{totals.fodec.toFixed(3)} {formData.devise}</span>
+                          </div>
+                        )}
+                      </div>
+                      {formData.fodec?.enabled && totals.fodec > 0 && (
+                        <div className="flex justify-between text-sm ml-7">
+                          <span className="text-gray-600">FODEC ({formData.fodec.tauxPct}%)</span>
+                          <span className="font-medium">{totals.fodec.toFixed(3)} {formData.devise}</span>
+                        </div>
+                      )}
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-600">TVA</span>
                         <span className="font-medium">{totals.totalTVA.toFixed(3)} {formData.devise}</span>

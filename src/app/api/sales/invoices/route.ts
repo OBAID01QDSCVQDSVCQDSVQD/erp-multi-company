@@ -155,25 +155,39 @@ function calculateDocumentTotals(doc: any) {
   const remiseGlobalePct = doc.remiseGlobalePct || 0;
   const totalBaseHT = totalHTAfterLineDiscount * (1 - (remiseGlobalePct / 100));
 
-  // Calculate TVA after applying global remise
+  // Calculate FODEC on Total HT AFTER discount (totalBaseHT is already after all discounts)
+  // FODEC = totalBaseHT * (tauxPct / 100)
+  const fodecEnabled = doc.fodec?.enabled || false;
+  const fodecTauxPct = doc.fodec?.tauxPct || 1;
+  const fodec = fodecEnabled ? totalBaseHT * (fodecTauxPct / 100) : 0;
+
+  // Calculate TVA after applying global remise and FODEC
   doc.lignes.forEach((line: any) => {
     const remise = line.remisePct || 0;
     const prixHT = line.prixUnitaireHT * (1 - remise / 100);
     const montantHT = prixHT * line.quantite;
     // Apply global remise to line HT for TVA calculation
     const montantHTAfterGlobalRemise = montantHT * (1 - (remiseGlobalePct / 100));
+    // Add FODEC to base for TVA calculation (proportional to line)
+    const ligneFodec = fodecEnabled ? montantHTAfterGlobalRemise * (fodecTauxPct / 100) : 0;
+    const ligneBaseTVA = montantHTAfterGlobalRemise + ligneFodec;
     
     if (line.tvaPct) {
-      totalTVA += montantHTAfterGlobalRemise * (line.tvaPct / 100);
+      totalTVA += ligneBaseTVA * (line.tvaPct / 100);
     }
   });
 
   doc.totalBaseHT = Math.round(totalBaseHT * 100) / 100;
   doc.totalTVA = Math.round(totalTVA * 100) / 100;
   
+  // Update FODEC in document
+  if (doc.fodec) {
+    doc.fodec.montant = Math.round(fodec * 100) / 100;
+  }
+  
   // Add timbre fiscal if it exists in the document
   const timbreFiscal = doc.timbreFiscal || 0;
-  doc.totalTTC = doc.totalBaseHT + doc.totalTVA + timbreFiscal;
+  doc.totalTTC = doc.totalBaseHT + fodec + doc.totalTVA + timbreFiscal;
   doc.netAPayer = doc.totalTTC;
 }
 
