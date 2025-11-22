@@ -30,10 +30,10 @@ export default function ProductsPage() {
   const categoryDescRef = useRef<HTMLDivElement>(null);
   const [form, setForm] = useState<{ 
     nom:string; sku:string; barcode?:string; categorieCode?:string; description?:string; referenceClient?: string;
-    prixVenteHT?:number; taxCode?:string; uomVenteCode?:string; 
+    prixVenteHT?:number; prixAchatRef?:number; taxCode?:string; uomVenteCode?:string; 
     typeProduit:'service'|'stocke'; min?:number; max?:number; leadTimeJours?:number; 
     actif:boolean; tagsText?:string;
-  }>({ nom:'', sku:'', barcode: '', categorieCode: undefined, description:'', referenceClient:'', prixVenteHT: undefined, taxCode: undefined, uomVenteCode: undefined, typeProduit:'service', min: undefined, max: undefined, leadTimeJours: undefined, actif:true, tagsText:'' });
+  }>({ nom:'', sku:'', barcode: '', categorieCode: undefined, description:'', referenceClient:'', prixVenteHT: undefined, prixAchatRef: undefined, taxCode: undefined, uomVenteCode: undefined, typeProduit:'service', min: undefined, max: undefined, leadTimeJours: undefined, actif:true, tagsText:'' });
 
   useEffect(() => { fetchProducts(); }, [tenantId]);
   useEffect(() => { if (tenantId) loadRefs(); }, [tenantId]);
@@ -202,6 +202,7 @@ export default function ProductsPage() {
         barcode: form.barcode || undefined,
         categorieCode: form.categorieCode || undefined,
         description: form.description || undefined,
+        prixAchatRef: form.prixAchatRef ?? undefined,
         prixVenteHT: form.prixVenteHT ?? undefined,
         referenceClient: form.referenceClient || undefined,
         taxCode: form.taxCode || undefined,
@@ -278,6 +279,7 @@ export default function ProductsPage() {
       categorieCode: p.categorieCode,
       description: (p as any).description || '',
       referenceClient: p.referenceClient || '',
+      prixAchatRef: (p as any).prixAchatRef,
       prixVenteHT: p.prixVenteHT,
       taxCode: p.taxCode,
       uomVenteCode: p.uomVenteCode,
@@ -307,6 +309,7 @@ export default function ProductsPage() {
       categorieCode: p.categorieCode,
       description: (p as any).description || '',
       referenceClient: p.referenceClient || '',
+      prixAchatRef: (p as any).prixAchatRef,
       prixVenteHT: p.prixVenteHT,
       taxCode: p.taxCode,
       uomVenteCode: p.uomVenteCode,
@@ -662,7 +665,11 @@ export default function ProductsPage() {
 
               <div className="md:col-span-2 border-t pt-4">
                 <h4 className="text-sm font-medium text-gray-700 mb-3">Prix & TVA</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Prix d'achat (TND)</label>
+                    <input type="number" value={form.prixAchatRef ?? ''} onChange={(e)=>setForm({...form, prixAchatRef: e.target.value? Number(e.target.value): undefined})} placeholder="Ex : 150" className="w-full px-3 py-2 border border-gray-300 rounded-md" disabled={viewing} />
+                  </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Prix HT (TND)</label>
                     <input type="number" value={form.prixVenteHT ?? ''} onChange={(e)=>setForm({...form, prixVenteHT: e.target.value? Number(e.target.value): undefined})} placeholder="Ex : 250" className="w-full px-3 py-2 border border-gray-300 rounded-md" disabled={viewing} />
