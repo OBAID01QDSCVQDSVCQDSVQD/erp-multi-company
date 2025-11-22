@@ -721,26 +721,29 @@ function drawLinesTable(doc: jsPDF, quoteData: QuoteData, startY: number): numbe
       fontSize: 9,
       cellPadding: { top: 4, right: 3, bottom: 3, left: 3 },
       valign: 'top',
+      halign: 'left',
       minCellHeight: 8,
     },
     headStyles: {
       fillColor: [232, 241, 255],
       textColor: 0,
       fontStyle: 'bold',
+      valign: 'middle',
+      halign: 'left',
     },
     alternateRowStyles: {
       fillColor: [252, 252, 252],
     },
     // نقسم الـ 190 على الكولونات
     columnStyles: {
-      0: { cellWidth: 18 },              // Réf
-      1: { cellWidth: 70, cellPadding: { top: 4, right: 3, bottom: 3, left: 3 }, valign: 'top' }, // Produit
-      2: { cellWidth: 12, halign: 'right' }, // Qté
-      3: { cellWidth: 22, halign: 'right' }, // Prix HT
-      4: { cellWidth: 16, halign: 'right' }, // Remise %
-      5: { cellWidth: 14, halign: 'right' }, // TVA
-      6: { cellWidth: 19, halign: 'right' }, // Total HT
-      7: { cellWidth: 19, halign: 'right' }, // Total TTC
+      0: { cellWidth: 18, halign: 'left', valign: 'top' },              // Réf
+      1: { cellWidth: 70, cellPadding: { top: 4, right: 3, bottom: 3, left: 3 }, valign: 'top', halign: 'left' }, // Produit
+      2: { cellWidth: 12, halign: 'right', valign: 'top' }, // Qté
+      3: { cellWidth: 22, halign: 'right', valign: 'top' }, // Prix HT
+      4: { cellWidth: 16, halign: 'right', valign: 'top' }, // Remise %
+      5: { cellWidth: 14, halign: 'right', valign: 'top' }, // TVA
+      6: { cellWidth: 19, halign: 'right', valign: 'top' }, // Total HT
+      7: { cellWidth: 19, halign: 'right', valign: 'top' }, // Total TTC
     },
     willDrawCell: (data: any) => {
       // Ensure all cells in the row have the same height as the tallest cell
@@ -806,9 +809,16 @@ function drawLinesTable(doc: jsPDF, quoteData: QuoteData, startY: number): numbe
       if (data.column.index === 1 && (data.cell as any).htmlContent) {
         const html = (data.cell as any).htmlContent;
         const cell = data.cell;
-        const x = cell.x + 3;
-        let y = cell.y + 4; // Top padding
-        const maxWidth = cell.width - 4;
+        // Get padding from cell styles (matches columnStyles: left: 3, top: 4)
+        const paddingLeft = (cell.styles?.cellPadding?.left || cell.styles?.cellPadding?.[0] || 3);
+        const paddingTop = (cell.styles?.cellPadding?.top || cell.styles?.cellPadding?.[1] || 4);
+        const paddingRight = (cell.styles?.cellPadding?.right || cell.styles?.cellPadding?.[2] || 3);
+        
+        // cell.x and cell.y are the top-left corner of the cell
+        // We need to add padding to match autoTable's text positioning
+        const x = cell.x + paddingLeft;
+        let y = cell.y + paddingTop;
+        const maxWidth = cell.width - paddingLeft - paddingRight;
         const lineHeight = 4.5;
         const fontSize = 9;
         const startY = y;
