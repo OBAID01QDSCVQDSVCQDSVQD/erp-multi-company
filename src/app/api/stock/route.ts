@@ -31,10 +31,11 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '50');
 
-    // Build product filter - Get all products that can potentially have stock
-    // Show all products except archived ones, regardless of estStocke or actif
+    // Build product filter - Get only stocked products (estStocke = true)
+    // Exclude services (estStocke = false) and archived products
     const productFilter: any = { 
       tenantId,
+      estStocke: true, // Only show products that are stocked (not services)
       archive: { $ne: true }, // Exclude archived products
     };
     
