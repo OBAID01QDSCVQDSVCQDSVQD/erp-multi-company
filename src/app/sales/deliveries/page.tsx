@@ -233,10 +233,28 @@ export default function DeliveriesPage() {
   // Using fixed position (relative to viewport, not document)
   const calculateDropdownPosition = (inputElement: HTMLInputElement) => {
     const rect = inputElement.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const isMobile = viewportWidth < 640; // sm breakpoint
+    
+    // On mobile, make dropdown full width with some padding
+    if (isMobile) {
+      return {
+        top: rect.bottom + 4,
+        left: 8, // 8px padding from screen edge
+        width: viewportWidth - 16, // Full width minus padding
+        isMobile: true
+      };
+    }
+    
+    // On desktop, use input width but ensure it doesn't go off screen
+    const maxWidth = Math.min(rect.width, viewportWidth - rect.left - 16);
+    const left = Math.max(8, Math.min(rect.left, viewportWidth - maxWidth - 8));
+    
     return {
-      top: rect.bottom + 4, // 4px margin, fixed position is relative to viewport
-      left: rect.left,
-      width: rect.width
+      top: rect.bottom + 4,
+      left: left,
+      width: maxWidth,
+      isMobile: false
     };
   };
 
@@ -1283,10 +1301,10 @@ export default function DeliveriesPage() {
                         <tbody className="divide-y divide-gray-100">
                           {lines.map((line, index) => (
                             <tr key={index}>
-                              <td className="px-4 py-3 overflow-visible">
+                              <td className="px-2 sm:px-4 py-3 overflow-visible">
                                 <div className="relative product-autocomplete">
                                   <div className="relative">
-                                    <MagnifyingGlassIcon className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                    <MagnifyingGlassIcon className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
                                     <input
                                       type="text"
                                       data-line-index={index}
@@ -1307,28 +1325,35 @@ export default function DeliveriesPage() {
                                       }}
                                       onKeyDown={(e) => handleProductKeyDown(e, index)}
                                       placeholder="Rechercher un produit..."
-                                      className="w-full pl-8 pr-2 py-1 border rounded text-xs"
+                                      className="w-full pl-8 sm:pl-10 pr-2 sm:pr-3 py-2 sm:py-2.5 border rounded-lg text-sm sm:text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                     />
                                   </div>
                                   
                                   {/* Dropdown */}
                                   {showProductDropdowns[index] && productDropdownPositions[index] && (
                                     <div 
-                                      className="fixed z-[9999] bg-white border border-gray-200 rounded-lg shadow-xl max-h-[280px] overflow-hidden" 
+                                      className={`fixed z-[9999] bg-white border border-gray-200 rounded-lg shadow-2xl overflow-hidden ${
+                                        productDropdownPositions[index].isMobile 
+                                          ? 'max-h-[60vh]' 
+                                          : 'max-h-[280px]'
+                                      }`}
                                       style={{ 
-                                        minWidth: '300px',
                                         width: `${productDropdownPositions[index].width}px`,
                                         top: `${productDropdownPositions[index].top}px`,
                                         left: `${productDropdownPositions[index].left}px`
                                       }}
                                     >
-                                      {/* Alphabet filter bar */}
-                                      <div className="flex items-center justify-center gap-1 px-2 py-1 bg-gray-50 border-b text-xs">
+                                      {/* Alphabet filter bar - scrollable on mobile */}
+                                      <div className={`flex items-center gap-1 px-2 py-2 bg-gray-50 border-b ${
+                                        productDropdownPositions[index].isMobile 
+                                          ? 'overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300' 
+                                          : 'justify-center'
+                                      }`}>
                                         {Array.from('ABCDEFGHIJKLMNOPQRSTUVWXYZ').map((letter) => (
                                           <button
                                             key={letter}
                                             onClick={() => handleProductAlphabetClick(index, letter)}
-                                            className="px-1.5 py-0.5 rounded hover:bg-blue-100 hover:text-blue-600 transition-colors font-semibold"
+                                            className="px-2 sm:px-1.5 py-1 sm:py-0.5 rounded hover:bg-blue-100 hover:text-blue-600 active:bg-blue-200 transition-colors font-semibold text-xs sm:text-xs flex-shrink-0"
                                           >
                                             {letter}
                                           </button>
@@ -1336,7 +1361,11 @@ export default function DeliveriesPage() {
                                       </div>
                                       
                                       {/* Product list */}
-                                      <div className="overflow-y-auto max-h-[240px]">
+                                      <div className={`overflow-y-auto ${
+                                        productDropdownPositions[index].isMobile 
+                                          ? 'max-h-[calc(60vh-50px)]' 
+                                          : 'max-h-[240px]'
+                                      }`}>
                                         {getFilteredProducts(index).length > 0 ? (
                                           getFilteredProducts(index).map((product, prodIndex) => {
                                             const displayName = product.nom;
@@ -1349,21 +1378,21 @@ export default function DeliveriesPage() {
                                               <div
                                                 key={product._id}
                                                 onClick={() => handleSelectProduct(index, product)}
-                                                className={`px-3 py-2 cursor-pointer transition-colors ${
+                                                className={`px-3 sm:px-4 py-3 sm:py-2.5 cursor-pointer transition-colors touch-manipulation ${
                                                   prodIndex === (selectedProductIndices[index] || -1)
                                                     ? 'bg-blue-50 border-l-2 border-blue-500'
-                                                    : 'hover:bg-gray-50'
+                                                    : 'hover:bg-gray-50 active:bg-gray-100'
                                                 }`}
                                               >
-                                                <div className="font-medium text-gray-900 text-xs">{displayName}</div>
+                                                <div className="font-medium text-gray-900 text-sm sm:text-base">{displayName}</div>
                                                 {secondaryInfo && (
-                                                  <div className="text-xs text-gray-500">{secondaryInfo}</div>
+                                                  <div className="text-xs sm:text-sm text-gray-500 mt-0.5">{secondaryInfo}</div>
                                                 )}
                                               </div>
                                             );
                                           })
                                         ) : (
-                                          <div className="px-4 py-8 text-center text-gray-500 text-sm">
+                                          <div className="px-4 py-8 text-center text-gray-500 text-sm sm:text-base">
                                             Aucun produit trouvé
                                           </div>
                                         )}
