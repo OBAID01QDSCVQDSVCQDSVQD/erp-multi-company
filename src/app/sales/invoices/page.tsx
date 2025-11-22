@@ -88,7 +88,7 @@ export default function InvoicesPage() {
   const [productSearches, setProductSearches] = useState<{ [key: number]: string }>({});
   const [showProductDropdowns, setShowProductDropdowns] = useState<{ [key: number]: boolean }>({});
   const [selectedProductIndices, setSelectedProductIndices] = useState<{ [key: number]: number }>({});
-  const [productDropdownPositions, setProductDropdownPositions] = useState<{ [key: number]: { top: number; left: number; width: number } }>({});
+  const [productDropdownPositions, setProductDropdownPositions] = useState<{ [key: number]: { top: number; left: number; width: number; isMobile?: boolean } }>({});
   const [invoiceNumberPreview, setInvoiceNumberPreview] = useState<string | null>(null);
   const [invoiceNumberLoading, setInvoiceNumberLoading] = useState(false);
   const [productStocks, setProductStocks] = useState<{ [productId: string]: number }>({});

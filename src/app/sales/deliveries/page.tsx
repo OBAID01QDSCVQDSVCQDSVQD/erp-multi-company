@@ -66,7 +66,7 @@ export default function DeliveriesPage() {
   const [productSearches, setProductSearches] = useState<{ [key: number]: string }>({});
   const [showProductDropdowns, setShowProductDropdowns] = useState<{ [key: number]: boolean }>({});
   const [selectedProductIndices, setSelectedProductIndices] = useState<{ [key: number]: number }>({});
-  const [productDropdownPositions, setProductDropdownPositions] = useState<{ [key: number]: { top: number; left: number; width: number } }>({});
+  const [productDropdownPositions, setProductDropdownPositions] = useState<{ [key: number]: { top: number; left: number; width: number; isMobile?: boolean } }>({});
   const [productStocks, setProductStocks] = useState<{ [productId: string]: number }>({});
   
   // Calculate default delivery date (today)
