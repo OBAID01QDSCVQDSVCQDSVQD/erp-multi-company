@@ -104,6 +104,20 @@ export async function GET(
       })
     );
 
+    // Calculate remise lignes (line discounts)
+    const remiseLignes = invoice.lignes.reduce((sum: number, line: any) => {
+      const remise = line.remisePct || 0;
+      const prixHTBeforeDiscount = line.prixUnitaireHT;
+      const prixHTAfterDiscount = prixHTBeforeDiscount * (1 - remise / 100);
+      const remiseAmount = (prixHTBeforeDiscount - prixHTAfterDiscount) * line.quantite;
+      return sum + remiseAmount;
+    }, 0);
+
+    // Calculate remise globale (global discount)
+    const remiseGlobalePct = invoice.remiseGlobalePct || 0;
+    const totalHTAfterLineDiscount = (invoice.totalBaseHT || 0) - remiseLignes;
+    const remiseGlobale = totalHTAfterLineDiscount * (remiseGlobalePct / 100);
+
     // Prepare invoice data
     const invoiceData = {
       numero: invoice.numero,
@@ -117,13 +131,12 @@ export async function GET(
       devise: invoice.devise || 'TND',
       lignes: enrichedLines,
       totalBaseHT: invoice.totalBaseHT || 0,
-      totalRemise: invoice.lignes.reduce((sum: number, line: any) => {
-        const remise = line.remisePct || 0;
-        const prixHTBeforeDiscount = line.prixUnitaireHT;
-        const prixHTAfterDiscount = prixHTBeforeDiscount * (1 - remise / 100);
-        const remiseAmount = (prixHTBeforeDiscount - prixHTAfterDiscount) * line.quantite;
-        return sum + remiseAmount;
-      }, 0),
+      remiseLignes: remiseLignes,
+      remiseGlobale: remiseGlobale,
+      remiseGlobalePct: remiseGlobalePct,
+      totalRemise: remiseLignes + remiseGlobale,
+      fodec: invoice.fodec?.montant || 0,
+      fodecTauxPct: invoice.fodec?.tauxPct || 0,
       totalTVA: invoice.totalTVA || 0,
       timbreFiscal: invoice.timbreFiscal || 0,
       totalTTC: invoice.totalTTC || 0,

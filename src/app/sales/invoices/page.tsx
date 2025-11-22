@@ -801,6 +801,7 @@ export default function InvoicesPage() {
       totalHT, 
       totalHTAfterLineDiscount,
       totalRemise, 
+      remiseLignes: remiseFromLines, // Added remiseLignes
       remiseGlobale, 
       fodec,
       totalTVA, 
@@ -2028,10 +2029,10 @@ export default function InvoicesPage() {
                         <span className="text-gray-600">Sous-total HT</span>
                         <span className="font-medium">{totals.totalHTBeforeDiscount.toFixed(3)} {formData.devise}</span>
                       </div>
-                      {(totals.totalRemise - totals.remiseGlobale) > 0 && (
+                      {totals.remiseLignes > 0 && (
                         <div className="flex justify-between text-sm">
                           <span className="text-gray-600">Remise lignes</span>
-                          <span className="font-medium text-red-600">-{(totals.totalRemise - totals.remiseGlobale).toFixed(3)} {formData.devise}</span>
+                          <span className="font-medium text-red-600">-{totals.remiseLignes.toFixed(3)} {formData.devise}</span>
                         </div>
                       )}
                       {/* Remise globale input */}

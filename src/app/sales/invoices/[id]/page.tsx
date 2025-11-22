@@ -21,6 +21,12 @@ interface Invoice {
   totalHT?: number;
   totalTVA: number;
   timbreFiscal?: number;
+  fodec?: {
+    enabled?: boolean;
+    tauxPct?: number;
+    montant?: number;
+  };
+  remiseGlobalePct?: number;
   devise?: string;
   lignes?: any[];
 }
@@ -588,43 +594,71 @@ export default function ViewInvoicePage() {
           {/* Totals */}
           <div className="mt-4 sm:mt-6 flex justify-end">
             <div className="w-full sm:w-80 bg-blue-50 border border-blue-100 rounded-lg p-3 sm:p-4 space-y-2 sm:space-y-3">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-700">Total HT</span>
-                <span className="font-medium text-gray-900">{(invoice.totalBaseHT || invoice.totalHT || 0).toFixed(3)} {invoice.devise}</span>
-              </div>
               {(() => {
-                // Calculate total remise from lines
-                const totalRemise = invoice.lignes?.reduce((sum: number, line: any) => {
+                // Calculate remise lignes (line discounts)
+                const remiseLignes = invoice.lignes?.reduce((sum: number, line: any) => {
                   const lineHTBeforeDiscount = (line.quantite || 0) * (line.prixUnitaireHT || 0);
                   const lineHT = lineHTBeforeDiscount * (1 - ((line.remisePct || 0) / 100));
                   return sum + (lineHTBeforeDiscount - lineHT);
                 }, 0) || 0;
-                
-                return totalRemise > 0 ? (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-700">Total Remise</span>
-                    <span className="font-medium text-red-600">-{totalRemise.toFixed(3)} {invoice.devise}</span>
-                  </div>
-                ) : null;
+
+                // Calculate remise globale (global discount)
+                const totalHTAfterLineDiscount = (invoice.totalBaseHT || invoice.totalHT || 0) - remiseLignes;
+                const remiseGlobalePct = invoice.remiseGlobalePct || 0;
+                const remiseGlobale = totalHTAfterLineDiscount * (remiseGlobalePct / 100);
+
+                // Calculate total HT after all discounts
+                const totalHTAfterDiscount = totalHTAfterLineDiscount - remiseGlobale;
+
+                return (
+                  <>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-700">Sous-total HT</span>
+                      <span className="font-medium text-gray-900">{(invoice.totalBaseHT || invoice.totalHT || 0).toFixed(3)} {invoice.devise}</span>
+                    </div>
+                    {remiseLignes > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-700">Remise lignes</span>
+                        <span className="font-medium text-red-600">-{remiseLignes.toFixed(3)} {invoice.devise}</span>
+                      </div>
+                    )}
+                    {remiseGlobale > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-700">Remise globale{remiseGlobalePct > 0 ? ` (${remiseGlobalePct}%)` : ''}</span>
+                        <span className="font-medium text-red-600">-{remiseGlobale.toFixed(3)} {invoice.devise}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-sm font-semibold">
+                      <span className="text-gray-700">Total HT</span>
+                      <span className="font-bold text-gray-900">{totalHTAfterDiscount.toFixed(3)} {invoice.devise}</span>
+                    </div>
+                    {invoice.fodec?.montant && invoice.fodec.montant > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-700">FODEC{invoice.fodec.tauxPct ? ` (${invoice.fodec.tauxPct}%)` : ''}</span>
+                        <span className="font-medium text-gray-900">{invoice.fodec.montant.toFixed(3)} {invoice.devise}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-700">Total TVA</span>
+                      <span className="font-medium text-gray-900">{invoice.totalTVA?.toFixed(3) || 0} {invoice.devise}</span>
+                    </div>
+                    {invoice.timbreFiscal && invoice.timbreFiscal > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-700">Timbre fiscal</span>
+                        <span className="font-medium text-gray-900">{invoice.timbreFiscal.toFixed(3)} {invoice.devise}</span>
+                      </div>
+                    )}
+                    <div className="border-t border-blue-200 pt-3 flex justify-between text-lg font-bold">
+                      <span className="text-gray-900">Total TTC</span>
+                      <span className="text-blue-600">{invoice.totalTTC?.toFixed(3)} {invoice.devise}</span>
+                    </div>
+                    <div className="border-t border-blue-200 pt-3 flex justify-between text-sm">
+                      <span className="text-gray-700">Montant à payer</span>
+                      <span className="font-medium text-red-600">{montantRestant.toFixed(3)} {invoice.devise}</span>
+                    </div>
+                  </>
+                );
               })()}
-              {invoice.timbreFiscal && invoice.timbreFiscal > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-700">Timbre fiscal</span>
-                  <span className="font-medium text-gray-900">{invoice.timbreFiscal.toFixed(3)} {invoice.devise}</span>
-                </div>
-              )}
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-700">Total TVA</span>
-                <span className="font-medium text-gray-900">{invoice.totalTVA?.toFixed(3) || 0} {invoice.devise}</span>
-              </div>
-              <div className="border-t border-blue-200 pt-3 flex justify-between text-lg font-bold">
-                <span className="text-gray-900">Total TTC</span>
-                <span className="text-blue-600">{invoice.totalTTC?.toFixed(3)} {invoice.devise}</span>
-              </div>
-              <div className="border-t border-blue-200 pt-3 flex justify-between text-sm">
-                <span className="text-gray-700">Montant à payer</span>
-                <span className="font-medium text-red-600">{montantRestant.toFixed(3)} {invoice.devise}</span>
-              </div>
             </div>
           </div>
           

@@ -109,7 +109,12 @@ interface QuoteData {
   devise: string;
   lignes: QuoteLine[];
   totalBaseHT: number;
+  remiseLignes?: number;
+  remiseGlobale?: number;
+  remiseGlobalePct?: number;
   totalRemise?: number;
+  fodec?: number;
+  fodecTauxPct?: number;
   totalTVA: number;
   timbreFiscal?: number;
   totalTTC: number;
@@ -828,8 +833,8 @@ function drawLinesTable(doc: jsPDF, quoteData: QuoteData, startY: number): numbe
         let inBold = false;
         let currentColor: number[] | undefined = undefined;
         
-        // Simple regex-based parser
-        const tagRegex = /<(?:strong|b)([^>]*)>|<\/(?:strong|b)>|<span[^>]*style="[^"]*color:\s*([^";]+)[^"]*"[^>]*>|<\/span>|([^<]+)/gi;
+        // Simple regex-based parser - handles <font color="...">, <span style="color:...">, <strong>, <b>
+        const tagRegex = /<(?:strong|b)([^>]*)>|<\/(?:strong|b)>|<font[^>]*color\s*=\s*["']([^"']+)["'][^>]*>|<\/font>|<span[^>]*style\s*=\s*["'][^"]*color\s*:\s*([^";\s]+)[^"]*["'][^>]*>|<\/span>|([^<]+)/gi;
         let match;
         let lastIndex = 0;
         
@@ -858,12 +863,26 @@ function drawLinesTable(doc: jsPDF, quoteData: QuoteData, startY: number): numbe
             }
             inBold = false;
           } else if (match[2] !== undefined) {
-            // Opening <span> with color
+            // Opening <font color="...">
             if (currentText) {
               segments.push({ text: currentText, bold: inBold, color: currentColor });
               currentText = '';
             }
             currentColor = parseColor(match[2]);
+          } else if (match[0] === '</font>' || match[0] === '/font>') {
+            // Closing </font> or /font> (handle malformed HTML)
+            if (currentText) {
+              segments.push({ text: currentText, bold: inBold, color: currentColor });
+              currentText = '';
+            }
+            currentColor = undefined;
+          } else if (match[3] !== undefined) {
+            // Opening <span> with color in style
+            if (currentText) {
+              segments.push({ text: currentText, bold: inBold, color: currentColor });
+              currentText = '';
+            }
+            currentColor = parseColor(match[3]);
           } else if (match[0] === '</span>') {
             // Closing </span>
             if (currentText) {
@@ -871,9 +890,9 @@ function drawLinesTable(doc: jsPDF, quoteData: QuoteData, startY: number): numbe
               currentText = '';
             }
             currentColor = undefined;
-          } else if (match[3]) {
+          } else if (match[4]) {
             // Text content
-            currentText += match[3];
+            currentText += match[4];
           }
           
           lastIndex = match.index + match[0].length;
@@ -967,9 +986,19 @@ function drawTotals(doc: jsPDF, quoteData: QuoteData, startY: number, maxHeightB
   const docType = quoteData.documentType?.toLowerCase() || '';
   const isDeliveryNote = docType.includes('livraison') || docType.includes('bon de livraison');
 
-  const rows: Array<[string, number | undefined]> = [
-    ['Total HT', quoteData.totalBaseHT],
-    ['Total Remise', quoteData.totalRemise],
+  const rows: Array<[string, number | undefined, string?]> = [
+    ['Sous-total HT', quoteData.totalBaseHT],
+    // Show remise lignes if exists
+    ...(quoteData.remiseLignes && quoteData.remiseLignes > 0 ? [['Remise lignes', -quoteData.remiseLignes] as [string, number | undefined, string?]] : []),
+    // Show remise globale if exists (with percentage)
+    ...(quoteData.remiseGlobale && quoteData.remiseGlobale > 0 ? [
+      [`Remise globale${quoteData.remiseGlobalePct ? ` (${quoteData.remiseGlobalePct}%)` : ''}`, -quoteData.remiseGlobale] as [string, number | undefined, string?]
+    ] : []),
+    // Show total remise if exists (for backward compatibility)
+    ...(quoteData.totalRemise && quoteData.totalRemise > 0 && !quoteData.remiseLignes && !quoteData.remiseGlobale ? [['Total Remise', -quoteData.totalRemise] as [string, number | undefined]] : []),
+    ['Total HT', (quoteData.totalBaseHT || 0) - (quoteData.remiseLignes || 0) - (quoteData.remiseGlobale || 0) - (quoteData.totalRemise && !quoteData.remiseLignes && !quoteData.remiseGlobale ? quoteData.totalRemise : 0)],
+    // Show FODEC if exists
+    ...(quoteData.fodec && quoteData.fodec > 0 ? [['FODEC', quoteData.fodec] as [string, number | undefined]] : []),
     ['Total TVA', quoteData.totalTVA],
     // Skip Timbre fiscal for delivery notes
     ...(isDeliveryNote ? [] : [['Timbre fiscal', quoteData.timbreFiscal] as [string, number | undefined]]),
@@ -978,8 +1007,9 @@ function drawTotals(doc: jsPDF, quoteData: QuoteData, startY: number, maxHeightB
   // Calculate box height (only for totals, without Arrêté and Mode de paiement)
   const validRows = rows.filter(([label, val]) => {
     if (!val && val !== 0) return false;
-    if (label === 'Total Remise' && val === 0) return false;
+    if ((label === 'Total Remise' || label === 'Remise lignes' || label.startsWith('Remise globale')) && val === 0) return false;
     if (label === 'Total TVA' && val === 0) return false;
+    if (label === 'FODEC' && val === 0) return false;
     // Skip Timbre fiscal for delivery notes (should not appear at all)
     if (label === 'Timbre fiscal' && isDeliveryNote) return false;
     return true;
@@ -1001,14 +1031,14 @@ function drawTotals(doc: jsPDF, quoteData: QuoteData, startY: number, maxHeightB
   rows.forEach(([label, val]) => {
     // Skip if undefined/null
     if (!val && val !== 0) return;
-    // Skip Total Remise and Total TVA if value is 0
-    if ((label === 'Total Remise' || label === 'Total TVA') && val === 0) return;
+    // Skip Total Remise, Remise lignes, Remise globale, Total TVA, and FODEC if value is 0
+    if ((label === 'Total Remise' || label === 'Remise lignes' || label.startsWith('Remise globale') || label === 'Total TVA' || label === 'FODEC') && val === 0) return;
 
     doc.setFont('helvetica', 'normal');
     doc.text(label, x + 4, y);
     
     // Special color for remise (red if negative)
-    if (label === 'Total Remise' && val && val < 0) {
+    if ((label === 'Total Remise' || label === 'Remise lignes' || label.startsWith('Remise globale')) && val && val < 0) {
       doc.setTextColor(255, 0, 0);
     } else {
       doc.setTextColor(0, 0, 0);
