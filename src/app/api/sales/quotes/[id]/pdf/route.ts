@@ -97,6 +97,22 @@ export async function GET(
       })
     );
 
+    // Calculate remise amounts
+    const remiseLignes = quote.lignes.reduce((sum: number, line: any) => {
+      const lineHTBeforeDiscount = (line.quantite || 0) * (line.prixUnitaireHT || 0);
+      const lineHT = lineHTBeforeDiscount * (1 - ((line.remisePct || 0) / 100));
+      return sum + (lineHTBeforeDiscount - lineHT);
+    }, 0);
+    
+    const totalHTAfterLineDiscount = quote.lignes.reduce((sum: number, line: any) => {
+      const lineHTBeforeDiscount = (line.quantite || 0) * (line.prixUnitaireHT || 0);
+      const lineHT = lineHTBeforeDiscount * (1 - ((line.remisePct || 0) / 100));
+      return sum + lineHT;
+    }, 0);
+    
+    const remiseGlobalePct = quote.remiseGlobalePct || 0;
+    const remiseGlobale = totalHTAfterLineDiscount - (totalHTAfterLineDiscount * (1 - (remiseGlobalePct / 100)));
+
     // Prepare quote data
     const quoteData = {
       numero: quote.numero,
@@ -110,13 +126,12 @@ export async function GET(
       devise: quote.devise || 'TND',
       lignes: enrichedLines,
       totalBaseHT: quote.totalBaseHT || 0,
-      totalRemise: quote.lignes.reduce((sum, line) => {
-        const remise = line.remisePct || 0;
-        const prixHTBeforeDiscount = line.prixUnitaireHT;
-        const prixHTAfterDiscount = prixHTBeforeDiscount * (1 - remise / 100);
-        const remiseAmount = (prixHTBeforeDiscount - prixHTAfterDiscount) * line.quantite;
-        return sum + remiseAmount;
-      }, 0),
+      remiseLignes: remiseLignes,
+      remiseGlobale: remiseGlobale,
+      remiseGlobalePct: remiseGlobalePct,
+      totalRemise: remiseLignes + remiseGlobale,
+      fodec: quote.fodec?.montant || 0,
+      fodecTauxPct: quote.fodec?.tauxPct || 0,
       totalTVA: quote.totalTVA || 0,
       timbreFiscal: quote.timbreFiscal || 0,
       totalTTC: quote.totalTTC || 0,

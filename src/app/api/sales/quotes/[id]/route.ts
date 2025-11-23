@@ -90,6 +90,11 @@ export async function PATCH(
 
     // Update fields
     Object.assign(quote, body);
+    
+    // Explicitly update fodec if present in body
+    if (body.fodec !== undefined) {
+      quote.fodec = body.fodec;
+    }
 
     // Recalculate totals
     calculateDocumentTotals(quote);
@@ -143,25 +148,47 @@ export async function DELETE(
 }
 
 function calculateDocumentTotals(doc: any) {
-  let totalBaseHT = 0;
+  let totalHTAfterLineDiscount = 0;
   let totalTVA = 0;
 
+  // Calculate HT after line discounts
   doc.lignes.forEach((line: any) => {
     const remise = line.remisePct || 0;
     const prixHT = line.prixUnitaireHT * (1 - remise / 100);
     const montantHT = prixHT * line.quantite;
-    totalBaseHT += montantHT;
+    totalHTAfterLineDiscount += montantHT;
+  });
 
+  // Calculate FODEC (after discount, on HT)
+  const fodecEnabled = doc.fodec?.enabled || false;
+  const fodecTauxPct = doc.fodec?.tauxPct || 1;
+  const fodec = fodecEnabled ? totalHTAfterLineDiscount * (fodecTauxPct / 100) : 0;
+
+  // Calculate TVA after applying FODEC
+  doc.lignes.forEach((line: any) => {
+    const remise = line.remisePct || 0;
+    const prixHT = line.prixUnitaireHT * (1 - remise / 100);
+    const montantHT = prixHT * line.quantite;
+    // Add FODEC to base for TVA calculation (proportional to line)
+    const lineFodec = fodecEnabled ? montantHT * (fodecTauxPct / 100) : 0;
+    const lineBaseTVA = montantHT + lineFodec;
+    
     if (line.tvaPct) {
-      totalTVA += montantHT * (line.tvaPct / 100);
+      const tvaAmount = lineBaseTVA * (line.tvaPct / 100);
+      totalTVA += tvaAmount;
     }
   });
 
-  doc.totalBaseHT = Math.round(totalBaseHT * 100) / 100;
+  doc.totalBaseHT = Math.round(totalHTAfterLineDiscount * 100) / 100;
   doc.totalTVA = Math.round(totalTVA * 100) / 100;
+  doc.fodec = { // Ensure fodec object is saved
+    enabled: fodecEnabled,
+    tauxPct: fodecTauxPct,
+    montant: Math.round(fodec * 100) / 100,
+  };
   
   // Add timbre fiscal if it exists in the document
   const timbreFiscal = doc.timbreFiscal || 0;
-  doc.totalTTC = doc.totalBaseHT + doc.totalTVA + timbreFiscal;
+  doc.totalTTC = doc.totalBaseHT + doc.totalTVA + doc.fodec.montant + timbreFiscal;
   doc.netAPayer = doc.totalTTC;
 }

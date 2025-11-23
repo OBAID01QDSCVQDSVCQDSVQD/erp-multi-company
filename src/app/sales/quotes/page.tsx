@@ -84,7 +84,9 @@ export default function QuotesPage() {
     modePaiement: 'Espèces',
     validite: getDefaultValidite(),
     notes: '',
-    timbreActif: false
+    remiseGlobalePct: 0,
+    timbreActif: false,
+    fodec: { enabled: false, tauxPct: 1 }
   });
   
   const [lines, setLines] = useState<Array<{
@@ -533,22 +535,37 @@ export default function QuotesPage() {
   // Calculate totals
   const calculateTotals = () => {
     let totalHTBeforeDiscount = 0;
-    let totalHT = 0;
+    let totalHTAfterLineDiscount = 0;
     
     lines.forEach(line => {
       const lineHTBeforeDiscount = (line.quantite || 0) * (line.prixUnitaireHT || 0);
       totalHTBeforeDiscount += lineHTBeforeDiscount;
       const lineHT = lineHTBeforeDiscount * (1 - ((line.remisePct || 0) / 100));
-      totalHT += lineHT;
+      totalHTAfterLineDiscount += lineHT;
     });
     
-    const totalRemise = totalHTBeforeDiscount - totalHT;
+    // Apply global remise
+    const remiseGlobalePct = formData.remiseGlobalePct || 0;
+    const totalHT = totalHTAfterLineDiscount * (1 - (remiseGlobalePct / 100));
     
-    // Calculate TVA per line
+    // Calculate remise amounts
+    const remiseLignes = totalHTBeforeDiscount - totalHTAfterLineDiscount;
+    const remiseGlobale = totalHTAfterLineDiscount - totalHT;
+    
+    // Calculate FODEC on Total HT AFTER discount
+    // FODEC = totalHT * (tauxPct / 100)
+    const fodec = formData.fodec?.enabled ? totalHT * ((formData.fodec.tauxPct || 1) / 100) : 0;
+    
+    // Calculate TVA per line (based on HT after line discount, before global remise, plus FODEC)
     const totalTVA = lines.reduce((sum, line) => {
       const lineHTBeforeDiscount = (line.quantite || 0) * (line.prixUnitaireHT || 0);
       const lineHT = lineHTBeforeDiscount * (1 - ((line.remisePct || 0) / 100));
-      const lineTVA = lineHT * (line.tvaPct || 0) / 100;
+      // Apply global remise to line HT for TVA calculation
+      const lineHTAfterGlobalRemise = lineHT * (1 - (remiseGlobalePct / 100));
+      // Add FODEC to base for TVA calculation (proportional to line)
+      const lineFodec = formData.fodec?.enabled ? lineHTAfterGlobalRemise * ((formData.fodec.tauxPct || 1) / 100) : 0;
+      const lineBaseTVA = lineHTAfterGlobalRemise + lineFodec;
+      const lineTVA = lineBaseTVA * (line.tvaPct || 0) / 100;
       return sum + lineTVA;
     }, 0);
     
@@ -557,9 +574,19 @@ export default function QuotesPage() {
       ? (tvaSettings?.timbreFiscal?.montantFixe || 1) 
       : 0;
     
-    const totalTTC = totalHT + totalTVA + timbreAmount;
+    const totalTTC = totalHT + fodec + totalTVA + timbreAmount;
     
-    return { totalHT, totalRemise, totalTVA, timbreAmount, totalTTC };
+    return { 
+      totalHTBeforeDiscount,
+      totalHT, 
+      remiseLignes,
+      remiseGlobale,
+      remiseGlobalePct,
+      totalTVA, 
+      fodec,
+      timbreAmount,
+      totalTTC 
+    };
   };
 
   const totals = calculateTotals();
@@ -620,7 +647,13 @@ export default function QuotesPage() {
           modePaiement: formData.modePaiement || undefined,
           notes: formData.notes,
           lignes: lignesData,
-          timbreFiscal: totals.timbreAmount
+          remiseGlobalePct: formData.remiseGlobalePct || 0,
+          timbreFiscal: totals.timbreAmount,
+          fodec: formData.fodec?.enabled ? {
+            enabled: formData.fodec.enabled,
+            tauxPct: formData.fodec.tauxPct || 1,
+            montant: totals.fodec || 0
+          } : undefined
         })
       });
 
@@ -637,7 +670,9 @@ export default function QuotesPage() {
           modePaiement: 'Espèces',
           validite: getDefaultValidite(),
           notes: '',
-          timbreActif: false
+          remiseGlobalePct: 0,
+          timbreActif: false,
+          fodec: { enabled: false, tauxPct: 1 }
         });
         setCustomerSearch('');
         setShowCustomerDropdown(false);
@@ -708,7 +743,12 @@ export default function QuotesPage() {
           modePaiement: fullQuote.modePaiement || '',
           validite: fullQuote.dateValidite?.split('T')[0] || '',
           notes: fullQuote.notes || '',
-          timbreActif: (fullQuote.timbreFiscal || 0) > 0
+          remiseGlobalePct: fullQuote.remiseGlobalePct || 0,
+          timbreActif: (fullQuote.timbreFiscal || 0) > 0,
+          fodec: fullQuote.fodec ? {
+            enabled: fullQuote.fodec.enabled || false,
+            tauxPct: fullQuote.fodec.tauxPct || 1
+          } : { enabled: false, tauxPct: 1 }
         });
         
         // Set customer search based on selected customer
@@ -761,6 +801,57 @@ export default function QuotesPage() {
       console.error('Error fetching quote:', err);
       toast.error('Erreur lors du chargement du devis');
     }
+  };
+
+  // Handle open new quote modal
+  const handleOpenNewQuoteModal = async () => {
+    setEditingQuoteId(null);
+    setLines([]);
+    setProductSearches({});
+    setShowProductDropdowns({});
+    setSelectedProductIndices({});
+    setProductDropdownPositions({});
+    setCustomerSearch('');
+    setShowCustomerDropdown(false);
+    setSelectedCustomerIndex(-1);
+    
+    // Ensure TVA settings are loaded before opening modal
+    let currentTvaSettings = tvaSettings;
+    if (!currentTvaSettings) {
+      try {
+        if (tenantId) {
+          const response = await fetch('/api/settings', {
+            headers: { 'X-Tenant-Id': tenantId }
+          });
+          if (response.ok) {
+            const data = await response.json();
+            currentTvaSettings = data.tva;
+            setTvaSettings(data.tva);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching TVA settings:', err);
+      }
+    }
+    
+    const resolvedForm = {
+      customerId: '',
+      dateDoc: new Date().toISOString().split('T')[0],
+      referenceExterne: '',
+      devise: 'TND',
+      modePaiement: 'Espèces',
+      validite: getDefaultValidite(),
+      notes: '',
+      remiseGlobalePct: 0,
+      timbreActif: false,
+      // Activate FODEC automatically if enabled in settings
+      fodec: currentTvaSettings?.fodec?.actif ? {
+        enabled: true,
+        tauxPct: currentTvaSettings.fodec.tauxPct || 1
+      } : { enabled: false, tauxPct: 1 }
+    };
+    setFormData(resolvedForm);
+    setShowModal(true);
   };
 
   // Handle download PDF
@@ -831,7 +922,7 @@ export default function QuotesPage() {
               <ArrowDownTrayIcon className="w-4 h-4" /> <span className="hidden lg:inline">Exporter</span>
             </button>
             <button 
-              onClick={() => setShowModal(true)} 
+              onClick={handleOpenNewQuoteModal} 
               className="flex items-center gap-2 bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-blue-700 text-sm sm:text-base w-full sm:w-auto justify-center"
             >
               <PlusIcon className="w-5 h-5" /> <span>Nouveau devis</span>
@@ -863,7 +954,7 @@ export default function QuotesPage() {
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Aucun devis trouvé</h3>
             <p className="text-gray-600 mb-6">Créez votre premier devis en quelques clics</p>
             <button 
-              onClick={() => setShowModal(true)}
+              onClick={handleOpenNewQuoteModal}
               className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 mx-auto"
             >
               <PlusIcon className="w-5 h-5" /> Nouveau devis
@@ -1198,7 +1289,7 @@ export default function QuotesPage() {
                             <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">Prix HT</th>
                             <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">TVA %</th>
                             <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">Total HT</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">Timbre</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">Remise %</th>
                             <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">Total TVA</th>
                             <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">Total TTC</th>
                             <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700"></th>
@@ -1358,16 +1449,31 @@ export default function QuotesPage() {
                                 />
                                 <div className="text-xs text-gray-500 mt-1">{line.taxCode || ''}</div>
                               </td>
-                              <td className="px-4 py-3 text-sm font-medium">
+                              <td className="px-4 py-3 text-sm font-medium whitespace-nowrap">
                                 {(((line.quantite || 0) * (line.prixUnitaireHT || 0)) * (1 - ((line.remisePct || 0) / 100))).toFixed(3)} {formData.devise}
                               </td>
-                              <td className="px-4 py-3 text-sm font-medium text-gray-500">
-                                -
+                              <td className="px-4 py-3">
+                                <input 
+                                  type="number" 
+                                  min="0"
+                                  max="100"
+                                  step="0.01"
+                                  value={line.remisePct ?? ''}
+                                  onChange={(e) => {
+                                    const val = parseFloat(e.target.value) || 0;
+                                    const updatedLines = [...lines];
+                                    updatedLines[index] = { ...updatedLines[index], remisePct: Math.min(100, Math.max(0, val)) };
+                                    setLines(updatedLines);
+                                  }}
+                                  className="w-20 px-2 py-1 border rounded text-sm"
+                                  placeholder="0"
+                                />
+                                <div className="text-xs text-gray-500 mt-1">%</div>
                               </td>
-                              <td className="px-4 py-3 text-sm font-medium">
+                              <td className="px-4 py-3 text-sm font-medium whitespace-nowrap">
                                 {((((line.quantite || 0) * (line.prixUnitaireHT || 0)) * (1 - ((line.remisePct || 0) / 100))) * ((line.tvaPct || 0) / 100)).toFixed(3)} {formData.devise}
                               </td>
-                              <td className="px-4 py-3 text-sm font-medium text-blue-600">
+                              <td className="px-4 py-3 text-sm font-medium text-blue-600 whitespace-nowrap">
                                 {(((line.quantite || 0) * (line.prixUnitaireHT || 0) * (1 - ((line.remisePct || 0) / 100))) * (1 + (line.tvaPct || 0) / 100)).toFixed(3)} {formData.devise}
                               </td>
                               <td className="px-4 py-3">
@@ -1393,30 +1499,107 @@ export default function QuotesPage() {
                     <div className="w-80 space-y-3">
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-600">Sous-total HT</span>
-                        <span className="font-medium">{totals.totalHT.toFixed(3)} {formData.devise}</span>
+                        <span className="font-medium">{totals.totalHTBeforeDiscount.toFixed(3)} {formData.devise}</span>
                       </div>
-                      {totals.totalRemise > 0 && (
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Total Remise</span>
-                          <span className="font-medium text-red-600">-{totals.totalRemise.toFixed(3)} {formData.devise}</span>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Remise lignes</span>
+                        {totals.remiseLignes > 0 ? (
+                          <span className="font-medium text-red-600">-{totals.remiseLignes.toFixed(3)} {formData.devise}</span>
+                        ) : (
+                          <span className="font-medium text-gray-400">0.000 {formData.devise}</span>
+                        )}
+                      </div>
+                      {/* Remise globale input */}
+                      <div className="flex justify-between text-sm items-center border-t pt-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-600">Remise globale</span>
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.01"
+                            value={formData.remiseGlobalePct || 0}
+                            onChange={(e) => {
+                              const value = parseFloat(e.target.value) || 0;
+                              setFormData({ ...formData, remiseGlobalePct: Math.min(100, Math.max(0, value)) });
+                            }}
+                            className="w-20 px-2 py-1 border rounded text-sm"
+                            placeholder="0"
+                          />
+                          <span className="text-gray-600">%</span>
                         </div>
-                      )}
+                        {totals.remiseGlobale > 0 && (
+                          <span className="font-medium text-red-600">-{totals.remiseGlobale.toFixed(3)} {formData.devise}</span>
+                        )}
+                        {totals.remiseGlobale === 0 && (
+                          <span className="font-medium text-gray-400">0.000 {formData.devise}</span>
+                        )}
+                      </div>
+                      <div className="flex justify-between text-sm font-semibold">
+                        <span className="text-gray-700">Total HT</span>
+                        <span className="font-bold text-gray-900">{totals.totalHT.toFixed(3)} {formData.devise}</span>
+                      </div>
+                      {/* FODEC */}
+                      <div className="flex justify-between text-sm items-center">
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-600">FODEC</span>
+                          <input 
+                            type="checkbox"
+                            checked={formData.fodec?.enabled || false}
+                            onChange={(e) => setFormData({ 
+                              ...formData, 
+                              fodec: { 
+                                ...formData.fodec, 
+                                enabled: e.target.checked,
+                                tauxPct: formData.fodec?.tauxPct || 1
+                              } 
+                            })}
+                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                          />
+                        </div>
+                        {formData.fodec?.enabled && (
+                          <div className="flex items-center gap-2">
+                            <input 
+                              type="number"
+                              min="0"
+                              max="100"
+                              step="0.1"
+                              value={formData.fodec?.tauxPct || 1}
+                              onChange={(e) => setFormData({ 
+                                ...formData, 
+                                fodec: { 
+                                  ...formData.fodec, 
+                                  enabled: formData.fodec?.enabled || false,
+                                  tauxPct: parseFloat(e.target.value) || 1
+                                } 
+                              })}
+                              className="w-16 px-2 py-1 border rounded text-sm"
+                              placeholder="1"
+                            />
+                            <span className="text-gray-600">%</span>
+                            <span className="font-medium ml-2">{totals.fodec.toFixed(3)} {formData.devise}</span>
+                          </div>
+                        )}
+                        {!formData.fodec?.enabled && (
+                          <span className="font-medium text-gray-400">0.000 {formData.devise}</span>
+                        )}
+                      </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-600">TVA</span>
                         <span className="font-medium">{totals.totalTVA.toFixed(3)} {formData.devise}</span>
                       </div>
                       {tvaSettings?.timbreFiscal?.actif && (
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Timbre fiscal</span>
+                        <div className="flex justify-between text-sm items-center">
                           <div className="flex items-center gap-2">
-                            <input 
+                            <span className="text-gray-600">Timbre fiscal</span>
+                            <input
                               type="checkbox"
                               checked={formData.timbreActif}
                               onChange={(e) => setFormData({ ...formData, timbreActif: e.target.checked })}
-                              className="w-4 h-4"
+                              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                             />
-                            <span className="font-medium">{totals.timbreAmount.toFixed(3)} {formData.devise}</span>
                           </div>
+                          <span className="font-medium">{totals.timbreAmount.toFixed(3)} {formData.devise}</span>
                         </div>
                       )}
                       <div className="border-t pt-3 flex justify-between text-lg font-bold">

@@ -787,8 +787,11 @@ function drawLinesTable(doc: jsPDF, quoteData: QuoteData, startY: number): numbe
         
         const lineHeight = 4.5;
         const minHeight = 8;
-        const padding = 4;
-        const calculatedHeight = Math.max(minHeight, (totalEstimatedLines * lineHeight) + padding);
+        // Calculate height more accurately - don't add extra padding
+        // The height should be: (lines * lineHeight) + paddingTop + paddingBottom
+        const paddingTop = 4;
+        const paddingBottom = 3;
+        const calculatedHeight = Math.max(minHeight, (totalEstimatedLines * lineHeight) + paddingTop + paddingBottom);
         
         // Set cell height to accommodate content
         data.cell.height = calculatedHeight;
@@ -815,15 +818,29 @@ function drawLinesTable(doc: jsPDF, quoteData: QuoteData, startY: number): numbe
         const paddingRight = (cell.styles?.cellPadding?.right || cell.styles?.cellPadding?.[2] || 3);
         
         // cell.x and cell.y are the top-left corner of the cell
-        // We need to add padding to match autoTable's text positioning
+        // autoTable calculates text position based on valign and padding
+        // For valign: 'top', autoTable positions text at: cell.y + paddingTop
+        // jsPDF uses 'alphabetic' baseline, so we need to account for that
+        const fontSize = 9;
+        doc.setFontSize(fontSize);
+        doc.setFont('helvetica', 'normal');
+        
+        // Calculate x and y positions to match autoTable's text positioning exactly
+        // autoTable positions text for valign: 'top' 
         const x = cell.x + paddingLeft;
-        let y = cell.y + paddingTop;
+        
+        // For valign: 'top', autoTable positions text baseline
+        // Try using the cell's text position if available (most accurate)
+        let y = (cell as any).textPos?.y;
+        const fontAscent = 2.5; // Very small offset for baseline adjustment
+        if (!y) {
+          // Fallback: use cell.y + paddingTop with minimal offset
+          // This should align better with autoTable's default text positioning
+          y = cell.y + paddingTop + fontAscent;
+        }
         const maxWidth = cell.width - paddingLeft - paddingRight;
         const lineHeight = 4.5;
-        const fontSize = 9;
         const startY = y;
-        
-        doc.setFontSize(fontSize);
         
         // Parse HTML and render with formatting
         // Convert HTML tags to newlines first
@@ -920,6 +937,8 @@ function drawLinesTable(doc: jsPDF, quoteData: QuoteData, startY: number): numbe
         }
         
         // Render segments and count actual lines rendered
+        // Note: jsPDF uses 'alphabetic' baseline by default, but we adjust y position
+        // to account for the font's ascender to align with autoTable's top alignment
         let totalLinesRendered = 0;
         segments.forEach((segment) => {
           const lines = segment.text.split('\n');
@@ -941,7 +960,8 @@ function drawLinesTable(doc: jsPDF, quoteData: QuoteData, startY: number): numbe
                 const textWidth = doc.getTextWidth(testLine);
                 
                 if (textWidth > maxWidth && currentLine) {
-                  doc.text(currentLine, x, y, { maxWidth });
+                  // Use options to ensure left alignment
+                  doc.text(currentLine, x, y, { maxWidth, align: 'left' });
                   y += lineHeight;
                   totalLinesRendered++;
                   currentLine = word;
@@ -951,7 +971,7 @@ function drawLinesTable(doc: jsPDF, quoteData: QuoteData, startY: number): numbe
               });
               
               if (currentLine) {
-                doc.text(currentLine, x, y, { maxWidth });
+                doc.text(currentLine, x, y, { maxWidth, align: 'left' });
                 y += lineHeight;
                 totalLinesRendered++;
               }
@@ -963,10 +983,23 @@ function drawLinesTable(doc: jsPDF, quoteData: QuoteData, startY: number): numbe
         });
         
         // Calculate actual height needed based on content rendered
-        const actualHeight = (totalLinesRendered * lineHeight) + 4;
-        const finalHeight = Math.max(actualHeight, cell.height || 8);
+        // Include top and bottom padding in the height calculation
+        const paddingBottom = (cell.styles?.cellPadding?.bottom || cell.styles?.cellPadding?.[3] || 3);
         
-        // Update cell height
+        // Calculate the actual height based on the content rendered
+        // The y position started at startY (which is cell.y + paddingTop + fontAscent)
+        // The content ends at: y (current position after rendering)
+        // The content height is: (y - startY) which gives us the height of all rendered lines
+        // We need to add fontAscent for the last line's baseline, and paddingBottom
+        // paddingTop is already included in startY, so we don't add it again
+        const contentHeight = (y - startY) + fontAscent;
+        // The actual cell height: contentHeight + paddingBottom (paddingTop already in startY)
+        const actualHeight = contentHeight + paddingBottom;
+        const minCellHeight = (cell.styles?.minCellHeight || 8);
+        // Use the calculated height, ensuring it's at least minCellHeight
+        const finalHeight = Math.max(actualHeight, minCellHeight);
+        
+        // Update cell height to match actual content
         cell.height = finalHeight;
         
         // Update row height to match - this ensures all cells in the row have the same height

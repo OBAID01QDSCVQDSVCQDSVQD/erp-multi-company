@@ -21,6 +21,8 @@ interface Quote {
   timbreFiscal?: number;
   devise?: string;
   lignes?: any[];
+  fodec?: { enabled: boolean; tauxPct: number; montant?: number; };
+  remiseGlobalePct?: number;
 }
 
 export default function ViewQuotePage() {
@@ -347,26 +349,63 @@ export default function ViewQuotePage() {
           <div className="mt-6 flex justify-end">
             <div className="w-80 bg-blue-50 border border-blue-100 rounded-lg p-4 space-y-3">
               <div className="flex justify-between text-sm">
-                <span className="text-gray-700">Total HT</span>
-                <span className="font-medium text-gray-900">{(quote.totalBaseHT || quote.totalHT || 0).toFixed(3)} {quote.devise}</span>
+                <span className="text-gray-700">Sous-total HT</span>
+                <span className="font-medium">{quote.totalBaseHT?.toFixed(3) || quote.totalHT?.toFixed(3) || '0.000'} {quote.devise || 'TND'}</span>
               </div>
               {(() => {
-                // Calculate total remise from lines
-                const totalRemise = quote.lignes?.reduce((sum: number, line: any) => {
+                // Calculate remise lignes
+                const remiseLignes = quote.lignes?.reduce((sum: number, line: any) => {
                   const lineHTBeforeDiscount = (line.quantite || 0) * (line.prixUnitaireHT || 0);
                   const lineHT = lineHTBeforeDiscount * (1 - ((line.remisePct || 0) / 100));
                   return sum + (lineHTBeforeDiscount - lineHT);
                 }, 0) || 0;
                 
-                return totalRemise > 0 ? (
+                return remiseLignes > 0 ? (
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-700">Total Remise</span>
-                    <span className="font-medium text-red-600">-{totalRemise.toFixed(3)} {quote.devise}</span>
+                    <span className="text-gray-700">Remise lignes</span>
+                    <span className="font-medium text-red-600">-{remiseLignes.toFixed(3)} {quote.devise}</span>
                   </div>
                 ) : null;
               })()}
+              {(() => {
+                // Calculate remise globale
+                const totalHTAfterLineDiscount = quote.lignes?.reduce((sum: number, line: any) => {
+                  const lineHTBeforeDiscount = (line.quantite || 0) * (line.prixUnitaireHT || 0);
+                  const lineHT = lineHTBeforeDiscount * (1 - ((line.remisePct || 0) / 100));
+                  return sum + lineHT;
+                }, 0) || 0;
+                
+                const remiseGlobalePct = quote.remiseGlobalePct || 0;
+                const remiseGlobale = totalHTAfterLineDiscount - (totalHTAfterLineDiscount * (1 - (remiseGlobalePct / 100)));
+                
+                return remiseGlobale > 0 ? (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-700">Remise globale{remiseGlobalePct ? ` (${remiseGlobalePct}%)` : ''}</span>
+                    <span className="font-medium text-red-600">-{remiseGlobale.toFixed(3)} {quote.devise}</span>
+                  </div>
+                ) : null;
+              })()}
+              <div className="flex justify-between text-sm font-semibold">
+                <span className="text-gray-700">Total HT</span>
+                <span className="font-bold text-gray-900">{(() => {
+                  const totalHTAfterLineDiscount = quote.lignes?.reduce((sum: number, line: any) => {
+                    const lineHTBeforeDiscount = (line.quantite || 0) * (line.prixUnitaireHT || 0);
+                    const lineHT = lineHTBeforeDiscount * (1 - ((line.remisePct || 0) / 100));
+                    return sum + lineHT;
+                  }, 0) || 0;
+                  const remiseGlobalePct = quote.remiseGlobalePct || 0;
+                  const totalHT = totalHTAfterLineDiscount * (1 - (remiseGlobalePct / 100));
+                  return totalHT.toFixed(3);
+                })()} {quote.devise}</span>
+              </div>
+              {quote.fodec && quote.fodec.montant && quote.fodec.montant > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-700">FODEC{quote.fodec.tauxPct ? ` (${quote.fodec.tauxPct}%)` : ''}</span>
+                  <span className="font-medium">{quote.fodec.montant.toFixed(3)} {quote.devise || 'TND'}</span>
+                </div>
+              )}
               <div className="flex justify-between text-sm">
-                <span className="text-gray-700">Total TVA</span>
+                <span className="text-gray-700">TVA</span>
                 <span className="font-medium text-gray-900">{quote.totalTVA?.toFixed(3) || 0} {quote.devise}</span>
               </div>
               {quote.timbreFiscal && quote.timbreFiscal > 0 && (

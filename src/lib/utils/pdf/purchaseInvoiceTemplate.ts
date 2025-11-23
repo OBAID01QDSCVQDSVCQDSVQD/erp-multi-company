@@ -251,10 +251,56 @@ function drawInfoBlocks(doc: jsPDF, invoiceData: PurchaseInvoiceData, companyInf
   return startY + dynamicHeight + 6;
 }
 
+// Helper function to parse color strings to RGB array
+function parseColor(colorStr: string): number[] | undefined {
+  if (!colorStr) return undefined;
+  
+  const trimmed = colorStr.trim();
+  if (trimmed.startsWith('#')) {
+    const hex = trimmed.slice(1);
+    if (hex.length === 6) {
+      const r = parseInt(hex.slice(0, 2), 16);
+      const g = parseInt(hex.slice(2, 4), 16);
+      const b = parseInt(hex.slice(4, 6), 16);
+      return [r, g, b];
+    } else if (hex.length === 3) {
+      const r = parseInt(hex[0] + hex[0], 16);
+      const g = parseInt(hex[1] + hex[1], 16);
+      const b = parseInt(hex[2] + hex[2], 16);
+      return [r, g, b];
+    }
+  }
+  if (trimmed.startsWith('rgb')) {
+    const matches = trimmed.match(/\d+/g);
+    if (matches && matches.length >= 3) {
+      return [parseInt(matches[0]), parseInt(matches[1]), parseInt(matches[2])];
+    }
+  }
+  const namedColors: { [key: string]: number[] } = {
+    'black': [0, 0, 0],
+    'white': [255, 255, 255],
+    'red': [255, 0, 0],
+    'green': [0, 128, 0],
+    'blue': [0, 0, 255],
+    'yellow': [255, 255, 0],
+    'orange': [255, 165, 0],
+    'purple': [128, 0, 128],
+  };
+  const lower = trimmed.toLowerCase();
+  if (namedColors[lower]) {
+    return namedColors[lower];
+  }
+  return undefined;
+}
+
 function drawLinesTable(doc: jsPDF, invoiceData: PurchaseInvoiceData, startY: number): number {
   const body = invoiceData.lignes.map((l) => {
+    // Check if designation contains HTML
+    const designation = l.designation || '—';
+    const hasHtml = typeof designation === 'string' && (designation.includes('<') && designation.includes('>'));
+    
     return [
-      l.designation || '—',
+      hasHtml ? { content: designation, isHtml: true } : designation,
       l.quantite.toString(),
       l.prixUnitaireHT ? l.prixUnitaireHT.toFixed(3) : '—',
       l.remisePct ? `${l.remisePct} %` : '—',
@@ -284,29 +330,236 @@ function drawLinesTable(doc: jsPDF, invoiceData: PurchaseInvoiceData, startY: nu
     },
     styles: {
       fontSize: 9,
-      cellPadding: 3,
-      valign: 'middle',
-      overflow: 'linebreak',
+      cellPadding: { top: 4, right: 3, bottom: 3, left: 3 },
+      valign: 'top',
+      halign: 'left',
+      minCellHeight: 8,
     },
     headStyles: {
       fillColor: [232, 241, 255],
       textColor: 0,
       fontStyle: 'bold',
-      halign: 'left',
-      fontSize: 8,
-      cellPadding: { top: 4, bottom: 4, left: 3, right: 3 },
       valign: 'middle',
+      halign: 'left',
     },
     alternateRowStyles: {
       fillColor: [252, 252, 252],
     },
     columnStyles: {
-      0: { cellWidth: 80, halign: 'left' },              // Désignation
-      1: { cellWidth: 22, halign: 'right' }, // Quantité
-      2: { cellWidth: 26, halign: 'right' }, // Prix HT
-      3: { cellWidth: 22, halign: 'right' }, // Remise %
-      4: { cellWidth: 20, halign: 'right' }, // TVA %
-      5: { cellWidth: 20, halign: 'right' }, // Total HT
+      0: { cellWidth: 80, cellPadding: { top: 4, right: 3, bottom: 3, left: 3 }, valign: 'top', halign: 'left' }, // Désignation
+      1: { cellWidth: 22, halign: 'right', valign: 'top' }, // Quantité
+      2: { cellWidth: 26, halign: 'right', valign: 'top' }, // Prix HT
+      3: { cellWidth: 22, halign: 'right', valign: 'top' }, // Remise %
+      4: { cellWidth: 20, halign: 'right', valign: 'top' }, // TVA %
+      5: { cellWidth: 20, halign: 'right', valign: 'top' }, // Total HT
+    },
+    willDrawCell: (data: any) => {
+      // Ensure all cells in the row have the same height as the tallest cell
+      if (data.row && data.row.height) {
+        data.cell.height = data.row.height;
+      }
+    },
+    didParseCell: (data: any) => {
+      // Handle HTML content in Désignation column (column index 0)
+      if (data.column.index === 0 && data.cell.raw && typeof data.cell.raw === 'object' && data.cell.raw.isHtml) {
+        const html = data.cell.raw.content || '';
+        (data.cell as any).htmlContent = html;
+        
+        const htmlText = html
+          .replace(/<br\s*\/?>/gi, '\n')
+          .replace(/<p[^>]*>/gi, '\n')
+          .replace(/<\/p>/gi, '\n')
+          .replace(/<div[^>]*>/gi, '\n')
+          .replace(/<\/div>/gi, '\n')
+          .replace(/<[^>]*>/g, '');
+        
+        const lines = htmlText.split('\n');
+        const maxWidth = 80 - 4;
+        const fontSize = 9;
+        doc.setFontSize(fontSize);
+        doc.setFont('helvetica', 'normal');
+        
+        let totalEstimatedLines = 0;
+        lines.forEach((line) => {
+          if (line.trim()) {
+            const textWidth = doc.getTextWidth(line);
+            const wrappedLines = Math.ceil(textWidth / maxWidth) || 1;
+            totalEstimatedLines += wrappedLines;
+          } else {
+            totalEstimatedLines += 0.5;
+          }
+        });
+        
+        const lineHeight = 4.5;
+        const minHeight = 8;
+        const padding = 4;
+        const calculatedHeight = Math.max(minHeight, (totalEstimatedLines * lineHeight) + padding);
+        
+        data.cell.height = calculatedHeight;
+        if (data.row) {
+          data.row.height = Math.max(data.row.height || 0, calculatedHeight);
+        }
+        
+        data.cell.text = [' '];
+        data.cell.styles = { ...data.cell.styles, textColor: [255, 255, 255] };
+      }
+    },
+    didDrawCell: (data: any) => {
+      // Custom rendering for HTML content in Désignation column
+      if (data.column.index === 0 && (data.cell as any).htmlContent) {
+        const html = (data.cell as any).htmlContent;
+        const cell = data.cell;
+        const paddingLeft = (cell.styles?.cellPadding?.left || cell.styles?.cellPadding?.[0] || 3);
+        const paddingTop = (cell.styles?.cellPadding?.top || cell.styles?.cellPadding?.[1] || 4);
+        const paddingRight = (cell.styles?.cellPadding?.right || cell.styles?.cellPadding?.[2] || 3);
+        
+        const fontSize = 9;
+        doc.setFontSize(fontSize);
+        doc.setFont('helvetica', 'normal');
+        
+        const x = cell.x + paddingLeft;
+        const fontAscent = 6.5;
+        let y = cell.y + paddingTop + fontAscent;
+        const maxWidth = cell.width - paddingLeft - paddingRight;
+        const lineHeight = 4.5;
+        const startY = y;
+        
+        let htmlText = html
+          .replace(/<br\s*\/?>/gi, '\n')
+          .replace(/<p[^>]*>/gi, '\n')
+          .replace(/<\/p>/gi, '\n')
+          .replace(/<div[^>]*>/gi, '\n')
+          .replace(/<\/div>/gi, '\n')
+          .replace(/<li[^>]*>/gi, '• ')
+          .replace(/<\/li>/gi, '\n')
+          .replace(/<ul[^>]*>|<\/ul>|<ol[^>]*>|<\/ol>/gi, '');
+        
+        const segments: Array<{ text: string; bold: boolean; color?: number[] }> = [];
+        let currentText = '';
+        let inBold = false;
+        let currentColor: number[] | undefined = undefined;
+        
+        const tagRegex = /<(?:strong|b)([^>]*)>|<\/(?:strong|b)>|<font[^>]*color\s*=\s*["']([^"']+)["'][^>]*>|<\/font>|<span[^>]*style\s*=\s*["'][^"]*color\s*:\s*([^";\s]+)[^"]*["'][^>]*>|<\/span>|([^<]+)/gi;
+        let match;
+        let lastIndex = 0;
+        
+        while ((match = tagRegex.exec(htmlText)) !== null) {
+          if (match.index > lastIndex) {
+            const beforeText = htmlText.substring(lastIndex, match.index);
+            if (beforeText.trim()) {
+              segments.push({ text: beforeText, bold: inBold, color: currentColor });
+            }
+          }
+          
+          if (match[1] !== undefined) {
+            if (currentText) {
+              segments.push({ text: currentText, bold: inBold, color: currentColor });
+              currentText = '';
+            }
+            inBold = true;
+          } else if (match[0] === '</strong>' || match[0] === '</b>') {
+            if (currentText) {
+              segments.push({ text: currentText, bold: inBold, color: currentColor });
+              currentText = '';
+            }
+            inBold = false;
+          } else if (match[2] !== undefined) {
+            if (currentText) {
+              segments.push({ text: currentText, bold: inBold, color: currentColor });
+              currentText = '';
+            }
+            currentColor = parseColor(match[2]);
+          } else if (match[0] === '</font>' || match[0] === '/font>') {
+            if (currentText) {
+              segments.push({ text: currentText, bold: inBold, color: currentColor });
+              currentText = '';
+            }
+            currentColor = undefined;
+          } else if (match[3] !== undefined) {
+            if (currentText) {
+              segments.push({ text: currentText, bold: inBold, color: currentColor });
+              currentText = '';
+            }
+            currentColor = parseColor(match[3]);
+          } else if (match[0] === '</span>') {
+            if (currentText) {
+              segments.push({ text: currentText, bold: inBold, color: currentColor });
+              currentText = '';
+            }
+            currentColor = undefined;
+          } else if (match[4]) {
+            currentText += match[4];
+          }
+          
+          lastIndex = match.index + match[0].length;
+        }
+        
+        if (lastIndex < htmlText.length) {
+          const remainingText = htmlText.substring(lastIndex);
+          if (remainingText.trim()) {
+            segments.push({ text: remainingText, bold: inBold, color: currentColor });
+          }
+        }
+        if (currentText) {
+          segments.push({ text: currentText, bold: inBold, color: currentColor });
+        }
+        
+        let totalLinesRendered = 0;
+        segments.forEach((segment) => {
+          const lines = segment.text.split('\n');
+          lines.forEach((line, lineIdx) => {
+            if (line.trim() || (lineIdx === 0 && lines.length === 1)) {
+              doc.setFont('helvetica', segment.bold ? 'bold' : 'normal');
+              if (segment.color) {
+                doc.setTextColor(segment.color[0], segment.color[1], segment.color[2]);
+              } else {
+                doc.setTextColor(0, 0, 0);
+              }
+              
+              const words = line.split(/\s+/);
+              let currentLine = '';
+              
+              words.forEach((word) => {
+                const testLine = currentLine ? `${currentLine} ${word}` : word;
+                const textWidth = doc.getTextWidth(testLine);
+                
+                if (textWidth > maxWidth && currentLine) {
+                  doc.text(currentLine, x, y, { maxWidth, align: 'left' });
+                  y += lineHeight;
+                  totalLinesRendered++;
+                  currentLine = word;
+                } else {
+                  currentLine = testLine;
+                }
+              });
+              
+              if (currentLine) {
+                doc.text(currentLine, x, y, { maxWidth, align: 'left' });
+                y += lineHeight;
+                totalLinesRendered++;
+              }
+            } else if (lineIdx > 0) {
+              y += lineHeight / 2;
+              totalLinesRendered += 0.5;
+            }
+          });
+        });
+        
+        const paddingBottom = (cell.styles?.cellPadding?.bottom || cell.styles?.cellPadding?.[3] || 3);
+        const minCellHeight = (cell.styles?.minCellHeight || 8);
+        
+        const contentHeight = (y - startY) + fontAscent;
+        const actualHeight = contentHeight + paddingTop + paddingBottom;
+        const finalHeight = Math.max(actualHeight, cell.height || 8, minCellHeight);
+        
+        cell.height = finalHeight;
+        if (data.row) {
+          data.row.height = Math.max(data.row.height || 0, finalHeight);
+        }
+        
+        doc.setTextColor(0, 0, 0);
+        doc.setFont('helvetica', 'normal');
+      }
     },
     theme: 'grid',
   });
