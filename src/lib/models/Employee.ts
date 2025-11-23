@@ -81,7 +81,7 @@ const EmergencyContactSchema = new Schema({
   email: { type: String },
 }, { _id: false });
 
-const EmployeeSchema = new Schema<IEmployee>({
+const EmployeeSchema = new (Schema as any)({
   tenantId: { type: String, required: true, index: true },
   
   // Personal Information
