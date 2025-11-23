@@ -96,7 +96,7 @@ const DeductionsSchema = new Schema({
   totalDeductions: { type: Number, default: 0 },
 }, { _id: false });
 
-const SalarySchema = new Schema<ISalary>({
+const SalarySchema = new (Schema as any)({
   tenantId: { type: String, required: true, index: true },
   employeeId: {
     type: Schema.Types.ObjectId,
