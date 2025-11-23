@@ -24,6 +24,13 @@ import {
   BanknotesIcon,
   CreditCardIcon,
   ArrowUturnLeftIcon,
+  ClockIcon,
+  CalendarIcon,
+  CalendarDaysIcon,
+  BriefcaseIcon,
+  CurrencyDollarIcon,
+  XCircleIcon,
+  UserIcon,
 } from '@heroicons/react/24/outline';
 
 const navigation = [
@@ -56,6 +63,17 @@ const navigation = [
     { name: 'Alertes stock minimum', href: '/stock/alerts', icon: ChartBarIcon, permission: 'stock_alerts' },
   ]},
   { name: 'Dépenses', href: '/expenses', icon: CurrencyEuroIcon, permission: 'expenses' },
+  { name: '👥 Ressources humaines (RH)', href: '#', icon: UserGroupIcon, hasSubmenu: true, permission: null, submenu: [
+    { name: 'Liste des employés', href: '/hr/employees', icon: UserIcon, permission: 'hr_employees' },
+    { name: 'Présence / Pointage', href: '/hr/attendance', icon: ClockIcon, permission: 'hr_attendance' },
+    { name: 'Heures de travail', href: '/hr/work-hours', icon: CalendarIcon, permission: 'hr_work_hours' },
+    { name: 'Jours de travail', href: '/hr/work-days', icon: CalendarDaysIcon, permission: 'hr_work_days' },
+    { name: 'Affectation aux projets', href: '/hr/project-assignments', icon: BriefcaseIcon, permission: 'hr_project_assignments' },
+    { name: 'Salaires', href: '/hr/salaries', icon: CurrencyDollarIcon, permission: 'hr_salaries' },
+    { name: 'Contrats', href: '/hr/contracts', icon: DocumentTextIcon, permission: 'hr_contracts' },
+    { name: 'Absences & Congés', href: '/hr/absences', icon: XCircleIcon, permission: 'hr_absences' },
+    { name: 'Performance', href: '/hr/performance', icon: ChartBarIcon, permission: 'hr_performance' },
+  ]},
   { name: 'Rapports', href: '/reports', icon: ChartBarIcon, permission: 'reports' },
   { name: 'Paramètres', href: '/settings', icon: CogIcon, permission: 'settings' },
 ];
