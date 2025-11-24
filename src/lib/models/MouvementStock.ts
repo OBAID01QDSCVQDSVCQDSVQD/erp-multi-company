@@ -15,7 +15,7 @@ export interface IMouvementStock extends Document {
   updatedAt: Date;
 }
 
-const MouvementStockSchema = new Schema<IMouvementStock>({
+const MouvementStockSchema = new (Schema as any)({
   societeId: {
     type: String,
     required: true,
