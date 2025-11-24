@@ -27,8 +27,8 @@ export interface IDocument extends Document {
   statut?: 'BROUILLON' | 'VALIDEE' | 'PARTIELLEMENT_PAYEE' | 'PAYEE' | 'ANNULEE';
   
   // Party (customer or supplier)
-  customerId?: string;
-  supplierId?: string;
+  customerId?: mongoose.Types.ObjectId;
+  supplierId?: mongoose.Types.ObjectId;
   
   // References
   referenceExterne?: string;
@@ -76,7 +76,7 @@ export interface IDocument extends Document {
   linkedDocuments?: string[]; // Parent/child references
 }
 
-const DocumentLineSchema = new Schema<IDocumentLine>({
+const DocumentLineSchema = new Schema({
   productId: { type: String },
   codeAchat: { type: String },
   categorieCode: { type: String },
@@ -93,7 +93,7 @@ const DocumentLineSchema = new Schema<IDocumentLine>({
   qtyFacturee: { type: Number, default: 0 }
 }, { _id: true });
 
-const DocumentSchema = new Schema<IDocument>({
+const DocumentSchema = new (Schema as any)({
   tenantId: { type: String, required: true, index: true },
   
   type: { type: String, enum: ['DEVIS', 'BC', 'BL', 'FAC', 'AVOIR', 'PO', 'BR', 'FACFO', 'AVOIRFO'], required: true },
@@ -101,8 +101,16 @@ const DocumentSchema = new Schema<IDocument>({
   dateDoc: { type: Date, required: true, default: Date.now },
   statut: { type: String, enum: ['BROUILLON', 'VALIDEE', 'PARTIELLEMENT_PAYEE', 'PAYEE', 'ANNULEE'], default: 'BROUILLON' },
   
-  customerId: { type: String },
-  supplierId: { type: String },
+  customerId: { 
+    type: Schema.Types.ObjectId, 
+    ref: 'Customer',
+    index: true 
+  },
+  supplierId: { 
+    type: Schema.Types.ObjectId, 
+    ref: 'Supplier',
+    index: true 
+  },
   
   referenceExterne: { type: String },
   bonCommandeClient: { type: String },

@@ -3,6 +3,7 @@ import mongoose, { Document, Schema } from 'mongoose';
 export interface IMouvementStock extends Document {
   societeId: string;
   productId: string;
+  projectId?: mongoose.Types.ObjectId; // Link to Project
   type: 'ENTREE' | 'SORTIE' | 'INVENTAIRE';
   qte: number;
   date: Date;
@@ -24,6 +25,11 @@ const MouvementStockSchema = new Schema<IMouvementStock>({
     type: String,
     required: true,
     ref: 'Product',
+    index: true,
+  },
+  projectId: {
+    type: Schema.Types.ObjectId,
+    ref: 'Project',
     index: true,
   },
   type: {
@@ -61,6 +67,7 @@ const MouvementStockSchema = new Schema<IMouvementStock>({
 // Indexes for efficient stock queries
 MouvementStockSchema.index({ societeId: 1, productId: 1, date: -1 });
 MouvementStockSchema.index({ societeId: 1, source: 1, sourceId: 1 });
+MouvementStockSchema.index({ societeId: 1, projectId: 1 });
 MouvementStockSchema.index({ date: -1 });
 
 const MouvementStock = mongoose.models.MouvementStock || mongoose.model<IMouvementStock>('MouvementStock', MouvementStockSchema);

@@ -20,6 +20,7 @@ export async function GET(request: NextRequest) {
     const tenantId = session.user.companyId?.toString() || '';
     const { searchParams } = new URL(request.url);
     const customerId = searchParams.get('customerId');
+    const q = searchParams.get('q');
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '50');
 
@@ -29,16 +30,59 @@ export async function GET(request: NextRequest) {
     };
     
     if (customerId) query.customerId = customerId;
-
-    const deliveries = await (Document as any).find(query)
+    
+    let deliveries = await (Document as any).find(query)
       .sort('-createdAt')
       .skip((page - 1) * limit)
       .limit(limit)
       .lean();
 
-    const total = await (Document as any).countDocuments(query);
+    // Populate customerId manually if it's a string (ObjectId as string)
+    const Customer = (await import('@/lib/models/Customer')).default;
+    const customerIds = [...new Set(deliveries.map((d: any) => d.customerId).filter((id: any) => id && typeof id === 'string'))];
+    
+    if (customerIds.length > 0) {
+      const customers = await (Customer as any).find({
+        _id: { $in: customerIds },
+        tenantId,
+      }).select('nom prenom raisonSociale').lean();
+      
+      const customerMap = new Map(customers.map((c: any) => [c._id.toString(), c]));
+      
+      for (const delivery of deliveries) {
+        if (delivery.customerId && typeof delivery.customerId === 'string') {
+          const customer = customerMap.get(delivery.customerId);
+          if (customer) {
+            delivery.customerId = customer;
+          }
+        }
+      }
+    }
 
-    return NextResponse.json({ items: deliveries, total });
+    // Filter by search query if provided (after populate to search in customer name)
+    let filteredDeliveries = deliveries;
+    if (q) {
+      const searchLower = q.toLowerCase();
+      filteredDeliveries = deliveries.filter((delivery: any) => {
+        const matchesNumero = delivery.numero?.toLowerCase().includes(searchLower);
+        const customer = delivery.customerId;
+        let customerName = '';
+        if (customer) {
+          if (typeof customer === 'object' && customer !== null) {
+            customerName = (customer.raisonSociale || `${customer.nom || ''} ${customer.prenom || ''}`.trim() || '').toLowerCase();
+          } else if (typeof customer === 'string') {
+            // If still a string, try to fetch it
+            customerName = '';
+          }
+        }
+        const matchesCustomer = customerName.includes(searchLower);
+        return matchesNumero || matchesCustomer;
+      });
+    }
+
+    const total = q ? filteredDeliveries.length : await (Document as any).countDocuments(query);
+
+    return NextResponse.json({ items: filteredDeliveries, total });
   } catch (error) {
     console.error('Erreur GET /sales/deliveries:', error);
     return NextResponse.json(
@@ -76,8 +120,24 @@ export async function POST(request: NextRequest) {
 
     await (delivery as any).save();
 
+    // Find project linked to this BL (if any)
+    let projectId = null;
+    if (body.projectId) {
+      projectId = body.projectId;
+    } else {
+      // Try to find project by blId
+      const Project = (await import('@/lib/models/Project')).default;
+      const project = await (Project as any).findOne({
+        tenantId,
+        blId: delivery._id,
+      }).lean();
+      if (project) {
+        projectId = project._id;
+      }
+    }
+
     // Create stock movements for all products
-    await createStockMovementsForDelivery(delivery, tenantId, session.user.email);
+    await createStockMovementsForDelivery(delivery, tenantId, session.user.email, projectId);
 
     return NextResponse.json(delivery, { status: 201 });
   } catch (error) {
@@ -128,7 +188,8 @@ function calculateDocumentTotals(doc: any) {
 async function createStockMovementsForDelivery(
   delivery: any,
   tenantId: string,
-  createdBy: string
+  createdBy: string,
+  projectId?: string | null
 ): Promise<void> {
   if (!delivery.lignes || delivery.lignes.length === 0) {
     return;
@@ -186,12 +247,16 @@ async function createStockMovementsForDelivery(
         // Update existing movement
         existingMovement.qte = line.quantite;
         existingMovement.date = dateDoc;
+        if (projectId) {
+          existingMovement.projectId = new mongoose.Types.ObjectId(projectId);
+        }
         await (existingMovement as any).save();
       } else {
         // Create new stock movement
         const mouvement = new MouvementStock({
           societeId: tenantId,
           productId: productIdStr,
+          projectId: projectId ? new mongoose.Types.ObjectId(projectId) : undefined,
           type: 'SORTIE',
           qte: line.quantite,
           date: dateDoc,

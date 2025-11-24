@@ -12,6 +12,7 @@ export interface IStockMove extends Document {
   documentId?: string; // Link to Document (BL, BR, etc.)
   documentType?: string;
   documentNumero?: string;
+  projectId?: mongoose.Types.ObjectId; // Link to Project
   
   productId: string;
   productCode?: string;
@@ -48,6 +49,11 @@ const StockMoveSchema = new Schema<IStockMove>({
   documentId: { type: String, index: true },
   documentType: { type: String },
   documentNumero: { type: String },
+  projectId: { 
+    type: Schema.Types.ObjectId, 
+    ref: 'Project',
+    index: true 
+  },
   
   productId: { type: String, required: true, index: true },
   productCode: { type: String },
@@ -81,6 +87,7 @@ StockMoveSchema.index({ tenantId: 1, documentId: 1 });
 StockMoveSchema.index({ tenantId: 1, productId: 1, createdAt: -1 });
 StockMoveSchema.index({ tenantId: 1, warehouseCode: 1, type: 1 });
 StockMoveSchema.index({ tenantId: 1, type: 1, category: 1, createdAt: -1 });
+StockMoveSchema.index({ tenantId: 1, projectId: 1 });
 
 // Clear cache
 if (mongoose.models.StockMove) {

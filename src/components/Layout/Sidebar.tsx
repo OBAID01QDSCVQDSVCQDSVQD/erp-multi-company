@@ -31,6 +31,7 @@ import {
   CurrencyDollarIcon,
   XCircleIcon,
   UserIcon,
+  PlusIcon,
 } from '@heroicons/react/24/outline';
 
 const navigation = [
@@ -73,6 +74,11 @@ const navigation = [
     { name: 'Contrats', href: '/hr/contracts', icon: DocumentTextIcon, permission: 'hr_contracts' },
     { name: 'Absences & Congés', href: '/hr/absences', icon: XCircleIcon, permission: 'hr_absences' },
     { name: 'Performance', href: '/hr/performance', icon: ChartBarIcon, permission: 'hr_performance' },
+  ]},
+  { name: '📁 Projets', href: '#', icon: BriefcaseIcon, hasSubmenu: true, permission: null, submenu: [
+    { name: 'Liste des projets', href: '/projects', icon: BriefcaseIcon, permission: 'projects' },
+    { name: 'Nouveau projet', href: '/projects/new', icon: PlusIcon, permission: 'projects' },
+    { name: 'Dashboard projets', href: '/projects/dashboard', icon: ChartBarIcon, permission: 'projects' },
   ]},
   { name: 'Rapports', href: '/reports', icon: ChartBarIcon, permission: 'reports' },
   { name: 'Paramètres', href: '/settings', icon: CogIcon, permission: 'settings' },

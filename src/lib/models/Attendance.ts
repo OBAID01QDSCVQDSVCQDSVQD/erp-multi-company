@@ -3,6 +3,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 export interface IAttendance extends Document {
   tenantId: string;
   employeeId: mongoose.Types.ObjectId;
+  projectId?: mongoose.Types.ObjectId; // Link to Project
   date: Date;
   checkIn?: Date;
   checkOut?: Date;
@@ -30,6 +31,11 @@ const AttendanceSchema = new (Schema as any)({
     type: Schema.Types.ObjectId,
     ref: 'Employee',
     required: true,
+    index: true,
+  },
+  projectId: {
+    type: Schema.Types.ObjectId,
+    ref: 'Project',
     index: true,
   },
   date: {
@@ -76,6 +82,7 @@ AttendanceSchema.index({ tenantId: 1, employeeId: 1, date: 1 }, { unique: true }
 
 // Index for date range queries
 AttendanceSchema.index({ tenantId: 1, date: 1 });
+AttendanceSchema.index({ tenantId: 1, projectId: 1 });
 
 // Normalize date to UTC midnight before saving
 AttendanceSchema.pre('save', function(next) {

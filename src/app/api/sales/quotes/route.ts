@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
     const tenantId = session.user.companyId?.toString() || '';
     const { searchParams } = new URL(request.url);
     const customerId = searchParams.get('customerId');
+    const q = searchParams.get('q');
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '50');
 
@@ -26,16 +27,59 @@ export async function GET(request: NextRequest) {
     };
     
     if (customerId) query.customerId = customerId;
-
-    const quotes = await (Document as any).find(query)
+    
+    let quotes = await (Document as any).find(query)
       .sort('-createdAt')
       .skip((page - 1) * limit)
       .limit(limit)
       .lean();
 
-    const total = await (Document as any).countDocuments(query);
+    // Populate customerId manually if it's a string (ObjectId as string)
+    const Customer = (await import('@/lib/models/Customer')).default;
+    const customerIds = [...new Set(quotes.map((q: any) => q.customerId).filter((id: any) => id && typeof id === 'string'))];
+    
+    if (customerIds.length > 0) {
+      const customers = await (Customer as any).find({
+        _id: { $in: customerIds },
+        tenantId,
+      }).select('nom prenom raisonSociale').lean();
+      
+      const customerMap = new Map(customers.map((c: any) => [c._id.toString(), c]));
+      
+      for (const quote of quotes) {
+        if (quote.customerId && typeof quote.customerId === 'string') {
+          const customer = customerMap.get(quote.customerId);
+          if (customer) {
+            quote.customerId = customer;
+          }
+        }
+      }
+    }
 
-    return NextResponse.json({ items: quotes, total });
+    // Filter by search query if provided (after populate to search in customer name)
+    let filteredQuotes = quotes;
+    if (q) {
+      const searchLower = q.toLowerCase();
+      filteredQuotes = quotes.filter((quote: any) => {
+        const matchesNumero = quote.numero?.toLowerCase().includes(searchLower);
+        const customer = quote.customerId;
+        let customerName = '';
+        if (customer) {
+          if (typeof customer === 'object' && customer !== null) {
+            customerName = (customer.raisonSociale || `${customer.nom || ''} ${customer.prenom || ''}`.trim() || '').toLowerCase();
+          } else if (typeof customer === 'string') {
+            // If still a string, try to fetch it
+            customerName = '';
+          }
+        }
+        const matchesCustomer = customerName.includes(searchLower);
+        return matchesNumero || matchesCustomer;
+      });
+    }
+
+    const total = q ? filteredQuotes.length : await (Document as any).countDocuments(query);
+
+    return NextResponse.json({ items: filteredQuotes, total });
   } catch (error) {
     console.error('Erreur GET /sales/quotes:', error);
     return NextResponse.json(
