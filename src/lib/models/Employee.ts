@@ -138,7 +138,7 @@ const EmployeeSchema = new (Schema as any)({
 
 // Indexes
 EmployeeSchema.index({ tenantId: 1, email: 1 }, { unique: true });
-EmployeeSchema.index({ tenantId: 1, employeeNumber: 1 });
+EmployeeSchema.index({ tenantId: 1, employeeNumber: 1 }, { unique: true, sparse: true });
 EmployeeSchema.index({ tenantId: 1, status: 1 });
 EmployeeSchema.index({ tenantId: 1, department: 1 });
 

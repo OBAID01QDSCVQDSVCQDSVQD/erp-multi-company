@@ -13,7 +13,8 @@ import {
   FunnelIcon,
   CheckCircleIcon,
   XCircleIcon,
-  TrashIcon
+  TrashIcon,
+  ClockIcon,
 } from '@heroicons/react/24/outline';
 import { useTenantId } from '@/hooks/useTenantId';
 import toast from 'react-hot-toast';
@@ -62,9 +63,10 @@ interface Salary {
   };
   netSalary: number;
   paymentMethod: string;
-  paymentStatus: 'pending' | 'paid' | 'cancelled';
+  paymentStatus: 'pending' | 'paid' | 'partial' | 'owing' | 'cancelled';
   paymentDate?: string;
   notes?: string;
+  deductionsEnabled?: boolean;
 }
 
 interface Employee {
@@ -91,6 +93,7 @@ export default function SalariesPage() {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<string>('');
+  const [enableDeductions, setEnableDeductions] = useState(false);
 
   const [year, month] = selectedMonth.split('-').map(Number);
 
@@ -156,6 +159,7 @@ export default function SalariesPage() {
           employeeId: selectedEmployee,
           month,
           year,
+          enableDeductions,
         })
       });
 
@@ -163,6 +167,7 @@ export default function SalariesPage() {
         toast.success('Salaire créé avec succès');
         setShowCreateModal(false);
         setSelectedEmployee('');
+        setEnableDeductions(false);
         fetchSalaries();
       } else {
         const error = await response.json();
@@ -390,6 +395,8 @@ export default function SalariesPage() {
               >
                 <option value="all">Tous les statuts</option>
                 <option value="pending">En attente</option>
+                <option value="partial">Paiement partiel</option>
+                <option value="owing">Montant dû</option>
                 <option value="paid">Payé</option>
                 <option value="cancelled">Annulé</option>
               </select>
@@ -492,6 +499,16 @@ export default function SalariesPage() {
                             <CheckCircleIcon className="w-4 h-4 mr-1" />
                             Payé
                           </span>
+                        ) : salary.paymentStatus === 'partial' ? (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            <ArrowDownTrayIcon className="w-4 h-4 mr-1" />
+                            Paiement partiel
+                          </span>
+                        ) : salary.paymentStatus === 'owing' ? (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                            <CurrencyDollarIcon className="w-4 h-4 mr-1" />
+                            Montant dû
+                          </span>
                         ) : salary.paymentStatus === 'cancelled' ? (
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
                             <XCircleIcon className="w-4 h-4 mr-1" />
@@ -499,6 +516,7 @@ export default function SalariesPage() {
                           </span>
                         ) : (
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                            <ClockIcon className="w-4 h-4 mr-1" />
                             En attente
                           </span>
                         )}
@@ -572,6 +590,24 @@ export default function SalariesPage() {
                     Le salaire sera calculé automatiquement en fonction des heures de travail enregistrées.
                   </p>
                 </div>
+
+                <div className="flex items-start gap-3 p-3 border rounded-lg">
+                  <input
+                    id="enableDeductions"
+                    type="checkbox"
+                    checked={enableDeductions}
+                    onChange={(e) => setEnableDeductions(e.target.checked)}
+                    className="mt-1 h-4 w-4 text-blue-600 border-gray-300 rounded"
+                  />
+                  <div>
+                    <label htmlFor="enableDeductions" className="text-sm font-medium text-gray-700">
+                      Activer les déductions automatiques
+                    </label>
+                    <p className="text-xs text-gray-500">
+                      Applique 10% d'impôts et 9% de sécurité sociale sur les gains. Désactivé par défaut.
+                    </p>
+                  </div>
+                </div>
               </div>
 
               <div className="mt-6 flex justify-end gap-3">
@@ -579,6 +615,7 @@ export default function SalariesPage() {
                   onClick={() => {
                     setShowCreateModal(false);
                     setSelectedEmployee('');
+                    setEnableDeductions(false);
                   }}
                   className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
                 >

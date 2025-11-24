@@ -32,7 +32,6 @@ export default function NewEmployeePage() {
     socialSecurityNumber: '',
     
     // Professional Information
-    employeeNumber: '',
     position: '',
     department: '',
     manager: '',
@@ -111,6 +110,34 @@ export default function NewEmployeePage() {
       setLoading(false);
     }
   };
+
+  const positionSuggestions = [
+    'Développeur Full Stack',
+    'Product Owner',
+    'Chef de projet',
+    'Responsable RH',
+    'Commercial',
+    'Comptable',
+    'Technicien support',
+    'Analyste financier',
+    'Designer UX/UI',
+    'Responsable marketing',
+    'Responsable logistique',
+  ];
+
+  const departmentSuggestions = [
+    'IT',
+    'RH',
+    'Ventes',
+    'Marketing',
+    'Finance & Comptabilité',
+    'Opérations',
+    'Logistique',
+    'Production',
+    'Service client',
+    'Achats',
+    'Direction',
+  ];
 
   const tabs = [
     { id: 'personal', name: 'Informations personnelles', icon: UserIcon },
@@ -344,13 +371,9 @@ export default function NewEmployeePage() {
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Numéro d'employé
                       </label>
-                      <input
-                        type="text"
-                        value={formData.employeeNumber}
-                        onChange={(e) => setFormData({ ...formData, employeeNumber: e.target.value })}
-                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
-                        placeholder="EMP-001"
-                      />
+                      <div className="w-full px-3 py-2 border rounded-lg bg-gray-50 text-gray-500 text-sm sm:text-base">
+                        Sera généré automatiquement lors de l'enregistrement
+                      </div>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -358,12 +381,18 @@ export default function NewEmployeePage() {
                       </label>
                       <input
                         type="text"
+                        list="positionSuggestions"
                         required
                         value={formData.position}
                         onChange={(e) => setFormData({ ...formData, position: e.target.value })}
                         className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
-                        placeholder="Ex: Développeur, Manager, etc."
+                        placeholder="Sélectionnez ou saisissez un poste"
                       />
+                      <datalist id="positionSuggestions">
+                        {positionSuggestions.map((option) => (
+                          <option key={option} value={option} />
+                        ))}
+                      </datalist>
                     </div>
                   </div>
 
@@ -374,12 +403,18 @@ export default function NewEmployeePage() {
                       </label>
                       <input
                         type="text"
+                        list="departmentSuggestions"
                         required
                         value={formData.department}
                         onChange={(e) => setFormData({ ...formData, department: e.target.value })}
                         className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
-                        placeholder="Ex: IT, RH, Ventes, etc."
+                        placeholder="Sélectionnez ou saisissez un département"
                       />
+                      <datalist id="departmentSuggestions">
+                        {departmentSuggestions.map((option) => (
+                          <option key={option} value={option} />
+                        ))}
+                      </datalist>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">

@@ -6,6 +6,29 @@ import Employee from '@/lib/models/Employee';
 
 export const dynamic = 'force-dynamic';
 
+async function generateEmployeeNumber(tenantId: string) {
+  const lastEmployee = await (Employee as any)
+    .findOne({
+      tenantId,
+      employeeNumber: { $exists: true, $ne: null },
+    })
+    .sort({ employeeNumber: -1 })
+    .select('employeeNumber')
+    .lean();
+
+  if (!lastEmployee?.employeeNumber) {
+    return '001';
+  }
+
+  const numericMatches = lastEmployee.employeeNumber.match(/\d+/g);
+  const numericPart = numericMatches
+    ? parseInt(numericMatches[numericMatches.length - 1], 10)
+    : parseInt(lastEmployee.employeeNumber, 10);
+
+  const nextNumber = (isNaN(numericPart) ? 0 : numericPart) + 1;
+  return nextNumber.toString().padStart(3, '0');
+}
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -135,7 +158,6 @@ export async function POST(request: NextRequest) {
       socialSecurityNumber: body.socialSecurityNumber?.trim() || undefined,
       
       // Professional Information
-      employeeNumber: body.employeeNumber?.trim() || undefined,
       position: body.position?.trim(),
       department: body.department?.trim(),
       manager: body.manager?.trim() || undefined,
@@ -160,10 +182,30 @@ export async function POST(request: NextRequest) {
       createdBy: session.user.email,
     };
 
-    const employee = new (Employee as any)(employeeData);
-    await employee.save();
+    const maxAttempts = 5;
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const employeeNumber = await generateEmployeeNumber(tenantId);
+      const employee = new (Employee as any)({
+        ...employeeData,
+        employeeNumber,
+      });
 
-    return NextResponse.json(employee, { status: 201 });
+      try {
+        await employee.save();
+        return NextResponse.json(employee, { status: 201 });
+      } catch (error: any) {
+        if (error.code === 11000 && error.keyPattern?.employeeNumber) {
+          // Collision, retry with next number
+          continue;
+        }
+        throw error;
+      }
+    }
+
+    return NextResponse.json(
+      { error: 'Impossible de générer un numéro d’employé unique' },
+      { status: 500 }
+    );
   } catch (error: any) {
     console.error('Error creating employee:', error);
     

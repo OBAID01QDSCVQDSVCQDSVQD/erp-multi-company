@@ -95,7 +95,13 @@ export async function PATCH(
       } else if (key === 'skills' || key === 'languages') {
         // Handle arrays
         employee[key] = body[key] || [];
-      } else if (key !== '_id' && key !== 'tenantId' && key !== 'createdAt' && key !== 'updatedAt') {
+      } else if (
+        key !== '_id' &&
+        key !== 'tenantId' &&
+        key !== 'createdAt' &&
+        key !== 'updatedAt' &&
+        key !== 'employeeNumber'
+      ) {
         employee[key] = body[key];
       }
     });

@@ -2,6 +2,7 @@ import connectDB from '@/lib/mongodb';
 import Salary from '@/lib/models/Salary';
 import Attendance from '@/lib/models/Attendance';
 import Employee from '@/lib/models/Employee';
+import { determinePaymentStatus } from './utils';
 
 /**
  * Recalculate salary for an employee in a specific period
@@ -90,9 +91,11 @@ export async function recalculateSalary(
     const otherEarnings = existingSalary.earnings?.otherEarnings || 0;
     const totalEarnings = baseSalaryEarning + overtimePay + bonuses + allowances + otherEarnings;
 
+    const applyDeductions = existingSalary.deductionsEnabled === true;
+
     // Calculate deductions (keep existing deductions or recalculate)
-    const taxes = existingSalary.deductions?.taxes || (totalEarnings * 0.1);
-    const socialSecurity = existingSalary.deductions?.socialSecurity || (totalEarnings * 0.09);
+    const taxes = applyDeductions ? (existingSalary.deductions?.taxes || (totalEarnings * 0.1)) : 0;
+    const socialSecurity = applyDeductions ? (existingSalary.deductions?.socialSecurity || (totalEarnings * 0.09)) : 0;
     const insurance = existingSalary.deductions?.insurance || 0;
     const advances = existingSalary.deductions?.advances || 0;
     const otherDeductions = existingSalary.deductions?.otherDeductions || 0;
@@ -111,6 +114,10 @@ export async function recalculateSalary(
     existingSalary.earnings.totalEarnings = totalEarnings;
     existingSalary.deductions.totalDeductions = totalDeductions;
     existingSalary.netSalary = netSalary;
+    existingSalary.paymentStatus = determinePaymentStatus(
+      netSalary,
+      existingSalary.deductions?.advances || 0
+    );
 
     await existingSalary.save();
     await existingSalary.populate('employeeId', 'firstName lastName employeeNumber position department');

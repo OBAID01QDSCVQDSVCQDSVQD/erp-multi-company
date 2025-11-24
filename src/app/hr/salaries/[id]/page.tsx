@@ -67,11 +67,12 @@ interface Salary {
   };
   netSalary: number;
   paymentMethod: string;
-  paymentStatus: 'pending' | 'paid' | 'cancelled';
+  paymentStatus: 'pending' | 'paid' | 'partial' | 'owing' | 'cancelled';
   paymentDate?: string;
   notes?: string;
   createdAt: string;
   updatedAt: string;
+  deductionsEnabled?: boolean;
 }
 
 export default function SalaryDetailPage() {
@@ -82,6 +83,7 @@ export default function SalaryDetailPage() {
   const [loading, setLoading] = useState(true);
   const [showEditSalaryModal, setShowEditSalaryModal] = useState(false);
   const [showEditAdvancesModal, setShowEditAdvancesModal] = useState(false);
+  const [toggleDeductionsLoading, setToggleDeductionsLoading] = useState(false);
   const [showAddAdvanceModal, setShowAddAdvanceModal] = useState(false);
   const [editForm, setEditForm] = useState({
     baseSalary: '',
@@ -263,6 +265,41 @@ export default function SalaryDetailPage() {
     }
   };
 
+  const handleToggleDeductions = async () => {
+    if (!salary) return;
+
+    try {
+      setToggleDeductionsLoading(true);
+      const response = await fetch(`/api/hr/salaries/${params.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Tenant-Id': tenantId || '',
+        },
+        body: JSON.stringify({
+          deductionsEnabled: !salary.deductionsEnabled,
+        }),
+      });
+
+      if (response.ok) {
+        toast.success(
+          !salary.deductionsEnabled
+            ? 'Déductions automatiques activées'
+            : 'Déductions automatiques désactivées'
+        );
+        fetchSalary();
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Impossible de mettre à jour les déductions');
+      }
+    } catch (error) {
+      console.error('Error toggling deductions:', error);
+      toast.error('Erreur lors de la mise à jour des déductions');
+    } finally {
+      setToggleDeductionsLoading(false);
+    }
+  };
+
   const getMonthName = (month: number) => {
     const months = [
       'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
@@ -280,6 +317,20 @@ export default function SalaryDetailPage() {
             Payé
           </span>
         );
+      case 'partial':
+        return (
+          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+            <ArrowDownTrayIcon className="w-4 h-4 mr-1" />
+            Paiement partiel
+          </span>
+        );
+      case 'owing':
+        return (
+          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-orange-100 text-orange-800">
+            <CurrencyDollarIcon className="w-4 h-4 mr-1" />
+            Montant dû
+          </span>
+        );
       case 'cancelled':
         return (
           <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">
@@ -290,6 +341,7 @@ export default function SalaryDetailPage() {
       default:
         return (
           <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800">
+            <ClockIcon className="w-4 h-4 mr-1" />
             En attente
           </span>
         );
@@ -526,10 +578,32 @@ export default function SalaryDetailPage() {
 
             {/* Deductions */}
             <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <CurrencyDollarIcon className="w-5 h-5 text-red-600" />
-                Déductions
-              </h2>
+              <div className="flex items-center justify-between mb-2">
+                <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <CurrencyDollarIcon className="w-5 h-5 text-red-600" />
+                  Déductions
+                </h2>
+                <button
+                  onClick={handleToggleDeductions}
+                  disabled={toggleDeductionsLoading}
+                  className={`text-xs font-medium px-3 py-1 rounded-full transition-colors ${
+                    salary.deductionsEnabled
+                      ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  {toggleDeductionsLoading
+                    ? 'Patientez...'
+                    : salary.deductionsEnabled
+                    ? 'Désactiver'
+                    : 'Activer'}
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mb-4">
+                {salary.deductionsEnabled
+                  ? 'Les déductions automatiques (impôts 10% + sécurité sociale 9%) sont activées.'
+                  : 'Désactivées par défaut. Activez-les si vous souhaitez appliquer les impôts et la sécurité sociale.'}
+              </p>
               <div className="space-y-3">
                 {salary.deductions.taxes > 0 && (
                   <div className="flex justify-between items-center py-2 border-b">

@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import Salary from '@/lib/models/Salary';
+import { determinePaymentStatus } from '../utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,6 +65,7 @@ export async function PATCH(
       baseSalary,
       dailyRate,
       advances,
+      deductionsEnabled,
     } = body;
 
     const salary = await (Salary as any).findOne({
@@ -110,6 +112,26 @@ export async function PATCH(
       salary.netSalary = salary.earnings.totalEarnings - salary.deductions.totalDeductions;
     }
 
+    // Handle automatic deductions toggle
+    if (deductionsEnabled !== undefined) {
+      salary.deductionsEnabled = deductionsEnabled;
+      const earningsTotal = salary.earnings.totalEarnings || 0;
+      if (deductionsEnabled) {
+        salary.deductions.taxes = earningsTotal * 0.1;
+        salary.deductions.socialSecurity = earningsTotal * 0.09;
+      } else {
+        salary.deductions.taxes = 0;
+        salary.deductions.socialSecurity = 0;
+      }
+      salary.deductions.totalDeductions =
+        (salary.deductions.taxes || 0) +
+        (salary.deductions.socialSecurity || 0) +
+        (salary.deductions.insurance || 0) +
+        (salary.deductions.advances || 0) +
+        (salary.deductions.otherDeductions || 0);
+      salary.netSalary = salary.earnings.totalEarnings - salary.deductions.totalDeductions;
+    }
+
     // If base salary or daily rate changed, recalculate earnings
     if (baseSalary !== undefined || dailyRate !== undefined) {
       const finalBaseSalary = baseSalary !== undefined ? baseSalary : salary.baseSalary;
@@ -126,7 +148,7 @@ export async function PATCH(
         (salary.earnings.otherEarnings || 0);
       
       // Recalculate deductions if needed
-      if (!advances) {
+      if (deductionsEnabled === undefined && advances === undefined) {
         salary.deductions.totalDeductions = 
           (salary.deductions.taxes || 0) +
           (salary.deductions.socialSecurity || 0) +
@@ -138,6 +160,11 @@ export async function PATCH(
       // Recalculate net salary
       salary.netSalary = salary.earnings.totalEarnings - salary.deductions.totalDeductions;
     }
+
+    salary.paymentStatus = determinePaymentStatus(
+      salary.netSalary || 0,
+      salary.deductions?.advances || 0
+    );
 
     await salary.save();
     await salary.populate('employeeId', 'firstName lastName employeeNumber position department');

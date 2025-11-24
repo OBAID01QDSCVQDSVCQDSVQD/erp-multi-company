@@ -5,6 +5,7 @@ import connectDB from '@/lib/mongodb';
 import Salary from '@/lib/models/Salary';
 import Employee from '@/lib/models/Employee';
 import Attendance from '@/lib/models/Attendance';
+import { determinePaymentStatus } from './utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -74,6 +75,7 @@ export async function POST(request: NextRequest) {
       deductions,
       paymentMethod,
       notes,
+      enableDeductions,
     } = body;
 
     // Validation
@@ -167,9 +169,13 @@ export async function POST(request: NextRequest) {
     const otherEarnings = earnings?.otherEarnings || 0;
     const totalEarnings = baseSalaryEarning + overtimePay + bonuses + allowances + otherEarnings;
 
+    const shouldApplyDeductions = enableDeductions === true;
+
     // Calculate deductions (simplified - should be configurable)
-    const taxes = deductions?.taxes || (totalEarnings * 0.1); // 10% tax (example)
-    const socialSecurity = deductions?.socialSecurity || (totalEarnings * 0.09); // 9% social security (example)
+    const defaultTaxes = shouldApplyDeductions ? totalEarnings * 0.1 : 0;
+    const defaultSocialSecurity = shouldApplyDeductions ? totalEarnings * 0.09 : 0;
+    const taxes = deductions?.taxes ?? defaultTaxes;
+    const socialSecurity = deductions?.socialSecurity ?? defaultSocialSecurity;
     const insurance = deductions?.insurance || 0;
     
     // Calculate advances from advancesList if provided, otherwise use direct advances value
@@ -188,6 +194,7 @@ export async function POST(request: NextRequest) {
 
     // Calculate net salary
     const netSalary = totalEarnings - totalDeductions;
+    const paymentStatus = determinePaymentStatus(netSalary, advances);
 
     // Check if salary already exists for this period
     const existingSalary = await (Salary as any).findOne({
@@ -218,9 +225,12 @@ export async function POST(request: NextRequest) {
         socialSecurity,
         insurance,
         advances,
+        advancesList: advancesList.length > 0 ? advancesList : existingSalary.deductions?.advancesList || [],
         otherDeductions,
         totalDeductions,
       };
+      existingSalary.deductionsEnabled = shouldApplyDeductions;
+      existingSalary.paymentStatus = paymentStatus;
       existingSalary.netSalary = netSalary;
       existingSalary.paymentMethod = paymentMethod || employee.paymentMethod || 'bank_transfer';
       existingSalary.notes = notes;
@@ -265,9 +275,10 @@ export async function POST(request: NextRequest) {
         otherDeductions,
         totalDeductions,
       },
+      deductionsEnabled: shouldApplyDeductions,
       netSalary,
       paymentMethod: paymentMethod || employee.paymentMethod || 'bank_transfer',
-      paymentStatus: 'pending',
+      paymentStatus,
       notes,
       createdBy: session.user.email,
     });

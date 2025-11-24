@@ -47,6 +47,7 @@ export interface ISalary extends Document {
     otherDeductions: number;
     totalDeductions: number;
   };
+  deductionsEnabled?: boolean;
   
   // Net Salary
   netSalary: number;
@@ -54,7 +55,7 @@ export interface ISalary extends Document {
   // Payment
   paymentMethod: 'bank_transfer' | 'check' | 'cash';
   paymentDate?: Date;
-  paymentStatus: 'pending' | 'paid' | 'cancelled';
+  paymentStatus: 'pending' | 'paid' | 'partial' | 'owing' | 'cancelled';
   
   // Additional Info
   notes?: string;
@@ -118,6 +119,7 @@ const SalarySchema = new (Schema as any)({
   
   earnings: { type: EarningsSchema, default: {} },
   deductions: { type: DeductionsSchema, default: {} },
+  deductionsEnabled: { type: Boolean, default: false },
   
   netSalary: { type: Number, required: true },
   
@@ -129,7 +131,7 @@ const SalarySchema = new (Schema as any)({
   paymentDate: { type: Date },
   paymentStatus: {
     type: String,
-    enum: ['pending', 'paid', 'cancelled'],
+    enum: ['pending', 'paid', 'partial', 'owing', 'cancelled'],
     default: 'pending',
   },
   

@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import Salary from '@/lib/models/Salary';
+import { determinePaymentStatus } from '../../utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -76,6 +77,10 @@ export async function POST(
 
     // Recalculate net salary
     salary.netSalary = salary.earnings.totalEarnings - salary.deductions.totalDeductions;
+    salary.paymentStatus = determinePaymentStatus(
+      salary.netSalary,
+      salary.deductions.advances || 0
+    );
 
     await salary.save();
 
@@ -157,6 +162,10 @@ export async function DELETE(
 
     // Recalculate net salary
     salary.netSalary = salary.earnings.totalEarnings - salary.deductions.totalDeductions;
+    salary.paymentStatus = determinePaymentStatus(
+      salary.netSalary,
+      salary.deductions.advances || 0
+    );
 
     await salary.save();
 
