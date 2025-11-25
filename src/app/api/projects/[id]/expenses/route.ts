@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
+import mongoose from 'mongoose';
 import Project from '@/lib/models/Project';
 import Expense from '@/lib/models/Expense';
 
@@ -18,10 +19,28 @@ export async function GET(
     }
 
     await connectDB();
-    const tenantId = session.user.companyId?.toString() || '';
+
+    const tenantIdFromHeader = request.headers.get('X-Tenant-Id');
+    const tenantId = tenantIdFromHeader || session.user.companyId?.toString() || '';
+
+    if (!tenantId) {
+      return NextResponse.json(
+        { error: 'Tenant ID manquant' },
+        { status: 400 }
+      );
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(params.id)) {
+      return NextResponse.json(
+        { error: 'Identifiant projet invalide' },
+        { status: 400 }
+      );
+    }
+
+    const projectObjectId = new mongoose.Types.ObjectId(params.id);
 
     const project = await (Project as any).findOne({
-      _id: params.id,
+      _id: projectObjectId,
       tenantId,
     });
 
@@ -36,16 +55,21 @@ export async function GET(
     const expenses = await (Expense as any)
       .find({
         tenantId,
-        projetId: params.id,
+        projetId: projectObjectId,
       })
       .populate('categorieId', 'nom')
       .populate('fournisseurId', 'nom raisonSociale')
       .sort('-date')
       .lean();
 
+    const total = expenses.reduce(
+      (sum: number, exp: any) => sum + (exp.totalTTC ?? exp.totalHT ?? 0),
+      0
+    );
+
     return NextResponse.json({
       expenses,
-      total: expenses.reduce((sum: number, exp: any) => sum + (exp.totalHT || 0), 0),
+      total,
     });
   } catch (error: any) {
     console.error('Error fetching project expenses:', error);

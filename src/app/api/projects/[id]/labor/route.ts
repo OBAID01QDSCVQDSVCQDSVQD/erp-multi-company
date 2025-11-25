@@ -21,10 +21,28 @@ export async function GET(
     }
 
     await connectDB();
-    const tenantId = session.user.companyId?.toString() || '';
+
+    const tenantIdFromHeader = request.headers.get('X-Tenant-Id');
+    const tenantId = tenantIdFromHeader || session.user.companyId?.toString() || '';
+
+    if (!tenantId) {
+      return NextResponse.json(
+        { error: 'Tenant ID manquant' },
+        { status: 400 }
+      );
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(params.id)) {
+      return NextResponse.json(
+        { error: 'Identifiant projet invalide' },
+        { status: 400 }
+      );
+    }
+
+    const projectObjectId = new mongoose.Types.ObjectId(params.id);
 
     const project = await (Project as any).findOne({
-      _id: params.id,
+      _id: projectObjectId,
       tenantId,
     }).populate('assignedEmployees.employeeId', 'firstName lastName position department dailyRate');
 
@@ -37,8 +55,6 @@ export async function GET(
 
     const assignedEmployees = project.assignedEmployees || [];
     const laborData = [];
-
-    const projectObjectId = new mongoose.Types.ObjectId(params.id);
 
     for (const assignment of assignedEmployees) {
       const employeeId = assignment.employeeId?._id || assignment.employeeId;

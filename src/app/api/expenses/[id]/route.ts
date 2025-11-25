@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import Expense from '@/lib/models/Expense';
+import Project from '@/lib/models/Project';
 
 // PATCH /api/expenses/[id] - Mettre à jour une dépense (validation/paiement)
 export async function PATCH(
@@ -67,7 +68,7 @@ export async function PATCH(
       { path: 'centreCoutId', select: 'code nom' },
       { path: 'fournisseurId', select: 'type raisonSociale nom prenom' },
       { path: 'employeId', select: 'firstName lastName' },
-      { path: 'projetId', select: 'name' }
+      { path: 'projetId', select: 'name', model: Project }
     ]);
 
     return NextResponse.json(updatedExpense);
@@ -105,7 +106,7 @@ export async function GET(
         { path: 'centreCoutId', select: 'code nom' },
         { path: 'fournisseurId', select: 'type raisonSociale nom prenom' },
         { path: 'employeId', select: 'firstName lastName' },
-        { path: 'projetId', select: 'name' }
+        { path: 'projetId', select: 'name', model: Project }
       ]);
 
     if (!expense) {
