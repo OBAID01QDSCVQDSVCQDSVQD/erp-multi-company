@@ -3,6 +3,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import Project from '@/lib/models/Project';
+import Employee from '@/lib/models/Employee';
+import mongoose from 'mongoose';
 
 export const dynamic = 'force-dynamic';
 
@@ -72,13 +74,23 @@ export async function GET(request: NextRequest) {
 
     const skip = (page - 1) * limit;
 
+    // Ensure Employee model is registered
+    if (!mongoose.models.Employee) {
+      // Import will register the model
+      void Employee;
+    }
+
     const [projects, total] = await Promise.all([
       (Project as any)
         .find(query)
-      .populate('customerId', 'nom prenom raisonSociale')
-      .populate('devisIds', 'numero totalTTC')
-      .populate('blIds', 'numero totalTTC')
-      .populate('assignedEmployees.employeeId', 'firstName lastName position')
+        .populate('customerId', 'nom prenom raisonSociale')
+        .populate('devisIds', 'numero totalTTC')
+        .populate('blIds', 'numero totalTTC')
+        .populate({
+          path: 'assignedEmployees.employeeId',
+          select: 'firstName lastName position',
+          model: Employee,
+        })
         .sort('-createdAt')
         .skip(skip)
         .limit(limit)
@@ -131,18 +143,32 @@ export async function POST(request: NextRequest) {
       projectNumber,
       name: body.name.trim(),
       description: body.description?.trim() || undefined,
-      customerId: body.customerId,
+      customerId: new mongoose.Types.ObjectId(body.customerId),
       startDate: new Date(body.startDate),
       expectedEndDate: body.expectedEndDate ? new Date(body.expectedEndDate) : undefined,
       status: body.status || 'pending',
       budget: body.budget ? parseFloat(body.budget) : undefined,
       currency: body.currency || 'TND',
-      devisIds: body.devisIds || [],
-      blIds: body.blIds || [],
-      assignedEmployees: body.assignedEmployees || [],
+      devisIds: body.devisIds?.map((id: string) => new mongoose.Types.ObjectId(id)) || [],
+      blIds: body.blIds?.map((id: string) => new mongoose.Types.ObjectId(id)) || [],
+      assignedEmployees: body.assignedEmployees?.map((emp: any) => ({
+        employeeId: new mongoose.Types.ObjectId(emp.employeeId),
+        role: emp.role,
+        hourlyRate: emp.hourlyRate ? parseFloat(emp.hourlyRate) : undefined,
+        dailyRate: emp.dailyRate ? parseFloat(emp.dailyRate) : undefined,
+        startDate: new Date(emp.startDate),
+        endDate: emp.endDate ? new Date(emp.endDate) : undefined,
+      })) || [],
       notes: body.notes?.trim() || undefined,
       tags: body.tags || [],
       createdBy: session.user.email,
+      // Initialize calculated fields with defaults
+      totalProductsCost: 0,
+      totalExpensesCost: 0,
+      totalLaborCost: 0,
+      totalCost: 0,
+      profit: 0,
+      profitMargin: 0,
     };
 
     const project = new (Project as any)(projectData);
@@ -159,6 +185,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(project.toObject(), { status: 201 });
   } catch (error: any) {
     console.error('Error creating project:', error);
+    console.error('Error stack:', error.stack);
+    console.error('Error details:', {
+      name: error.name,
+      message: error.message,
+      code: error.code,
+      errors: error.errors,
+    });
 
     if (error.code === 11000) {
       return NextResponse.json(
@@ -167,8 +200,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Handle validation errors
+    if (error.name === 'ValidationError') {
+      const validationErrors: any = {};
+      if (error.errors) {
+        Object.keys(error.errors).forEach((key) => {
+          validationErrors[key] = error.errors[key].message;
+        });
+      }
+      return NextResponse.json(
+        { error: 'Erreur de validation', details: validationErrors, message: error.message },
+        { status: 400 }
+      );
+    }
+
     return NextResponse.json(
-      { error: 'Erreur serveur', details: error.message },
+      { error: 'Erreur serveur', details: error.message, stack: process.env.NODE_ENV === 'development' ? error.stack : undefined },
       { status: 500 }
     );
   }

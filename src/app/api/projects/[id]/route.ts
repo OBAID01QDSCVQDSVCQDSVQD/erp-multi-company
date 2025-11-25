@@ -3,12 +3,14 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import Project from '@/lib/models/Project';
+import Employee from '@/lib/models/Employee';
+import mongoose from 'mongoose';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -18,16 +20,35 @@ export async function GET(
 
     await connectDB();
     const tenantId = session.user.companyId?.toString() || '';
+    const { id } = await params;
+
+    // Validate ObjectId format
+    if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
+      return NextResponse.json(
+        { error: 'ID de projet invalide' },
+        { status: 400 }
+      );
+    }
+
+    // Ensure Employee model is registered
+    if (!mongoose.models.Employee) {
+      // Import will register the model
+      void Employee;
+    }
 
     const project = await (Project as any)
       .findOne({
-        _id: params.id,
+        _id: id,
         tenantId,
       })
       .populate('customerId', 'nom prenom raisonSociale email phone address')
       .populate('devisIds', 'numero dateDoc date totalBaseHT totalHT totalTTC')
       .populate('blIds', 'numero dateDoc date totalBaseHT totalHT totalTTC')
-      .populate('assignedEmployees.employeeId', 'firstName lastName position department email phone')
+      .populate({
+        path: 'assignedEmployees.employeeId',
+        select: 'firstName lastName position department email phone',
+        model: Employee,
+      })
       .lean();
 
     if (!project) {
@@ -40,6 +61,7 @@ export async function GET(
     return NextResponse.json(project);
   } catch (error: any) {
     console.error('Error fetching project:', error);
+    console.error('Error stack:', error.stack);
     return NextResponse.json(
       { error: 'Erreur serveur', details: error.message },
       { status: 500 }
@@ -49,7 +71,7 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -59,11 +81,20 @@ export async function PATCH(
 
     await connectDB();
     const tenantId = session.user.companyId?.toString() || '';
+    const { id } = await params;
+
+    // Validate ObjectId format
+    if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
+      return NextResponse.json(
+        { error: 'ID de projet invalide' },
+        { status: 400 }
+      );
+    }
 
     const body = await request.json();
 
     const project = await (Project as any).findOne({
-      _id: params.id,
+      _id: id,
       tenantId,
     });
 
@@ -77,7 +108,7 @@ export async function PATCH(
     // Update fields
     if (body.name !== undefined) project.name = body.name.trim();
     if (body.description !== undefined) project.description = body.description?.trim() || undefined;
-    if (body.customerId !== undefined) project.customerId = body.customerId;
+    if (body.customerId !== undefined) project.customerId = new mongoose.Types.ObjectId(body.customerId);
     if (body.startDate !== undefined) project.startDate = new Date(body.startDate);
     if (body.expectedEndDate !== undefined) {
       project.expectedEndDate = body.expectedEndDate ? new Date(body.expectedEndDate) : undefined;
@@ -88,13 +119,32 @@ export async function PATCH(
     if (body.status !== undefined) project.status = body.status;
     if (body.budget !== undefined) project.budget = body.budget ? parseFloat(body.budget) : undefined;
     if (body.currency !== undefined) project.currency = body.currency;
-    if (body.devisIds !== undefined) project.devisIds = body.devisIds || [];
-    if (body.blIds !== undefined) project.blIds = body.blIds || [];
-    if (body.assignedEmployees !== undefined) project.assignedEmployees = body.assignedEmployees || [];
+    if (body.devisIds !== undefined) {
+      project.devisIds = body.devisIds?.map((id: string) => new mongoose.Types.ObjectId(id)) || [];
+    }
+    if (body.blIds !== undefined) {
+      project.blIds = body.blIds?.map((id: string) => new mongoose.Types.ObjectId(id)) || [];
+    }
+    if (body.assignedEmployees !== undefined) {
+      project.assignedEmployees = body.assignedEmployees?.map((emp: any) => ({
+        employeeId: new mongoose.Types.ObjectId(emp.employeeId),
+        role: emp.role,
+        hourlyRate: emp.hourlyRate ? parseFloat(emp.hourlyRate) : undefined,
+        dailyRate: emp.dailyRate ? parseFloat(emp.dailyRate) : undefined,
+        startDate: new Date(emp.startDate),
+        endDate: emp.endDate ? new Date(emp.endDate) : undefined,
+      })) || [];
+    }
     if (body.notes !== undefined) project.notes = body.notes?.trim() || undefined;
     if (body.tags !== undefined) project.tags = body.tags || [];
 
     await project.save();
+
+    // Ensure Employee model is registered
+    if (!mongoose.models.Employee) {
+      // Import will register the model
+      void Employee;
+    }
 
     await project.populate('customerId', 'nom prenom raisonSociale');
     if (project.devisIds && project.devisIds.length > 0) {
@@ -103,7 +153,11 @@ export async function PATCH(
     if (project.blIds && project.blIds.length > 0) {
       await project.populate('blIds', 'numero dateDoc date totalBaseHT totalHT totalTTC');
     }
-    await project.populate('assignedEmployees.employeeId', 'firstName lastName position department');
+    await project.populate({
+      path: 'assignedEmployees.employeeId',
+      select: 'firstName lastName position department',
+      model: Employee,
+    });
 
     return NextResponse.json(project.toObject());
   } catch (error: any) {
@@ -117,7 +171,7 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -127,9 +181,18 @@ export async function DELETE(
 
     await connectDB();
     const tenantId = session.user.companyId?.toString() || '';
+    const { id } = await params;
+
+    // Validate ObjectId format
+    if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
+      return NextResponse.json(
+        { error: 'ID de projet invalide' },
+        { status: 400 }
+      );
+    }
 
     const project = await (Project as any).findOneAndDelete({
-      _id: params.id,
+      _id: id,
       tenantId,
     });
 
