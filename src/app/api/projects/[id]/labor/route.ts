@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
+import mongoose from 'mongoose';
 import Project from '@/lib/models/Project';
 import Attendance from '@/lib/models/Attendance';
 import Employee from '@/lib/models/Employee';
+import Salary from '@/lib/models/Salary';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,6 +38,8 @@ export async function GET(
     const assignedEmployees = project.assignedEmployees || [];
     const laborData = [];
 
+    const projectObjectId = new mongoose.Types.ObjectId(params.id);
+
     for (const assignment of assignedEmployees) {
       const employeeId = assignment.employeeId?._id || assignment.employeeId;
       if (!employeeId) continue;
@@ -45,18 +49,15 @@ export async function GET(
       const endDate = assignment.endDate ? new Date(assignment.endDate) : new Date();
       const endDateForQuery = endDate > new Date() ? new Date() : endDate;
 
-      // Get attendance records
+      // Get attendance records - show all records linked to this project, regardless of assignment dates
       const attendanceRecords = await (Attendance as any).find({
         tenantId,
-        employeeId,
+        employeeId: new mongoose.Types.ObjectId(employeeId),
         $or: [
-          { projectId: params.id },
-          { projectId: { $exists: false } },
+          { projectId: projectObjectId },
+          { projectAssignments: projectObjectId },
         ],
-        date: {
-          $gte: startDate,
-          $lte: endDateForQuery,
-        },
+        // Removed date filter to show all historical attendance records linked to the project
       });
 
       const daysWorked = attendanceRecords.filter((a: any) => 
@@ -71,6 +72,21 @@ export async function GET(
       const dailyRate = assignment.dailyRate || employee?.dailyRate || 0;
       const hourlyRate = assignment.hourlyRate || (dailyRate / 8); // Assume 8 hours per day
       const laborCost = dailyRate > 0 ? (dailyRate * daysWorked) : (hourlyRate * totalHours);
+
+      // Calculate advances from salary records overlapping with the assignment period
+      const salaries = await (Salary as any).find({
+        tenantId,
+        employeeId: new mongoose.Types.ObjectId(employeeId),
+        'period.startDate': { $lte: endDateForQuery },
+        'period.endDate': { $gte: startDate },
+      }).select('deductions.advances period');
+
+      const advanceAmount = salaries.reduce(
+        (sum: number, salary: any) => sum + (salary.deductions?.advances || 0),
+        0
+      );
+
+      const advanceDays = dailyRate > 0 ? advanceAmount / dailyRate : 0;
 
       laborData.push({
         employee: {
@@ -89,12 +105,22 @@ export async function GET(
         totalHours: totalHours,
         laborCost: laborCost,
         attendanceRecords: attendanceRecords.length,
+        advanceAmount,
+        advanceDays,
       });
     }
 
+    const summary = {
+      totalEmployees: laborData.length,
+      totalDays: laborData.reduce((sum, l) => sum + (l.daysWorked || 0), 0),
+      totalHours: laborData.reduce((sum, l) => sum + (l.totalHours || 0), 0),
+      totalCost: laborData.reduce((sum, l) => sum + (l.laborCost || 0), 0),
+      totalAdvances: laborData.reduce((sum, l) => sum + (l.advanceAmount || 0), 0),
+    };
+
     return NextResponse.json({
       labor: laborData,
-      total: laborData.reduce((sum, l) => sum + l.laborCost, 0),
+      summary,
     });
   } catch (error: any) {
     console.error('Error fetching project labor:', error);

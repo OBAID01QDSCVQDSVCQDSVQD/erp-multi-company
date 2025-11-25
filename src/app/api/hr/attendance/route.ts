@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
+import mongoose from 'mongoose';
 import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import Attendance from '@/lib/models/Attendance';
@@ -60,6 +61,7 @@ export async function GET(request: NextRequest) {
       (Attendance as any)
         .find(query)
         .populate('employeeId', 'firstName lastName position department employeeNumber')
+        .populate('projectId', 'name projectNumber')
         .sort({ date: -1, createdAt: -1 })
         .skip(skip)
         .limit(limit)
@@ -165,6 +167,10 @@ export async function POST(request: NextRequest) {
       location: body.location || undefined,
       createdBy: session.user.email,
     };
+
+    if (body.projectId) {
+      attendanceData.projectId = new mongoose.Types.ObjectId(body.projectId);
+    }
 
     // Calculate late minutes if check-in time is provided
     if (attendanceData.checkIn) {

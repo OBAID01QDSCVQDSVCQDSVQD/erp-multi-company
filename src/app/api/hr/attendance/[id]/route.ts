@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
+import mongoose from 'mongoose';
 import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import Attendance from '@/lib/models/Attendance';
@@ -113,6 +114,12 @@ export async function PATCH(
       attendance.checkOut = body.checkOut ? new Date(body.checkOut) : null;
     }
 
+    if (body.projectId !== undefined) {
+      attendance.projectId = body.projectId
+        ? new mongoose.Types.ObjectId(body.projectId)
+        : undefined;
+    }
+
     // Recalculate total hours if both checkIn and checkOut are present
     if (attendance.checkIn && attendance.checkOut) {
       const diff = (attendance.checkOut.getTime() - attendance.checkIn.getTime()) / (1000 * 60 * 60);
@@ -162,7 +169,14 @@ export async function PATCH(
     );
 
     // Populate employee data
-    await attendance.populate('employeeId', 'firstName lastName position department');
+    await attendance.populate([
+      { path: 'employeeId', select: 'firstName lastName position department' },
+      { path: 'projectId', select: 'name projectNumber' }
+    ]);
+    await attendance.populate([
+      { path: 'employeeId', select: 'firstName lastName position department' },
+      { path: 'projectId', select: 'name projectNumber' }
+    ]);
 
     return NextResponse.json(attendance.toObject(), { status: 200 });
   } catch (error: any) {

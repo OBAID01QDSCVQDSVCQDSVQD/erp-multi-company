@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
+import mongoose from 'mongoose';
 import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import Attendance from '@/lib/models/Attendance';
@@ -96,6 +97,12 @@ export async function POST(request: NextRequest) {
       
       attendance.checkIn = checkInTime;
       attendance.status = 'present';
+
+      if (body.projectId !== undefined) {
+        attendance.projectId = body.projectId
+          ? new mongoose.Types.ObjectId(body.projectId)
+          : undefined;
+      }
       
       // Calculate late minutes
       const workStartTime = new Date(targetDate);
@@ -121,6 +128,10 @@ export async function POST(request: NextRequest) {
         createdBy: session.user.email,
       });
 
+      if (body.projectId) {
+        attendance.projectId = new mongoose.Types.ObjectId(body.projectId);
+      }
+
       console.log('Creating new attendance record');
       console.log('Date:', targetDate.toISOString());
       console.log('CheckIn:', checkInTime.toISOString());
@@ -142,7 +153,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Populate employee data
-    await attendance.populate('employeeId', 'firstName lastName position department');
+    await attendance.populate([
+      { path: 'employeeId', select: 'firstName lastName position department' },
+      { path: 'projectId', select: 'name projectNumber' }
+    ]);
 
     return NextResponse.json(attendance.toObject(), { status: 200 });
   } catch (error: any) {

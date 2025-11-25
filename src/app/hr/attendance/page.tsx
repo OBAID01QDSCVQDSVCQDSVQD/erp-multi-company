@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
 import { 
   ClockIcon, 
@@ -29,6 +29,11 @@ interface AttendanceRecord {
   status: 'present' | 'absent' | 'late' | 'on_leave';
   totalHours?: number;
   notes?: string;
+  projectId?: {
+    _id: string;
+    name: string;
+    projectNumber?: string;
+  } | string;
 }
 
 interface Employee {
@@ -40,12 +45,27 @@ interface Employee {
   employeeNumber?: string;
 }
 
+interface Project {
+  _id: string;
+  name: string;
+  projectNumber?: string;
+  status?: string;
+}
+
+interface ProjectSelectorProps {
+  currentProjectId?: string;
+  projects: Project[];
+  disabled?: boolean;
+  onChange: (projectId: string) => void;
+}
+
 export default function AttendancePage() {
   const { tenantId } = useTenantId();
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(false);
   const [viewMode, setViewMode] = useState<'daily' | 'monthly'>('daily');
   const [searchQuery, setSearchQuery] = useState('');
@@ -64,6 +84,12 @@ export default function AttendancePage() {
       if (viewMode === 'daily') {
         fetchAttendance();
       }
+    }
+  }, [tenantId]);
+
+  useEffect(() => {
+    if (tenantId) {
+      fetchProjects();
     }
   }, [tenantId, selectedDate, viewMode]);
 
@@ -94,6 +120,20 @@ export default function AttendancePage() {
       }
     } catch (error) {
       console.error('Error fetching employees:', error);
+    }
+  };
+
+  const fetchProjects = async () => {
+    try {
+      const response = await fetch('/api/projects?limit=500', {
+        headers: { 'X-Tenant-Id': tenantId || '' }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setProjects(data.items || data.projects || []);
+      }
+    } catch (error) {
+      console.error('Error fetching projects:', error);
     }
   };
 
@@ -167,6 +207,36 @@ export default function AttendancePage() {
     } catch (error) {
       console.error('Error fetching attendance:', error);
       toast.error('Erreur lors du chargement des données');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleProjectChange = async (recordId: string, projectId: string) => {
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/hr/attendance/${recordId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Tenant-Id': tenantId || ''
+        },
+        body: JSON.stringify({ projectId: projectId || null })
+      });
+
+      if (response.ok) {
+        const updatedRecord = await response.json();
+        toast.success('Projet associé au pointage');
+        setAttendance(prev =>
+          prev.map(record => (record._id === recordId ? { ...record, projectId: updatedRecord.projectId } : record))
+        );
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Erreur lors de l\'association du projet');
+      }
+    } catch (error) {
+      console.error('Error updating project on attendance:', error);
+      toast.error('Erreur lors de l\'association du projet');
     } finally {
       setLoading(false);
     }
@@ -577,6 +647,7 @@ export default function AttendancePage() {
                     <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Sortie</th>
                     <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Heures</th>
                     <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Statut</th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Projet</th>
                     <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
@@ -712,6 +783,32 @@ export default function AttendancePage() {
                           )}
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap text-center">
+                          {record ? (
+                            projects.length > 0 ? (
+                              <ProjectSelector
+                                currentProjectId={
+                                  typeof record.projectId === 'string'
+                                    ? record.projectId
+                                    : record.projectId?._id
+                                }
+                                projects={projects}
+                                disabled={loading}
+                                onChange={(projectId) => handleProjectChange(record._id, projectId)}
+                              />
+                            ) : record.projectId ? (
+                              <span className="text-sm text-gray-600">
+                                {typeof record.projectId === 'object'
+                                  ? record.projectId?.name || 'Projet lié'
+                                  : 'Projet lié'}
+                              </span>
+                            ) : (
+                              <span className="text-sm text-gray-400">-</span>
+                            )
+                          ) : (
+                            <span className="text-sm text-gray-400">-</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap text-center">
                           <div className="flex items-center justify-center gap-2">
                             {!hasCheckedIn ? (
                               <button
@@ -840,5 +937,199 @@ export default function AttendancePage() {
         )}
       </div>
     </DashboardLayout>
+  );
+}
+
+function ProjectSelector({ currentProjectId, projects, disabled, onChange }: ProjectSelectorProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+  const alphabet = useMemo(() => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split(''), []);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen]);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  const selectedProject = projects.find((project) => project._id === currentProjectId);
+  const filteredProjects = useMemo(() => {
+    if (!searchTerm.trim()) return projects;
+    const query = searchTerm.toLowerCase();
+    return projects.filter((project) => {
+      const name = project.name?.toLowerCase() || '';
+      const number = (project.projectNumber || '').toLowerCase();
+      return name.includes(query) || number.includes(query);
+    });
+  }, [projects, searchTerm]);
+
+  const handleSelect = (value: string) => {
+    onChange(value);
+    setSearchTerm('');
+    setIsOpen(false);
+  };
+
+  const renderStatusBadge = (status?: string) => {
+    if (!status) return null;
+    const map: Record<string, { label: string; classes: string }> = {
+      pending: { label: 'En attente', classes: 'bg-amber-100 text-amber-700' },
+      in_progress: { label: 'En cours', classes: 'bg-blue-100 text-blue-700' },
+      completed: { label: 'Terminé', classes: 'bg-green-100 text-green-700' },
+      cancelled: { label: 'Annulé', classes: 'bg-red-100 text-red-700' },
+    };
+    const data = map[status] || { label: status, classes: 'bg-gray-100 text-gray-600' };
+    return (
+      <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${data.classes}`}>
+        {data.label}
+      </span>
+    );
+  };
+
+  const renderList = ({ floating = false, className = '' }: { floating?: boolean; className?: string } = {}) => (
+    <div className={`flex flex-col ${floating ? 'relative pt-16' : ''} ${className}`}>
+      <div
+        className={`space-y-3 ${
+          floating ? 'absolute -top-14 left-0 right-0 px-3 z-10' : 'p-3 border-b border-gray-100'
+        }`}
+      >
+        <div className="relative">
+          <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+            }}
+            placeholder="Rechercher par nom ou numéro..."
+            className="w-full pl-9 pr-3 py-2 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
+        <div className="flex items-center gap-1 overflow-x-auto text-xs text-gray-600">
+          {alphabet.map((letter) => (
+            <button
+              key={letter}
+              onClick={() => {
+                setSearchTerm(letter);
+              }}
+              className={`px-2 py-1 rounded-md border transition-colors ${
+                searchTerm === letter
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'border-gray-200 hover:bg-gray-100'
+              }`}
+            >
+              {letter}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="max-h-64 overflow-auto custom-scrollbar">
+        <button
+          type="button"
+          onClick={() => handleSelect('')}
+          className={`w-full flex flex-col items-start gap-1 px-4 py-3 text-sm border-b hover:bg-gray-50 ${
+            !currentProjectId ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
+          }`}
+        >
+          Aucun projet
+          <span className="text-xs text-gray-500">Ne pas associer ce pointage</span>
+        </button>
+        {filteredProjects.length === 0 ? (
+          <div className="px-4 py-6 text-sm text-gray-500 text-center">Aucun projet trouvé</div>
+        ) : (
+          filteredProjects.map((project) => (
+            <button
+              key={project._id}
+              type="button"
+              onClick={() => handleSelect(project._id)}
+              className={`w-full text-left px-4 py-3 border-b flex flex-col gap-1 transition-colors ${
+                currentProjectId === project._id
+                  ? 'bg-blue-50 border-l-4 border-blue-500'
+                  : 'hover:bg-gray-50'
+              }`}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <div className="font-semibold text-sm text-gray-900">{project.name}</div>
+                {renderStatusBadge(project.status)}
+              </div>
+              <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                {project.projectNumber && <span>#{project.projectNumber}</span>}
+                {project.status && (
+                  <span className="hidden sm:inline capitalize text-gray-400">{project.status}</span>
+                )}
+              </div>
+            </button>
+          ))
+        )}
+      </div>
+    </div>
+  );
+
+  return (
+    <>
+      <div className="relative inline-block w-full sm:w-auto" ref={dropdownRef}>
+        <button
+          type="button"
+          onClick={() => {
+            if (!disabled && projects.length > 0) {
+              setIsOpen((prev) => !prev);
+            }
+          }}
+          className={`w-full sm:w-56 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 flex items-center justify-between ${
+            disabled ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white hover:bg-gray-50'
+          }`}
+        >
+          <span className="truncate">
+            {selectedProject ? selectedProject.name : projects.length ? 'Associer à un projet' : 'Aucun projet'}
+          </span>
+          <svg
+            className={`w-4 h-4 ml-2 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+
+        {!isMobile && isOpen && projects.length > 0 && (
+          <div className="absolute z-30 mt-6 w-64 bg-white border border-gray-200 rounded-lg shadow-lg">
+            {renderList({ floating: true })}
+          </div>
+        )}
+      </div>
+
+      {isMobile && isOpen && (
+        <div className="fixed inset-0 z-40 bg-black bg-opacity-40 flex items-end sm:hidden">
+          <div className="w-full bg-white rounded-t-2xl shadow-lg">
+            <div className="flex items-center justify-between px-4 py-3 border-b">
+              <span className="text-sm font-semibold text-gray-700">Sélectionner un projet</span>
+              <button
+                onClick={() => setIsOpen(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <XMarkIcon className="w-6 h-6" />
+              </button>
+            </div>
+            {renderList()}
+          </div>
+        </div>
+      )}
+    </>
   );
 }

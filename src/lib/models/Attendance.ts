@@ -38,6 +38,10 @@ const AttendanceSchema = new (Schema as any)({
     ref: 'Project',
     index: true,
   },
+  projectAssignments: [{
+    type: Schema.Types.ObjectId,
+    ref: 'Project',
+  }],
   date: {
     type: Date,
     required: true,
