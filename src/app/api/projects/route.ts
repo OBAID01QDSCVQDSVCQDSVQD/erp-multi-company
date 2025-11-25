@@ -45,7 +45,17 @@ export async function GET(request: NextRequest) {
     }
 
     await connectDB();
-    const tenantId = session.user.companyId?.toString() || '';
+    
+    // Get tenantId from header or session
+    const tenantIdFromHeader = request.headers.get('X-Tenant-Id');
+    const tenantId = tenantIdFromHeader || session.user.companyId?.toString() || '';
+    
+    if (!tenantId) {
+      return NextResponse.json(
+        { error: 'Tenant ID manquant' },
+        { status: 400 }
+      );
+    }
 
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
@@ -81,23 +91,34 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit;
 
     // Ensure Employee model is registered
-    if (!mongoose.models.Employee) {
-      // Import will register the model
-      void Employee;
+    try {
+      if (!mongoose.models.Employee) {
+        // Import will register the model
+        void Employee;
+      }
+    } catch (modelError) {
+      console.error('Error registering Employee model:', modelError);
     }
 
     let projects, total;
     try {
+      const queryBuilder = (Project as any).find(query);
+      
+      // Populate customerId
+      queryBuilder.populate('customerId', 'nom prenom raisonSociale');
+      
+      // Populate devisIds and blIds if they exist
+      queryBuilder.populate('devisIds', 'numero totalTTC');
+      queryBuilder.populate('blIds', 'numero totalTTC');
+      
+      // Populate assignedEmployees.employeeId
+      queryBuilder.populate({
+        path: 'assignedEmployees.employeeId',
+        select: 'firstName lastName position',
+      });
+
       [projects, total] = await Promise.all([
-        (Project as any)
-          .find(query)
-          .populate('customerId', 'nom prenom raisonSociale')
-          .populate('devisIds', 'numero totalTTC')
-          .populate('blIds', 'numero totalTTC')
-          .populate({
-            path: 'assignedEmployees.employeeId',
-            select: 'firstName lastName position',
-          })
+        queryBuilder
           .sort('-createdAt')
           .skip(skip)
           .limit(limit)
@@ -106,19 +127,37 @@ export async function GET(request: NextRequest) {
       ]);
     } catch (populateError: any) {
       console.error('Error during populate:', populateError);
-      // If populate fails, try without populate for assignedEmployees
-      [projects, total] = await Promise.all([
-        (Project as any)
-          .find(query)
-          .populate('customerId', 'nom prenom raisonSociale')
-          .populate('devisIds', 'numero totalTTC')
-          .populate('blIds', 'numero totalTTC')
-          .sort('-createdAt')
-          .skip(skip)
-          .limit(limit)
-          .lean(),
-        (Project as any).countDocuments(query),
-      ]);
+      console.error('Populate error details:', {
+        message: populateError.message,
+        stack: populateError.stack,
+        name: populateError.name,
+      });
+      
+      // If populate fails, try with minimal populate
+      try {
+        [projects, total] = await Promise.all([
+          (Project as any)
+            .find(query)
+            .populate('customerId', 'nom prenom raisonSociale')
+            .sort('-createdAt')
+            .skip(skip)
+            .limit(limit)
+            .lean(),
+          (Project as any).countDocuments(query),
+        ]);
+      } catch (fallbackError: any) {
+        console.error('Fallback query also failed:', fallbackError);
+        // Last resort: query without any populate
+        [projects, total] = await Promise.all([
+          (Project as any)
+            .find(query)
+            .sort('-createdAt')
+            .skip(skip)
+            .limit(limit)
+            .lean(),
+          (Project as any).countDocuments(query),
+        ]);
+      }
     }
 
     return NextResponse.json({
