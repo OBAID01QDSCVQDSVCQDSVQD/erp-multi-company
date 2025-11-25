@@ -46,6 +46,8 @@ interface Project {
     };
     role: string;
   }>;
+  computedTotalCost?: number;
+  computedProfit?: number;
 }
 
 export default function ProjectsPage() {
@@ -77,7 +79,9 @@ export default function ProjectsPage() {
       
       if (response.ok) {
         const data = await response.json();
-        setProjects(data.items || []);
+        const items: Project[] = data.items || [];
+        const enriched = await enrichProjectsWithCosts(items);
+        setProjects(enriched);
         await fetchCostSummary();
       } else {
         const errorData = await response.json();
@@ -137,6 +141,66 @@ export default function ProjectsPage() {
     } catch (error) {
       console.error('Error fetching project summary:', error);
     }
+  };
+
+  const enrichProjectsWithCosts = async (projectList: Project[]): Promise<Project[]> => {
+    return Promise.all(
+      projectList.map(async (project) => {
+        try {
+          const [expensesRes, laborRes, productsRes] = await Promise.all([
+            fetch(`/api/projects/${project._id}/expenses`, {
+              headers: { 'X-Tenant-Id': tenantId || '' },
+            }),
+            fetch(`/api/projects/${project._id}/labor`, {
+              headers: { 'X-Tenant-Id': tenantId || '' },
+            }),
+            fetch(`/api/projects/${project._id}/products`, {
+              headers: { 'X-Tenant-Id': tenantId || '' },
+            }),
+          ]);
+
+          const expensesData = expensesRes.ok ? await expensesRes.json() : { expenses: [] };
+          const laborData = laborRes.ok ? await laborRes.json() : { labor: [] };
+          const productsData = productsRes.ok ? await productsRes.json() : { products: [], total: 0 };
+
+          const totalExpensesTTC = (expensesData.expenses || []).reduce(
+            (sum: number, expense: any) => sum + (expense.totalTTC || expense.totalHT || 0),
+            0
+          );
+          const totalLaborCost = (laborData.labor || []).reduce(
+            (sum: number, entry: any) => sum + (entry.laborCost || 0),
+            0
+          );
+          const totalProductsTTC =
+            typeof productsData.totalTTC === 'number'
+              ? productsData.totalTTC
+              : typeof productsData.total === 'number'
+              ? productsData.total
+              : (productsData.products || []).reduce(
+                  (sum: number, item: any) => sum + (item.totalCostTTC ?? item.totalCost ?? 0),
+                  0
+                );
+
+          const totalCostTTC = totalExpensesTTC + totalLaborCost + totalProductsTTC;
+          const budgetValue = project.budget || 0;
+
+          return {
+            ...project,
+            computedTotalCost: totalCostTTC,
+            computedProfit: budgetValue - totalCostTTC,
+          };
+        } catch (error) {
+          console.error(`Error computing cost for project ${project._id}:`, error);
+          const fallbackTotal = project.totalCost || 0;
+          const fallbackBudget = project.budget || 0;
+          return {
+            ...project,
+            computedTotalCost: fallbackTotal,
+            computedProfit: fallbackBudget - fallbackTotal,
+          };
+        }
+      })
+    );
   };
 
   const formatPrice = (amount: number, currency: string = 'TND') => {
@@ -363,13 +427,19 @@ export default function ProjectsPage() {
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-900">
-                            {formatPrice(project.totalCost || 0, project.currency)}
+                            {formatPrice(project.computedTotalCost ?? project.totalCost ?? 0, project.currency)}
                           </div>
-                          {project.profit !== undefined && (
-                            <div className={`text-xs ${project.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                              {project.profit >= 0 ? '+' : ''}{formatPrice(project.profit, project.currency)}
+                          {project.computedProfit !== undefined ? (
+                            <div className={`text-xs ${project.computedProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              {project.computedProfit >= 0 ? '+' : ''}
+                              {formatPrice(project.computedProfit, project.currency)}
                             </div>
-                          )}
+                          ) : project.profit !== undefined ? (
+                            <div className={`text-xs ${project.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              {project.profit >= 0 ? '+' : ''}
+                              {formatPrice(project.profit, project.currency)}
+                            </div>
+                          ) : null}
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap">
                           {getStatusBadge(project.status)}

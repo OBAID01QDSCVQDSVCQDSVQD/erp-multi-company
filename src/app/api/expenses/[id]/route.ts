@@ -20,7 +20,16 @@ export async function PATCH(
     const resolvedParams = await Promise.resolve(params);
     const { id } = resolvedParams;
     const body = await request.json();
-    const tenantId = session.user.companyId;
+
+    const tenantIdHeader = request.headers.get('X-Tenant-Id');
+    const tenantId = tenantIdHeader || session.user.companyId?.toString() || '';
+
+    if (!tenantId) {
+      return NextResponse.json(
+        { error: 'Tenant ID manquant' },
+        { status: 400 }
+      );
+    }
 
     await connectDB();
 
@@ -96,7 +105,16 @@ export async function GET(
 
     const resolvedParams = await Promise.resolve(params);
     const { id } = resolvedParams;
-    const tenantId = session.user.companyId;
+
+    const tenantIdHeader = request.headers.get('X-Tenant-Id');
+    const tenantId = tenantIdHeader || session.user.companyId?.toString() || '';
+
+    if (!tenantId) {
+      return NextResponse.json(
+        { error: 'Tenant ID manquant' },
+        { status: 400 }
+      );
+    }
 
     await connectDB();
 
@@ -141,7 +159,16 @@ export async function DELETE(
 
     const resolvedParams = await Promise.resolve(params);
     const { id } = resolvedParams;
-    const tenantId = session.user.companyId;
+
+    const tenantIdHeader = request.headers.get('X-Tenant-Id');
+    const tenantId = tenantIdHeader || session.user.companyId?.toString() || '';
+
+    if (!tenantId) {
+      return NextResponse.json(
+        { error: 'Tenant ID manquant' },
+        { status: 400 }
+      );
+    }
 
     await connectDB();
 

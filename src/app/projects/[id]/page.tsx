@@ -201,10 +201,12 @@ export default function ProjectDetailPage() {
         0
       );
       const totalProductsTTC =
-        typeof productsData.total === 'number'
+        typeof productsData.totalTTC === 'number'
+          ? productsData.totalTTC
+          : typeof productsData.total === 'number'
           ? productsData.total
           : (productsData.products || []).reduce(
-              (sum: number, item: any) => sum + (item.totalCost || 0),
+              (sum: number, item: any) => sum + (item.totalCostTTC || item.totalCost || 0),
               0
             );
 
@@ -445,7 +447,11 @@ export default function ProjectDetailPage() {
   }
 
   const effectiveBudget = costSummary.budget || project.budget || 0;
-  const effectiveTotalCost = costSummary.totalCostTTC || project.totalCost || 0;
+  const effectiveTotalCost =
+    costSummary.totalCostTTC ||
+    (project as any)?.totalCostTTC ||
+    project?.totalCost ||
+    0;
   const effectiveProfit =
     costSummary.profit ||
     project.profit ||
@@ -503,7 +509,7 @@ export default function ProjectDetailPage() {
           <div className="bg-white rounded-lg shadow p-4 sm:p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Coût total</p>
+                <p className="text-sm font-medium text-gray-600">Coût total TTC</p>
                 <p className="mt-2 text-xl sm:text-2xl font-bold text-gray-900">
                   {formatPrice(effectiveTotalCost, project.currency)}
                 </p>
@@ -1131,7 +1137,7 @@ function ExpensesTab({ projectId, currency, tenantId }: { projectId: string; cur
 function ProductsTab({ projectId, currency, tenantId }: { projectId: string; currency: string; tenantId: string }) {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [totalCost, setTotalCost] = useState(0);
+  const [totalCostTTC, setTotalCostTTC] = useState(0);
 
   useEffect(() => {
     fetchProducts();
@@ -1146,8 +1152,18 @@ function ProductsTab({ projectId, currency, tenantId }: { projectId: string; cur
       
       if (response.ok) {
         const data = await response.json();
-        setProducts(data.products || []);
-        setTotalCost(data.total || 0);
+        const productsList = data.products || [];
+        setProducts(productsList);
+        const ttc =
+          typeof data.totalTTC === 'number'
+            ? data.totalTTC
+            : typeof data.total === 'number'
+            ? data.total
+            : productsList.reduce(
+                (sum: number, item: any) => sum + (item.totalCostTTC || item.totalCost || 0),
+                0
+              );
+        setTotalCostTTC(ttc);
       }
     } catch (error) {
       console.error('Error fetching products:', error);
@@ -1194,7 +1210,7 @@ function ProductsTab({ projectId, currency, tenantId }: { projectId: string; cur
         <CubeIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
         <h3 className="text-lg font-semibold text-gray-900 mb-2">Produits</h3>
         <p className="text-sm text-gray-600">Aucun produit consommé pour ce projet</p>
-        <p className="text-sm text-gray-500 mt-2">Coût total: {formatPrice(totalCost)}</p>
+        <p className="text-sm text-gray-500 mt-2">Coût total TTC: {formatPrice(totalCostTTC)}</p>
       </div>
     );
   }
@@ -1205,7 +1221,7 @@ function ProductsTab({ projectId, currency, tenantId }: { projectId: string; cur
         <h3 className="text-lg font-semibold text-gray-900">Produits consommés</h3>
         <div className="text-sm text-gray-600">
           <span className="font-medium text-gray-900">{products.length}</span> produit(s) • 
-          <span className="font-medium text-gray-900 ml-1">{formatPrice(totalCost)}</span>
+          <span className="font-medium text-gray-900 ml-1">{formatPrice(totalCostTTC)}</span>
         </div>
       </div>
 
@@ -1217,7 +1233,7 @@ function ProductsTab({ projectId, currency, tenantId }: { projectId: string; cur
               <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Quantité</th>
               <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Coût unitaire HT</th>
               <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Coût unitaire TTC</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Coût total</th>
+              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Coût total TTC</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Documents</th>
             </tr>
           </thead>
@@ -1240,7 +1256,7 @@ function ProductsTab({ projectId, currency, tenantId }: { projectId: string; cur
                   {formatPrice(item.movements[0]?.unitCostTTC || 0)}
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium text-gray-900">
-                  {formatPrice(item.totalCost)}
+                  {formatPrice(item.totalCostTTC || item.totalCost || 0)}
                 </td>
                 <td className="px-4 py-3 text-sm text-gray-500">
                   <div className="space-y-1">
@@ -1257,10 +1273,10 @@ function ProductsTab({ projectId, currency, tenantId }: { projectId: string; cur
           <tfoot className="bg-gray-50">
             <tr>
               <td colSpan={4} className="px-4 py-3 text-right text-sm font-medium text-gray-900">
-                Total:
+                Total TTC:
               </td>
               <td className="px-4 py-3 text-right text-sm font-bold text-gray-900">
-                {formatPrice(totalCost)}
+                {formatPrice(totalCostTTC)}
               </td>
               <td></td>
             </tr>
@@ -1574,7 +1590,12 @@ function ReportTab({
 
       setExpenses(expensesData.expenses || []);
       setLabor(laborData.labor || []);
-      setProducts(productsData.products || []);
+
+      const normalizedProducts = (productsData.products || []).map((item: any) => ({
+        ...item,
+        totalCostTTC: item.totalCostTTC ?? item.totalCost ?? 0,
+      }));
+      setProducts(normalizedProducts);
 
       // Calculate totals
       const totalExpensesTTC = (expensesData.expenses || []).reduce(
@@ -1585,7 +1606,15 @@ function ReportTab({
         (sum: number, l: any) => sum + (l.laborCost || 0), 
         0
       );
-      const totalProductsTTC = productsData.total || 0;
+      const totalProductsTTC =
+        typeof productsData.totalTTC === 'number'
+          ? productsData.totalTTC
+          : typeof productsData.total === 'number'
+          ? productsData.total
+          : normalizedProducts.reduce(
+              (sum: number, product: any) => sum + (product.totalCostTTC ?? 0),
+              0
+            );
 
       const totalCostTTC = totalExpensesTTC + totalLaborCost + totalProductsTTC;
       const profit = budget - totalCostTTC;
@@ -1651,24 +1680,24 @@ function ReportTab({
       >
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white border rounded-lg p-4">
+        <div className="bg-gradient-to-br from-blue-50 to-white border-l-4 border-blue-400 rounded-lg p-4">
           <p className="text-sm text-gray-500">Budget</p>
           <p className="text-2xl font-semibold text-gray-900">{formatPrice(summary.budget)}</p>
           <p className="text-xs text-gray-400 mt-1">Montant alloué</p>
         </div>
-        <div className="bg-white border rounded-lg p-4">
+        <div className="bg-gradient-to-br from-red-50 to-white border-l-4 border-red-400 rounded-lg p-4">
           <p className="text-sm text-gray-500">Coût total TTC</p>
           <p className="text-2xl font-semibold text-red-600">{formatPrice(summary.totalCostTTC)}</p>
           <p className="text-xs text-gray-400 mt-1">Tous frais inclus</p>
         </div>
-        <div className="bg-white border rounded-lg p-4">
+        <div className="bg-gradient-to-br from-green-50 to-white border-l-4 border-green-400 rounded-lg p-4">
           <p className="text-sm text-gray-500">Profit / Perte</p>
           <p className={`text-2xl font-semibold ${summary.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
             {formatPrice(summary.profit)}
           </p>
           <p className="text-xs text-gray-400 mt-1">Marge: {summary.profitMargin.toFixed(1)}%</p>
         </div>
-        <div className="bg-white border rounded-lg p-4">
+        <div className="bg-gradient-to-br from-purple-50 to-white border-l-4 border-purple-400 rounded-lg p-4">
           <p className="text-sm text-gray-500">Équipe</p>
           <p className="text-2xl font-semibold text-gray-900">{summary.totalEmployees}</p>
           <p className="text-xs text-gray-400 mt-1">
@@ -1678,22 +1707,22 @@ function ReportTab({
         </div>
 
         {/* Cost Breakdown */}
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-gradient-to-br from-indigo-50 to-white rounded-lg shadow p-6 border border-indigo-100">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Répartition des coûts (TTC)</h3>
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between text-sm">
             <span className="text-sm text-gray-600">Dépenses</span>
             <span className="text-sm font-semibold text-gray-900">{formatPrice(summary.totalExpensesTTC)}</span>
           </div>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between text-sm">
             <span className="text-sm text-gray-600">Main d'œuvre</span>
             <span className="text-sm font-semibold text-gray-900">{formatPrice(summary.totalLaborCost)}</span>
           </div>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between text-sm">
             <span className="text-sm text-gray-600">Produits</span>
             <span className="text-sm font-semibold text-gray-900">{formatPrice(summary.totalProductsTTC)}</span>
           </div>
-          <div className="border-t pt-4 flex items-center justify-between">
+          <div className="border-t border-indigo-100 pt-4 flex items-center justify-between">
             <span className="text-base font-semibold text-gray-900">Total coûts TTC</span>
             <span className="text-base font-bold text-gray-900">{formatPrice(summary.totalCostTTC)}</span>
           </div>
@@ -1701,13 +1730,13 @@ function ReportTab({
         </div>
 
         {/* Expenses Section */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="px-6 py-4 border-b">
+        <div className="bg-white rounded-lg shadow overflow-hidden border border-pink-100">
+        <div className="px-6 py-4 border-b border-pink-100 bg-pink-50/60">
           <h3 className="text-lg font-semibold text-gray-900">Dépenses ({expenses.length})</h3>
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <thead className="bg-pink-50">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Numéro</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
@@ -1756,13 +1785,13 @@ function ReportTab({
         </div>
 
         {/* Labor Section */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="px-6 py-4 border-b">
+        <div className="bg-white rounded-lg shadow overflow-hidden border border-blue-100">
+        <div className="px-6 py-4 border-b border-blue-100 bg-blue-50/60">
           <h3 className="text-lg font-semibold text-gray-900">Main d'œuvre ({labor.length})</h3>
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <thead className="bg-blue-50">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Employé</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rôle</th>
@@ -1813,18 +1842,18 @@ function ReportTab({
         </div>
 
         {/* Products Section */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="px-6 py-4 border-b">
+        <div className="bg-white rounded-lg shadow overflow-hidden border border-green-100">
+        <div className="px-6 py-4 border-b border-green-100 bg-green-50/60">
           <h3 className="text-lg font-semibold text-gray-900">Produits consommés ({products.length})</h3>
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <thead className="bg-green-50">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Produit</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Quantité</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Coût unitaire TTC</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Coût total</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Coût total TTC</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -1844,13 +1873,13 @@ function ReportTab({
                       </div>
                     </td>
                     <td className="px-4 py-3 text-right text-sm text-gray-900">
-                      {item.quantity.toLocaleString('fr-FR')}
+                      {Number(item.quantity || 0).toLocaleString('fr-FR')}
                     </td>
                     <td className="px-4 py-3 text-right text-sm text-gray-900">
-                      {formatPrice(item.movements[0]?.unitCostTTC || 0)}
+                      {formatPrice(item.movements?.[0]?.unitCostTTC || 0)}
                     </td>
                     <td className="px-4 py-3 text-right text-sm font-medium text-gray-900">
-                      {formatPrice(item.totalCost)}
+                      {formatPrice(item.totalCostTTC ?? item.totalCost ?? 0)}
                     </td>
                   </tr>
                 ))
@@ -1859,7 +1888,7 @@ function ReportTab({
             <tfoot className="bg-gray-50">
               <tr>
                 <td colSpan={3} className="px-4 py-3 text-right text-sm font-medium text-gray-900">
-                  Total:
+                  Total TTC:
                 </td>
                 <td className="px-4 py-3 text-right text-sm font-bold text-gray-900">
                   {formatPrice(summary.totalProductsTTC)}

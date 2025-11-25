@@ -36,6 +36,18 @@ export async function GET(
     const blIds = project.blIds?.map((bl: any) => bl._id?.toString() || bl.toString()) || [];
     
     // Get stock movements for this project
+    const toNumber = (value: any): number => {
+      if (typeof value === 'number') {
+        return isNaN(value) ? 0 : value;
+      }
+      if (typeof value === 'string') {
+        const normalized = value.replace(/\s+/g, '').replace(',', '.');
+        const parsed = Number(normalized);
+        return isNaN(parsed) ? 0 : parsed;
+      }
+      return 0;
+    };
+
     const stockMovements = await (MouvementStock as any)
       .find({
         societeId: tenantId,
@@ -49,8 +61,8 @@ export async function GET(
       .lean();
     
     // If no stock movements but BLs are linked, get products directly from BLs
-    const Document = (await import('@/lib/models/Document')).default;
-    const Product = (await import('@/lib/models/Product')).default;
+    const { default: Document } = await import('@/lib/models/Document');
+    const { default: Product } = await import('@/lib/models/Product');
     
     let productsFromBLs: any[] = [];
     if (blIds.length > 0) {
@@ -122,20 +134,22 @@ export async function GET(
             devise: product.devise,
           },
           quantity: 0,
-          totalCost: 0,
+          totalCostHT: 0,
+          totalCostTTC: 0,
           movements: [],
         });
       }
 
       const item = groupedProducts.get(productId);
-      const costHT = product.prixAchatRef || product.prixVenteHT || 0;
-      const tvaPct = product.tvaPct || 0;
+      const costHT = toNumber(product.prixAchatRef ?? product.prixVenteHT ?? 0);
+      const tvaPct = toNumber(product.tvaPct ?? product.tauxTVA ?? 0);
       const costTTC = costHT * (1 + tvaPct / 100);
-      const quantity = movement.qte || 0;
+      const quantity = toNumber(movement.qte ?? movement.quantite ?? movement.quantity ?? 0);
       
       if (item) {
         item.quantity += quantity;
-        item.totalCost += costHT * quantity;
+        item.totalCostHT += costHT * quantity;
+        item.totalCostTTC += costTTC * quantity;
         item.movements.push({
           _id: movement._id,
           date: movement.date || movement.createdAt,
@@ -168,16 +182,24 @@ export async function GET(
             devise: product.devise,
           },
           quantity: 0,
-          totalCost: 0,
+          totalCostHT: 0,
+          totalCostTTC: 0,
           movements: [],
         });
       }
       
       const item = groupedProducts.get(productId);
-      const costHT = blProduct.prixUnitaireHT || product.prixAchatRef || product.prixVenteHT || 0;
-      const tvaPct = product.tvaPct || 0;
+      const costHT = toNumber(
+        blProduct.prixUnitaireHT ??
+          blProduct.prixUnitaire ??
+          blProduct.prix ?? // fallback si stocke comme prix
+          product.prixAchatRef ??
+          product.prixVenteHT ??
+          0
+      );
+      const tvaPct = toNumber(product.tvaPct ?? product.tauxTVA ?? blProduct.tvaPct ?? 0);
       const costTTC = costHT * (1 + tvaPct / 100);
-      const quantity = blProduct.quantity || 0;
+      const quantity = toNumber(blProduct.quantity ?? blProduct.quantite ?? blProduct.qte ?? 0);
       
       // Only add if not already counted from movements
       const alreadyCounted = item?.movements.some((m: any) => 
@@ -186,7 +208,8 @@ export async function GET(
       
       if (!alreadyCounted && item) {
         item.quantity += quantity;
-        item.totalCost += costHT * quantity;
+        item.totalCostHT += costHT * quantity;
+        item.totalCostTTC += costTTC * quantity;
         item.movements.push({
           _id: `bl-${blProduct.blId}-${productId}`,
           date: blProduct.dateDoc,
@@ -199,11 +222,32 @@ export async function GET(
       }
     });
 
-    const productsList = Array.from(groupedProducts.values());
+    const productsList = Array.from(groupedProducts.values()).map((item: any) => {
+      const quantity = toNumber(item.quantity);
+      const totalCostHT = toNumber(item.totalCostHT);
+      const totalCostTTC = toNumber(item.totalCostTTC);
+      return {
+        ...item,
+        quantity,
+        totalCostHT,
+        totalCostTTC,
+        totalCost: totalCostTTC, // backward compatibility for UI expecting totalCost
+        movements: (item.movements || []).map((movement: any) => ({
+          ...movement,
+          quantity: toNumber(movement.quantity),
+          unitCostHT: toNumber(movement.unitCostHT),
+          unitCostTTC: toNumber(movement.unitCostTTC),
+        })),
+      };
+    });
+
+    const totalHT = productsList.reduce((sum, p) => sum + (p.totalCostHT || 0), 0);
+    const totalTTC = productsList.reduce((sum, p) => sum + (p.totalCostTTC || 0), 0);
 
     return NextResponse.json({
       products: productsList,
-      total: productsList.reduce((sum, p) => sum + p.totalCost, 0),
+      totalHT,
+      totalTTC,
     });
   } catch (error: any) {
     console.error('Error fetching project products:', error);
