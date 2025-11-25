@@ -5,6 +5,7 @@ import connectDB from '@/lib/mongodb';
 import Project from '@/lib/models/Project';
 import Employee from '@/lib/models/Employee';
 import Customer from '@/lib/models/Customer';
+import DocumentModel from '@/lib/models/Document';
 import mongoose from 'mongoose';
 
 export const dynamic = 'force-dynamic';
@@ -38,25 +39,47 @@ export async function GET(
     if (!mongoose.models.Customer) {
       void Customer;
     }
+    if (!mongoose.models.Document) {
+      void DocumentModel;
+    }
 
-    const project = await (Project as any)
-      .findOne({
-        _id: id,
-        tenantId,
-      })
-      .populate({
-        path: 'customerId',
-        select: 'nom prenom raisonSociale email phone address',
-        model: Customer,
-      })
-      .populate('devisIds', 'numero dateDoc date totalBaseHT totalHT totalTTC')
-      .populate('blIds', 'numero dateDoc date totalBaseHT totalHT totalTTC')
-      .populate({
-        path: 'assignedEmployees.employeeId',
-        select: 'firstName lastName position department email phone',
-        model: Employee,
-      })
-      .lean();
+    let project;
+    try {
+      project = await (Project as any)
+        .findOne({
+          _id: id,
+          tenantId,
+        })
+        .populate({
+          path: 'customerId',
+          select: 'nom prenom raisonSociale email phone address',
+          model: Customer,
+        })
+        .populate({
+          path: 'devisIds',
+          select: 'numero dateDoc date totalBaseHT totalHT totalTTC',
+          model: DocumentModel,
+        })
+        .populate({
+          path: 'blIds',
+          select: 'numero dateDoc date totalBaseHT totalHT totalTTC',
+          model: DocumentModel,
+        })
+        .populate({
+          path: 'assignedEmployees.employeeId',
+          select: 'firstName lastName position department email phone',
+          model: Employee,
+        })
+        .lean();
+    } catch (populateError) {
+      console.error('Error populating project details:', populateError);
+      project = await (Project as any)
+        .findOne({
+          _id: id,
+          tenantId,
+        })
+        .lean();
+    }
 
     if (!project) {
       return NextResponse.json(
@@ -159,10 +182,18 @@ export async function PATCH(
       model: Customer,
     });
     if (project.devisIds && project.devisIds.length > 0) {
-      await project.populate('devisIds', 'numero dateDoc date totalBaseHT totalHT totalTTC');
+      await project.populate({
+        path: 'devisIds',
+        select: 'numero dateDoc date totalBaseHT totalHT totalTTC',
+        model: DocumentModel,
+      });
     }
     if (project.blIds && project.blIds.length > 0) {
-      await project.populate('blIds', 'numero dateDoc date totalBaseHT totalHT totalTTC');
+      await project.populate({
+        path: 'blIds',
+        select: 'numero dateDoc date totalBaseHT totalHT totalTTC',
+        model: DocumentModel,
+      });
     }
     await project.populate({
       path: 'assignedEmployees.employeeId',
