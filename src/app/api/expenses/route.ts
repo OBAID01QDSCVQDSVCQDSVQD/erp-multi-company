@@ -7,6 +7,7 @@ import ExpenseCategory from '@/lib/models/ExpenseCategory';
 import Counter from '@/lib/models/Counter';
 import Supplier from '@/lib/models/Supplier';
 import User from '@/lib/models/User';
+import Project from '@/lib/models/Project';
 import mongoose from 'mongoose';
 
 // Force dynamic rendering since we use getServerSession which uses headers()
@@ -50,6 +51,10 @@ export async function GET(request: NextRequest) {
     if (!(mongoose.models as any)['User']) {
       const UserModel = await import('@/lib/models/User');
       void UserModel.default;
+    }
+    if (!(mongoose.models as any)['Project']) {
+      const ProjectModel = await import('@/lib/models/Project');
+      void ProjectModel.default;
     }
 
     // Construction du filtre
@@ -119,6 +124,7 @@ export async function GET(request: NextRequest) {
         .populate({
           path: 'projetId',
           select: 'name',
+          model: Project,
           options: { strictPopulate: false }
         })
         .sort({ date: -1, createdAt: -1 })
@@ -220,6 +226,10 @@ export async function POST(request: NextRequest) {
       const UserModel = await import('@/lib/models/User');
       void UserModel.default;
     }
+    if (!(mongoose.models as any)['Project']) {
+      const ProjectModel = await import('@/lib/models/Project');
+      void ProjectModel.default;
+    }
 
     // Génération du numéro séquentiel avec retry mechanism
     const currentYear = new Date().getFullYear();
@@ -309,7 +319,7 @@ export async function POST(request: NextRequest) {
       { path: 'categorieId', select: 'nom code icone' },
       { path: 'fournisseurId', select: 'name' },
       { path: 'employeId', select: 'firstName lastName' },
-      { path: 'projetId', select: 'name' }
+      { path: 'projetId', select: 'name', model: Project }
     ]);
 
     return NextResponse.json(expense, { status: 201 });

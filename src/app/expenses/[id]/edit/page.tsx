@@ -123,7 +123,7 @@ export default function EditExpensePage() {
   const [tvaDeductiblePctDisplay, setTvaDeductiblePctDisplay] = useState<string>('100');
   const [fodecRateDisplay, setFodecRateDisplay] = useState<string>('1');
   const [retenueRateDisplay, setRetenueRateDisplay] = useState<string>('0');
-  const [timbreFiscalDisplay, setTimbreFiscalDisplay] = useState<string>('1');
+  const [timbreFiscalDisplay, setTimbreFiscalDisplay] = useState<string>('0');
   const [remiseGlobalePctDisplay, setRemiseGlobalePctDisplay] = useState<string>('0');
 
   const {
@@ -148,7 +148,7 @@ export default function EditExpensePage() {
       retenueActif: false,
       retenueRate: 0,
       retenueBase: 'TTC_TIMBRE',
-      timbreFiscal: 1,
+      timbreFiscal: 0,
       remiseGlobalePct: 0,
       statut: 'brouillon',
     },
@@ -367,7 +367,7 @@ export default function EditExpensePage() {
       setTvaDeductiblePctDisplay(expenseData.tvaDeductiblePct?.toString() || '100');
       setFodecRateDisplay(expenseData.fodecRate?.toString() || '1');
       setRetenueRateDisplay(expenseData.retenueRate?.toString() || '0');
-      setTimbreFiscalDisplay(expenseData.timbreFiscal?.toString() || '1');
+      setTimbreFiscalDisplay(expenseData.timbreFiscal?.toString() || '0');
       setRemiseGlobalePctDisplay(expenseData.remiseGlobalePct?.toString() || '0');
 
       // Pré-remplir le formulaire
@@ -390,7 +390,7 @@ export default function EditExpensePage() {
         retenueActif: expenseData.retenueActif || false,
         retenueRate: expenseData.retenueRate || 0,
       retenueBase: expenseData.retenueBase || 'TTC_TIMBRE',
-      timbreFiscal: expenseData.timbreFiscal || 1,
+      timbreFiscal: expenseData.timbreFiscal ?? 0,
       remiseGlobalePct: expenseData.remiseGlobalePct || 0,
       modePaiement: expenseData.modePaiement || 'virement',
       fournisseurId: expenseData.fournisseurId?._id || expenseData.fournisseurId || '',
@@ -1026,15 +1026,15 @@ export default function EditExpensePage() {
                   }
                 }}
                 onFocus={() => {
-                  if (timbreFiscalDisplay === '1') {
+                  if (timbreFiscalDisplay === '0') {
                     setTimbreFiscalDisplay('');
                   }
                 }}
                 onBlur={(e) => {
                   const value = parseFloat(e.target.value);
-                  if (isNaN(value) || value === 0 || e.target.value === '') {
-                    setTimbreFiscalDisplay('1');
-                    setValue('timbreFiscal', 1);
+                  if (isNaN(value) || e.target.value === '') {
+                    setTimbreFiscalDisplay('0');
+                    setValue('timbreFiscal', 0);
                   } else {
                     setTimbreFiscalDisplay(e.target.value);
                   }

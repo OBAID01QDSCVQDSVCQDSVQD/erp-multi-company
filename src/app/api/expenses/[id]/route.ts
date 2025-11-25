@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import Expense from '@/lib/models/Expense';
 import Project from '@/lib/models/Project';
+import mongoose from 'mongoose';
 
 // PATCH /api/expenses/[id] - Mettre à jour une dépense (validation/paiement)
 export async function PATCH(
@@ -32,6 +33,12 @@ export async function PATCH(
     }
 
     await connectDB();
+
+    // Ensure Project model is registered before using populate
+    if (!(mongoose.models as any)['Project']) {
+      const ProjectModel = await import('@/lib/models/Project');
+      void ProjectModel.default;
+    }
 
     // Vérifier que la dépense appartient au tenant
     const expense = await (Expense as any).findOne({ _id: id, tenantId });
@@ -117,6 +124,12 @@ export async function GET(
     }
 
     await connectDB();
+
+    // Ensure Project model is registered before using populate
+    if (!(mongoose.models as any)['Project']) {
+      const ProjectModel = await import('@/lib/models/Project');
+      void ProjectModel.default;
+    }
 
     const expense = await (Expense as any).findOne({ _id: id, tenantId })
       .populate([

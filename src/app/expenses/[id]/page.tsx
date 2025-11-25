@@ -6,6 +6,7 @@ import DashboardLayout from '@/components/Layout/DashboardLayout';
 import { useTenantId } from '@/hooks/useTenantId';
 import { ArrowLeftIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 import ImageGallery, { ImageItem } from '@/components/common/ImageGallery';
+import toast from 'react-hot-toast';
 
 interface Expense {
   _id: string;
@@ -160,6 +161,36 @@ export default function ExpenseDetailPage() {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
+  const handleDelete = async () => {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer cette dépense ? Cette action est irréversible.')) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/expenses/${expense?._id}`, {
+        method: 'DELETE',
+        headers: {
+          'X-Tenant-Id': tenantId || '',
+        },
+      });
+
+      if (response.ok) {
+        toast.success('Dépense supprimée avec succès');
+        router.push('/expenses');
+      } else {
+        const errorData = await response.json();
+        const errorMessage = errorData.error || 'Erreur lors de la suppression';
+        setError(errorMessage);
+        toast.error(errorMessage);
+      }
+    } catch (err) {
+      setError('Erreur de connexion lors de la suppression');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <DashboardLayout>
@@ -219,13 +250,9 @@ export default function ExpenseDetailPage() {
               Modifier
             </button>
             <button
-              onClick={() => {
-                if (confirm('Êtes-vous sûr de vouloir supprimer cette dépense ?')) {
-                  // TODO: Implement delete functionality
-                  console.log('Delete expense:', expense._id);
-                }
-              }}
-              className="inline-flex items-center px-4 py-2 border border-red-300 rounded-md shadow-sm text-sm font-medium text-red-700 bg-white hover:bg-red-50"
+              onClick={handleDelete}
+              disabled={loading}
+              className="inline-flex items-center px-4 py-2 border border-red-300 rounded-md shadow-sm text-sm font-medium text-red-700 bg-white hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <TrashIcon className="h-5 w-5 mr-2" />
               Supprimer
