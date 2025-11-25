@@ -55,6 +55,12 @@ export default function ProjectsPage() {
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [costSummary, setCostSummary] = useState({
+    totalBudget: 0,
+    totalCost: 0,
+    profit: 0,
+    profitMargin: 0,
+  });
 
   useEffect(() => {
     if (tenantId) {
@@ -72,6 +78,7 @@ export default function ProjectsPage() {
       if (response.ok) {
         const data = await response.json();
         setProjects(data.items || []);
+        await fetchCostSummary();
       } else {
         const errorData = await response.json();
         toast.error(errorData.error || 'Erreur lors du chargement des projets');
@@ -110,6 +117,25 @@ export default function ProjectsPage() {
       toast.error('Erreur lors de la suppression');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchCostSummary = async () => {
+    try {
+      const response = await fetch('/api/projects/report-summary', {
+        headers: { 'X-Tenant-Id': tenantId || '' },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setCostSummary({
+          totalBudget: data.totalBudget || 0,
+          totalCost: data.totalCostTTC || 0,
+          profit: data.profit || 0,
+          profitMargin: data.profitMargin || 0,
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching project summary:', error);
     }
   };
 
@@ -167,10 +193,9 @@ export default function ProjectsPage() {
     const total = filteredProjects.length;
     const inProgress = filteredProjects.filter(p => p.status === 'in_progress').length;
     const completed = filteredProjects.filter(p => p.status === 'completed').length;
-    const totalBudget = filteredProjects.reduce((sum, p) => sum + (p.budget || 0), 0);
     
-    return { total, inProgress, completed, totalBudget };
-  }, [filteredProjects]);
+    return { total, inProgress, completed, totalBudget: costSummary.totalBudget };
+  }, [filteredProjects, costSummary]);
 
   return (
     <DashboardLayout>
