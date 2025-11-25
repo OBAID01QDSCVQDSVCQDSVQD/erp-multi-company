@@ -58,9 +58,18 @@ export async function GET(
 
     for (const assignment of assignedEmployees) {
       const employeeId = assignment.employeeId?._id || assignment.employeeId;
-      if (!employeeId) continue;
+      if (!employeeId) {
+        console.warn('Skipping assignment without employeeId', assignment);
+        continue;
+      }
 
-      const employee = assignment.employeeId;
+      if (!mongoose.Types.ObjectId.isValid(employeeId)) {
+        console.warn('Skipping assignment with invalid employeeId', employeeId);
+        continue;
+      }
+
+      const employeeObjectId = new mongoose.Types.ObjectId(employeeId);
+      const employee = typeof assignment.employeeId === 'object' ? assignment.employeeId : undefined;
       const startDate = new Date(assignment.startDate);
       const endDate = assignment.endDate ? new Date(assignment.endDate) : new Date();
       const endDateForQuery = endDate > new Date() ? new Date() : endDate;
@@ -68,7 +77,7 @@ export async function GET(
       // Get attendance records - show all records linked to this project, regardless of assignment dates
       const attendanceRecords = await (Attendance as any).find({
         tenantId,
-        employeeId: new mongoose.Types.ObjectId(employeeId),
+        employeeId: employeeObjectId,
         $or: [
           { projectId: projectObjectId },
           { projectAssignments: projectObjectId },
@@ -92,7 +101,7 @@ export async function GET(
       // Calculate advances from salary records overlapping with the assignment period
       const salaries = await (Salary as any).find({
         tenantId,
-        employeeId: new mongoose.Types.ObjectId(employeeId),
+        employeeId: employeeObjectId,
         'period.startDate': { $lte: endDateForQuery },
         'period.endDate': { $gte: startDate },
       }).select('deductions.advances period');
