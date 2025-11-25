@@ -53,10 +53,16 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status');
     const customerId = searchParams.get('customerId');
     const q = searchParams.get('q');
+    const actif = searchParams.get('actif');
 
     const query: any = { tenantId };
 
-    if (status && status !== 'all') {
+    // Handle actif parameter: filter for active projects (not completed or cancelled)
+    if (actif === 'true') {
+      query.status = { $nin: ['completed', 'cancelled'] };
+    } else if (actif === 'false') {
+      query.status = { $in: ['completed', 'cancelled'] };
+    } else if (status && status !== 'all') {
       query.status = status;
     }
 
@@ -80,23 +86,40 @@ export async function GET(request: NextRequest) {
       void Employee;
     }
 
-    const [projects, total] = await Promise.all([
-      (Project as any)
-        .find(query)
-        .populate('customerId', 'nom prenom raisonSociale')
-        .populate('devisIds', 'numero totalTTC')
-        .populate('blIds', 'numero totalTTC')
-        .populate({
-          path: 'assignedEmployees.employeeId',
-          select: 'firstName lastName position',
-          model: Employee,
-        })
-        .sort('-createdAt')
-        .skip(skip)
-        .limit(limit)
-        .lean(),
-      (Project as any).countDocuments(query),
-    ]);
+    let projects, total;
+    try {
+      [projects, total] = await Promise.all([
+        (Project as any)
+          .find(query)
+          .populate('customerId', 'nom prenom raisonSociale')
+          .populate('devisIds', 'numero totalTTC')
+          .populate('blIds', 'numero totalTTC')
+          .populate({
+            path: 'assignedEmployees.employeeId',
+            select: 'firstName lastName position',
+          })
+          .sort('-createdAt')
+          .skip(skip)
+          .limit(limit)
+          .lean(),
+        (Project as any).countDocuments(query),
+      ]);
+    } catch (populateError: any) {
+      console.error('Error during populate:', populateError);
+      // If populate fails, try without populate for assignedEmployees
+      [projects, total] = await Promise.all([
+        (Project as any)
+          .find(query)
+          .populate('customerId', 'nom prenom raisonSociale')
+          .populate('devisIds', 'numero totalTTC')
+          .populate('blIds', 'numero totalTTC')
+          .sort('-createdAt')
+          .skip(skip)
+          .limit(limit)
+          .lean(),
+        (Project as any).countDocuments(query),
+      ]);
+    }
 
     return NextResponse.json({
       items: projects,
@@ -105,10 +128,20 @@ export async function GET(request: NextRequest) {
       limit,
       pages: Math.ceil(total / limit),
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching projects:', error);
+    console.error('Error stack:', error.stack);
+    console.error('Error details:', {
+      name: error.name,
+      message: error.message,
+      code: error.code,
+    });
     return NextResponse.json(
-      { error: 'Erreur serveur', details: (error as Error).message },
+      { 
+        error: 'Erreur serveur', 
+        details: error.message,
+        ...(process.env.NODE_ENV === 'development' && { stack: error.stack })
+      },
       { status: 500 }
     );
   }
