@@ -200,6 +200,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const tenantId = session.user.companyId;
     const societeId = session.user.companyId; // Use companyId as societeId
+    const tenantIdString = String(tenantId); // Ensure consistent string format
     
     console.log('POST /api/expenses - Body received:', JSON.stringify(body, null, 2));
     console.log('POST /api/expenses - TenantId:', tenantId);
@@ -220,82 +221,88 @@ export async function POST(request: NextRequest) {
       void UserModel.default;
     }
 
-    // Génération du numéro séquentiel
+    // Génération du numéro séquentiel avec retry mechanism
     const currentYear = new Date().getFullYear();
-    const counter = await (Counter as any).findOneAndUpdate(
-      { tenantId, seqName: 'expense' },
-      { $inc: { value: 1 } },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
-    );
+    let numero: string;
+    let maxRetries = 10;
+    let retryCount = 0;
+    let savedExpense: any = null;
 
-    // Ensure counter.value exists and is a number
-    const counterValue = counter?.value ?? 0;
-    let numero = `EXP-${currentYear}-${counterValue.toString().padStart(5, '0')}`;
-
-    // Check if numero already exists for this tenant (retry if needed)
-    let existingExpense = await (Expense as any).findOne({ tenantId, numero });
-    if (existingExpense) {
-      // If numero exists, increment counter and try again
-      const newCounter = await (Counter as any).findOneAndUpdate(
-        { tenantId, seqName: 'expense' },
-        { $inc: { value: 1 } },
-        { new: true }
-      );
-      const newCounterValue = newCounter?.value ?? counterValue + 1;
-      numero = `EXP-${currentYear}-${newCounterValue.toString().padStart(5, '0')}`;
-    }
-
-    // Création de la dépense
-    // Remove societeId from body if present, and set it from session
-    const { societeId: _, description, ...bodyWithoutSocieteId } = body;
-    
-    // Build expenseData, only include description if it's not empty
-    const expenseData: any = {
-      ...bodyWithoutSocieteId,
-      tenantId,
-      societeId: new mongoose.Types.ObjectId(societeId),
-      numero,
-      createdBy: session.user.id,
-    };
-    
-    // Only add description if it's not empty
-    if (description && description.trim() !== '') {
-      expenseData.description = description.trim();
-    }
-
-    const expense = new (Expense as any)(expenseData);
-    
-    try {
-      await (expense as any).save();
-    } catch (saveError: any) {
-      // Handle duplicate key error (E11000)
-      if (saveError.code === 11000 || saveError.message?.includes('duplicate key')) {
-        // Retry with incremented counter
-        const retryCounter = await (Counter as any).findOneAndUpdate(
-          { tenantId, seqName: 'expense' },
+    while (retryCount < maxRetries && !savedExpense) {
+      try {
+        // Get or increment counter
+        const counter = await (Counter as any).findOneAndUpdate(
+          { tenantId: tenantIdString, seqName: 'expense' },
           { $inc: { value: 1 } },
           { upsert: true, new: true, setDefaultsOnInsert: true }
         );
-        const retryCounterValue = retryCounter?.value ?? counterValue + 1;
-        numero = `EXP-${currentYear}-${retryCounterValue.toString().padStart(5, '0')}`;
-        expenseData.numero = numero;
+
+        // Ensure counter.value exists and is a number
+        const counterValue = counter?.value ?? 0;
+        numero = `EXP-${currentYear}-${counterValue.toString().padStart(5, '0')}`;
+
+        // Check if numero already exists (check both with tenantId and globally to handle old indexes)
+        const existingExpense = await (Expense as any).findOne({ 
+          $or: [
+            { tenantId: tenantIdString, numero },
+            { numero } // Also check globally in case of old index
+          ]
+        });
+        if (existingExpense) {
+          // If numero exists, increment counter and try again
+          console.log(`Numero ${numero} already exists, retrying with incremented counter...`);
+          retryCount++;
+          continue;
+        }
+
+        // Création de la dépense
+        // Remove societeId from body if present, and set it from session
+        const { societeId: _, description, ...bodyWithoutSocieteId } = body;
         
-        // Try saving again with new numero
-        const retryExpense = new (Expense as any)(expenseData);
-        await (retryExpense as any).save();
+        // Build expenseData, only include description if it's not empty
+        // Convert projetId to ObjectId if it exists
+        const expenseData: any = {
+          ...bodyWithoutSocieteId,
+          tenantId: tenantIdString, // Ensure it's a string
+          societeId: new mongoose.Types.ObjectId(societeId),
+          numero,
+          createdBy: new mongoose.Types.ObjectId(session.user.id),
+        };
+
+        // Convert projetId to ObjectId if provided
+        if (body.projetId) {
+          expenseData.projetId = new mongoose.Types.ObjectId(body.projetId);
+        }
         
-        // Populate for response
-        await (retryExpense as any).populate([
-          { path: 'categorieId', select: 'nom code icone' },
-          { path: 'fournisseurId', select: 'name' },
-          { path: 'employeId', select: 'firstName lastName' },
-          { path: 'projetId', select: 'name' }
-        ]);
-        
-        return NextResponse.json(retryExpense, { status: 201 });
+        // Only add description if it's not empty
+        if (description && description.trim() !== '') {
+          expenseData.description = description.trim();
+        }
+
+        const expense = new (Expense as any)(expenseData);
+        await (expense as any).save();
+        savedExpense = expense;
+        break;
+      } catch (saveError: any) {
+        // Handle duplicate key error (E11000)
+        if (saveError.code === 11000 || saveError.message?.includes('duplicate key')) {
+          retryCount++;
+          if (retryCount >= maxRetries) {
+            throw new Error('Impossible de générer un numéro unique après plusieurs tentatives');
+          }
+          // Wait a small random time to avoid race conditions
+          await new Promise(resolve => setTimeout(resolve, Math.random() * 100));
+          continue;
+        }
+        throw saveError; // Re-throw if it's not a duplicate key error
       }
-      throw saveError; // Re-throw if it's not a duplicate key error
     }
+
+    if (!savedExpense) {
+      throw new Error('Impossible de créer la dépense après plusieurs tentatives');
+    }
+
+    const expense = savedExpense;
 
     // Populate pour la réponse
     await (expense as any).populate([

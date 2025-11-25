@@ -114,6 +114,8 @@ export default function EditExpensePage() {
   const [images, setImages] = useState<ImageData[]>([]);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [retenueManuallyDisabled, setRetenueManuallyDisabled] = useState(false);
+  const [projectSearchQuery, setProjectSearchQuery] = useState('');
+  const [showProjectDropdown, setShowProjectDropdown] = useState(false);
   
   // Display states for numeric inputs
   const [montantDisplay, setMontantDisplay] = useState<string>('');
@@ -280,6 +282,19 @@ export default function EditExpensePage() {
   ]);
 
   const watchedCategorieId = watch('categorieId');
+  const watchedProjetId = watch('projetId');
+
+  // Filter projects based on search query
+  const filteredProjects = useMemo(() => {
+    if (!projectSearchQuery.trim()) return projects;
+    const query = projectSearchQuery.toLowerCase();
+    return projects.filter((project) => 
+      project.name.toLowerCase().includes(query)
+    );
+  }, [projects, projectSearchQuery]);
+
+  // Get selected project name
+  const selectedProject = projects.find(p => p._id === watchedProjetId);
 
   useEffect(() => {
     if (params.id && tenantId) {
@@ -302,6 +317,16 @@ export default function EditExpensePage() {
       }
     }
   }, [calculations.totalTTC, retenueManuallyDisabled, retenueActif, setValue]);
+
+  // Update project search query when projects are loaded
+  useEffect(() => {
+    if (watchedProjetId && projects.length > 0) {
+      const selectedProj = projects.find((p: Project) => p._id === watchedProjetId);
+      if (selectedProj) {
+        setProjectSearchQuery(selectedProj.name);
+      }
+    }
+  }, [watchedProjetId, projects]);
 
   const fetchData = async () => {
     if (!tenantId) return;
@@ -344,12 +369,13 @@ export default function EditExpensePage() {
       setRemiseGlobalePctDisplay(expenseData.remiseGlobalePct?.toString() || '0');
 
       // Pré-remplir le formulaire
+      const projetIdValue = expenseData.projetId?._id || expenseData.projetId || '';
       reset({
         date: new Date(expenseData.date).toISOString().split('T')[0],
         categorieId: expenseData.categorieId?._id || expenseData.categorieId || '',
         description: expenseData.description || '',
         centreCoutId: expenseData.centreCoutId?._id || expenseData.centreCoutId || '',
-        projetId: expenseData.projetId?._id || expenseData.projetId || '',
+        projetId: projetIdValue,
         montantType: expenseData.montantType || 'HT',
         montant: expenseData.montant || 0,
         devise: expenseData.devise || 'TND',
@@ -613,6 +639,58 @@ export default function EditExpensePage() {
                 )}
               </div>
 
+              {projects.length > 0 && (
+                <div className="relative">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Projet (optionnel)
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={selectedProject?.name || projectSearchQuery}
+                      onChange={(e) => {
+                        setProjectSearchQuery(e.target.value);
+                        setShowProjectDropdown(true);
+                      }}
+                      onFocus={() => setShowProjectDropdown(true)}
+                      onBlur={() => setTimeout(() => setShowProjectDropdown(false), 200)}
+                      placeholder="Rechercher un projet..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    />
+                    {watchedProjetId && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setValue('projetId', '');
+                          setProjectSearchQuery('');
+                        }}
+                        className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        ✕
+                      </button>
+                    )}
+                    {showProjectDropdown && filteredProjects.length > 0 && (
+                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
+                        {filteredProjects.map((project) => (
+                          <button
+                            key={project._id}
+                            type="button"
+                            onClick={() => {
+                              setValue('projetId', project._id);
+                              setProjectSearchQuery('');
+                              setShowProjectDropdown(false);
+                            }}
+                            className="w-full text-left px-3 py-2 hover:bg-indigo-50 focus:bg-indigo-50 focus:outline-none"
+                          >
+                            {project.name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {costCenters.length > 0 && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -626,25 +704,6 @@ export default function EditExpensePage() {
                     {costCenters.map((cc) => (
                       <option key={cc._id} value={cc._id}>
                         {cc.code} - {cc.nom}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {projects.length > 0 && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Projet/Chantier
-                  </label>
-                  <select
-                    {...register('projetId')}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                  >
-                    <option value="">Sélectionner un projet</option>
-                    {projects.map((project) => (
-                      <option key={project._id} value={project._id}>
-                        {project.name}
                       </option>
                     ))}
                   </select>

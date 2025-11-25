@@ -804,13 +804,10 @@ export default function ExpensesPage() {
                         Catégorie
                       </th>
                       <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        TVA
+                        Projet
                       </th>
                       <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">
                         FODEC
-                      </th>
-                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">
-                        Timbre
                       </th>
                       <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Total HT
@@ -838,14 +835,11 @@ export default function ExpensesPage() {
                         <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-500 hidden sm:table-cell">
                           {expense.categorieId.icone || '💸'} {expense.categorieId.nom}
                         </td>
-                        <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-500" style={{ whiteSpace: 'nowrap' }}>
-                          {formatPrice(expense.tvaAmount || expense.tva || 0, expense.devise || 'TND')}
+                        <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-500">
+                          {expense.projetId?.name || '-'}
                         </td>
                         <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-500 hidden md:table-cell" style={{ whiteSpace: 'nowrap' }}>
                           {formatPrice(expense.fodec || 0, expense.devise || 'TND')}
-                        </td>
-                        <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-500 hidden md:table-cell" style={{ whiteSpace: 'nowrap' }}>
-                          {formatPrice(expense.timbre || expense.timbreFiscal || 0, expense.devise || 'TND')}
                         </td>
                         <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900" style={{ whiteSpace: 'nowrap' }}>
                           {formatPrice(expense.totalHT || expense.baseHT || expense.montant || 0, expense.devise || 'TND')}

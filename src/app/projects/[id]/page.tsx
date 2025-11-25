@@ -711,12 +711,7 @@ export default function ProjectDetailPage() {
 
             {/* Expenses Tab */}
             {activeTab === 'expenses' && (
-              <div className="text-center py-12">
-                <BanknotesIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Dépenses</h3>
-                <p className="text-sm text-gray-600">Le suivi des dépenses sera bientôt disponible</p>
-                <p className="text-sm text-gray-500 mt-2">Coût total: {formatPrice(project.totalExpensesCost || 0, project.currency)}</p>
-              </div>
+              <ExpensesTab projectId={projectId} currency={project.currency} tenantId={tenantId || ''} />
             )}
 
             {/* Labor Tab */}
@@ -845,6 +840,189 @@ export default function ProjectDetailPage() {
         </div>
       )}
     </DashboardLayout>
+  );
+}
+
+// Expenses Tab Component
+function ExpensesTab({ projectId, currency, tenantId }: { projectId: string; currency: string; tenantId: string }) {
+  const router = useRouter();
+  const [expenses, setExpenses] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [totalCost, setTotalCost] = useState(0);
+
+  useEffect(() => {
+    fetchExpenses();
+  }, [projectId, tenantId]);
+
+  const fetchExpenses = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/expenses?projetId=${projectId}`, {
+        headers: { 'X-Tenant-Id': tenantId }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        const expensesList = data.expenses || [];
+        setExpenses(expensesList);
+        
+        // Calculate total cost
+        const total = expensesList.reduce((sum: number, exp: any) => {
+          return sum + (exp.totalTTC || exp.totalHT || 0);
+        }, 0);
+        setTotalCost(total);
+      }
+    } catch (error) {
+      console.error('Error fetching expenses:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatPrice = (amount: number) => {
+    return new Intl.NumberFormat('fr-FR', {
+      style: 'currency',
+      currency: currency || 'TND',
+      minimumFractionDigits: 3,
+      maximumFractionDigits: 3,
+    }).format(amount);
+  };
+
+  const formatDate = (dateString: string | Date | undefined) => {
+    if (!dateString) return 'N/A';
+    try {
+      const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
+      if (isNaN(date.getTime())) return 'N/A';
+      return date.toLocaleDateString('fr-FR', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      });
+    } catch (error) {
+      return 'N/A';
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    const styles: { [key: string]: string } = {
+      brouillon: 'bg-gray-100 text-gray-800',
+      en_attente: 'bg-yellow-100 text-yellow-800',
+      valide: 'bg-blue-100 text-blue-800',
+      paye: 'bg-green-100 text-green-800',
+      rejete: 'bg-red-100 text-red-800',
+    };
+    const labels: { [key: string]: string } = {
+      brouillon: 'Brouillon',
+      en_attente: 'En attente',
+      valide: 'Validé',
+      paye: 'Payé',
+      rejete: 'Rejeté',
+    };
+    return (
+      <span className={`px-2 py-1 text-xs font-medium rounded-full ${styles[status] || styles.brouillon}`}>
+        {labels[status] || status}
+      </span>
+    );
+  };
+
+  if (loading) {
+    return (
+      <div className="text-center py-12">
+        <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <p className="mt-4 text-gray-600">Chargement des dépenses...</p>
+      </div>
+    );
+  }
+
+  if (expenses.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <BanknotesIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">Dépenses</h3>
+        <p className="text-sm text-gray-600">Aucune dépense liée à ce projet</p>
+        <p className="text-sm text-gray-500 mt-2">Coût total: {formatPrice(totalCost)}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold text-gray-900">Dépenses liées au projet</h3>
+        <div className="text-sm text-gray-600">
+          <span className="font-medium text-gray-900">{expenses.length}</span> dépense(s) • 
+          <span className="font-medium text-gray-900 ml-1">{formatPrice(totalCost)}</span>
+        </div>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Numéro</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Catégorie</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total TTC</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {expenses.map((expense) => (
+              <tr key={expense._id} className="hover:bg-gray-50">
+                <td className="px-4 py-3 whitespace-nowrap">
+                  <div className="text-sm font-medium text-gray-900">{expense.numero}</div>
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap">
+                  <div className="text-sm text-gray-900">{formatDate(expense.date)}</div>
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap">
+                  <div className="flex items-center">
+                    {expense.categorieId?.icone && (
+                      <span className="mr-2">{expense.categorieId.icone}</span>
+                    )}
+                    <span className="text-sm text-gray-900">
+                      {expense.categorieId?.nom || 'N/A'}
+                    </span>
+                  </div>
+                </td>
+                <td className="px-4 py-3">
+                  <div className="text-sm text-gray-900 max-w-xs truncate">
+                    {expense.description || '-'}
+                  </div>
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium text-gray-900">
+                  {formatPrice(expense.totalTTC || expense.totalHT || 0)}
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap">
+                  {getStatusBadge(expense.statut || 'brouillon')}
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap text-sm">
+                  <button
+                    onClick={() => router.push(`/expenses/${expense._id}`)}
+                    className="text-indigo-600 hover:text-indigo-900"
+                  >
+                    Voir →
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot className="bg-gray-50">
+            <tr>
+              <td colSpan={4} className="px-4 py-3 text-right text-sm font-medium text-gray-900">
+                Total:
+              </td>
+              <td className="px-4 py-3 text-right text-sm font-bold text-gray-900">
+                {formatPrice(totalCost)}
+              </td>
+              <td colSpan={2}></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
   );
 }
 

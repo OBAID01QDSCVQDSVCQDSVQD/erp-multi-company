@@ -110,13 +110,15 @@ export default function NewExpensePage() {
   const [images, setImages] = useState<ImageData[]>([]);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [retenueManuallyDisabled, setRetenueManuallyDisabled] = useState(false); // Track if user manually disabled retenue
+  const [projectSearchQuery, setProjectSearchQuery] = useState('');
+  const [showProjectDropdown, setShowProjectDropdown] = useState(false);
   
   // Display states for numeric inputs
   const [montantDisplay, setMontantDisplay] = useState<string>('');
   const [tvaDeductiblePctDisplay, setTvaDeductiblePctDisplay] = useState<string>('100');
   const [fodecRateDisplay, setFodecRateDisplay] = useState<string>('1');
   const [retenueRateDisplay, setRetenueRateDisplay] = useState<string>('0');
-  const [timbreFiscalDisplay, setTimbreFiscalDisplay] = useState<string>('1');
+  const [timbreFiscalDisplay, setTimbreFiscalDisplay] = useState<string>('0');
   const [remiseGlobalePctDisplay, setRemiseGlobalePctDisplay] = useState<string>('0');
 
   const {
@@ -140,7 +142,7 @@ export default function NewExpensePage() {
       retenueActif: false,
       retenueRate: 0,
       retenueBase: 'TTC_TIMBRE',
-      timbreFiscal: 1,
+      timbreFiscal: 0,
       remiseGlobalePct: 0,
     },
   });
@@ -278,6 +280,26 @@ export default function NewExpensePage() {
   ]);
 
   const watchedCategorieId = watch('categorieId');
+  const watchedProjetId = watch('projetId');
+
+  // Filter projects based on search query
+  const filteredProjects = useMemo(() => {
+    if (!projectSearchQuery.trim()) return projects;
+    const query = projectSearchQuery.toLowerCase();
+    return projects.filter((project) => 
+      project.name.toLowerCase().includes(query)
+    );
+  }, [projects, projectSearchQuery]);
+
+  // Show all projects when dropdown is open and no search query
+  const projectsToShow = useMemo(() => {
+    if (!showProjectDropdown) return [];
+    if (!projectSearchQuery.trim()) return projects;
+    return filteredProjects;
+  }, [showProjectDropdown, projectSearchQuery, projects, filteredProjects]);
+
+  // Get selected project name
+  const selectedProject = projects.find(p => p._id === watchedProjetId);
 
   useEffect(() => {
     if (tenantId) {
@@ -349,7 +371,7 @@ export default function NewExpensePage() {
         fetch('/api/tva/rates?actif=true', {
           headers: { 'X-Tenant-Id': tenantId },
         }),
-        fetch('/api/projects?actif=true', {
+        fetch('/api/projects', {
           headers: { 'X-Tenant-Id': tenantId },
         }).catch(() => null),
         fetch('/api/cost-centers?actif=true', {
@@ -526,6 +548,79 @@ export default function NewExpensePage() {
                 )}
               </div>
 
+              <div className="relative">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Projet (optionnel)
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={selectedProject && !showProjectDropdown ? selectedProject.name : projectSearchQuery}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setProjectSearchQuery(value);
+                      setShowProjectDropdown(true);
+                      // إذا تم مسح النص، احذف المشروع المحدد
+                      if (!value && watchedProjetId) {
+                        setValue('projetId', '');
+                      }
+                    }}
+                    onFocus={() => {
+                      if (projects.length > 0) {
+                        setShowProjectDropdown(true);
+                        // إذا كان هناك مشروع محدد، امسح حقل البحث لإظهار القائمة كاملة
+                        if (selectedProject) {
+                          setProjectSearchQuery('');
+                        }
+                      }
+                    }}
+                    onBlur={() => setTimeout(() => setShowProjectDropdown(false), 200)}
+                    placeholder="Rechercher un projet..."
+                    disabled={projects.length === 0}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  />
+                  {watchedProjetId && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setValue('projetId', '');
+                        setProjectSearchQuery('');
+                        setShowProjectDropdown(false);
+                      }}
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 z-20"
+                    >
+                      ✕
+                    </button>
+                  )}
+                  {showProjectDropdown && projectsToShow.length > 0 && (
+                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
+                      {projectsToShow.map((project) => (
+                        <button
+                          key={project._id}
+                          type="button"
+                          onMouseDown={(e) => {
+                            e.preventDefault(); // Prevent onBlur from firing
+                            setValue('projetId', project._id);
+                            setProjectSearchQuery('');
+                            setShowProjectDropdown(false);
+                          }}
+                          className={`w-full text-left px-3 py-2 hover:bg-indigo-50 focus:bg-indigo-50 focus:outline-none ${
+                            watchedProjetId === project._id ? 'bg-indigo-100' : ''
+                          }`}
+                        >
+                          {project.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {projects.length === 0 && (
+                    <p className="mt-1 text-xs text-gray-500">Aucun projet disponible</p>
+                  )}
+                </div>
+              </div>
+
               {costCenters.length > 0 && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -539,25 +634,6 @@ export default function NewExpensePage() {
                     {costCenters.map((cc) => (
                       <option key={cc._id} value={cc._id}>
                         {cc.code} - {cc.nom}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {projects.length > 0 && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Projet/Chantier
-                  </label>
-                  <select
-                    {...register('projetId')}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                  >
-                    <option value="">Sélectionner un projet</option>
-                    {projects.map((project) => (
-                      <option key={project._id} value={project._id}>
-                        {project.name}
                       </option>
                     ))}
                   </select>
@@ -864,21 +940,21 @@ export default function NewExpensePage() {
                   }
                 }}
                 onFocus={() => {
-                  if (timbreFiscalDisplay === '1') {
+                  if (timbreFiscalDisplay === '0') {
                     setTimbreFiscalDisplay('');
                   }
                 }}
                 onBlur={(e) => {
                   const value = parseFloat(e.target.value);
-                  if (isNaN(value) || value === 0 || e.target.value === '') {
-                    setTimbreFiscalDisplay('1');
-                    setValue('timbreFiscal', 1);
+                  if (isNaN(value) || e.target.value === '') {
+                    setTimbreFiscalDisplay('0');
+                    setValue('timbreFiscal', 0);
                   } else {
                     setTimbreFiscalDisplay(e.target.value);
                   }
                 }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                placeholder="1.000"
+                placeholder="0.000"
               />
               <p className="mt-1 text-xs text-gray-500">Montant fixe (ex: 1.000 TND)</p>
             </div>
