@@ -70,6 +70,6 @@ MouvementStockSchema.index({ societeId: 1, source: 1, sourceId: 1 });
 MouvementStockSchema.index({ societeId: 1, projectId: 1 });
 MouvementStockSchema.index({ date: -1 });
 
-const MouvementStock = mongoose.models.MouvementStock || mongoose.model<IMouvementStock>('MouvementStock', MouvementStockSchema);
+const MouvementStock = mongoose.models.MouvementStock || mongoose.model<IMouvementStock>('MouvementStock', MouvementStockSchema) as any;
 
 export default MouvementStock;
