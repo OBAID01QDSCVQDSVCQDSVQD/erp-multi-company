@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import Project from '@/lib/models/Project';
 import Employee from '@/lib/models/Employee';
+import Customer from '@/lib/models/Customer';
 import mongoose from 'mongoose';
 
 export const dynamic = 'force-dynamic';
@@ -90,14 +91,16 @@ export async function GET(request: NextRequest) {
 
     const skip = (page - 1) * limit;
 
-    // Ensure Employee model is registered
+    // Ensure models are registered
     try {
       if (!mongoose.models.Employee) {
-        // Import will register the model
         void Employee;
       }
+      if (!mongoose.models.Customer) {
+        void Customer;
+      }
     } catch (modelError) {
-      console.error('Error registering Employee model:', modelError);
+      console.error('Error ensuring models are registered:', modelError);
     }
 
     let projects, total;
@@ -105,7 +108,11 @@ export async function GET(request: NextRequest) {
       const queryBuilder = (Project as any).find(query);
       
       // Populate customerId
-      queryBuilder.populate('customerId', 'nom prenom raisonSociale');
+      queryBuilder.populate({
+        path: 'customerId',
+        select: 'nom prenom raisonSociale',
+        model: Customer,
+      });
       
       // Populate devisIds and blIds if they exist
       queryBuilder.populate('devisIds', 'numero totalTTC');
@@ -138,7 +145,18 @@ export async function GET(request: NextRequest) {
         [projects, total] = await Promise.all([
           (Project as any)
             .find(query)
-            .populate('customerId', 'nom prenom raisonSociale')
+            .populate({
+              path: 'customerId',
+              select: 'nom prenom raisonSociale',
+              model: Customer,
+            })
+          (Project as any)
+            .find(query)
+            .populate({
+              path: 'customerId',
+              select: 'nom prenom raisonSociale',
+              model: Customer,
+            })
             .sort('-createdAt')
             .skip(skip)
             .limit(limit)

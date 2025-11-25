@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import Project from '@/lib/models/Project';
 import Employee from '@/lib/models/Employee';
+import Customer from '@/lib/models/Customer';
 import mongoose from 'mongoose';
 
 export const dynamic = 'force-dynamic';
@@ -30,10 +31,12 @@ export async function GET(
       );
     }
 
-    // Ensure Employee model is registered
+    // Ensure referenced models are registered
     if (!mongoose.models.Employee) {
-      // Import will register the model
       void Employee;
+    }
+    if (!mongoose.models.Customer) {
+      void Customer;
     }
 
     const project = await (Project as any)
@@ -41,7 +44,11 @@ export async function GET(
         _id: id,
         tenantId,
       })
-      .populate('customerId', 'nom prenom raisonSociale email phone address')
+      .populate({
+        path: 'customerId',
+        select: 'nom prenom raisonSociale email phone address',
+        model: Customer,
+      })
       .populate('devisIds', 'numero dateDoc date totalBaseHT totalHT totalTTC')
       .populate('blIds', 'numero dateDoc date totalBaseHT totalHT totalTTC')
       .populate({
@@ -146,7 +153,11 @@ export async function PATCH(
       void Employee;
     }
 
-    await project.populate('customerId', 'nom prenom raisonSociale');
+    await project.populate({
+      path: 'customerId',
+      select: 'nom prenom raisonSociale',
+      model: Customer,
+    });
     if (project.devisIds && project.devisIds.length > 0) {
       await project.populate('devisIds', 'numero dateDoc date totalBaseHT totalHT totalTTC');
     }
