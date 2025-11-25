@@ -371,7 +371,7 @@ export default function NewExpensePage() {
         fetch('/api/tva/rates?actif=true', {
           headers: { 'X-Tenant-Id': tenantId },
         }),
-        fetch('/api/projects', {
+        fetch('/api/projects?limit=1000', {
           headers: { 'X-Tenant-Id': tenantId },
         }).catch(() => null),
         fetch('/api/cost-centers?actif=true', {
@@ -555,23 +555,18 @@ export default function NewExpensePage() {
                 <div className="relative">
                   <input
                     type="text"
-                    value={selectedProject && !showProjectDropdown ? selectedProject.name : projectSearchQuery}
+                    value={projectSearchQuery || selectedProject?.name || ''}
                     onChange={(e) => {
                       const value = e.target.value;
-                      setProjectSearchQuery(value);
-                      setShowProjectDropdown(true);
-                      // إذا تم مسح النص، احذف المشروع المحدد
-                      if (!value && watchedProjetId) {
+                      if (watchedProjetId) {
                         setValue('projetId', '');
                       }
+                      setProjectSearchQuery(value);
+                      setShowProjectDropdown(true);
                     }}
                     onFocus={() => {
                       if (projects.length > 0) {
                         setShowProjectDropdown(true);
-                        // إذا كان هناك مشروع محدد، امسح حقل البحث لإظهار القائمة كاملة
-                        if (selectedProject) {
-                          setProjectSearchQuery('');
-                        }
                       }
                     }}
                     onBlur={() => setTimeout(() => setShowProjectDropdown(false), 200)}
@@ -603,7 +598,7 @@ export default function NewExpensePage() {
                           onMouseDown={(e) => {
                             e.preventDefault(); // Prevent onBlur from firing
                             setValue('projetId', project._id);
-                            setProjectSearchQuery('');
+                            setProjectSearchQuery(project.name);
                             setShowProjectDropdown(false);
                           }}
                           className={`w-full text-left px-3 py-2 hover:bg-indigo-50 focus:bg-indigo-50 focus:outline-none ${

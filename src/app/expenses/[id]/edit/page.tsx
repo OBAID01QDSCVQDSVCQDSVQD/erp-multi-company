@@ -115,6 +115,7 @@ export default function EditExpensePage() {
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [retenueManuallyDisabled, setRetenueManuallyDisabled] = useState(false);
   const [projectSearchQuery, setProjectSearchQuery] = useState('');
+  const [initialProjectName, setInitialProjectName] = useState('');
   const [showProjectDropdown, setShowProjectDropdown] = useState(false);
   
   // Display states for numeric inputs
@@ -324,6 +325,7 @@ export default function EditExpensePage() {
       const selectedProj = projects.find((p: Project) => p._id === watchedProjetId);
       if (selectedProj) {
         setProjectSearchQuery(selectedProj.name);
+        setInitialProjectName(selectedProj.name);
       }
     }
   }, [watchedProjetId, projects]);
@@ -370,6 +372,7 @@ export default function EditExpensePage() {
 
       // Pré-remplir le formulaire
       const projetIdValue = expenseData.projetId?._id || expenseData.projetId || '';
+      const projetNameValue = expenseData.projetId?.name || expenseData.projetName || '';
       reset({
         date: new Date(expenseData.date).toISOString().split('T')[0],
         categorieId: expenseData.categorieId?._id || expenseData.categorieId || '',
@@ -394,8 +397,16 @@ export default function EditExpensePage() {
       employeId: expenseData.employeId?._id || expenseData.employeId || '',
       referencePiece: expenseData.referencePiece || '',
       notesInterne: expenseData.notesInterne || '',
-      statut: expenseData.statut || 'brouillon',
-    });
+        statut: expenseData.statut || 'brouillon',
+      });
+
+      if (projetNameValue) {
+        setInitialProjectName(projetNameValue);
+        setProjectSearchQuery(projetNameValue);
+      } else {
+        setInitialProjectName('');
+        setProjectSearchQuery('');
+      }
 
       // Charger les données de référence
       const [
@@ -418,7 +429,7 @@ export default function EditExpensePage() {
         fetch('/api/tva/rates?actif=true', {
           headers: { 'X-Tenant-Id': tenantId },
         }),
-        fetch('/api/projects?actif=true', {
+        fetch('/api/projects?limit=1000', {
           headers: { 'X-Tenant-Id': tenantId },
         }).catch(() => null),
         fetch('/api/cost-centers?actif=true', {
@@ -647,9 +658,14 @@ export default function EditExpensePage() {
                   <div className="relative">
                     <input
                       type="text"
-                      value={selectedProject?.name || projectSearchQuery}
+                    value={projectSearchQuery || selectedProject?.name || initialProjectName}
                       onChange={(e) => {
-                        setProjectSearchQuery(e.target.value);
+                        const value = e.target.value;
+                        if (watchedProjetId) {
+                          setValue('projetId', '');
+                        setInitialProjectName('');
+                        }
+                        setProjectSearchQuery(value);
                         setShowProjectDropdown(true);
                       }}
                       onFocus={() => setShowProjectDropdown(true)}
@@ -663,6 +679,7 @@ export default function EditExpensePage() {
                         onClick={() => {
                           setValue('projetId', '');
                           setProjectSearchQuery('');
+                        setInitialProjectName('');
                         }}
                         className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                       >
@@ -675,9 +692,11 @@ export default function EditExpensePage() {
                           <button
                             key={project._id}
                             type="button"
-                            onClick={() => {
+                            onMouseDown={(e) => {
+                              e.preventDefault();
                               setValue('projetId', project._id);
-                              setProjectSearchQuery('');
+                              setProjectSearchQuery(project.name);
+                              setInitialProjectName(project.name);
                               setShowProjectDropdown(false);
                             }}
                             className="w-full text-left px-3 py-2 hover:bg-indigo-50 focus:bg-indigo-50 focus:outline-none"
