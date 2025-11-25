@@ -5,6 +5,8 @@ import connectDB from '@/lib/mongodb';
 import mongoose from 'mongoose';
 import Project from '@/lib/models/Project';
 import Expense from '@/lib/models/Expense';
+import ExpenseCategory from '@/lib/models/ExpenseCategory';
+import Supplier from '@/lib/models/Supplier';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,6 +41,14 @@ export async function GET(
 
     const projectObjectId = new mongoose.Types.ObjectId(params.id);
 
+    // Ensure referenced models are registered before populate
+    if (!mongoose.models.ExpenseCategory) {
+      void ExpenseCategory;
+    }
+    if (!mongoose.models.Supplier) {
+      void Supplier;
+    }
+
     const project = await (Project as any).findOne({
       _id: projectObjectId,
       tenantId,
@@ -57,8 +67,16 @@ export async function GET(
         tenantId,
         projetId: projectObjectId,
       })
-      .populate('categorieId', 'nom')
-      .populate('fournisseurId', 'nom raisonSociale')
+      .populate({
+        path: 'categorieId',
+        select: 'nom',
+        model: ExpenseCategory,
+      })
+      .populate({
+        path: 'fournisseurId',
+        select: 'nom raisonSociale',
+        model: Supplier,
+      })
       .sort('-date')
       .lean();
 

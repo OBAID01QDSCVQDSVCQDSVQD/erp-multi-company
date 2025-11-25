@@ -44,7 +44,11 @@ export async function GET(
     const project = await (Project as any).findOne({
       _id: projectObjectId,
       tenantId,
-    }).populate('assignedEmployees.employeeId', 'firstName lastName position department dailyRate');
+    }).populate({
+      path: 'assignedEmployees.employeeId',
+      select: 'firstName lastName position department dailyRate',
+      model: Employee,
+    });
 
     if (!project) {
       return NextResponse.json(
