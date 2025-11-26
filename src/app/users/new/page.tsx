@@ -36,8 +36,17 @@ const PERMISSIONS: Permission[] = [
   { id: 'stock_movements', label: 'Mouvements de stock', description: 'Consulter les mouvements de stock' },
   { id: 'stock_alerts', label: 'Alertes stock', description: 'Consulter les alertes de stock minimum' },
   
+  // Ressources humaines (RH)
+  { id: 'employees', label: 'Employés', description: 'Gérer les employés et leurs informations' },
+  { id: 'attendance', label: 'Présence / Pointage', description: 'Gérer la présence et le pointage des employés' },
+  { id: 'salaries', label: 'Salaires', description: 'Gérer les salaires et fiches de paie' },
+  { id: 'work_days', label: 'Jours de travail', description: 'Gérer les jours de travail et congés' },
+  { id: 'work_hours', label: 'Heures de travail', description: 'Gérer les heures de travail et heures supplémentaires' },
+  
   // Autres
   { id: 'expenses', label: 'Dépenses', description: 'Gérer les dépenses' },
+  { id: 'projects', label: 'Projets', description: 'Gérer les projets et chantiers' },
+  { id: 'internal_invoices', label: 'Factures internes', description: 'Gérer les factures internes (non déclarées)' },
   { id: 'reports', label: 'Rapports', description: 'Consulter les rapports et statistiques' },
   { id: 'accounting', label: 'Comptabilité', description: 'Accès aux fonctions comptables' },
   { id: 'settings', label: 'Paramètres', description: 'Modifier les paramètres du système' },
@@ -441,11 +450,52 @@ export default function NewUserPage() {
                       </div>
                     </div>
 
+                    {/* Ressources humaines (RH) */}
+                    <div>
+                      <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">👥 Ressources humaines (RH)</h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {PERMISSIONS.filter(p => ['employees', 'attendance', 'salaries', 'work_days', 'work_hours'].includes(p.id)).map((permission) => (
+                          <label
+                            key={permission.id}
+                            className={`relative flex items-start p-3 border rounded-lg cursor-pointer transition-colors ${
+                              formData.permissions.includes(permission.id) || formData.permissions.includes('all')
+                                ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20'
+                                : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={formData.permissions.includes(permission.id) || formData.permissions.includes('all')}
+                              onChange={() => handlePermissionToggle(permission.id)}
+                              className="sr-only"
+                            />
+                            <div className={`flex-shrink-0 h-5 w-5 border-2 rounded flex items-center justify-center mr-3 ${
+                              formData.permissions.includes(permission.id) || formData.permissions.includes('all')
+                                ? 'border-indigo-500 bg-indigo-500'
+                                : 'border-gray-300 dark:border-gray-600'
+                            }`}>
+                              {(formData.permissions.includes(permission.id) || formData.permissions.includes('all')) && (
+                                <CheckIcon className="h-4 w-4 text-white" />
+                              )}
+                            </div>
+                            <div className="flex-1">
+                              <div className="text-sm font-medium text-gray-900 dark:text-white">
+                                {permission.label}
+                              </div>
+                              <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                {permission.description}
+                              </div>
+                            </div>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
                     {/* Autres */}
                     <div>
                       <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Autres</h4>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {PERMISSIONS.filter(p => ['expenses', 'reports', 'accounting', 'settings', 'users'].includes(p.id)).map((permission) => (
+                        {PERMISSIONS.filter(p => ['expenses', 'projects', 'internal_invoices', 'reports', 'accounting', 'settings', 'users'].includes(p.id)).map((permission) => (
                           <label
                             key={permission.id}
                             className={`relative flex items-start p-3 border rounded-lg cursor-pointer transition-colors ${

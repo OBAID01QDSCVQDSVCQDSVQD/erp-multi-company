@@ -21,7 +21,7 @@ export interface IDocument extends Document {
   tenantId: string;
   
   // Basic info
-  type: 'DEVIS' | 'BC' | 'BL' | 'FAC' | 'AVOIR' | 'PO' | 'BR' | 'FACFO' | 'AVOIRFO';
+  type: 'DEVIS' | 'BC' | 'BL' | 'FAC' | 'AVOIR' | 'PO' | 'BR' | 'FACFO' | 'AVOIRFO' | 'INT_FAC';
   numero: string;
   dateDoc: Date;
   statut?: 'BROUILLON' | 'VALIDEE' | 'PARTIELLEMENT_PAYEE' | 'PAYEE' | 'ANNULEE';
@@ -29,6 +29,9 @@ export interface IDocument extends Document {
   // Party (customer or supplier)
   customerId?: mongoose.Types.ObjectId;
   supplierId?: mongoose.Types.ObjectId;
+  
+  // Project reference
+  projetId?: mongoose.Types.ObjectId;
   
   // References
   referenceExterne?: string;
@@ -96,7 +99,7 @@ const DocumentLineSchema = new Schema({
 const DocumentSchema = new (Schema as any)({
   tenantId: { type: String, required: true, index: true },
   
-  type: { type: String, enum: ['DEVIS', 'BC', 'BL', 'FAC', 'AVOIR', 'PO', 'BR', 'FACFO', 'AVOIRFO'], required: true },
+  type: { type: String, enum: ['DEVIS', 'BC', 'BL', 'FAC', 'AVOIR', 'PO', 'BR', 'FACFO', 'AVOIRFO', 'INT_FAC'], required: true },
   numero: { type: String, required: true },
   dateDoc: { type: Date, required: true, default: Date.now },
   statut: { type: String, enum: ['BROUILLON', 'VALIDEE', 'PARTIELLEMENT_PAYEE', 'PAYEE', 'ANNULEE'], default: 'BROUILLON' },
@@ -148,7 +151,12 @@ const DocumentSchema = new (Schema as any)({
   notesInterne: { type: String },
   createdBy: { type: String },
   archived: { type: Boolean, default: false },
-  linkedDocuments: { type: [String] }
+  linkedDocuments: { type: [String] },
+  projetId: { 
+    type: Schema.Types.ObjectId, 
+    ref: 'Project',
+    index: true 
+  }
 }, { timestamps: true });
 
 // Indexes
@@ -156,6 +164,7 @@ DocumentSchema.index({ tenantId: 1, type: 1, dateDoc: -1 });
 DocumentSchema.index({ tenantId: 1, type: 1, numero: 1 }, { unique: true });
 DocumentSchema.index({ tenantId: 1, customerId: 1 });
 DocumentSchema.index({ tenantId: 1, supplierId: 1 });
+DocumentSchema.index({ tenantId: 1, projetId: 1 });
 DocumentSchema.index({ 'lignes.productId': 1 });
 
 // Clear cache

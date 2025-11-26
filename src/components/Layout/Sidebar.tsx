@@ -78,7 +78,7 @@ const navigation = [
   { name: '📁 Projets', href: '#', icon: BriefcaseIcon, hasSubmenu: true, permission: null, submenu: [
     { name: 'Liste des projets', href: '/projects', icon: BriefcaseIcon, permission: 'projects' },
     { name: 'Nouveau projet', href: '/projects/new', icon: PlusIcon, permission: 'projects' },
-    { name: 'Dashboard projets', href: '/projects/dashboard', icon: ChartBarIcon, permission: 'projects' },
+    { name: '🔖 Facture interne', href: '/internal-invoices', icon: DocumentTextIcon, permission: 'internal_invoices' },
   ]},
   { name: 'Rapports', href: '/reports', icon: ChartBarIcon, permission: 'reports' },
   { name: 'Paramètres', href: '/settings', icon: CogIcon, permission: 'settings' },
