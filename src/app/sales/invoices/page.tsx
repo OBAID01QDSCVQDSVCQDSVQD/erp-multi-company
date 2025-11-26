@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
 import { PlusIcon, DocumentTextIcon, MagnifyingGlassIcon, EyeIcon, PencilIcon, ArrowDownTrayIcon, TrashIcon } from '@heroicons/react/24/outline';
@@ -112,9 +112,83 @@ export default function InvoicesPage() {
     estStocke?: boolean;
   }>>([]);
 
-  useEffect(() => {
-    if (tenantId) fetchInvoices();
+  // Fetch invoices function with retry mechanism
+  const fetchInvoices = useCallback(async (retryCount: number = 0) => {
+    try {
+      if (!tenantId) return;
+      
+      if (retryCount === 0) {
+        setLoading(true);
+      }
+      
+      const response = await fetch(`/api/sales/invoices?t=${Date.now()}`, {
+        headers: { 'X-Tenant-Id': tenantId },
+        cache: 'no-store', // Prevent caching
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        const invoicesList = data.items || [];
+        
+        // Fetch customer names for each invoice
+        const invoicesWithCustomers = await Promise.all(
+          invoicesList.map(async (invoice: Invoice) => {
+            if (invoice.customerId) {
+              try {
+                const customerResponse = await fetch(`/api/customers/${invoice.customerId}`, {
+                  headers: { 'X-Tenant-Id': tenantId }
+                });
+                if (customerResponse.ok) {
+                  const customer = await customerResponse.json();
+                  return {
+                    ...invoice,
+                    customerName: customer.raisonSociale || `${customer.nom || ''} ${customer.prenom || ''}`.trim()
+                  };
+                }
+              } catch (err) {
+                console.error('Error fetching customer:', err);
+              }
+            }
+            return invoice;
+          })
+        );
+        
+        setInvoices(invoicesWithCustomers);
+        setLoading(false);
+      } else if (response.status === 500 && retryCount < 3) {
+        // Retry on server error with exponential backoff
+        console.warn(`Failed to fetch invoices (attempt ${retryCount + 1}/3), retrying...`);
+        setTimeout(() => {
+          fetchInvoices(retryCount + 1);
+        }, 1000 * (retryCount + 1));
+      } else {
+        const error = await response.json().catch(() => ({ error: 'Erreur serveur' }));
+        console.error('Error fetching invoices:', error);
+        setLoading(false);
+        if (retryCount >= 3) {
+          toast.error(error.error || 'Erreur lors du chargement des factures');
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching invoices:', err);
+      if (retryCount < 3) {
+        // Retry on network error
+        setTimeout(() => {
+          fetchInvoices(retryCount + 1);
+        }, 1000 * (retryCount + 1));
+      } else {
+        setLoading(false);
+        toast.error('Erreur de connexion lors du chargement des factures');
+      }
+    }
   }, [tenantId]);
+
+  // Fetch invoices on mount and when tenantId changes
+  useEffect(() => {
+    if (tenantId) {
+      fetchInvoices(0);
+    }
+  }, [tenantId, fetchInvoices]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -720,50 +794,6 @@ export default function InvoicesPage() {
     setLines(newLines);
   };
 
-  const fetchInvoices = async () => {
-    try {
-      if (!tenantId) return;
-      setLoading(true);
-      const response = await fetch('/api/sales/invoices', {
-        headers: { 'X-Tenant-Id': tenantId }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        const invoices = data.items || [];
-        
-        // Fetch customer names for each invoice
-        const invoicesWithCustomers = await Promise.all(
-          invoices.map(async (invoice: Invoice) => {
-            if (invoice.customerId) {
-              try {
-                const customerResponse = await fetch(`/api/customers/${invoice.customerId}`, {
-                  headers: { 'X-Tenant-Id': tenantId }
-                });
-                if (customerResponse.ok) {
-                  const customer = await customerResponse.json();
-                  return {
-                    ...invoice,
-                    customerName: customer.raisonSociale || `${customer.nom || ''} ${customer.prenom || ''}`.trim()
-                  };
-                }
-              } catch (err) {
-                console.error('Error fetching customer:', err);
-              }
-            }
-            return invoice;
-          })
-        );
-        
-        setInvoices(invoicesWithCustomers);
-      }
-    } catch (err) {
-      console.error('Error fetching invoices:', err);
-      toast.error('Erreur lors du chargement des factures');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const filtered = invoices.filter(invoice =>
     invoice.numero.toLowerCase().includes(q.toLowerCase()) ||
     (invoice.customerName && invoice.customerName.toLowerCase().includes(q.toLowerCase()))
@@ -1039,7 +1069,7 @@ export default function InvoicesPage() {
         }
         
         // Refresh invoices list
-        fetchInvoices();
+        fetchInvoices(0);
       } else {
         const error = await response.json();
         toast.error(error.error || 'Erreur lors de la conversion');
@@ -1132,7 +1162,7 @@ export default function InvoicesPage() {
         setProductSearches({});
         setShowProductDropdowns({});
         setSelectedProductIndices({});
-        fetchInvoices();
+        fetchInvoices(0);
       } else {
         const error = await response.json();
         toast.error(error.error || 'Erreur');
@@ -1344,7 +1374,7 @@ export default function InvoicesPage() {
 
       if (response.ok) {
         toast.success('Facture supprimée avec succès');
-        fetchInvoices();
+        fetchInvoices(0);
       } else {
         const error = await response.json();
         toast.error(error.error || 'Erreur lors de la suppression de la facture');

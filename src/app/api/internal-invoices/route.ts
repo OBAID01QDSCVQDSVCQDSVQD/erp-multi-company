@@ -15,7 +15,16 @@ export async function GET(request: NextRequest) {
 
     await connectDB();
 
-    const tenantId = session.user.companyId?.toString() || '';
+    const tenantIdHeader = request.headers.get('X-Tenant-Id');
+    const tenantId = tenantIdHeader || session.user.companyId?.toString() || '';
+    
+    if (!tenantId) {
+      return NextResponse.json(
+        { error: 'Tenant ID manquant' },
+        { status: 400 }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const customerId = searchParams.get('customerId');
     const projetId = searchParams.get('projetId');
@@ -26,22 +35,56 @@ export async function GET(request: NextRequest) {
     if (customerId) query.customerId = new mongoose.Types.ObjectId(customerId);
     if (projetId) query.projetId = new mongoose.Types.ObjectId(projetId);
 
-    const invoices = await (Document as any)
-      .find(query)
-      .populate('customerId', 'raisonSociale nom prenom')
-      .populate('projetId', 'name projectNumber')
-      .sort({ numero: -1 })
-      .skip((page - 1) * limit)
-      .limit(limit)
-      .lean();
+    // Ensure models are registered
+    if (!mongoose.models.Document) {
+      void Document;
+    }
+    if (!mongoose.models.Customer) {
+      const { default: Customer } = await import('@/lib/models/Customer');
+      void Customer;
+    }
+    if (!mongoose.models.Project) {
+      const { default: Project } = await import('@/lib/models/Project');
+      void Project;
+    }
+
+    let invoices;
+    try {
+      invoices = await (Document as any)
+        .find(query)
+        .populate({
+          path: 'customerId',
+          select: 'raisonSociale nom prenom',
+          model: 'Customer'
+        })
+        .populate({
+          path: 'projetId',
+          select: 'name projectNumber',
+          model: 'Project'
+        })
+        .sort({ createdAt: -1, numero: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .lean();
+    } catch (populateError: any) {
+      console.error('Error populating invoices:', populateError);
+      // Fallback: fetch without populate
+      invoices = await (Document as any)
+        .find(query)
+        .sort({ createdAt: -1, numero: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .lean();
+    }
 
     const total = await (Document as any).countDocuments(query);
 
-    return NextResponse.json({ items: invoices, total });
-  } catch (error) {
+    return NextResponse.json({ items: invoices || [], total: total || 0 });
+  } catch (error: any) {
     console.error('Erreur GET /internal-invoices:', error);
+    console.error('Error stack:', error.stack);
     return NextResponse.json(
-      { error: 'Erreur serveur', details: (error as Error).message },
+      { error: 'Erreur serveur', details: error.message },
       { status: 500 }
     );
   }

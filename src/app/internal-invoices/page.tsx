@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
 import { PlusIcon, DocumentTextIcon, MagnifyingGlassIcon, EyeIcon, PencilIcon, ArrowDownTrayIcon, TrashIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
@@ -156,9 +156,85 @@ export default function InternalInvoicesPage() {
     estStocke?: boolean;
   }>>([]);
 
-  useEffect(() => {
-    if (tenantId) fetchInvoices();
+  // Fetch invoices function with retry mechanism
+  const fetchInvoices = useCallback(async (retryCount: number = 0) => {
+    try {
+      if (!tenantId) return;
+      
+      if (retryCount === 0) {
+        setLoading(true);
+      }
+      
+      const response = await fetch(`/api/internal-invoices?t=${Date.now()}`, {
+        headers: { 'X-Tenant-Id': tenantId },
+        cache: 'no-store', // Prevent caching
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        const invoicesList = data.items || [];
+        
+        // Process invoices with customer and project names
+        const invoicesWithCustomers = invoicesList.map((invoice: Invoice) => {
+          const processedInvoice: Invoice = { ...invoice };
+          
+          // Extract customer name from populated data
+          if (invoice.customerId && typeof invoice.customerId === 'object') {
+            const customer = invoice.customerId as any;
+            processedInvoice.customerName = customer.raisonSociale || `${customer.nom || ''} ${customer.prenom || ''}`.trim();
+          }
+          
+          // Extract project name from populated data
+          if (invoice.projetId && typeof invoice.projetId === 'object') {
+            const projet = invoice.projetId as any;
+            processedInvoice.projetName = projet.name;
+          } else if (invoice.projetId && typeof invoice.projetId === 'string') {
+            // If projetId is just an ID, find it in projects list
+            const projet = projects.find(p => p._id === invoice.projetId);
+            if (projet) {
+              processedInvoice.projetName = projet.name;
+            }
+          }
+          
+          return processedInvoice;
+        });
+        
+        setInvoices(invoicesWithCustomers);
+        setLoading(false);
+      } else if (response.status === 500 && retryCount < 3) {
+        // Retry on server error with exponential backoff
+        console.warn(`Failed to fetch invoices (attempt ${retryCount + 1}/3), retrying...`);
+        setTimeout(() => {
+          fetchInvoices(retryCount + 1);
+        }, 1000 * (retryCount + 1));
+      } else {
+        const error = await response.json().catch(() => ({ error: 'Erreur serveur' }));
+        console.error('Error fetching invoices:', error);
+        setLoading(false);
+        if (retryCount >= 3) {
+          toast.error(error.error || 'Erreur lors du chargement des factures');
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching invoices:', err);
+      if (retryCount < 3) {
+        // Retry on network error
+        setTimeout(() => {
+          fetchInvoices(retryCount + 1);
+        }, 1000 * (retryCount + 1));
+      } else {
+        setLoading(false);
+        toast.error('Erreur de connexion lors du chargement des factures');
+      }
+    }
   }, [tenantId]);
+
+  // Fetch invoices on mount and when tenantId changes
+  useEffect(() => {
+    if (tenantId) {
+      fetchInvoices(0);
+    }
+  }, [tenantId, fetchInvoices]);
 
   // Check for edit query parameter and open edit modal automatically
   useEffect(() => {
@@ -903,51 +979,6 @@ export default function InternalInvoicesPage() {
     setLines(newLines);
   };
 
-  const fetchInvoices = async () => {
-    try {
-      if (!tenantId) return;
-      setLoading(true);
-      const response = await fetch('/api/internal-invoices', {
-        headers: { 'X-Tenant-Id': tenantId }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        const invoices = data.items || [];
-        
-        // Process invoices with customer and project names
-        const invoicesWithCustomers = invoices.map((invoice: Invoice) => {
-          const processedInvoice: Invoice = { ...invoice };
-          
-          // Extract customer name from populated data
-          if (invoice.customerId && typeof invoice.customerId === 'object') {
-            const customer = invoice.customerId as any;
-            processedInvoice.customerName = customer.raisonSociale || `${customer.nom || ''} ${customer.prenom || ''}`.trim();
-          }
-          
-          // Extract project name from populated data
-          if (invoice.projetId && typeof invoice.projetId === 'object') {
-            const projet = invoice.projetId as any;
-            processedInvoice.projetName = projet.name;
-          } else if (invoice.projetId && typeof invoice.projetId === 'string') {
-            // If projetId is just an ID, find it in projects list
-            const projet = projects.find(p => p._id === invoice.projetId);
-            if (projet) {
-              processedInvoice.projetName = projet.name;
-            }
-          }
-          
-          return processedInvoice;
-        });
-        
-        setInvoices(invoicesWithCustomers);
-      }
-    } catch (err) {
-      console.error('Error fetching invoices:', err);
-      toast.error('Erreur lors du chargement des factures');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const filtered = invoices.filter(invoice =>
     invoice.numero.toLowerCase().includes(q.toLowerCase()) ||
@@ -1239,7 +1270,7 @@ export default function InternalInvoicesPage() {
         }
         
         // Refresh invoices list
-        fetchInvoices();
+        fetchInvoices(0);
       } else {
         const error = await response.json();
         toast.error(error.error || 'Erreur lors de la conversion');
@@ -1358,7 +1389,7 @@ export default function InternalInvoicesPage() {
         }
         // Fetch invoices after a short delay to ensure URL is cleaned
         setTimeout(() => {
-          fetchInvoices();
+          fetchInvoices(0);
         }, 100);
       } else {
         const error = await response.json();
@@ -1587,7 +1618,7 @@ export default function InternalInvoicesPage() {
 
       if (response.ok) {
         toast.success('Facture supprimée avec succès');
-        fetchInvoices();
+        fetchInvoices(0);
       } else {
         const error = await response.json();
         toast.error(error.error || 'Erreur lors de la suppression de la facture');
@@ -1629,14 +1660,14 @@ export default function InternalInvoicesPage() {
         const data = await response.json();
         toast.success(`Facture officielle ${data.invoice.numero} créée avec succès`);
         // Refresh the list to show updated conversion status
-        fetchInvoices();
+        fetchInvoices(0);
         // Redirect to the new official invoice
         router.push(`/sales/invoices/${data.invoice._id}`);
       } else {
         const error = await response.json();
         if (error.convertedInvoiceId) {
           toast(`Cette facture a déjà été convertie en facture officielle ${error.convertedInvoiceNumber}`, { icon: 'ℹ️' });
-          fetchInvoices(); // Refresh to show updated status
+          fetchInvoices(0); // Refresh to show updated status
           router.push(`/sales/invoices/${error.convertedInvoiceId}`);
         } else {
           toast.error(error.error || 'Erreur lors de la conversion');
