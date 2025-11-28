@@ -29,10 +29,38 @@ export async function GET(request: NextRequest) {
     if (!settings) {
       settings = await createDefaultSettings(tenantId);
     } else {
+      let needsUpdate = false;
+      
       // Ensure fodec exists in existing settings
       if (settings.tva && !settings.tva.fodec) {
         settings.tva.fodec = { actif: false, tauxPct: 1 };
         (settings as any).markModified('tva');
+        needsUpdate = true;
+      }
+      
+      // Ensure int_fac exists in existing settings
+      if (!settings.numerotation || !settings.numerotation.int_fac) {
+        if (!settings.numerotation) {
+          settings.numerotation = {} as any;
+        }
+        settings.numerotation.int_fac = '{{SEQ:4}}';
+        (settings as any).markModified('numerotation');
+        needsUpdate = true;
+      }
+      
+      // Ensure int_fac startingNumber exists
+      if (!settings.numerotation.startingNumbers) {
+        settings.numerotation.startingNumbers = {} as any;
+        (settings as any).markModified('numerotation');
+        needsUpdate = true;
+      }
+      if (settings.numerotation.startingNumbers.int_fac === undefined) {
+        settings.numerotation.startingNumbers.int_fac = 0;
+        (settings as any).markModified('numerotation');
+        needsUpdate = true;
+      }
+      
+      if (needsUpdate) {
         await (settings as any).save();
       }
     }
@@ -132,6 +160,7 @@ async function createDefaultSettings(tenantId: string) {
       bl: 'BL-{{YY}}{{MM}}-{{SEQ:4}}',
       facture: 'FAC-{{YYYY}}-{{SEQ:5}}',
       avoir: 'AVR-{{YYYY}}-{{SEQ:5}}',
+      int_fac: '{{SEQ:4}}',
     },
     ventes: {
       tvaParDefautPct: 19,
@@ -184,7 +213,7 @@ async function createDefaultSettings(tenantId: string) {
   await (settings as any).save();
 
   // Initialiser les compteurs
-  const sequenceTypes = ['devis', 'bl', 'facture', 'avoir'];
+  const sequenceTypes = ['devis', 'bl', 'fac', 'avoir', 'int_fac'];
   for (const seqName of sequenceTypes) {
     await (Counter as any).findOneAndUpdate(
       { tenantId, seqName },

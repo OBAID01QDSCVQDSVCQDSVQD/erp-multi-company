@@ -12,11 +12,13 @@ const numerotationSchema = z.object({
   bl: z.string().min(1, 'Le format BL est requis'),
   facture: z.string().min(1, 'Le format facture est requis'),
   avoir: z.string().min(1, 'Le format avoir est requis'),
+  int_fac: z.string().min(1, 'Le format facture interne est requis'),
   startingNumbers: z.object({
     devis: z.number().min(0).optional(),
     bl: z.number().min(0).optional(),
     facture: z.number().min(0).optional(),
     avoir: z.number().min(0).optional(),
+    int_fac: z.number().min(0).optional(),
   }).optional(),
 });
 
@@ -31,6 +33,7 @@ const formatExamples = {
   bl: 'BL-2401-0001',
   facture: 'FAC-2024-00001',
   avoir: 'AVR-2024-00001',
+  int_fac: '0001',
 };
 
 export default function NumerotationTab({ tenantId }: NumerotationTabProps) {
@@ -75,11 +78,13 @@ export default function NumerotationTab({ tenantId }: NumerotationTabProps) {
           bl: data.numerotation?.bl || 'BL-{{YY}}{{MM}}-{{SEQ:4}}',
           facture: data.numerotation?.facture || 'FAC-{{YYYY}}-{{SEQ:5}}',
           avoir: data.numerotation?.avoir || 'AVR-{{YYYY}}-{{SEQ:5}}',
+          int_fac: data.numerotation?.int_fac || '{{SEQ:4}}',
           startingNumbers: {
             devis: data.numerotation?.startingNumbers?.devis || 0,
             bl: data.numerotation?.startingNumbers?.bl || 0,
             facture: data.numerotation?.startingNumbers?.fac || 0,
             avoir: data.numerotation?.startingNumbers?.avoir || 0,
+            int_fac: data.numerotation?.startingNumbers?.int_fac || 0,
           },
         });
       }
@@ -100,6 +105,7 @@ export default function NumerotationTab({ tenantId }: NumerotationTabProps) {
         bl: data.bl,
         fac: data.facture,
         avoir: data.avoir,
+        int_fac: data.int_fac,
       };
       
       // Ajouter startingNumbers si défini
@@ -109,6 +115,7 @@ export default function NumerotationTab({ tenantId }: NumerotationTabProps) {
           bl: data.startingNumbers.bl || 0,
           fac: data.startingNumbers.facture || 0,
           avoir: data.startingNumbers.avoir || 0,
+          int_fac: data.startingNumbers.int_fac || 0,
         };
       }
       
@@ -124,8 +131,8 @@ export default function NumerotationTab({ tenantId }: NumerotationTabProps) {
       });
 
       if (response.ok) {
-        // Si des startingNumbers ont été définis, les appliquer aux compteurs
-        if (data.startingNumbers && Object.values(data.startingNumbers).some(v => v && v > 0)) {
+        // Toujours appliquer les startingNumbers aux compteurs si définis (même si 0)
+        if (data.startingNumbers && Object.keys(data.startingNumbers).length > 0) {
           const applyResponse = await fetch('/api/settings/numbering/apply-starting', {
             method: 'POST',
             headers: {
@@ -158,7 +165,9 @@ export default function NumerotationTab({ tenantId }: NumerotationTabProps) {
   const previewFormat = async (type: keyof NumerotationForm) => {
     try {
       setPreviewLoading(true);
-      const response = await fetch(`/api/settings/numbering/preview?type=${type}`, {
+      // Map int_fac to int-fac for API
+      const apiType = type === 'int_fac' ? 'int-fac' : type;
+      const response = await fetch(`/api/settings/numbering/preview?type=${apiType}`, {
         headers: { 'X-Tenant-Id': tenantId },
       });
 
@@ -181,11 +190,13 @@ export default function NumerotationTab({ tenantId }: NumerotationTabProps) {
       bl: 'BL-{{YY}}{{MM}}-{{SEQ:4}}',
       facture: 'FAC-{{YYYY}}-{{SEQ:5}}',
       avoir: 'AVR-{{YYYY}}-{{SEQ:5}}',
+      int_fac: '{{SEQ:4}}',
       startingNumbers: {
         devis: 0,
         bl: 0,
         facture: 0,
         avoir: 0,
+        int_fac: 0,
       },
     });
   };
@@ -419,6 +430,55 @@ export default function NumerotationTab({ tenantId }: NumerotationTabProps) {
               />
               <p className="mt-1 text-xs text-gray-500">
                 Le compteur commencera à partir de ce numéro (ex: 100 pour commencer à 101)
+              </p>
+            </div>
+          </div>
+
+          {/* Facture Interne */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Format des factures internes
+            </label>
+            <div className="flex space-x-2">
+              <input
+                type="text"
+                {...register('int_fac')}
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                placeholder="{{SEQ:4}}"
+              />
+              <button
+                type="button"
+                onClick={() => previewFormat('int_fac')}
+                disabled={previewLoading}
+                className="px-3 py-2 text-sm font-medium text-indigo-600 bg-indigo-100 border border-indigo-300 rounded-md hover:bg-indigo-200 disabled:opacity-50"
+              >
+                <EyeIcon className="h-4 w-4" />
+              </button>
+            </div>
+            {errors.int_fac && (
+              <p className="mt-1 text-sm text-red-600">{errors.int_fac.message}</p>
+            )}
+            {previews.int_fac && (
+              <p className="mt-1 text-sm text-green-600">
+                Aperçu: <code className="bg-green-100 px-1 rounded">{previews.int_fac}</code>
+              </p>
+            )}
+            <div className="mt-2">
+              <label className="block text-xs text-gray-600 mb-1">
+                Numéro de départ (optionnel)
+              </label>
+              <input
+                type="text"
+                {...register('startingNumbers.int_fac', { 
+                  setValueAs: (v) => v === '' ? undefined : parseInt(v, 10) || 0
+                })}
+                onFocus={handleFocus}
+                className="w-32 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                placeholder="0"
+                pattern="[0-9]*"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Le compteur commencera à partir de ce numéro (ex: 0 pour commencer à 0001). Si non défini, commence à 0001.
               </p>
             </div>
           </div>

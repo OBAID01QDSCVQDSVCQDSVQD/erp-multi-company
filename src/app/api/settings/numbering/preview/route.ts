@@ -15,10 +15,12 @@ export async function GET(request: NextRequest) {
     const tenantId = request.headers.get('X-Tenant-Id') || session.user.companyId;
     const { searchParams } = new URL(request.url);
     const rawType = searchParams.get('type');
-    let type: 'devis' | 'bc' | 'bl' | 'fac' | 'avoir' | 'ca' | 'br' | 'facfo' | 'avoirfo' | undefined;
+    let type: 'devis' | 'bc' | 'bl' | 'fac' | 'avoir' | 'ca' | 'br' | 'facfo' | 'avoirfo' | 'int_fac' | undefined;
     
     if (rawType === 'facture') {
       type = 'fac';
+    } else if (rawType === 'int-fac' || rawType === 'int_fac') {
+      type = 'int_fac';
     } else if (rawType && ['devis', 'bc', 'bl', 'fac', 'avoir', 'ca', 'br', 'facfo', 'avoirfo'].includes(rawType)) {
       type = rawType as any;
     }

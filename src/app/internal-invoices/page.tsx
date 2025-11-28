@@ -156,6 +156,9 @@ export default function InternalInvoicesPage() {
     estStocke?: boolean;
   }>>([]);
 
+  // Store price input values as strings to allow comma input
+  const [priceInputValues, setPriceInputValues] = useState<{ [key: number]: string }>({});
+
   // Fetch invoices function with retry mechanism
   const fetchInvoices = useCallback(async (retryCount: number = 0) => {
     try {
@@ -442,7 +445,7 @@ export default function InternalInvoicesPage() {
     return missing;
   }, [invoices]);
 
-  const fetchInvoiceNumberPreview = async () => {
+  const fetchInvoiceNumberPreview = async (forceRefresh: boolean = false) => {
     if (!tenantId) {
       setInvoiceNumberPreview(null);
       return;
@@ -450,22 +453,38 @@ export default function InternalInvoicesPage() {
 
     try {
       setInvoiceNumberLoading(true);
-      const response = await fetch('/api/settings/numbering/preview?type=facture', {
-        headers: { 'X-Tenant-Id': tenantId }
+      // Always add timestamp to prevent caching and ensure we get the latest preview
+      const timestamp = Date.now();
+      const response = await fetch(`/api/settings/numbering/preview?type=int-fac&_t=${timestamp}`, {
+        headers: { 
+          'X-Tenant-Id': tenantId,
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
+        },
+        cache: 'no-store' // Prevent caching
       });
       if (response.ok) {
         const data = await response.json();
-        setInvoiceNumberPreview(data.preview || null);
-        if (data.preview) {
-          setFormData((prev) => {
-            if (prev.numero && prev.numero.trim().length > 0) {
-              return prev;
-            }
-            return { ...prev, numero: data.preview };
-          });
+        const previewNumber = data.preview || null;
+        console.log('Invoice number preview received:', previewNumber);
+        setInvoiceNumberPreview(previewNumber);
+        if (previewNumber) {
+          // Always update formData.numero with the preview
+          setFormData((prev) => ({
+            ...prev,
+            numero: previewNumber
+          }));
         }
       } else {
-        setInvoiceNumberPreview(null);
+        // If API fails, try to generate a simple number
+        const errorData = await response.json().catch(() => ({}));
+        console.warn('Failed to fetch invoice number preview:', response.status, errorData);
+        const fallbackNumber = '0001';
+        setInvoiceNumberPreview(fallbackNumber);
+        setFormData((prev) => ({
+          ...prev,
+          numero: fallbackNumber
+        }));
       }
     } catch (error) {
       console.error('Error fetching invoice number preview:', error);
@@ -498,6 +517,7 @@ export default function InternalInvoicesPage() {
     setCustomerSearch('');
     setShowCustomerDropdown(false);
     setSelectedCustomerIndex(-1);
+    setPriceInputValues({});
     
     // Ensure TVA settings are loaded before opening modal
     let currentTvaSettings = tvaSettings;
@@ -519,10 +539,9 @@ export default function InternalInvoicesPage() {
     }
     
     const defaultForm = createDefaultFormData();
-    const nextNumero = computeNextInvoiceNumberFromExisting();
     const resolvedForm = {
       ...defaultForm,
-      numero: nextNumero || defaultForm.numero,
+      numero: '', // Clear numero, will be set by preview from numbering service
       // Activate FODEC automatically if enabled in settings
       fodec: currentTvaSettings?.fodec?.actif ? {
         enabled: true,
@@ -530,14 +549,13 @@ export default function InternalInvoicesPage() {
       } : { enabled: false, tauxPct: 1 }
     };
     setFormData(resolvedForm);
-    if (nextNumero) {
-      setInvoiceNumberPreview(nextNumero);
-      setInvoiceNumberLoading(false);
-    } else {
-      setInvoiceNumberPreview(null);
-      setInvoiceNumberLoading(true);
-      fetchInvoiceNumberPreview();
-    }
+    
+    // Always fetch a fresh preview from the numbering service (for internal invoices)
+    // Add timestamp to prevent caching
+    setInvoiceNumberPreview(null);
+    setInvoiceNumberLoading(true);
+    await fetchInvoiceNumberPreview(true); // Pass true to force refresh
+    
     setShowModal(true);
   };
 
@@ -627,6 +645,13 @@ export default function InternalInvoicesPage() {
     newLines[lineIndex].prixUnitaireHT = product.prixVenteHT || 0;
     newLines[lineIndex].taxCode = product.taxCode || '';
     newLines[lineIndex].uomCode = product.uomVenteCode || '';
+    
+    // Clear the price input value for this line so it uses the numeric value
+    setPriceInputValues(prev => {
+      const newValues = { ...prev };
+      delete newValues[lineIndex];
+      return newValues;
+    });
     
     // Use tvaPct from product if available
     if (product.tvaPct !== undefined && product.tvaPct !== null) {
@@ -932,6 +957,22 @@ export default function InternalInvoicesPage() {
 
   const removeLine = (index: number) => {
     setLines(lines.filter((_, i) => i !== index));
+    // Remove price input value for this line
+    setPriceInputValues(prev => {
+      const newValues = { ...prev };
+      delete newValues[index];
+      // Shift remaining indices
+      const shifted: { [key: number]: string } = {};
+      Object.keys(newValues).forEach(key => {
+        const keyNum = parseInt(key, 10);
+        if (keyNum > index) {
+          shifted[keyNum - 1] = newValues[keyNum];
+        } else if (keyNum < index) {
+          shifted[keyNum] = newValues[keyNum];
+        }
+      });
+      return shifted;
+    });
   };
 
   const updateLine = (index: number, field: string, value: any) => {
@@ -1339,6 +1380,13 @@ export default function InternalInvoicesPage() {
       
       const method = editingInvoiceId ? 'PATCH' : 'POST';
 
+      // If creating new invoice (not editing), and numero matches preview, remove it to let API generate
+      let numeroToSend = formData.numero?.trim() || undefined;
+      if (!editingInvoiceId && numeroToSend && invoiceNumberPreview && numeroToSend === invoiceNumberPreview) {
+        // Don't send numero, let API generate it using NumberingService.next()
+        numeroToSend = undefined;
+      }
+
       const response = await fetch(url, {
         method,
         headers: { 
@@ -1356,7 +1404,7 @@ export default function InternalInvoicesPage() {
           modePaiement: formData.modePaiement || undefined,
           conditionsPaiement: formData.conditionsPaiement || undefined,
           notes: formData.notes,
-          numero: formData.numero?.trim() || undefined,
+          numero: numeroToSend,
           lignes: lignesData,
           timbreFiscal: totals.timbreAmount || 0,
           remiseGlobalePct: formData.remiseGlobalePct || 0,
@@ -1381,6 +1429,7 @@ export default function InternalInvoicesPage() {
         setProductSearches({});
         setShowProductDropdowns({});
         setSelectedProductIndices({});
+        setPriceInputValues({});
         // Remove edit query parameter and mark as processed BEFORE fetching invoices
         setHasProcessedEditParam(true);
         // Remove query parameter immediately
@@ -2616,15 +2665,74 @@ export default function InternalInvoicesPage() {
                               <td className="px-4 py-3">
                                 <input 
                                   type="text" 
-                                  value={line.prixUnitaireHT || ''}
+                                  value={priceInputValues[index] !== undefined 
+                                    ? priceInputValues[index]
+                                    : (line.prixUnitaireHT !== undefined && line.prixUnitaireHT !== null 
+                                      ? String(line.prixUnitaireHT).replace(/\./g, ',') 
+                                      : '')}
                                   onChange={(e) => {
-                                    const val = e.target.value;
+                                    let val = e.target.value;
+                                    // Allow comma and dot as decimal separator
+                                    // Validate: allow numbers, one comma or dot, optional minus sign
+                                    // Remove any characters that are not digits, comma, dot, or minus
+                                    val = val.replace(/[^\d,.\-]/g, '');
+                                    
+                                    // Only allow one decimal separator (comma or dot)
+                                    const commaCount = (val.match(/,/g) || []).length;
+                                    const dotCount = (val.match(/\./g) || []).length;
+                                    if (commaCount > 1 || dotCount > 1 || (commaCount > 0 && dotCount > 0)) {
+                                      return; // Invalid input, ignore
+                                    }
+                                    
+                                    // Store the string value as-is to allow comma input
+                                    setPriceInputValues(prev => ({ ...prev, [index]: val }));
+                                    
+                                    // Convert comma to dot for parsing and update numeric value
+                                    const normalizedVal = val.replace(',', '.');
+                                    // Validate format
+                                    if (normalizedVal && !/^-?\d*\.?\d*$/.test(normalizedVal)) {
+                                      return; // Invalid input, ignore
+                                    }
+                                    // Parse to number (using dot as decimal separator)
+                                    const numValue = normalizedVal === '' || normalizedVal === '-' ? 0 : (parseFloat(normalizedVal) || 0);
                                     const updatedLines = [...lines];
-                                    updatedLines[index] = { ...updatedLines[index], prixUnitaireHT: parseFloat(val) || 0 };
+                                    updatedLines[index] = { ...updatedLines[index], prixUnitaireHT: numValue };
                                     setLines(updatedLines);
                                   }}
+                                  onBlur={(e) => {
+                                    // Ensure value is formatted correctly on blur
+                                    let val = e.target.value.trim();
+                                    // Convert comma to dot for parsing
+                                    const normalizedVal = val.replace(',', '.');
+                                    const numValue = val === '' ? 0 : (parseFloat(normalizedVal) || 0);
+                                    
+                                    // Update the numeric value
+                                    const updatedLines = [...lines];
+                                    updatedLines[index] = { ...updatedLines[index], prixUnitaireHT: numValue };
+                                    setLines(updatedLines);
+                                    
+                                    // Update display value to show comma
+                                    setPriceInputValues(prev => {
+                                      const newValues = { ...prev };
+                                      if (numValue === 0 && val === '') {
+                                        delete newValues[index];
+                                      } else {
+                                        newValues[index] = String(numValue).replace(/\./g, ',');
+                                      }
+                                      return newValues;
+                                    });
+                                  }}
+                                  onFocus={(e) => {
+                                    // Initialize input value from numeric value if not already set
+                                    if (priceInputValues[index] === undefined) {
+                                      const currentValue = line.prixUnitaireHT !== undefined && line.prixUnitaireHT !== null
+                                        ? String(line.prixUnitaireHT).replace(/\./g, ',')
+                                        : '';
+                                      setPriceInputValues(prev => ({ ...prev, [index]: currentValue }));
+                                    }
+                                  }}
                                   className="w-24 px-2 py-1 border rounded text-sm"
-                                  placeholder="0.000"
+                                  placeholder="0,000"
                                 />
                               </td>
                               <td className="px-4 py-3">

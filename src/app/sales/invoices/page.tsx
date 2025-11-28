@@ -130,28 +130,32 @@ export default function InvoicesPage() {
         const data = await response.json();
         const invoicesList = data.items || [];
         
-        // Fetch customer names for each invoice
-        const invoicesWithCustomers = await Promise.all(
-          invoicesList.map(async (invoice: Invoice) => {
-            if (invoice.customerId) {
-              try {
-                const customerResponse = await fetch(`/api/customers/${invoice.customerId}`, {
-                  headers: { 'X-Tenant-Id': tenantId }
-                });
-                if (customerResponse.ok) {
-                  const customer = await customerResponse.json();
-                  return {
-                    ...invoice,
-                    customerName: customer.raisonSociale || `${customer.nom || ''} ${customer.prenom || ''}`.trim()
-                  };
-                }
-              } catch (err) {
-                console.error('Error fetching customer:', err);
-              }
+        // Process invoices - customerId might already be populated as an object
+        const invoicesWithCustomers = invoicesList.map((invoice: any) => {
+          let customerName = '';
+          let customerIdValue = invoice.customerId;
+          
+          if (invoice.customerId) {
+            // Check if customerId is already populated (object) or just an ID (string)
+            if (typeof invoice.customerId === 'object' && invoice.customerId !== null) {
+              // Already populated from API
+              customerName = invoice.customerId.raisonSociale || 
+                           `${invoice.customerId.nom || ''} ${invoice.customerId.prenom || ''}`.trim() || 
+                           '';
+              // Extract the ID from the populated object
+              customerIdValue = invoice.customerId._id || invoice.customerId;
+            } else if (typeof invoice.customerId === 'string') {
+              // Just an ID - keep as is
+              customerIdValue = invoice.customerId;
             }
-            return invoice;
-          })
-        );
+          }
+          
+          return {
+            ...invoice,
+            customerId: customerIdValue,
+            customerName: customerName || invoice.customerName || ''
+          };
+        });
         
         setInvoices(invoicesWithCustomers);
         setLoading(false);

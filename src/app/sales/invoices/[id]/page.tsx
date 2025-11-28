@@ -29,6 +29,7 @@ interface Invoice {
   remiseGlobalePct?: number;
   devise?: string;
   lignes?: any[];
+  linkedDocuments?: string[]; // Array of linked document IDs (e.g., internal invoice ID)
 }
 
 export default function ViewInvoicePage() {
@@ -46,6 +47,7 @@ export default function ViewInvoicePage() {
   const [savingPayment, setSavingPayment] = useState(false);
   const [montantRestant, setMontantRestant] = useState<number>(0);
   const [soldeRestantActuel, setSoldeRestantActuel] = useState<number>(0);
+  const [isConvertedFromPaidInternal, setIsConvertedFromPaidInternal] = useState(false);
   const [paymentData, setPaymentData] = useState({
     datePaiement: new Date().toISOString().split('T')[0],
     modePaiement: 'Espèces',
@@ -63,23 +65,31 @@ export default function ViewInvoicePage() {
     }
   }, [tenantId, params.id]);
 
+  // Calculate remaining amount when invoice is loaded
   useEffect(() => {
-    if (showPaymentModal && invoice && tenantId && invoice.customerId) {
-      fetchAdvanceBalance();
-      // Calculate remaining amount
+    if (invoice && tenantId && invoice.customerId) {
       calculateRemainingAmount().then(remaining => {
         // Store the current remaining balance
-        const roundedRemaining = Math.round(remaining * 1000) / 1000;
+        const roundedRemaining = Math.max(0, Math.round(remaining * 1000) / 1000);
         setSoldeRestantActuel(roundedRemaining);
-        
-        setPaymentData(prev => {
-          // Round to 3 decimal places to avoid floating point issues
-          return { ...prev, montantPaye: roundedRemaining };
-        });
+        setMontantRestant(roundedRemaining);
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showPaymentModal, invoice, tenantId]);
+  }, [invoice, tenantId]);
+
+  // When payment modal opens, fetch advance balance and set payment amount
+  useEffect(() => {
+    if (showPaymentModal && invoice && tenantId && invoice.customerId && soldeRestantActuel > 0) {
+      fetchAdvanceBalance();
+      // Set payment amount to remaining balance
+      setPaymentData(prev => ({
+        ...prev,
+        montantPaye: soldeRestantActuel
+      }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showPaymentModal]);
 
   // Update montantPaye when useAdvance or advanceBalance changes
   useEffect(() => {
@@ -121,11 +131,15 @@ export default function ViewInvoicePage() {
             if (unpaidResponse.ok) {
               const unpaidInvoices = await unpaidResponse.json();
               const invoiceData = unpaidInvoices.find((inv: any) => inv._id === params.id);
-              if (invoiceData) {
-                setMontantRestant(invoiceData.soldeRestant || 0);
-              } else {
-                // If invoice is fully paid or not in unpaid list, set to 0
-                setMontantRestant(0);
+              const remaining = invoiceData ? (invoiceData.soldeRestant || 0) : 0;
+              const roundedRemaining = Math.max(0, Math.round(remaining * 1000) / 1000);
+              setMontantRestant(roundedRemaining);
+              setSoldeRestantActuel(roundedRemaining);
+              
+              // If invoice is not in unpaid list, it means it's fully paid
+              // Check if it was converted from an internal invoice
+              if (!invoiceData && data.linkedDocuments && data.linkedDocuments.length > 0) {
+                setIsConvertedFromPaidInternal(true);
               }
             }
           } catch (error) {
@@ -246,13 +260,23 @@ export default function ViewInvoicePage() {
         const invoices = await response.json();
         const invoiceData = invoices.find((inv: any) => inv._id === invoice._id);
         if (invoiceData) {
-          return invoiceData.soldeRestant || 0;
+          // Return the remaining balance, ensuring it's not negative
+          const remaining = Math.max(0, invoiceData.soldeRestant || 0);
+          console.log(`Invoice ${invoice.numero} remaining balance: ${remaining}`);
+          return remaining;
+        } else {
+          // Invoice not in unpaid list means it's fully paid
+          console.log(`Invoice ${invoice.numero} is fully paid (not in unpaid list)`);
+          return 0;
         }
       }
     } catch (error) {
       console.error('Error calculating remaining amount:', error);
     }
-    return invoice.totalTTC;
+    // Fallback: assume invoice is unpaid and return totalTTC
+    // But this should not happen if API is working correctly
+    console.warn(`Could not calculate remaining amount for invoice ${invoice.numero}, using totalTTC as fallback`);
+    return invoice.totalTTC || 0;
   }
 
   async function handleSavePayment() {
@@ -417,14 +441,35 @@ export default function ViewInvoicePage() {
           
           {/* Actions */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-            <button
-              onClick={() => setShowPaymentModal(true)}
-              className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm sm:text-base"
-            >
-              <BanknotesIcon className="w-4 h-4 sm:w-5 sm:h-5" />
-              <span className="hidden sm:inline">Ajouter paiement</span>
-              <span className="sm:hidden">Paiement</span>
-            </button>
+            {soldeRestantActuel > 0.001 ? (
+              <button
+                onClick={() => {
+                  if (soldeRestantActuel > 0.001) {
+                    setShowPaymentModal(true);
+                  } else {
+                    toast('Cette facture est déjà payée en totalité', { icon: 'ℹ️' });
+                  }
+                }}
+                className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm sm:text-base"
+              >
+                <BanknotesIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span className="hidden sm:inline">Ajouter paiement</span>
+                <span className="sm:hidden">Paiement</span>
+              </button>
+            ) : (
+              <div className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-sm sm:text-base ${
+                isConvertedFromPaidInternal 
+                  ? 'bg-blue-100 text-blue-700 border border-blue-200' 
+                  : 'bg-gray-100 text-gray-500'
+              }`}>
+                <BanknotesIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span>
+                  {isConvertedFromPaidInternal 
+                    ? 'Facture payée (convertie depuis facture interne)' 
+                    : 'Facture payée'}
+                </span>
+              </div>
+            )}
             <button
               onClick={handleDownloadPDF}
               disabled={generatingPDF}

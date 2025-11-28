@@ -58,10 +58,11 @@ export async function GET(request: NextRequest) {
             paiement.lignes.map(async (ligne: any) => {
               // If referenceExterne is missing, fetch it from the invoice
               if (!ligne.referenceExterne && ligne.factureId) {
+                // Search for both official invoices (FAC) and internal invoices (INT_FAC)
                 const invoice = await (Document as any).findOne({
                   _id: ligne.factureId,
                   tenantId: tenantId,
-                  type: 'FAC',
+                  type: { $in: ['FAC', 'INT_FAC'] },
                 }).select('referenceExterne numero').lean();
                 
                 if (invoice) {
@@ -172,14 +173,27 @@ export async function POST(request: NextRequest) {
       lignes.map(async (ligne: any) => {
         if (ligne.factureId) {
           // Payment for specific invoice
+          // Search for both official invoices (FAC) and internal invoices (INT_FAC)
           const invoice = await (Document as any).findOne({
             _id: ligne.factureId,
             tenantId,
-            type: 'FAC',
+            type: { $in: ['FAC', 'INT_FAC'] },
           }).lean();
 
           if (!invoice) {
             throw new Error(`Facture ${ligne.factureId} non trouvée`);
+          }
+
+          // Check if this is an internal invoice (INT_FAC) that has been converted
+          // If converted, prevent adding payments (payments should be added via the official invoice)
+          if (invoice.type === 'INT_FAC') {
+            const hasConversionNote = invoice.notesInterne?.includes('Convertie en facture officielle');
+            if (hasConversionNote || invoice.archived) {
+              throw new Error(
+                `Cette facture interne (${invoice.numero}) a été convertie en facture officielle. ` +
+                `Les paiements doivent être ajoutés via la facture officielle.`
+              );
+            }
           }
 
           // Get all previous payments for this invoice
@@ -197,7 +211,11 @@ export async function POST(request: NextRequest) {
             });
           });
 
-          const montantFacture = invoice.totalTTC || 0;
+          const montantFacture = invoice.totalTTC || invoice.totalBaseHT || 0;
+          
+          // Debug logging
+          console.log(`Invoice ${invoice.numero}: montantFacture=${montantFacture}, montantPayeAvant=${montantPayeAvant}, montantPaye=${ligne.montantPaye}`);
+          
           const roundedMontantPayeAvant = Math.round(montantPayeAvant * 1000) / 1000;
           const roundedMontantPaye = Math.round(ligne.montantPaye * 1000) / 1000;
           const roundedSoldeRestantAvant = Math.round((montantFacture - roundedMontantPayeAvant) * 1000) / 1000;
@@ -205,7 +223,15 @@ export async function POST(request: NextRequest) {
           // Validate payment amount
           if (roundedMontantPaye > roundedSoldeRestantAvant + 0.001) {
             throw new Error(
-              `Le montant payé (${roundedMontantPaye}) ne peut pas être supérieur au solde restant (${roundedSoldeRestantAvant})`
+              `Le montant payé (${roundedMontantPaye}) ne peut pas être supérieur au solde restant (${roundedSoldeRestantAvant}). ` +
+              `Détails: Montant facture=${montantFacture}, Montant payé avant=${roundedMontantPayeAvant}, Solde restant=${roundedSoldeRestantAvant}`
+            );
+          }
+          
+          // Additional validation: ensure montantFacture is valid
+          if (montantFacture <= 0) {
+            throw new Error(
+              `Le montant de la facture est invalide (${montantFacture}). Veuillez vérifier la facture.`
             );
           }
 
@@ -277,10 +303,11 @@ export async function POST(request: NextRequest) {
     // Update invoice payment status
     for (const ligne of processedLignes) {
       if (ligne.factureId && !ligne.isPaymentOnAccount) {
+        // Search for both official invoices (FAC) and internal invoices (INT_FAC)
         const invoice = await (Document as any).findOne({
           _id: ligne.factureId,
           tenantId,
-          type: 'FAC',
+          type: { $in: ['FAC', 'INT_FAC'] },
         });
 
         if (invoice) {

@@ -24,10 +24,11 @@ export async function GET(request: NextRequest) {
     }
 
     // Get all invoices for this customer (excluding cancelled)
+    // Include both official invoices (FAC) and internal invoices (INT_FAC)
     const query: any = {
       tenantId: tenantId,
       customerId: customerId,
-      type: 'FAC',
+      type: { $in: ['FAC', 'INT_FAC'] },
       statut: { $nin: ['ANNULEE', 'annulee'] },
     };
 
@@ -38,6 +39,16 @@ export async function GET(request: NextRequest) {
     // Calculate paid amounts for each invoice
     const invoicesWithPaymentInfo = await Promise.all(
       invoices.map(async (invoice: any) => {
+        // Skip internal invoices (INT_FAC) that have been converted to official invoices
+        // These should not appear in unpaid list since payments should be added via official invoice
+        if (invoice.type === 'INT_FAC') {
+          const hasConversionNote = invoice.notesInterne?.includes('Convertie en facture officielle');
+          if (hasConversionNote || invoice.archived) {
+            // This invoice has been converted, skip it
+            return null;
+          }
+        }
+
         // Get all payments for this invoice
         const payments = await (PaiementClient as any).find({
           societeId: new mongoose.Types.ObjectId(tenantId),
@@ -73,9 +84,12 @@ export async function GET(request: NextRequest) {
       })
     );
 
+    // Filter out null values (converted invoices)
+    const validInvoices = invoicesWithPaymentInfo.filter(inv => inv !== null);
+
     // Filter to show only unpaid or partially paid invoices
-    const unpaidInvoices = invoicesWithPaymentInfo.filter(
-      (inv) => !inv.estPayee
+    const unpaidInvoices = validInvoices.filter(
+      (inv) => inv && !inv.estPayee
     );
 
     return NextResponse.json(unpaidInvoices);

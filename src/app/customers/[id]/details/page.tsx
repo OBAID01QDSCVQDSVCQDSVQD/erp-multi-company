@@ -31,6 +31,7 @@ interface Transaction {
   conditionsPaiement?: string;
   modePaiement?: string;
   documentType: string;
+  invoiceType?: string; // 'FAC' or 'INT_FAC' - to distinguish between official and internal invoices
   lignes?: Array<{
     factureNumero: string;
     montantPaye: number;
@@ -271,7 +272,12 @@ export default function CustomerDetailsPage() {
 
   const handleViewDocument = (transaction: Transaction) => {
     if (transaction.documentType === 'Document') {
-      router.push(`/sales/invoices/${transaction.id}`);
+      // Check if it's an internal invoice using invoiceType field
+      if (transaction.invoiceType === 'INT_FAC') {
+        router.push(`/internal-invoices/${transaction.id}`);
+      } else {
+        router.push(`/sales/invoices/${transaction.id}`);
+      }
     } else if (transaction.documentType === 'PaiementClient') {
       router.push(`/sales/payments/${transaction.id}`);
     }

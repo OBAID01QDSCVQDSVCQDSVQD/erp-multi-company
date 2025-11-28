@@ -2,7 +2,7 @@ import connectDB from '@/lib/mongodb';
 import CompanySettings from '@/lib/models/CompanySettings';
 import Counter from '@/lib/models/Counter';
 
-export type SequenceType = 'devis' | 'bc' | 'bl' | 'fac' | 'avoir' | 'ca' | 'br' | 'facfo' | 'avoirfo' | 'pafo' | 'pac';
+export type SequenceType = 'devis' | 'bc' | 'bl' | 'fac' | 'avoir' | 'ca' | 'br' | 'facfo' | 'avoirfo' | 'pafo' | 'pac' | 'int_fac';
 
 export class NumberingService {
   /**
@@ -35,6 +35,11 @@ export class NumberingService {
       template = 'PAC-{{YYYY}}-{{SEQ:5}}';
     }
     
+    // Fallback: if int_fac not found, use default template (just number, no prefix)
+    if (!template && seqName === 'int_fac') {
+      template = '{{SEQ:4}}';
+    }
+    
     if (!template) {
       throw new Error(`Template de numérotation non trouvé pour ${seqName}`);
     }
@@ -44,12 +49,24 @@ export class NumberingService {
     
     if (!counter) {
       // Si le compteur n'existe pas, utiliser la valeur de départ si définie
-      const startingNumber = settings.numerotation.startingNumbers?.[seqName] || 0;
+      const startingNumber = settings.numerotation.startingNumbers?.[seqName];
+      const initialValue = startingNumber !== undefined && startingNumber !== null ? startingNumber : 0;
       counter = await (Counter as any).findOneAndUpdate(
         { tenantId, seqName },
-        { $set: { value: startingNumber } },
+        { $set: { value: initialValue } },
         { upsert: true, new: true }
       );
+    } else {
+      // Si le compteur existe, vérifier si startingNumber a été mis à jour et est plus grand
+      const startingNumber = settings.numerotation.startingNumbers?.[seqName];
+      if (startingNumber !== undefined && startingNumber !== null && counter.value < startingNumber) {
+        // Mettre à jour le compteur si startingNumber est plus grand que la valeur actuelle
+        counter = await (Counter as any).findOneAndUpdate(
+          { tenantId, seqName },
+          { $set: { value: startingNumber } },
+          { new: true }
+        );
+      }
     }
     
     // Incrémenter le compteur
@@ -111,13 +128,26 @@ export class NumberingService {
       template = 'PAC-{{YYYY}}-{{SEQ:5}}';
     }
     
+    // Fallback: if int_fac not found, use default template (just number, no prefix)
+    if (!template && seqName === 'int_fac') {
+      template = '{{SEQ:4}}';
+    }
+    
     if (!template) {
       throw new Error(`Template de numérotation non trouvé pour ${seqName}`);
     }
 
     // Récupérer la valeur actuelle du compteur
     const counter = await (Counter as any).findOne({ tenantId, seqName });
-    const currentValue = counter ? counter.value : 0;
+    let currentValue = counter ? counter.value : 0;
+    
+    // Si le compteur n'existe pas, utiliser la valeur de départ si définie
+    if (!counter) {
+      const startingNumber = settings.numerotation.startingNumbers?.[seqName];
+      if (startingNumber !== undefined && startingNumber !== null) {
+        currentValue = startingNumber;
+      }
+    }
 
     // Générer le numéro avec la valeur actuelle + 1
     return this.generateNumber(template, currentValue + 1);
@@ -142,7 +172,7 @@ export class NumberingService {
   static async resetAll(tenantId: string): Promise<void> {
     await connectDB();
     
-    const sequenceTypes: SequenceType[] = ['devis', 'bc', 'bl', 'fac', 'avoir', 'ca', 'br', 'facfo', 'avoirfo', 'pafo', 'pac'];
+    const sequenceTypes: SequenceType[] = ['devis', 'bc', 'bl', 'fac', 'avoir', 'ca', 'br', 'facfo', 'avoirfo', 'pafo', 'pac', 'int_fac'];
     
     for (const seqName of sequenceTypes) {
       await (Counter as any).findOneAndUpdate(

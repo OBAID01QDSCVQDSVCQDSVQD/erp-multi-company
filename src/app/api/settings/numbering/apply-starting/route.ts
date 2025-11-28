@@ -36,6 +36,7 @@ export async function POST(request: NextRequest) {
       bl: 'bl',
       facture: 'fac',
       avoir: 'avoir',
+      int_fac: 'int_fac',
     };
 
     // Appliquer les numéros de départ aux compteurs
@@ -49,6 +50,7 @@ export async function POST(request: NextRequest) {
           const existingCounter = await (Counter as any).findOne({ tenantId, seqName });
           
           // Si le compteur n'existe pas ou sa valeur est inférieure au starting number
+          // Mettre à jour le compteur pour qu'il commence à partir du starting number
           if (!existingCounter || existingCounter.value < value) {
             updates.push(
               (Counter as any).findOneAndUpdate(

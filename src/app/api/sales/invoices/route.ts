@@ -73,7 +73,17 @@ export async function GET(request: NextRequest) {
     // Ensure invoices is always an array
     const invoicesArray = Array.isArray(invoices) ? invoices : [];
 
-    return NextResponse.json({ items: invoicesArray, total: total || 0 });
+    // Process invoices to ensure customerId is properly formatted
+    const processedInvoices = invoicesArray.map((invoice: any) => {
+      // If customerId is populated as object, keep it as is for the client to extract name
+      if (invoice.customerId && typeof invoice.customerId === 'object' && invoice.customerId._id) {
+        // Keep the populated object structure so client can access name fields
+        return invoice;
+      }
+      return invoice;
+    });
+
+    return NextResponse.json({ items: processedInvoices, total: total || 0 });
   } catch (error: any) {
     console.error('Erreur GET /sales/invoices:', error);
     console.error('Error stack:', error.stack);

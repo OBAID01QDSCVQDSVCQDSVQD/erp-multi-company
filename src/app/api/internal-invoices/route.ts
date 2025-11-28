@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import Document from '@/lib/models/Document';
 import Product from '@/lib/models/Product';
+import CompanySettings from '@/lib/models/CompanySettings';
 import mongoose from 'mongoose';
 
 export async function GET(request: NextRequest) {
@@ -120,28 +121,38 @@ export async function POST(request: NextRequest) {
         );
       }
     } else {
-      // Generate invoice number FACI-YYYY-XXXXX
-      const currentYear = new Date().getFullYear();
-      const lastInvoice = await (Document as any).findOne({
-        tenantId,
-        type: 'INT_FAC'
-      })
-      .sort({ createdAt: -1 })
-      .lean();
+      // Generate invoice number using NumberingService
+      try {
+        const { NumberingService } = await import('@/lib/services/NumberingService');
+        numero = await NumberingService.next(tenantId, 'int_fac');
+      } catch (error: any) {
+        console.error('Error generating internal invoice number:', error);
+        // Fallback: generate simple number starting from 1
+        const lastInvoice = await (Document as any).findOne({
+          tenantId,
+          type: 'INT_FAC'
+        })
+        .sort({ createdAt: -1 })
+        .lean();
 
-      if (lastInvoice && lastInvoice.numero) {
-        const numericMatch = lastInvoice.numero.match(/(\d+)$/);
-        if (numericMatch) {
-          const lastNumber = parseInt(numericMatch[1], 10);
-          const nextNumber = lastNumber + 1;
-          const prefix = lastInvoice.numero.substring(0, lastInvoice.numero.length - numericMatch[1].length);
-          const padding = numericMatch[1].length;
-          numero = prefix + nextNumber.toString().padStart(padding, '0');
+        if (lastInvoice && lastInvoice.numero) {
+          // Extract numeric part
+          const numericMatch = lastInvoice.numero.match(/(\d+)$/);
+          if (numericMatch) {
+            const lastNumber = parseInt(numericMatch[1], 10);
+            const nextNumber = lastNumber + 1;
+            const padding = numericMatch[1].length;
+            numero = nextNumber.toString().padStart(padding, '0');
+          } else {
+            // If no numeric match, start from 0001
+            numero = '0001';
+          }
         } else {
-          numero = `FACI-${currentYear}-00001`;
+          // First invoice: start from 0001 or use starting number from settings
+          const settings = await (CompanySettings as any).findOne({ tenantId });
+          const startNumber = settings?.numerotation?.startingNumbers?.int_fac || 0;
+          numero = (startNumber + 1).toString().padStart(4, '0');
         }
-      } else {
-        numero = `FACI-${currentYear}-00001`;
       }
     }
 

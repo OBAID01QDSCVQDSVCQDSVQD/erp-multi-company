@@ -5,6 +5,7 @@ import connectDB from '@/lib/mongodb';
 import Document from '@/lib/models/Document';
 import Product from '@/lib/models/Product';
 import MouvementStock from '@/lib/models/MouvementStock';
+import PaiementClient from '@/lib/models/PaiementClient';
 import mongoose from 'mongoose';
 
 export async function POST(
@@ -123,9 +124,78 @@ export async function POST(
     calculateDocumentTotals(officialInvoice);
     await (officialInvoice as any).save();
 
+    // Check if the internal invoice has any payments and transfer them to the official invoice
+    const internalInvoicePayments = await (PaiementClient as any).find({
+      societeId: new mongoose.Types.ObjectId(tenantId),
+      'lignes.factureId': internalInvoice._id,
+    }).lean();
+
+    // Calculate total paid amount first
+    let totalPaidAmount = 0;
+    internalInvoicePayments.forEach((payment: any) => {
+      payment.lignes.forEach((line: any) => {
+        if (line.factureId && line.factureId.toString() === internalInvoice._id.toString() && !line.isPaymentOnAccount) {
+          totalPaidAmount += line.montantPaye || 0;
+        }
+      });
+    });
+
+    // Transfer payments from internal invoice to official invoice
+    // Sort payments by date to ensure correct cumulative calculation
+    internalInvoicePayments.sort((a: any, b: any) => {
+      const dateA = new Date(a.datePaiement).getTime();
+      const dateB = new Date(b.datePaiement).getTime();
+      return dateA - dateB; // Sort ascending (oldest first)
+    });
+
+    // Calculate cumulative paid amount for each payment line
+    let cumulativePaidBefore = 0;
+    const montantFacture = internalInvoice.totalTTC || internalInvoice.totalBaseHT || 0;
+
+    for (const payment of internalInvoicePayments) {
+      let paymentHasChanges = false;
+      const updatedLignes = payment.lignes.map((line: any) => {
+        // If this line is for the internal invoice, update it to point to the official invoice
+        if (line.factureId && line.factureId.toString() === internalInvoice._id.toString() && !line.isPaymentOnAccount) {
+          const montantPaye = line.montantPaye || 0;
+          const montantPayeAvant = cumulativePaidBefore;
+          cumulativePaidBefore += montantPaye;
+          const soldeRestant = Math.max(0, montantFacture - cumulativePaidBefore);
+          
+          paymentHasChanges = true;
+          return {
+            ...line,
+            factureId: officialInvoice._id,
+            numeroFacture: numero,
+            referenceExterne: internalInvoice.referenceExterne || numero,
+            montantFacture: montantFacture,
+            montantPayeAvant: montantPayeAvant,
+            montantPaye: montantPaye,
+            soldeRestant: soldeRestant,
+          };
+        }
+        return line;
+      });
+
+      // Update the payment document with the new lines if any were changed
+      if (paymentHasChanges) {
+        await (PaiementClient as any).findByIdAndUpdate(
+          payment._id,
+          {
+            $set: {
+              lignes: updatedLignes,
+            }
+          }
+        );
+      }
+    }
+
     // Update internal invoice to mark it as converted
     const conversionDate = new Date().toLocaleDateString('fr-FR');
-    const conversionNote = `\n[✓ Convertie en facture officielle ${numero} le ${conversionDate}]`;
+    let conversionNote = `\n[✓ Convertie en facture officielle ${numero} le ${conversionDate}]`;
+    if (totalPaidAmount > 0) {
+      conversionNote += ` - Paiements transférés (${totalPaidAmount.toFixed(3)} ${internalInvoice.devise || 'TND'})`;
+    }
     await (Document as any).findByIdAndUpdate(
       internalInvoice._id,
       { 
