@@ -27,29 +27,61 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Fetch all internal and official invoices
-    const internalInvoices = await (Document as any)
-      .find({ tenantId, type: 'INT_FAC' })
-      .populate({
-        path: 'customerId',
-        select: 'raisonSociale nom prenom',
-        model: 'Customer'
-      })
-      .populate({
-        path: 'projetId',
-        select: 'name projectNumber',
-        model: 'Project'
-      })
-      .lean();
+    // Ensure models are registered
+    if (!mongoose.models.Document) {
+      void Document;
+    }
+    if (!mongoose.models.Customer) {
+      const { default: Customer } = await import('@/lib/models/Customer');
+      void Customer;
+    }
+    if (!mongoose.models.Project) {
+      const { default: Project } = await import('@/lib/models/Project');
+      void Project;
+    }
 
-    const officialInvoices = await (Document as any)
-      .find({ tenantId, type: 'FAC' })
-      .populate({
-        path: 'customerId',
-        select: 'raisonSociale nom prenom',
-        model: 'Customer'
-      })
-      .lean();
+    // Fetch all internal and official invoices
+    let internalInvoices;
+    try {
+      internalInvoices = await (Document as any)
+        .find({ tenantId, type: 'INT_FAC' })
+        .populate({
+          path: 'customerId',
+          select: 'raisonSociale nom prenom',
+          model: 'Customer'
+        })
+        .populate({
+          path: 'projetId',
+          select: 'name projectNumber',
+          model: 'Project'
+        })
+        .lean();
+    } catch (populateError: any) {
+      console.error('Error populating internal invoices:', populateError);
+      // Fallback: fetch without populate
+      internalInvoices = await (Document as any)
+        .find({ tenantId, type: 'INT_FAC' })
+        .lean();
+    }
+
+    // Fetch official invoices
+    let officialInvoices;
+    try {
+      officialInvoices = await (Document as any)
+        .find({ tenantId, type: 'FAC' })
+        .populate({
+          path: 'customerId',
+          select: 'raisonSociale nom prenom',
+          model: 'Customer'
+        })
+        .lean();
+    } catch (populateError: any) {
+      console.error('Error populating official invoices:', populateError);
+      // Fallback: fetch without populate
+      officialInvoices = await (Document as any)
+        .find({ tenantId, type: 'FAC' })
+        .lean();
+    }
 
     // Calculate remaining balance for each invoice
     // We'll calculate payments per invoice to ensure accuracy
