@@ -15,6 +15,7 @@ import {
   ExclamationTriangleIcon,
   ArrowTrendingUpIcon,
   ArrowTrendingDownIcon,
+  ArrowRightIcon,
 } from '@heroicons/react/24/outline';
 import { format } from 'date-fns';
 import Link from 'next/link';
@@ -58,12 +59,29 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [recentInvoices, setRecentInvoices] = useState<RecentInvoice[]>([]);
   const [recentPayments, setRecentPayments] = useState<RecentPayment[]>([]);
+  const [pendingSummary, setPendingSummary] = useState<{ totalCount: number; totalPendingAmount: number } | null>(null);
 
   useEffect(() => {
     if (tenantId) {
       fetchDashboardData();
+      fetchPendingSummary();
     }
   }, [tenantId]);
+
+  const fetchPendingSummary = async () => {
+    try {
+      const response = await fetch('/api/pending-invoices', {
+        headers: { 'X-Tenant-Id': tenantId || '' }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setPendingSummary(data.summary || null);
+      }
+    } catch (error) {
+      console.error('Error fetching pending summary:', error);
+    }
+  };
 
   const fetchDashboardData = async () => {
     try {
@@ -186,6 +204,39 @@ export default function DashboardPage() {
             Bienvenue, <span className="font-semibold">{session?.user?.name}</span> - {session?.user?.companyName}
           </p>
         </div>
+
+        {/* Pending Invoices Alert Banner */}
+        {pendingSummary && pendingSummary.totalCount > 0 && (
+          <div className="bg-gradient-to-r from-orange-50 to-amber-50 border-l-4 border-orange-500 rounded-lg p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <ExclamationTriangleIcon className="w-6 h-6 text-orange-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Vous avez {pendingSummary.totalCount} facture(s) en attente de paiement
+                  </h3>
+                  <p className="text-sm text-gray-700 mt-1">
+                    Montant total impayé: <span className="font-bold text-orange-600">
+                      {new Intl.NumberFormat('fr-FR', {
+                        style: 'currency',
+                        currency: 'TND',
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 3,
+                      }).format(pendingSummary.totalPendingAmount)}
+                    </span>
+                  </p>
+                </div>
+              </div>
+              <Link
+                href="/pending-invoices"
+                className="inline-flex items-center gap-2 bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors text-sm font-medium whitespace-nowrap"
+              >
+                Voir les factures en attente
+                <ArrowRightIcon className="w-4 h-4" />
+              </Link>
+            </div>
+          </div>
+        )}
 
         {loading ? (
           <div className="flex items-center justify-center py-12">

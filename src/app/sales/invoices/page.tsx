@@ -3,9 +3,10 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
-import { PlusIcon, DocumentTextIcon, MagnifyingGlassIcon, EyeIcon, PencilIcon, ArrowDownTrayIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, DocumentTextIcon, MagnifyingGlassIcon, EyeIcon, PencilIcon, ArrowDownTrayIcon, TrashIcon, ArrowRightIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { useTenantId } from '@/hooks/useTenantId';
 import toast from 'react-hot-toast';
+import Link from 'next/link';
 
 interface Invoice {
   _id: string;
@@ -93,6 +94,8 @@ export default function InvoicesPage() {
   const [invoiceNumberLoading, setInvoiceNumberLoading] = useState(false);
   const [productStocks, setProductStocks] = useState<{ [productId: string]: number }>({});
   const [isFromBL, setIsFromBL] = useState(false); // Track if invoice is created from BL
+  const [pendingSummary, setPendingSummary] = useState<{ totalCount: number; totalPendingAmount: number } | null>(null);
+  const [loadingPendingSummary, setLoadingPendingSummary] = useState(false);
   
   // Form state
   const [formData, setFormData] = useState(() => createDefaultFormData());
@@ -191,8 +194,28 @@ export default function InvoicesPage() {
   useEffect(() => {
     if (tenantId) {
       fetchInvoices(0);
+      fetchPendingSummary();
     }
   }, [tenantId, fetchInvoices]);
+
+  // Fetch pending invoices summary
+  const fetchPendingSummary = async () => {
+    try {
+      setLoadingPendingSummary(true);
+      const response = await fetch('/api/pending-invoices', {
+        headers: { 'X-Tenant-Id': tenantId || '' }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setPendingSummary(data.summary || null);
+      }
+    } catch (error) {
+      console.error('Error fetching pending summary:', error);
+    } finally {
+      setLoadingPendingSummary(false);
+    }
+  };
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -1085,6 +1108,8 @@ export default function InvoicesPage() {
   };
 
   // Save invoice
+  const [saving, setSaving] = useState(false);
+
   const handleCreateInvoice = async () => {
     if (!formData.customerId) {
       toast.error('Veuillez sélectionner un client');
@@ -1174,6 +1199,8 @@ export default function InvoicesPage() {
     } catch (err) {
       console.error('Error saving invoice:', err);
       toast.error('Erreur');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -1418,6 +1445,39 @@ export default function InvoicesPage() {
             </button>
           </div>
         </div>
+
+        {/* Pending Invoices Alert Banner */}
+        {pendingSummary && pendingSummary.totalCount > 0 && (
+          <div className="bg-gradient-to-r from-orange-50 to-amber-50 border-l-4 border-orange-500 rounded-lg p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <ExclamationTriangleIcon className="w-6 h-6 text-orange-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Vous avez {pendingSummary.totalCount} facture(s) en attente de paiement
+                  </h3>
+                  <p className="text-sm text-gray-700 mt-1">
+                    Montant total impayé: <span className="font-bold text-orange-600">
+                      {new Intl.NumberFormat('fr-FR', {
+                        style: 'currency',
+                        currency: 'TND',
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 3,
+                      }).format(pendingSummary.totalPendingAmount)}
+                    </span>
+                  </p>
+                </div>
+              </div>
+              <Link
+                href="/pending-invoices"
+                className="inline-flex items-center gap-2 bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors text-sm font-medium whitespace-nowrap"
+              >
+                Voir les factures en attente
+                <ArrowRightIcon className="w-4 h-4" />
+              </Link>
+            </div>
+          </div>
+        )}
 
         {findMissingInvoiceNumbers.length > 0 && (
           <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg space-y-2">
@@ -2228,7 +2288,7 @@ export default function InvoicesPage() {
                   />
                 </div>
               </div>
-              <div className="p-4 sm:p-6 border-t flex flex-col sm:flex-row justify-end gap-3">
+              <div className="p-4 sm:p-6 border-t flex flex-col sm:flex-row justify-end gap-3 relative">
                 <button 
                   onClick={() => setShowModal(false)}
                   className="w-full sm:w-auto px-4 py-2 border rounded-lg hover:bg-gray-50 text-sm sm:text-base"
@@ -2236,10 +2296,23 @@ export default function InvoicesPage() {
                   Annuler
                 </button>
                 <button 
-                  onClick={handleCreateInvoice}
-                  className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm sm:text-base"
+                  onClick={saving ? undefined : handleCreateInvoice}
+                  disabled={saving}
+                  className={`w-full sm:w-auto px-4 py-2 rounded-lg text-sm sm:text-base flex items-center justify-center gap-2 transition
+                    ${saving 
+                      ? 'bg-blue-500 text-white cursor-wait opacity-80' 
+                      : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
                 >
-                  {editingInvoiceId ? 'Modifier' : 'Créer'}
+                  {saving && (
+                    <span className="inline-flex h-4 w-4">
+                      <span className="animate-spin inline-flex h-full w-full rounded-full border-2 border-white border-t-transparent" />
+                    </span>
+                  )}
+                  <span>
+                    {saving
+                      ? (editingInvoiceId ? 'Enregistrement...' : 'Création en cours...')
+                      : (editingInvoiceId ? 'Modifier' : 'Créer')}
+                  </span>
                 </button>
               </div>
             </div>
