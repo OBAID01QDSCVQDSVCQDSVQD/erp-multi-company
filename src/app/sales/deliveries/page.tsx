@@ -74,6 +74,7 @@ export default function DeliveriesPage() {
   const [selectedProductIndices, setSelectedProductIndices] = useState<{ [key: number]: number }>({});
   const [productDropdownPositions, setProductDropdownPositions] = useState<{ [key: number]: { top: number; left: number; width: number; isMobile?: boolean } }>({});
   const [productStocks, setProductStocks] = useState<{ [productId: string]: number }>({});
+  const [saving, setSaving] = useState(false);
   
   // Calculate default delivery date (today)
   const getDefaultDeliveryDate = () => {
@@ -625,6 +626,7 @@ export default function DeliveriesPage() {
 
     try {
       if (!tenantId) return;
+      setSaving(true);
       
       const lignesData = lines
         .filter(line => line.designation && line.designation.trim() !== '')
@@ -705,6 +707,8 @@ export default function DeliveriesPage() {
     } catch (err) {
       console.error('Error saving delivery:', err);
       toast.error('Erreur');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -1550,7 +1554,7 @@ export default function DeliveriesPage() {
                   />
                 </div>
               </div>
-              <div className="p-4 sm:p-6 border-t flex flex-col sm:flex-row justify-end gap-3">
+              <div className="p-4 sm:p-6 border-t flex flex-col sm:flex-row justify-end gap-3 relative">
                 <button 
                   onClick={() => setShowModal(false)}
                   className="w-full sm:w-auto px-4 py-2 border rounded-lg hover:bg-gray-50 text-sm sm:text-base"
@@ -1558,10 +1562,23 @@ export default function DeliveriesPage() {
                   Annuler
                 </button>
                 <button 
-                  onClick={handleCreateDelivery}
-                  className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm sm:text-base"
+                  onClick={saving ? undefined : handleCreateDelivery}
+                  disabled={saving}
+                  className={`w-full sm:w-auto px-4 py-2 rounded-lg text-sm sm:text-base flex items-center justify-center gap-2 transition
+                    ${saving 
+                      ? 'bg-blue-500 text-white cursor-wait opacity-80' 
+                      : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
                 >
-                  {editingDeliveryId ? 'Modifier' : 'Créer'}
+                  {saving && (
+                    <span className="inline-flex h-4 w-4">
+                      <span className="animate-spin inline-flex h-full w-full rounded-full border-2 border-white border-t-transparent" />
+                    </span>
+                  )}
+                  <span>
+                    {saving
+                      ? (editingDeliveryId ? 'Enregistrement...' : 'Création en cours...')
+                      : (editingDeliveryId ? 'Modifier' : 'Créer')}
+                  </span>
                 </button>
               </div>
             </div>
