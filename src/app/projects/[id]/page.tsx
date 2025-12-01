@@ -1262,7 +1262,8 @@ function ProductsTab({ projectId, currency, tenantId }: { projectId: string; cur
                   <div className="space-y-1">
                     {item.movements.map((movement: any, idx: number) => (
                       <div key={idx} className="text-xs">
-                        {movement.documentType} {movement.documentNumero} • {formatDate(movement.date)}
+                        {/* Afficher toujours le numéro du BL / document, jamais l'ID */}
+                        {movement.documentType} {movement.documentNumero || movement.documentNumber} • {formatDate(movement.date)}
                       </div>
                     ))}
                   </div>

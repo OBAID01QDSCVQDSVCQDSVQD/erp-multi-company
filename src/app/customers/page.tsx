@@ -85,6 +85,18 @@ export default function CustomersPage() {
     actif: true
   });
 
+  const handleTypeChange = (newType: 'societe' | 'particulier') => {
+    setForm((prev) => ({
+      ...prev,
+      type: newType,
+      raisonSociale: newType === 'societe' ? prev.raisonSociale : '',
+      nom: newType === 'particulier' ? prev.nom : '',
+      prenom: newType === 'particulier' ? prev.prenom : '',
+      matriculeFiscale: newType === 'particulier' ? '' : prev.matriculeFiscale,
+      tvaCode: newType === 'particulier' ? '' : prev.tvaCode,
+    }));
+  };
+
   useEffect(() => {
     fetchCustomers();
     fetchTaxRates();
@@ -184,8 +196,10 @@ export default function CustomersPage() {
         raisonSociale: form.type === 'societe' ? form.raisonSociale : undefined,
         nom: form.type === 'particulier' ? form.nom : undefined,
         prenom: form.type === 'particulier' ? form.prenom : undefined,
-        matriculeFiscale: form.matriculeFiscale || undefined,
-        tvaCode: form.tvaCode || undefined,
+        matriculeFiscale:
+          form.type === 'particulier' ? undefined : form.matriculeFiscale || undefined,
+        tvaCode:
+          form.type === 'particulier' ? undefined : form.tvaCode || undefined,
         email: form.email || undefined,
         telephone: form.telephone || undefined,
         mobile: form.mobile || undefined,
@@ -576,11 +590,23 @@ export default function CustomersPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Type *</label>
                     <div className="flex items-center space-x-4">
                       <label className="inline-flex items-center">
-                        <input type="radio" checked={form.type === 'societe'} onChange={() => setForm({...form, type: 'societe'})} disabled={!!viewingId} className="mr-2" />
+                        <input
+                          type="radio"
+                          checked={form.type === 'societe'}
+                          onChange={() => handleTypeChange('societe')}
+                          disabled={!!viewingId}
+                          className="mr-2"
+                        />
                         Société
                       </label>
                       <label className="inline-flex items-center">
-                        <input type="radio" checked={form.type === 'particulier'} onChange={() => setForm({...form, type: 'particulier'})} disabled={!!viewingId} className="mr-2" />
+                        <input
+                          type="radio"
+                          checked={form.type === 'particulier'}
+                          onChange={() => handleTypeChange('particulier')}
+                          disabled={!!viewingId}
+                          className="mr-2"
+                        />
                         Particulier
                       </label>
                     </div>
@@ -621,21 +647,29 @@ export default function CustomersPage() {
                   )}
 
                   <div className="grid grid-cols-2 gap-4">
-                    <div>
+                    <div className={form.type === 'particulier' ? 'opacity-50' : ''}>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Matricule fiscale</label>
                       <input
-                        value={form.matriculeFiscale}
-                        onChange={(e) => setForm({...form, matriculeFiscale: e.target.value.toUpperCase()})}
-                        placeholder="Ex: 1234567A123"
+                        value={form.type === 'particulier' ? '' : form.matriculeFiscale}
+                        onChange={(e) => {
+                          if (form.type === 'particulier') return;
+                          setForm({ ...form, matriculeFiscale: e.target.value.toUpperCase() });
+                        }}
+                        placeholder={form.type === 'particulier' ? 'Non requis pour les particuliers' : 'Ex: 1234567A123'}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md font-mono"
+                        disabled={form.type === 'particulier'}
                       />
                     </div>
-                    <div>
+                    <div className={form.type === 'particulier' ? 'opacity-50' : ''}>
                       <label className="block text-sm font-medium text-gray-700 mb-1">TVA Code</label>
                       <select
-                        value={form.tvaCode}
-                        onChange={(e) => setForm({...form, tvaCode: e.target.value})}
+                        value={form.type === 'particulier' ? '' : form.tvaCode}
+                        onChange={(e) => {
+                          if (form.type === 'particulier') return;
+                          setForm({ ...form, tvaCode: e.target.value });
+                        }}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                        disabled={form.type === 'particulier'}
                       >
                         <option value="">—</option>
                         {taxRates.map(r => (

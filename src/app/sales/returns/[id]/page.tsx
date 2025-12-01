@@ -1,0 +1,287 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useRouter, useParams } from 'next/navigation';
+import DashboardLayout from '@/components/Layout/DashboardLayout';
+import { DocumentTextIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
+import { useTenantId } from '@/hooks/useTenantId';
+import toast from 'react-hot-toast';
+import Link from 'next/link';
+
+interface ReturnDocument {
+  _id: string;
+  numero: string;
+  dateDoc: string;
+  customerId?: {
+    _id: string;
+    raisonSociale?: string;
+    nom?: string;
+    prenom?: string;
+  } | string;
+  blId?: string;
+  blNumero?: string;
+  totalBaseHT?: number;
+  totalTVA?: number;
+  totalTTC: number;
+  devise?: string;
+  notes?: string;
+  lignes?: Array<{
+    designation: string;
+    quantite: number;
+    prixUnitaireHT: number;
+    remisePct?: number;
+    tvaPct?: number;
+    uomCode?: string;
+  }>;
+}
+
+export default function ViewReturnPage() {
+  const router = useRouter();
+  const params = useParams();
+  const { tenantId } = useTenantId();
+  const [retour, setRetour] = useState<ReturnDocument | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (tenantId && params.id) {
+      fetchReturn();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tenantId, params.id]);
+
+  const fetchReturn = async () => {
+    try {
+      if (!tenantId) return;
+      setLoading(true);
+      const response = await fetch(`/api/sales/returns/${params.id}`, {
+        headers: { 'X-Tenant-Id': tenantId },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setRetour(data);
+      } else {
+        const error = await response.json();
+        toast.error(
+          error.error || 'Erreur lors du chargement du bon de retour'
+        );
+        router.push('/sales/returns');
+      }
+    } catch (err) {
+      console.error('Error fetching return:', err);
+      toast.error('Erreur de connexion');
+      router.push('/sales/returns');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getCustomerName = (customer: ReturnDocument['customerId']): string => {
+    if (!customer) return 'N/A';
+    if (typeof customer === 'object') {
+      return (
+        customer.raisonSociale ||
+        `${customer.nom || ''} ${customer.prenom || ''}`.trim() ||
+        'N/A'
+      );
+    }
+    return 'N/A';
+  };
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="p-6">
+          <div className="text-center py-12">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <p className="mt-4 text-gray-600">Chargement...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (!retour) {
+    return (
+      <DashboardLayout>
+        <div className="p-6">
+          <div className="text-center py-12">
+            <p className="text-gray-600">Bon de retour introuvable</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  return (
+    <DashboardLayout>
+      <div className="p-6 space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => router.push('/sales/returns')}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <ArrowLeftIcon className="w-5 h-5" />
+            </button>
+            <div>
+              <h1 className="text-2xl font-bold flex items-center gap-2">
+                <DocumentTextIcon className="w-8 h-8" /> Bon de retour{' '}
+                {retour.numero}
+              </h1>
+              <p className="text-sm text-gray-600 mt-1">
+                Créé le{' '}
+                {new Date(retour.dateDoc).toLocaleDateString('fr-FR', {
+                  day: '2-digit',
+                  month: '2-digit',
+                  year: 'numeric',
+                })}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Main card */}
+        <div className="bg-white rounded-xl shadow-sm border p-6 space-y-6">
+          {/* Top info */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="text-sm text-gray-600">Numéro de retour</label>
+              <p className="text-lg font-bold text-blue-600">{retour.numero}</p>
+            </div>
+
+            <div>
+              <label className="text-sm text-gray-600">Client</label>
+              <p className="text-lg font-medium">
+                {getCustomerName(retour.customerId)}
+              </p>
+            </div>
+
+            <div>
+              <label className="text-sm text-gray-600">BL source</label>
+              {retour.blId && retour.blNumero ? (
+                <Link
+                  href={`/sales/deliveries/${retour.blId}`}
+                  className="text-blue-600 hover:text-blue-800 font-medium"
+                >
+                  {retour.blNumero}
+                </Link>
+              ) : (
+                <p className="text-lg font-medium">N/A</p>
+              )}
+            </div>
+
+            {retour.notes && (
+              <div className="md:col-span-1">
+                <label className="text-sm text-gray-600">Notes</label>
+                <p className="text-sm text-gray-800 whitespace-pre-wrap bg-gray-50 border border-gray-200 rounded-lg p-3 mt-1">
+                  {retour.notes}
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Lines */}
+          {retour.lignes && retour.lignes.length > 0 && (
+            <div className="mt-4">
+              <h2 className="text-lg font-semibold text-gray-900 mb-3">
+                Lignes de retour
+              </h2>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-100 border-b-2 border-gray-300">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">
+                        Désignation
+                      </th>
+                      <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">
+                        Qté
+                      </th>
+                      <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">
+                        Prix HT
+                      </th>
+                      <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">
+                        Remise %
+                      </th>
+                      <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">
+                        TVA
+                      </th>
+                      <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">
+                        Total HT
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {retour.lignes.map((line, index) => {
+                      const remise = line.remisePct || 0;
+                      const prixHT =
+                        (line.prixUnitaireHT || 0) * (1 - remise / 100);
+                      const montantHT = prixHT * (line.quantite || 0);
+                      return (
+                        <tr
+                          key={index}
+                          className={
+                            index % 2 === 0 ? 'bg-blue-50' : 'bg-pink-50'
+                          }
+                        >
+                          <td className="px-4 py-3 text-sm">
+                            {line.designation}
+                          </td>
+                          <td className="px-4 py-3 text-sm">
+                            {line.quantite}{' '}
+                            {line.uomCode ? ` ${line.uomCode}` : ''}
+                          </td>
+                          <td className="px-4 py-3 text-sm">
+                            {line.prixUnitaireHT?.toFixed(3)}{' '}
+                            {retour.devise || 'TND'}
+                          </td>
+                          <td className="px-4 py-3 text-sm">
+                            {remise ? `${remise}%` : '0%'}
+                          </td>
+                          <td className="px-4 py-3 text-sm">
+                            {line.tvaPct || 0}%
+                          </td>
+                          <td className="px-4 py-3 text-sm font-medium">
+                            {montantHT.toFixed(3)} {retour.devise || 'TND'}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Totals */}
+          <div className="mt-6 flex justify-end">
+            <div className="w-80 bg-blue-50 border border-blue-100 rounded-lg p-4 space-y-3">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-700">Total HT</span>
+                <span className="font-medium text-gray-900">
+                  {(retour.totalBaseHT || 0).toFixed(3)}{' '}
+                  {retour.devise || 'TND'}
+                </span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-700">Total TVA</span>
+                <span className="font-medium text-gray-900">
+                  {(retour.totalTVA || 0).toFixed(3)} {retour.devise || 'TND'}
+                </span>
+              </div>
+              <div className="border-t border-blue-200 pt-3 flex justify-between text-lg font-bold">
+                <span className="text-gray-900">Total TTC</span>
+                <span className="text-blue-600">
+                  {(retour.totalTTC || 0).toFixed(3)}{' '}
+                  {retour.devise || 'TND'}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </DashboardLayout>
+  );
+}
+
+

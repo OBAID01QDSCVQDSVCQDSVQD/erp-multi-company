@@ -11,7 +11,13 @@ interface Delivery {
   _id: string;
   numero: string;
   dateDoc: string;
-  customerId?: string;
+  // Peut être soit un ObjectId (string) soit un objet client déjà peuplé
+  customerId?: string | {
+    _id?: string;
+    raisonSociale?: string;
+    nom?: string;
+    prenom?: string;
+  };
   customerName?: string;
   totalBaseHT?: number;
   totalRemise?: number;
@@ -538,30 +544,26 @@ export default function DeliveriesPage() {
       if (response.ok) {
         const data = await response.json();
         const deliveries = data.items || [];
-        
-        // Fetch customer names for each delivery
-        const deliveriesWithCustomers = await Promise.all(
-          deliveries.map(async (delivery: Delivery) => {
-            if (delivery.customerId) {
-              try {
-                const customerResponse = await fetch(`/api/customers/${delivery.customerId}`, {
-                  headers: { 'X-Tenant-Id': tenantId }
-                });
-                if (customerResponse.ok) {
-                  const customer = await customerResponse.json();
-                  return {
-                    ...delivery,
-                    customerName: customer.raisonSociale || `${customer.nom || ''} ${customer.prenom || ''}`.trim()
-                  };
-                }
-              } catch (err) {
-                console.error('Error fetching customer:', err);
-              }
+
+        // Construire le nom client à partir des données déjà peuplées si possible
+        const deliveriesWithCustomers: Delivery[] = deliveries.map((delivery: any) => {
+          let customerName = '';
+
+          if (delivery.customerId) {
+            if (typeof delivery.customerId === 'object' && delivery.customerId !== null) {
+              const customer = delivery.customerId as any;
+              customerName =
+                customer.raisonSociale ||
+                `${customer.nom || ''} ${customer.prenom || ''}`.trim();
             }
-            return delivery;
-          })
-        );
-        
+          }
+
+          return {
+            ...delivery,
+            customerName: customerName || delivery.customerName || '',
+          };
+        });
+
         setDeliveries(deliveriesWithCustomers);
       }
     } catch (err) {

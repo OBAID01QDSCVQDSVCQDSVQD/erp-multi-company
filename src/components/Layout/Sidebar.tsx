@@ -44,6 +44,7 @@ const navigation = [
     { name: 'Devis', href: '/sales/quotes', icon: DocumentTextIcon, permission: 'quotes' },
     { name: 'Commandes clients', href: '/sales/orders', icon: ShoppingCartIcon, permission: 'sales_orders' },
     { name: 'Bons de livraison', href: '/sales/deliveries', icon: TruckIcon, permission: 'deliveries' },
+    { name: 'Retours', href: '/sales/returns', icon: ArrowUturnLeftIcon, permission: 'deliveries' },
     { name: 'Factures clients', href: '/sales/invoices', icon: DocumentTextIcon, permission: 'sales_invoices' },
     { name: 'Avoirs clients', href: '/sales/credit-notes', icon: ArrowUturnLeftIcon, permission: 'sales_invoices' },
     { name: 'Paiements clients', href: '/sales/payments', icon: BanknotesIcon, permission: 'customer_payments' },

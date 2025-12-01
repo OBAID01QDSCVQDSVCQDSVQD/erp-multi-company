@@ -160,8 +160,9 @@ const CustomerSchema = new Schema<ICustomer>({
 }, { timestamps: true });
 
 // Indexes
-CustomerSchema.index({ tenantId: 1, matriculeFiscale: 1 }, { unique: true, sparse: true });
-CustomerSchema.index({ tenantId: 1, email: 1 }, { unique: true, sparse: true });
+// On autorise maintenant les doublons sur matriculeFiscale et email (plus de contrainte unique)
+// On garde un index simple (non unique) sur (tenantId, email) uniquement pour les performances de recherche.
+CustomerSchema.index({ tenantId: 1, email: 1 }, { sparse: true });
 CustomerSchema.index({ tenantId: 1, type: 1, actif: 1 });
 CustomerSchema.index({ tenantId: 1, commercialId: 1 });
 CustomerSchema.index({ 'adresseFacturation.ville': 'text', 'adresseLivraison.ville': 'text' });

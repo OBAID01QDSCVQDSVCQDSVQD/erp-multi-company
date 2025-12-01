@@ -60,6 +60,28 @@ export async function GET(request: NextRequest) {
         needsUpdate = true;
       }
       
+      // Ensure retour exists in existing settings
+      if (!settings.numerotation || !settings.numerotation.retour) {
+        if (!settings.numerotation) {
+          settings.numerotation = {} as any;
+        }
+        settings.numerotation.retour = 'RET-{{YYYY}}-{{SEQ:4}}';
+        (settings as any).markModified('numerotation');
+        needsUpdate = true;
+      }
+      
+      // Ensure retour startingNumber exists
+      if (!settings.numerotation.startingNumbers) {
+        settings.numerotation.startingNumbers = {} as any;
+        (settings as any).markModified('numerotation');
+        needsUpdate = true;
+      }
+      if (settings.numerotation.startingNumbers.retour === undefined) {
+        settings.numerotation.startingNumbers.retour = 0;
+        (settings as any).markModified('numerotation');
+        needsUpdate = true;
+      }
+      
       if (needsUpdate) {
         await (settings as any).save();
       }
@@ -161,6 +183,15 @@ async function createDefaultSettings(tenantId: string) {
       facture: 'FAC-{{YYYY}}-{{SEQ:5}}',
       avoir: 'AVR-{{YYYY}}-{{SEQ:5}}',
       int_fac: '{{SEQ:4}}',
+      retour: 'RET-{{YYYY}}-{{SEQ:4}}',
+      startingNumbers: {
+        devis: 0,
+        bl: 0,
+        fac: 0,
+        avoir: 0,
+        int_fac: 0,
+        retour: 0,
+      },
     },
     ventes: {
       tvaParDefautPct: 19,

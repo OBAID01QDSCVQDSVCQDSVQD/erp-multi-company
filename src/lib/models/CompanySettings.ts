@@ -51,6 +51,7 @@ export interface INumerotation {
   avoirfo: string;
   pafo: string;
   int_fac?: string;
+  retour?: string;
   startingNumbers?: {
     devis?: number;
     bc?: number;
@@ -64,6 +65,7 @@ export interface INumerotation {
     pafo?: number;
     pac?: number;
     int_fac?: number;
+    retour?: number;
   };
 }
 
@@ -236,6 +238,7 @@ const NumerotationSchema = new Schema({
   avoirfo: { type: String, required: true, default: 'AVOIRFO-{{YYYY}}-{{SEQ:5}}' },
   pafo: { type: String, required: true, default: 'PAFO-{{YYYY}}-{{SEQ:5}}' },
   int_fac: { type: String, default: '{{SEQ:4}}' },
+  retour: { type: String, default: 'RET-{{YYYY}}-{{SEQ:4}}' },
   startingNumbers: {
     devis: { type: Number, default: 0 },
     bc: { type: Number, default: 0 },
@@ -249,6 +252,7 @@ const NumerotationSchema = new Schema({
     pafo: { type: Number, default: 0 },
     pac: { type: Number, default: 0 },
     int_fac: { type: Number, default: 0 },
+    retour: { type: Number, default: 0 },
   },
 }, { _id: false });
 

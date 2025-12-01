@@ -34,21 +34,32 @@ export async function GET(request: NextRequest) {
       .limit(limit)
       .lean();
 
-    // Populate customerId manually if it's a string (ObjectId as string)
+    // Populate customerId manuellement (qu'il soit string ou ObjectId)
     const Customer = (await import('@/lib/models/Customer')).default;
-    const customerIds = [...new Set(quotes.map((q: any) => q.customerId).filter((id: any) => id && typeof id === 'string'))];
+    const customerIds = [
+      ...new Set(
+        quotes
+          .map((q: any) => q.customerId)
+          .filter((id: any) => !!id)
+          .map((id: any) => id.toString())
+      ),
+    ];
     
     if (customerIds.length > 0) {
-      const customers = await (Customer as any).find({
-        _id: { $in: customerIds },
-        tenantId,
-      }).select('nom prenom raisonSociale').lean();
+      const customers = await (Customer as any)
+        .find({
+          _id: { $in: customerIds },
+          tenantId,
+        })
+        .select('nom prenom raisonSociale')
+        .lean();
       
       const customerMap = new Map(customers.map((c: any) => [c._id.toString(), c]));
       
       for (const quote of quotes) {
-        if (quote.customerId && typeof quote.customerId === 'string') {
-          const customer = customerMap.get(quote.customerId);
+        if (quote.customerId) {
+          const key = quote.customerId.toString();
+          const customer = customerMap.get(key);
           if (customer) {
             quote.customerId = customer;
           }

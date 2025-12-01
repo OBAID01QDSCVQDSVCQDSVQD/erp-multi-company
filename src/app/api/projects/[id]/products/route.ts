@@ -59,11 +59,36 @@ export async function GET(
       })
       .sort('-createdAt')
       .lean();
-    
-    // If no stock movements but BLs are linked, get products directly from BLs
+
+    // Préparer une map (documentId -> numero) pour afficher le numéro du BL / document au lieu de l'ID
     const { default: Document } = await import('@/lib/models/Document');
     const { default: Product } = await import('@/lib/models/Product');
-    
+
+    const documentIds = [
+      ...new Set(
+        stockMovements
+          .map((m: any) => m.sourceId)
+          .filter((id: any) => !!id)
+          .map((id: any) => id.toString())
+      ),
+    ];
+
+    const documents =
+      documentIds.length > 0
+        ? await (Document as any)
+            .find({
+              _id: { $in: documentIds },
+              tenantId,
+            })
+            .select('numero type')
+            .lean()
+        : [];
+
+    const documentNumeroMap = new Map(
+      documents.map((d: any) => [d._id.toString(), d.numero])
+    );
+
+    // If no stock movements but BLs are linked, get products directly from BLs
     let productsFromBLs: any[] = [];
     if (blIds.length > 0) {
       const bls = await (Document as any).find({
@@ -156,7 +181,10 @@ export async function GET(
           quantity: quantity,
           unitCostHT: costHT,
           unitCostTTC: costTTC,
-          documentNumero: movement.sourceId,
+          // Utiliser toujours le numéro du document si disponible, sinon fallback sur l'ID
+          documentNumero:
+            documentNumeroMap.get(movement.sourceId?.toString?.() || '') ||
+            movement.sourceId,
           documentType: movement.source,
         });
       }
@@ -202,9 +230,15 @@ export async function GET(
       const quantity = toNumber(blProduct.quantity ?? blProduct.quantite ?? blProduct.qte ?? 0);
       
       // Only add if not already counted from movements
-      const alreadyCounted = item?.movements.some((m: any) => 
-        m.documentNumero === blProduct.blId && m.documentType === 'BL'
-      );
+      const alreadyCounted = item?.movements.some((m: any) => {
+        if (m.documentType !== 'BL') return false;
+        const movementDocId = m._id?.toString?.() || '';
+        const movementNumero = m.documentNumero?.toString?.() || '';
+        return (
+          movementDocId === blProduct.blId?.toString?.() ||
+          movementNumero === blProduct.blNumero?.toString?.()
+        );
+      });
       
       if (!alreadyCounted && item) {
         item.quantity += quantity;

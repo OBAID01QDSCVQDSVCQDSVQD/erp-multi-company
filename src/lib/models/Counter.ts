@@ -17,7 +17,7 @@ const CounterSchema = new Schema({
   seqName: {
     type: String,
     required: true,
-    enum: ['devis', 'bc', 'bl', 'fac', 'avoir', 'ca', 'br', 'facfo', 'avoirfo', 'expense', 'int_fac'],
+    enum: ['devis', 'bc', 'bl', 'fac', 'avoir', 'ca', 'br', 'facfo', 'avoirfo', 'expense', 'int_fac', 'retour'],
   },
   value: {
     type: Number,

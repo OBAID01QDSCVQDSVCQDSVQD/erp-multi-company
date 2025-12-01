@@ -23,6 +23,7 @@ interface Delivery {
   devise?: string;
   lieuLivraison?: string;
   moyenTransport?: string;
+  notes?: string;
   lignes?: any[];
 }
 
@@ -246,7 +247,7 @@ export default function ViewDeliveryPage() {
         )}
 
           {/* Delivery Details */}
-        <div className="bg-white rounded-xl shadow-sm border p-6">
+        <div className="bg-white rounded-xl shadow-sm border p-6 space-y-6">
           <div className="grid grid-cols-2 gap-6 mb-6">
             <div>
               <label className="text-sm text-gray-600">Numéro de bon de livraison</label>
@@ -313,6 +314,18 @@ export default function ViewDeliveryPage() {
               )}
             </div>
           </div>
+
+          {/* Notes / Retours info */}
+          {delivery.notes && (
+            <div className="border-t border-gray-200 pt-4 mt-2">
+              <label className="block text-sm font-semibold text-gray-700 mb-1">
+                Notes / Informations
+              </label>
+              <div className="text-sm text-gray-800 whitespace-pre-wrap bg-gray-50 border border-gray-200 rounded-lg p-3">
+                {delivery.notes}
+              </div>
+            </div>
+          )}
 
           {/* Lines Table */}
           {delivery.lignes && delivery.lignes.length > 0 && (

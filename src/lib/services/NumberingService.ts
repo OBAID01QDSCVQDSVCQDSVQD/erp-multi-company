@@ -2,7 +2,7 @@ import connectDB from '@/lib/mongodb';
 import CompanySettings from '@/lib/models/CompanySettings';
 import Counter from '@/lib/models/Counter';
 
-export type SequenceType = 'devis' | 'bc' | 'bl' | 'fac' | 'avoir' | 'ca' | 'br' | 'facfo' | 'avoirfo' | 'pafo' | 'pac' | 'int_fac';
+export type SequenceType = 'devis' | 'bc' | 'bl' | 'fac' | 'avoir' | 'ca' | 'br' | 'facfo' | 'avoirfo' | 'pafo' | 'pac' | 'int_fac' | 'retour';
 
 export class NumberingService {
   /**
@@ -11,14 +11,14 @@ export class NumberingService {
   static async next(tenantId: string, seqName: SequenceType): Promise<string> {
     await connectDB();
 
-    // Récupérer les paramètres de numérotation du tenant
+    // Récupérer les paramètres de numérotation du tenant (without lean to allow updates)
     const settings = await (CompanySettings as any).findOne({ tenantId });
     if (!settings) {
       throw new Error(`Paramètres non trouvés pour le tenant ${tenantId}`);
     }
 
     // Récupérer le template de numérotation
-    let template = settings.numerotation[seqName];
+    let template = settings.numerotation?.[seqName];
     
     // Fallback: if ca not found, use po template
     if (!template && seqName === 'ca' && settings.numerotation.po) {
@@ -38,6 +38,23 @@ export class NumberingService {
     // Fallback: if int_fac not found, use default template (just number, no prefix)
     if (!template && seqName === 'int_fac') {
       template = '{{SEQ:4}}';
+    }
+    
+    // Fallback: if retour not found, use default template
+    if (!template && seqName === 'retour') {
+      template = 'RET-{{YYYY}}-{{SEQ:4}}';
+      // Also update settings to persist the template
+      try {
+        if (!settings.numerotation) {
+          settings.numerotation = {};
+        }
+        settings.numerotation.retour = template;
+        (settings as any).markModified('numerotation');
+        await (settings as any).save();
+      } catch (err: any) {
+        console.warn('Failed to save retour template to settings:', err);
+        // Continue anyway with the fallback template
+      }
     }
     
     if (!template) {
@@ -172,7 +189,7 @@ export class NumberingService {
   static async resetAll(tenantId: string): Promise<void> {
     await connectDB();
     
-    const sequenceTypes: SequenceType[] = ['devis', 'bc', 'bl', 'fac', 'avoir', 'ca', 'br', 'facfo', 'avoirfo', 'pafo', 'pac', 'int_fac'];
+    const sequenceTypes: SequenceType[] = ['devis', 'bc', 'bl', 'fac', 'avoir', 'ca', 'br', 'facfo', 'avoirfo', 'pafo', 'pac', 'int_fac', 'retour'];
     
     for (const seqName of sequenceTypes) {
       await (Counter as any).findOneAndUpdate(

@@ -44,9 +44,20 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
     const body = await request.json();
 
+    if (body.type === 'particulier') {
+      delete body.raisonSociale;
+      delete body.matriculeFiscale;
+      delete body.tvaCode;
+    } else if (body.type === 'societe') {
+      delete body.nom;
+      delete body.prenom;
+    }
+
     // Normaliser matricule fiscale
     if (body.matriculeFiscale) {
       body.matriculeFiscale = body.matriculeFiscale.toUpperCase().replace(/\s/g, '');
+    } else {
+      delete body.matriculeFiscale;
     }
 
     // Normaliser email

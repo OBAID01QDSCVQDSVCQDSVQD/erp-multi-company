@@ -21,7 +21,7 @@ export interface IDocument extends Document {
   tenantId: string;
   
   // Basic info
-  type: 'DEVIS' | 'BC' | 'BL' | 'FAC' | 'AVOIR' | 'PO' | 'BR' | 'FACFO' | 'AVOIRFO' | 'INT_FAC';
+  type: 'DEVIS' | 'BC' | 'BL' | 'FAC' | 'AVOIR' | 'PO' | 'BR' | 'FACFO' | 'AVOIRFO' | 'INT_FAC' | 'RETOUR';
   numero: string;
   dateDoc: Date;
   statut?: 'BROUILLON' | 'VALIDEE' | 'PARTIELLEMENT_PAYEE' | 'PAYEE' | 'ANNULEE';
@@ -32,6 +32,9 @@ export interface IDocument extends Document {
   
   // Project reference
   projetId?: mongoose.Types.ObjectId;
+  
+  // BL reference (for RETOUR type)
+  blId?: mongoose.Types.ObjectId;
   
   // References
   referenceExterne?: string;
@@ -99,7 +102,7 @@ const DocumentLineSchema = new Schema({
 const DocumentSchema = new (Schema as any)({
   tenantId: { type: String, required: true, index: true },
   
-  type: { type: String, enum: ['DEVIS', 'BC', 'BL', 'FAC', 'AVOIR', 'PO', 'BR', 'FACFO', 'AVOIRFO', 'INT_FAC'], required: true },
+  type: { type: String, enum: ['DEVIS', 'BC', 'BL', 'FAC', 'AVOIR', 'PO', 'BR', 'FACFO', 'AVOIRFO', 'INT_FAC', 'RETOUR'], required: true },
   numero: { type: String, required: true },
   dateDoc: { type: Date, required: true, default: Date.now },
   statut: { type: String, enum: ['BROUILLON', 'VALIDEE', 'PARTIELLEMENT_PAYEE', 'PAYEE', 'ANNULEE'], default: 'BROUILLON' },
@@ -156,6 +159,11 @@ const DocumentSchema = new (Schema as any)({
     type: Schema.Types.ObjectId, 
     ref: 'Project',
     index: true 
+  },
+  blId: { 
+    type: Schema.Types.ObjectId, 
+    ref: 'Document',
+    index: true 
   }
 }, { timestamps: true });
 
@@ -165,6 +173,7 @@ DocumentSchema.index({ tenantId: 1, type: 1, numero: 1 }, { unique: true });
 DocumentSchema.index({ tenantId: 1, customerId: 1 });
 DocumentSchema.index({ tenantId: 1, supplierId: 1 });
 DocumentSchema.index({ tenantId: 1, projetId: 1 });
+DocumentSchema.index({ tenantId: 1, blId: 1 });
 DocumentSchema.index({ 'lignes.productId': 1 });
 
 // Clear cache

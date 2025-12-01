@@ -92,36 +92,57 @@ export async function GET(request: NextRequest) {
 
 // POST /api/customers - Création d'un client
 export async function POST(request: NextRequest) {
+  let normalizedBody: any = null;
+  let tenantId: string | null = null;
+
   try {
     await connectMongo();
     
-    const tenantId = request.headers.get('X-Tenant-Id');
+    tenantId = request.headers.get('X-Tenant-Id');
     if (!tenantId) {
       return NextResponse.json({ error: 'Tenant ID manquant' }, { status: 401 });
     }
 
-    const body = await request.json();
+    const rawBody = await request.json();
+    normalizedBody = { ...rawBody };
 
     // Validation
-    if (body.type === 'societe' && !body.raisonSociale) {
+    if (normalizedBody.type === 'societe' && !normalizedBody.raisonSociale) {
       return NextResponse.json({ error: 'Raison sociale requise pour une société' }, { status: 400 });
     }
-    if (body.type === 'particulier' && !body.nom) {
+    if (normalizedBody.type === 'particulier' && !normalizedBody.nom) {
       return NextResponse.json({ error: 'Nom requis pour un particulier' }, { status: 400 });
     }
 
+    // Normaliser le contenu selon le type
+    if (normalizedBody.type === 'particulier') {
+      delete normalizedBody.raisonSociale;
+      delete normalizedBody.matriculeFiscale;
+      delete normalizedBody.tvaCode;
+    } else if (normalizedBody.type === 'societe') {
+      delete normalizedBody.nom;
+      delete normalizedBody.prenom;
+    }
+
     // Normaliser matricule fiscale
-    if (body.matriculeFiscale) {
-      body.matriculeFiscale = body.matriculeFiscale.toUpperCase().replace(/\s/g, '');
+    if (normalizedBody.matriculeFiscale) {
+      normalizedBody.matriculeFiscale = normalizedBody.matriculeFiscale.toUpperCase().replace(/\s/g, '');
+    } else {
+      delete normalizedBody.matriculeFiscale;
+    }
+    if (!normalizedBody.tvaCode) {
+      delete normalizedBody.tvaCode;
     }
 
     // Normaliser email
-    if (body.email) {
-      body.email = body.email.toLowerCase().trim();
+    if (normalizedBody.email) {
+      normalizedBody.email = normalizedBody.email.toLowerCase().trim();
+    } else {
+      delete normalizedBody.email;
     }
 
     const customer = new Customer({
-      ...body,
+      ...normalizedBody,
       tenantId,
       stats: { caCumule: 0, soldeDu: 0, nbFactures: 0 }
     });
@@ -133,7 +154,53 @@ export async function POST(request: NextRequest) {
     console.error('Erreur POST /customers:', error);
     
     if (error.code === 11000) {
-      const field = Object.keys(error.keyPattern || {})[1];
+      const keyPattern = error.keyPattern || {};
+      const keyValue = error.keyValue || {};
+
+      // Ancien index unique (tenantId, matriculeFiscale)
+      if (
+        keyPattern.tenantId === 1 &&
+        keyPattern.matriculeFiscale === 1
+      ) {
+        try {
+          console.warn('Index tenantId_1_matriculeFiscale_1 détecté, tentative de suppression...');
+          await (Customer as any).collection.dropIndex('tenantId_1_matriculeFiscale_1');
+          console.warn('Index tenantId_1_matriculeFiscale_1 supprimé.');
+        } catch (idxErr: any) {
+          console.error('Erreur suppression index matriculeFiscale:', idxErr);
+        }
+      }
+
+      // Ancien index unique (tenantId, email)
+      if (
+        keyPattern.tenantId === 1 &&
+        keyPattern.email === 1
+      ) {
+        try {
+          console.warn('Index tenantId_1_email_1 détecté, tentative de suppression...');
+          await (Customer as any).collection.dropIndex('tenantId_1_email_1');
+          console.warn('Index tenantId_1_email_1 supprimé.');
+        } catch (idxErr: any) {
+          console.error('Erreur suppression index email:', idxErr);
+        }
+      }
+
+      // Si on a un body normalisé et un tenantId, on retente l'insertion une seule fois
+      if (normalizedBody && tenantId) {
+        try {
+          const retryCustomer = new Customer({
+            ...normalizedBody,
+            tenantId,
+            stats: { caCumule: 0, soldeDu: 0, nbFactures: 0 }
+          });
+          await (retryCustomer as any).save();
+          return NextResponse.json(retryCustomer, { status: 201 });
+        } catch (retryError: any) {
+          console.error('Erreur lors du nouvel essai après suppression des index:', retryError);
+        }
+      }
+
+      const field = Object.keys(keyPattern)[1] || 'email';
       return NextResponse.json(
         { error: `${field} déjà utilisé` },
         { status: 409 }
