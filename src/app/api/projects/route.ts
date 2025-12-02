@@ -5,6 +5,7 @@ import connectDB from '@/lib/mongodb';
 import Project from '@/lib/models/Project';
 import Employee from '@/lib/models/Employee';
 import Customer from '@/lib/models/Customer';
+import NotificationService from '@/lib/services/NotificationService';
 import mongoose from 'mongoose';
 
 export const dynamic = 'force-dynamic';
@@ -215,6 +216,7 @@ export async function POST(request: NextRequest) {
     await connectDB();
 
     const tenantId = session.user.companyId?.toString() || '';
+    const currentUserEmail = session.user.email as string | undefined;
 
     // Validation
     if (!body.name || !body.customerId || !body.startDate) {
@@ -270,6 +272,53 @@ export async function POST(request: NextRequest) {
     }
     if (project.blId) {
       await project.populate('blId', 'numero totalTTC');
+    }
+
+    // ------------------------------------------------------------------
+    // Notification: projet جديد مبدئي (مازال ما خرجتش فاتورتو)
+    // ------------------------------------------------------------------
+    try {
+      if (currentUserEmail) {
+        const { default: User } = await import('@/lib/models/User');
+        const currentUser = await (User as any).findOne({
+          email: currentUserEmail,
+          companyId: new mongoose.Types.ObjectId(tenantId),
+          isActive: true,
+        }).lean();
+
+        if (currentUser) {
+          const userId = currentUser._id.toString();
+
+          // اسم العميل
+          let customerName = '';
+          if (project.customerId && typeof project.customerId === 'object') {
+            const c: any = project.customerId;
+            customerName =
+              c.raisonSociale || `${c.nom || ''} ${c.prenom || ''}`.trim();
+          }
+
+          const title = `Nouveau projet ${project.projectNumber}`;
+          const message = customerName
+            ? `Projet “${project.name}” créé pour client ${customerName}. Aucune facture émise pour le moment.`
+            : `Projet “${project.name}” créé. Aucune facture émise pour le moment.`;
+
+          await NotificationService.notifyUser({
+            tenantId,
+            userId,
+            userEmail: currentUserEmail,
+            type: 'project_created',
+            title,
+            message,
+            link: `/projects/${project._id.toString()}`,
+            channel: 'in_app',
+            createdBy: currentUserEmail,
+            dedupeKey: `project_created_${project._id.toString()}`,
+          });
+        }
+      }
+    } catch (notifError) {
+      console.error('Erreur lors de la création de la notification projet:', notifError);
+      // ما نوقّفوش إنشاء المشروع لو التنبيه فشل
     }
 
     return NextResponse.json(project.toObject(), { status: 201 });

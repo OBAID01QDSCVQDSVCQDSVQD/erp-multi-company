@@ -57,6 +57,7 @@ export default function ViewInvoicePage() {
     useAdvance: false,
     advanceAmount: 0,
   });
+  const [paymentAmountInput, setPaymentAmountInput] = useState('');
 
   useEffect(() => {
     if (tenantId && params.id) {
@@ -73,6 +74,10 @@ export default function ViewInvoicePage() {
         const roundedRemaining = Math.max(0, Math.round(remaining * 1000) / 1000);
         setSoldeRestantActuel(roundedRemaining);
         setMontantRestant(roundedRemaining);
+        setPaymentData(prev => ({ ...prev, montantPaye: roundedRemaining }));
+        setPaymentAmountInput(
+          roundedRemaining > 0 ? roundedRemaining.toFixed(3) : ''
+        );
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -87,9 +92,12 @@ export default function ViewInvoicePage() {
         ...prev,
         montantPaye: soldeRestantActuel
       }));
+      setPaymentAmountInput(
+        soldeRestantActuel > 0 ? soldeRestantActuel.toFixed(3) : ''
+      );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showPaymentModal]);
+  }, [showPaymentModal, soldeRestantActuel]);
 
   // Update montantPaye when useAdvance or advanceBalance changes
   useEffect(() => {
@@ -102,6 +110,7 @@ export default function ViewInvoicePage() {
         }
         return prev;
       });
+      setPaymentAmountInput(roundedAdvance.toFixed(3));
     }
   }, [showPaymentModal, paymentData.useAdvance, advanceBalance, soldeRestantActuel]);
 
@@ -379,6 +388,7 @@ export default function ViewInvoicePage() {
           useAdvance: false,
           advanceAmount: 0,
         });
+        setPaymentAmountInput('');
       } else {
         const error = await response.json();
         toast.error(error.error || 'Erreur lors de l\'ajout du paiement');
@@ -786,6 +796,7 @@ export default function ViewInvoicePage() {
                       useAdvance: false,
                       advanceAmount: 0,
                     });
+                    setPaymentAmountInput('');
                   }}
                   className="text-gray-400 hover:text-gray-600"
                 >
@@ -820,8 +831,14 @@ export default function ViewInvoicePage() {
                         setPaymentData(prev => {
                           if (useAdvance) {
                             const advanceToUse = Math.min(advanceBalance, soldeRestantActuel);
+                            setPaymentAmountInput(advanceToUse.toFixed(3));
                             return { ...prev, useAdvance: true, montantPaye: advanceToUse };
                           } else {
+                            setPaymentAmountInput(
+                              soldeRestantActuel > 0
+                                ? soldeRestantActuel.toFixed(3)
+                                : ''
+                            );
                             return { ...prev, useAdvance: false, montantPaye: soldeRestantActuel };
                           }
                         });
@@ -891,36 +908,76 @@ export default function ViewInvoicePage() {
                     Montant à payer *
                   </label>
                   <input
-                    type="number"
-                    step="0.001"
-                    min="0"
-                    max={soldeRestantActuel > 0 ? soldeRestantActuel : invoice.totalTTC}
-                    value={paymentData.montantPaye > 0 ? paymentData.montantPaye.toFixed(3) : ''}
+                    type="text"
+                    inputMode="decimal"
+                    value={paymentAmountInput}
                     onChange={(e) => {
                       if (paymentData.useAdvance) {
                         return;
                       }
-                      const inputValue = e.target.value;
-                      if (inputValue === '') {
+                      const raw = e.target.value;
+                      setPaymentAmountInput(raw);
+                      if (raw.trim() === '') {
                         setPaymentData({ ...paymentData, montantPaye: 0 });
                         return;
                       }
-                      const value = parseFloat(inputValue) || 0;
-                      const remaining = soldeRestantActuel > 0 ? soldeRestantActuel : invoice.totalTTC;
-                      const roundedValue = Math.round(value * 1000) / 1000;
-                      setPaymentData({ ...paymentData, montantPaye: Math.min(Math.max(0, roundedValue), remaining) });
-                    }}
-                    onBlur={(e) => {
-                      if (paymentData.useAdvance && advanceBalance > 0 && soldeRestantActuel > 0) {
-                        const advanceToUse = Math.min(advanceBalance, soldeRestantActuel);
-                        const roundedAdvance = Math.round(advanceToUse * 1000) / 1000;
-                        setPaymentData({ ...paymentData, montantPaye: roundedAdvance });
+                      // نقبل فاصلة أو نقطة كفاصل عشري
+                      const normalized = raw.replace(',', '.');
+                      const parsed = Number(normalized);
+                      if (isNaN(parsed)) {
+                        // لا نحدّث القيمة العددية إذا النص غير صالح، لكن نتركه يكتب
                         return;
                       }
-                      const value = parseFloat(e.target.value) || 0;
-                      const rounded = Math.round(value * 1000) / 1000;
-                      const remaining = soldeRestantActuel > 0 ? soldeRestantActuel : invoice.totalTTC;
-                      setPaymentData({ ...paymentData, montantPaye: Math.min(rounded, remaining) });
+                      const remaining =
+                        soldeRestantActuel > 0
+                          ? soldeRestantActuel
+                          : invoice.totalTTC;
+                      const roundedValue =
+                        Math.round(parsed * 1000) / 1000;
+                      const clamped = Math.min(
+                        Math.max(0, roundedValue),
+                        remaining
+                      );
+                      setPaymentData({
+                        ...paymentData,
+                        montantPaye: clamped,
+                      });
+                    }}
+                    onBlur={(e) => {
+                      if (
+                        paymentData.useAdvance &&
+                        advanceBalance > 0 &&
+                        soldeRestantActuel > 0
+                      ) {
+                        const advanceToUse = Math.min(
+                          advanceBalance,
+                          soldeRestantActuel
+                        );
+                        const roundedAdvance =
+                          Math.round(advanceToUse * 1000) / 1000;
+                        setPaymentData({
+                          ...paymentData,
+                          montantPaye: roundedAdvance,
+                        });
+                        setPaymentAmountInput(roundedAdvance.toFixed(3));
+                        return;
+                      }
+                      const normalized = e.target.value.replace(',', '.');
+                      const parsed = Number(normalized) || 0;
+                      const rounded =
+                        Math.round(parsed * 1000) / 1000;
+                      const remaining =
+                        soldeRestantActuel > 0
+                          ? soldeRestantActuel
+                          : invoice.totalTTC;
+                      const clamped = Math.min(rounded, remaining);
+                      setPaymentData({
+                        ...paymentData,
+                        montantPaye: clamped,
+                      });
+                      setPaymentAmountInput(
+                        clamped > 0 ? clamped.toFixed(3) : ''
+                      );
                     }}
                     disabled={paymentData.useAdvance}
                     readOnly={paymentData.useAdvance}
@@ -966,6 +1023,7 @@ export default function ViewInvoicePage() {
                       useAdvance: false,
                       advanceAmount: 0,
                     });
+                    setPaymentAmountInput('');
                   }}
                   className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
                 >

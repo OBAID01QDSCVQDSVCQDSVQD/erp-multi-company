@@ -58,8 +58,12 @@ export default function ImageUploader({
     try {
       // Uploader chaque image vers Cloudinary
       for (const file of filesArray) {
-        // Vérifier le type de fichier
-        if (!file.type.startsWith('image/')) {
+        // Vérifier le type de fichier (permettre les fichiers sans type MIME pour les images de caméra)
+        const hasImageExtension = file.name.match(/\.(jpg|jpeg|png|gif|webp|bmp|heic|heif)$/i);
+        const hasImageMimeType = file.type && file.type.startsWith('image/');
+        const isImageFile = hasImageMimeType || hasImageExtension || (!file.type && file.size > 0);
+        
+        if (!isImageFile) {
           toast.error(`Le fichier ${file.name} n'est pas une image`);
           continue;
         }
@@ -196,9 +200,16 @@ export default function ImageUploader({
           ref={fileInputRef}
           type="file"
           accept={accept}
+          capture="environment"
           multiple
           className="hidden"
-          onChange={(e) => handleFileSelect(e.target.files)}
+          onChange={(e) => {
+            handleFileSelect(e.target.files);
+            // Reset input to allow selecting the same file again
+            if (e.target) {
+              (e.target as HTMLInputElement).value = '';
+            }
+          }}
           disabled={uploading}
         />
       </div>

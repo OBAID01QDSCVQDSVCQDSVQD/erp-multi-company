@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import MouvementStock from '@/lib/models/MouvementStock';
 import Product from '@/lib/models/Product';
+import NotificationService from '@/lib/services/NotificationService';
 import mongoose from 'mongoose';
 
 export async function GET(request: NextRequest) {
@@ -16,6 +17,7 @@ export async function GET(request: NextRequest) {
     await connectDB();
 
     const tenantId = request.headers.get('X-Tenant-Id') || session.user.companyId?.toString() || '';
+    const currentUserEmail = session.user.email as string | undefined;
     const { searchParams } = new URL(request.url);
     
     const page = parseInt(searchParams.get('page') || '1');
@@ -168,6 +170,60 @@ export async function GET(request: NextRequest) {
     const total = alerts.length;
     const startIndex = (page - 1) * limit;
     const paginatedAlerts = alerts.slice(startIndex, startIndex + limit);
+
+    // ------------------------------------------------------------------
+    // Notifications: Alertes stock minimum / ruptures
+    // ------------------------------------------------------------------
+    try {
+      // فقط في الصفحة الأولى، ومع وجود alertes، وكي يكون عندنا email للمستخدم
+      if (page === 1 && currentUserEmail && alerts.length > 0) {
+        const { default: User } = await import('@/lib/models/User');
+        const currentUser = await (User as any).findOne({
+          email: currentUserEmail,
+          companyId: new mongoose.Types.ObjectId(tenantId),
+          isActive: true,
+        }).lean();
+
+        if (currentUser) {
+          const userId = currentUser._id.toString();
+
+          await Promise.all(
+            alerts.map((item: any) => {
+              const isOut = item.status === 'out';
+              const type = isOut ? 'stock_out' : 'stock_low';
+              const title = isOut
+                ? `Rupture de stock - ${item.nom}`
+                : `Stock faible - ${item.nom}`;
+
+              const message = isOut
+                ? `Produit ${item.nom} en rupture de stock (stock actuel: ${item.stockActuel}).`
+                : `Produit ${item.nom} proche de la rupture (stock actuel: ${item.stockActuel}, minimum: ${item.min || 0}).`;
+
+              const link = `/stock/alerts?q=${encodeURIComponent(
+                item.sku || item.nom
+              )}`;
+
+              return NotificationService.notifyUser({
+                tenantId,
+                userId,
+                userEmail: currentUserEmail,
+                type,
+                title,
+                message,
+                link,
+                channel: 'in_app',
+                createdBy: currentUserEmail,
+                // dedupe في 24 ساعة لكل منتج ونوع تنبيه
+                dedupeKey: `${type}_${item._id.toString()}`,
+              });
+            })
+          );
+        }
+      }
+    } catch (notifError) {
+      console.error('Erreur lors de la création des notifications stock alerts:', notifError);
+      // ما نوقفوش الـ API لو التنبيه فشل
+    }
 
     return NextResponse.json({
       alerts: paginatedAlerts,

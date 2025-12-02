@@ -5,6 +5,7 @@ import connectDB from '@/lib/mongodb';
 import Document from '@/lib/models/Document';
 import PaiementClient from '@/lib/models/PaiementClient';
 import mongoose from 'mongoose';
+import NotificationService from '@/lib/services/NotificationService';
 
 export const dynamic = 'force-dynamic';
 
@@ -175,16 +176,78 @@ export async function GET(request: NextRequest) {
       0
     );
 
+    const summary = {
+      totalCount: allPendingInvoices.length,
+      totalInternalCount: pendingInternalInvoices.length,
+      totalOfficialCount: pendingOfficialInvoices.length,
+      totalPendingAmount,
+      totalInternalPending,
+      totalOfficialPending,
+    };
+
+    // Create notifications for the current user if there are unpaid invoices
+    if (summary.totalCount > 0) {
+      try {
+        const userEmail = session.user.email as string | undefined;
+
+        if (userEmail) {
+          const { default: User } = await import('@/lib/models/User');
+          const user = await (User as any).findOne({
+            email: userEmail,
+            companyId: new mongoose.Types.ObjectId(tenantId),
+            isActive: true,
+          }).lean();
+
+          if (user) {
+            const userId = user._id.toString();
+            const email = user.email as string;
+
+            // Create one notification per pending invoice (with per-invoice dedup)
+            const notifPromises = allPendingInvoices.map((inv: any) => {
+              const numero = inv.numero || inv.referenceExterne || 'Facture';
+
+              // Build customer name if available
+              let customerName = '';
+              if (inv.customerId && typeof inv.customerId === 'object') {
+                const c = inv.customerId as any;
+                customerName =
+                  c.raisonSociale ||
+                  `${c.nom || ''} ${c.prenom || ''}`.trim();
+              }
+
+              const remaining = (inv.remainingBalance || 0) as number;
+              const link =
+                inv.type === 'internal'
+                  ? `/internal-invoices/${inv._id}`
+                  : `/sales/invoices/${inv._id}`;
+
+              return NotificationService.notifyUser({
+                tenantId,
+                userId,
+                userEmail: email,
+                type: 'invoice_overdue',
+                title: `Facture en attente - ${numero}`,
+                message: `Facture ${numero}${
+                  customerName ? ` pour ${customerName}` : ''
+                } : solde restant ${remaining.toFixed(3)} TND.`,
+                link,
+                channel: 'in_app',
+                // Dedupe per invoice for 24h
+                dedupeKey: `invoice_overdue_${inv._id.toString()}`,
+              });
+            });
+
+            await Promise.all(notifPromises);
+          }
+        }
+      } catch (notifError) {
+        console.error('Error creating overdue invoice notification for current user:', notifError);
+      }
+    }
+
     return NextResponse.json({
       invoices: allPendingInvoices,
-      summary: {
-        totalCount: allPendingInvoices.length,
-        totalInternalCount: pendingInternalInvoices.length,
-        totalOfficialCount: pendingOfficialInvoices.length,
-        totalPendingAmount,
-        totalInternalPending,
-        totalOfficialPending,
-      },
+      summary,
     });
   } catch (error: any) {
     console.error('Erreur GET /pending-invoices:', error);

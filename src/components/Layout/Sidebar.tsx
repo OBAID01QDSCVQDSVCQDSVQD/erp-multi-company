@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
+import { useTenantId } from '@/hooks/useTenantId';
+import Image from 'next/image';
 import {
   HomeIcon,
   BuildingOfficeIcon,
@@ -100,6 +102,8 @@ export default function Sidebar({ sidebarOpen: externalSidebarOpen, setSidebarOp
   const [internalSidebarOpen, setInternalSidebarOpen] = useState(false);
   const pathname = usePathname();
   const { data: session } = useSession();
+  const { tenantId } = useTenantId();
+  const [companySettings, setCompanySettings] = useState<any>(null);
 
   // Check if user has permission
   const hasPermission = (permission: string | null): boolean => {
@@ -193,6 +197,18 @@ export default function Sidebar({ sidebarOpen: externalSidebarOpen, setSidebarOp
   const sidebarOpen = externalSidebarOpen !== undefined ? externalSidebarOpen : internalSidebarOpen;
   const setSidebarOpen = externalSetSidebarOpen || setInternalSidebarOpen;
 
+  // Fetch company settings for logo
+  useEffect(() => {
+    if (tenantId) {
+      fetch('/api/settings', {
+        headers: { 'X-Tenant-Id': tenantId },
+      })
+        .then((res) => res.json())
+        .then((data) => setCompanySettings(data))
+        .catch((err) => console.error('Error fetching company settings:', err));
+    }
+  }, [tenantId]);
+
 
 
   return (
@@ -212,7 +228,20 @@ export default function Sidebar({ sidebarOpen: externalSidebarOpen, setSidebarOp
           </div>
           <div className="flex-1 flex flex-col min-h-0 pt-5 pb-4 overflow-hidden">
             <div className="flex-shrink-0 flex items-center px-4 mb-4">
-              <h1 className="text-xl font-bold text-gray-900">ERP Multi-Entreprises</h1>
+              {companySettings?.societe?.logoUrl ? (
+                <div className="relative w-32 h-12 flex items-center">
+                  <Image
+                    src={companySettings.societe.logoUrl}
+                    alt="Company Logo"
+                    width={128}
+                    height={48}
+                    className="object-contain max-w-full max-h-full"
+                    priority
+                  />
+                </div>
+              ) : (
+                <h1 className="text-xl font-bold text-gray-900">ERP Multi-Entreprises</h1>
+              )}
             </div>
             <nav className="flex-1 px-2 space-y-1 overflow-y-auto">
               {filteredNavigation.map((item) => {
@@ -344,7 +373,20 @@ export default function Sidebar({ sidebarOpen: externalSidebarOpen, setSidebarOp
           <div className="flex flex-col h-0 flex-1 border-r border-gray-200 bg-white">
             <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
               <div className="flex items-center flex-shrink-0 px-4">
-                <h1 className="text-xl font-bold text-gray-900">ERP Multi-Entreprises</h1>
+                {companySettings?.societe?.logoUrl ? (
+                  <div className="relative w-32 h-12 flex items-center">
+                    <Image
+                      src={companySettings.societe.logoUrl}
+                      alt="Company Logo"
+                      width={128}
+                      height={48}
+                      className="object-contain max-w-full max-h-full"
+                      priority
+                    />
+                  </div>
+                ) : (
+                  <h1 className="text-xl font-bold text-gray-900">ERP Multi-Entreprises</h1>
+                )}
               </div>
               <nav className="mt-5 flex-1 px-2 space-y-1">
                 {filteredNavigation.map((item) => {

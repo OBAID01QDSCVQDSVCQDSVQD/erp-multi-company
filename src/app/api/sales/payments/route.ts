@@ -6,6 +6,7 @@ import PaiementClient from '@/lib/models/PaiementClient';
 import Document from '@/lib/models/Document';
 import Customer from '@/lib/models/Customer';
 import { NumberingService } from '@/lib/services/NumberingService';
+import NotificationService from '@/lib/services/NotificationService';
 import mongoose from 'mongoose';
 
 export async function GET(request: NextRequest) {
@@ -103,6 +104,7 @@ export async function POST(request: NextRequest) {
     await connectDB();
 
     const tenantId = session.user.companyId?.toString() || '';
+    const currentUserEmail = session.user.email as string | undefined;
     const body = await request.json();
     
     const {
@@ -299,6 +301,73 @@ export async function POST(request: NextRequest) {
     }
 
     await paiement.save();
+
+    // ------------------------------------------------------------------
+    // Notifications: informer المستخدم بحالة الفواتير بعد الدفع
+    // ------------------------------------------------------------------
+    try {
+      if (currentUserEmail) {
+        const { default: User } = await import('@/lib/models/User');
+        const currentUser = await (User as any).findOne({
+          email: currentUserEmail,
+          companyId: new mongoose.Types.ObjectId(tenantId),
+          isActive: true,
+        }).lean();
+
+        if (currentUser) {
+          const userId = currentUser._id.toString();
+
+          // فقط الخطوط المرتبطة بفواتير (مش paiement sur compte)
+          const invoiceLines = processedLignes.filter(
+            (l: any) => l.factureId && !l.isPaymentOnAccount
+          );
+
+          await Promise.all(
+            invoiceLines.map((l: any) => {
+              const numero = l.numeroFacture || l.referenceExterne || 'Facture';
+              const montantFacture = l.montantFacture || 0;
+              const montantPaye = l.montantPaye || 0;
+              const soldeRestant = typeof l.soldeRestant === 'number' ? l.soldeRestant : 0;
+
+              const isFullyPaid = soldeRestant <= 0.001;
+              const type = isFullyPaid ? 'invoice_paid' : 'invoice_partially_paid';
+
+              const title = isFullyPaid
+                ? `Facture ${numero} payée`
+                : `Paiement partiel - ${numero}`;
+
+              const message = isFullyPaid
+                ? `Facture ${numero} réglée. Montant: ${montantFacture.toFixed(
+                    3
+                  )} TND.`
+                : `Paiement de ${montantPaye.toFixed(
+                    3
+                  )} TND sur la facture ${numero}. Solde restant: ${soldeRestant.toFixed(
+                    3
+                  )} TND.`;
+
+              const link = `/sales/invoices/${l.factureId}`;
+
+              return NotificationService.notifyUser({
+                tenantId,
+                userId,
+                userEmail: currentUserEmail,
+                type,
+                title,
+                message,
+                link,
+                channel: 'in_app',
+                createdBy: currentUserEmail,
+                dedupeKey: `${type}_${numero}`,
+              });
+            })
+          );
+        }
+      }
+    } catch (notifError) {
+      console.error('Erreur lors de la création des notifications de paiement:', notifError);
+      // لا نمنع حفظ الدفع إذا التنبيه فشل
+    }
 
     // Update invoice payment status
     for (const ligne of processedLignes) {

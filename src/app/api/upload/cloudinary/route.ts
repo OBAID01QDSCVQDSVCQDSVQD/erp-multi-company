@@ -20,11 +20,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Aucun fichier fourni' }, { status: 400 });
     }
 
-    // Vérifier le type de fichier
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-    if (!allowedTypes.includes(file.type)) {
+    // Vérifier le type de fichier (accepter les fichiers de caméra même sans type MIME)
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/heic', 'image/heif', 'image/bmp'];
+    const hasImageExtension = /\.(jpg|jpeg|png|gif|webp|heic|heif|bmp)$/i.test(file.name);
+    const hasImageMimeType = file.type && allowedTypes.includes(file.type);
+    
+    if (!hasImageMimeType && !hasImageExtension) {
       return NextResponse.json({ 
-        error: 'Type de fichier non autorisé. Seuls les fichiers JPEG, PNG, GIF et WebP sont acceptés.' 
+        error: 'Type de fichier non autorisé. Seuls les fichiers JPEG, PNG, GIF, WebP, HEIC et BMP sont acceptés.' 
       }, { status: 400 });
     }
 

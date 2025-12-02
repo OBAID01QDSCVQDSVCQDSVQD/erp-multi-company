@@ -4,7 +4,19 @@ import { useState, useRef, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
+import { useTenantId } from '@/hooks/useTenantId';
 import { Bars3Icon, BellIcon, HomeIcon, UserCircleIcon, ChartBarIcon, ArrowRightOnRectangleIcon, CogIcon, BuildingOfficeIcon, ChevronDownIcon, CreditCardIcon } from '@heroicons/react/24/outline';
+
+interface NotificationItem {
+  _id: string;
+  type: string;
+  title: string;
+  message: string;
+  link?: string;
+  status: 'unread' | 'read' | 'archived';
+  createdAt: string;
+}
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -13,12 +25,19 @@ interface HeaderProps {
 export default function Header({ onMenuClick }: HeaderProps) {
   const { data: session } = useSession();
   const router = useRouter();
+  const { tenantId } = useTenantId();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [adminMenuOpen, setAdminMenuOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [loadingNotifs, setLoadingNotifs] = useState(false);
+  const [companySettings, setCompanySettings] = useState<any>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const adminTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const adminContainerRef = useRef<HTMLDivElement>(null);
+  const notifRef = useRef<HTMLDivElement>(null);
   
   // Check if user is the specific admin
   const isSystemAdmin = session?.user?.email === 'admin@entreprise-demo.com';
@@ -34,6 +53,122 @@ export default function Header({ onMenuClick }: HeaderProps) {
       }
     };
   }, []);
+
+  // Close notifications dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (notifRef.current && !notifRef.current.contains(target)) {
+        setNotifOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const extractInvoiceNumero = (title: string): string | null => {
+    // Exemple: "Facture en attente - FAC-2025-00020"
+    const match = title.match(/(FAC-\d{4}-\d+)/);
+    return match ? match[1] : null;
+  };
+
+  // Fetch notifications on mount
+  useEffect(() => {
+    if (session?.user) {
+      fetchNotifications();
+    }
+  }, [session]);
+
+  // Fetch company settings for logo
+  useEffect(() => {
+    if (tenantId) {
+      fetch('/api/settings', {
+        headers: { 'X-Tenant-Id': tenantId },
+      })
+        .then((res) => res.json())
+        .then((data) => setCompanySettings(data))
+        .catch((err) => console.error('Error fetching company settings:', err));
+    }
+  }, [tenantId]);
+
+  const fetchNotifications = async () => {
+    try {
+      setLoadingNotifs(true);
+      const res = await fetch('/api/notifications?status=all&limit=10', {
+        cache: 'no-store',
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const items = data.notifications || [];
+
+        const sorted = [...items].sort((a: any, b: any) => {
+          const isInvA = a.type === 'invoice_overdue';
+          const isInvB = b.type === 'invoice_overdue';
+
+          if (isInvA && isInvB) {
+            const numA = extractInvoiceNumero(a.title);
+            const numB = extractInvoiceNumero(b.title);
+
+            if (numA && numB && numA !== numB) {
+              return numB.localeCompare(numA, 'fr-FR', { numeric: true });
+            }
+          }
+
+          const dateA = new Date(a.createdAt).getTime();
+          const dateB = new Date(b.createdAt).getTime();
+          return dateB - dateA;
+        });
+
+        setNotifications(sorted);
+        setUnreadCount(data.unreadCount || 0);
+      }
+    } catch (err) {
+      console.error('Error fetching notifications:', err);
+    } finally {
+      setLoadingNotifs(false);
+    }
+  };
+
+  const markAsRead = async (id?: string, navigateTo?: string) => {
+    try {
+      const res = await fetch('/api/notifications', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(id ? { id } : { markAllRead: true }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setUnreadCount(data.unreadCount || 0);
+        // Update local state
+        setNotifications((prev) =>
+          prev.map((n) =>
+            !id || n._id === id ? { ...n, status: 'read' } : n
+          )
+        );
+      }
+    } catch (err) {
+      console.error('Error updating notifications:', err);
+    } finally {
+      if (navigateTo) {
+        router.push(navigateTo);
+        setNotifOpen(false);
+      }
+    }
+  };
+
+  const formatDate = (dateStr: string) => {
+    try {
+      const d = new Date(dateStr);
+      return d.toLocaleString('fr-FR', {
+        day: '2-digit',
+        month: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    } catch {
+      return dateStr;
+    }
+  };
 
   const handleMouseLeave = () => {
     timeoutRef.current = setTimeout(() => {
@@ -91,12 +226,98 @@ export default function Header({ onMenuClick }: HeaderProps) {
             <HomeIcon className="h-6 w-6" />
           </Link>
 
-          <button
-            type="button"
-            className="bg-white p-1 rounded-full text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-          >
-            <BellIcon className="h-6 w-6" />
-          </button>
+          {/* Notifications */}
+          <div className="relative mr-2" ref={notifRef}>
+            <button
+              type="button"
+              onClick={() =>
+                setNotifOpen((open) => {
+                  const next = !open;
+                  // When opening the panel, mark all as read so the red badge disappears
+                  if (!open && next && unreadCount > 0) {
+                    markAsRead();
+                  }
+                  return next;
+                })
+              }
+              className="bg-white p-1 rounded-full text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 relative"
+            >
+              <BellIcon className="h-6 w-6" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 inline-flex items-center justify-center px-1.5 py-0.5 rounded-full text-xs font-semibold bg-red-500 text-white">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </button>
+            {notifOpen && (
+              <div className="origin-top-right absolute right-0 mt-2 w-80 rounded-lg shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50">
+                <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+                  <span className="text-sm font-semibold text-gray-800">
+                    Notifications
+                  </span>
+                  {unreadCount > 0 && (
+                    <button
+                      onClick={() => markAsRead()}
+                      className="text-xs text-indigo-600 hover:text-indigo-800"
+                    >
+                      Tout marquer comme lu
+                    </button>
+                  )}
+                </div>
+                <div className="max-h-80 overflow-y-auto">
+                  {loadingNotifs ? (
+                    <div className="py-6 text-center text-gray-500 text-sm">
+                      Chargement...
+                    </div>
+                  ) : notifications.length === 0 ? (
+                    <div className="py-6 text-center text-gray-500 text-sm">
+                      Aucune notification
+                    </div>
+                  ) : (
+                    <ul className="divide-y divide-gray-100">
+                      {notifications.map((notif) => (
+                        <li
+                          key={notif._id}
+                          className={`px-4 py-3 text-sm cursor-pointer hover:bg-gray-50 ${
+                            notif.status === 'unread' ? 'bg-indigo-50' : ''
+                          }`}
+                          onClick={() =>
+                            markAsRead(notif._id, notif.link || undefined)
+                          }
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1 pr-2">
+                              <p className="font-medium text-gray-900">
+                                {notif.title}
+                              </p>
+                              <p className="text-xs text-gray-600 mt-0.5 line-clamp-2">
+                                {notif.message}
+                              </p>
+                              <p className="text-[11px] text-gray-400 mt-1">
+                                {formatDate(notif.createdAt)}
+                              </p>
+                            </div>
+                            {notif.status === 'unread' && (
+                              <span className="mt-1 inline-flex h-2 w-2 rounded-full bg-indigo-500" />
+                            )}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                <div className="px-4 py-2 border-t border-gray-100 text-xs text-right">
+                  <Link
+                    href="/notifications"
+                    className="text-indigo-600 hover:text-indigo-800"
+                    onClick={() => setNotifOpen(false)}
+                  >
+                    Voir toutes les notifications
+                  </Link>
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Administration Dropdown - Only for admin@entreprise-demo.com */}
           {isSystemAdmin && (
@@ -167,7 +388,20 @@ export default function Header({ onMenuClick }: HeaderProps) {
               type="button"
               className="flex items-center space-x-2 text-gray-700 hover:text-indigo-600 px-2 py-1 text-sm font-medium transition-colors"
             >
-              <UserCircleIcon className="h-6 w-6" />
+              {companySettings?.societe?.logoUrl ? (
+                <div className="relative w-8 h-8 rounded-full overflow-hidden flex-shrink-0 border-2 border-gray-300">
+                  <Image
+                    src={companySettings.societe.logoUrl}
+                    alt="Company Logo"
+                    width={32}
+                    height={32}
+                    className="object-cover w-full h-full"
+                    priority
+                  />
+                </div>
+              ) : (
+                <UserCircleIcon className="h-6 w-6" />
+              )}
               <div className="text-left">
                 <p className="text-sm font-medium text-gray-700">{session?.user?.name}</p>
                 <p className="text-xs text-gray-500">{session?.user?.companyName}</p>
