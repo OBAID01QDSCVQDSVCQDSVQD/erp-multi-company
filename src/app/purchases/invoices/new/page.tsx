@@ -143,6 +143,11 @@ export default function NewPurchaseInvoicePage() {
     }
   }, [selectedBRId, selectedDocumentType]);
 
+  // Debug: Log images state changes
+  useEffect(() => {
+    console.log('Images state updated:', images);
+  }, [images]);
+
   async function fetchSuppliers() {
     if (!tenantId) return;
     try {
@@ -662,6 +667,7 @@ export default function NewPurchaseInvoicePage() {
       const { images: formDataImages, ...formDataWithoutImages } = formData as any;
       
       // Ensure images is an array and format them correctly (same format as PUT route)
+      console.log('handleSave: Current images state', images);
       const imagesToSend = Array.isArray(images) && images.length > 0 ? images.map((img: ImageData) => ({
         id: img.id || `${Date.now()}-${Math.random()}`,
         name: img.name || '',
@@ -674,12 +680,16 @@ export default function NewPurchaseInvoicePage() {
         format: img.format || undefined,
       })) : [];
       
+      console.log('handleSave: Formatted images to send', imagesToSend);
+      
       const payload: any = {
         ...formDataWithoutImages,
         lignes: lines,
         bonsReceptionIds: selectedBRId ? [selectedBRId] : [],
         images: imagesToSend,
       };
+      
+      console.log('handleSave: Full payload (images only)', { images: payload.images });
       
       const payloadString = JSON.stringify(payload);
       

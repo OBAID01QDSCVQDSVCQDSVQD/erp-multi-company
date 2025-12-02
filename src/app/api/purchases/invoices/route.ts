@@ -162,6 +162,13 @@ export async function POST(request: NextRequest) {
     });
 
     // Force Mongoose to recognize images as modified if it's an array (same logic as PUT route)
+    console.log('POST /api/purchases/invoices: Received images in body', {
+      hasImages: !!body.images,
+      imagesIsArray: Array.isArray(body.images),
+      imagesLength: Array.isArray(body.images) ? body.images.length : 0,
+      images: body.images,
+    });
+    
     if (Array.isArray(body.images) && body.images.length > 0) {
       // Clear and set images array
       invoice.images = [];
@@ -178,7 +185,16 @@ export async function POST(request: NextRequest) {
           format: img.format || undefined,
         });
       });
+      console.log('POST /api/purchases/invoices: Setting images on invoice', {
+        imagesCount: invoice.images.length,
+        images: invoice.images,
+      });
       (invoice as any).markModified('images');
+    } else {
+      console.log('POST /api/purchases/invoices: No images to save', {
+        imagesIsArray: Array.isArray(body.images),
+        imagesValue: body.images,
+      });
     }
 
     // Totals will be calculated by pre-save hook

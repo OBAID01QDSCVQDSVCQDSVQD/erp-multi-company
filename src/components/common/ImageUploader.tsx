@@ -39,6 +39,7 @@ export default function ImageUploader({
   const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileSelect = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -74,19 +75,40 @@ export default function ImageUploader({
           continue;
         }
 
-        // S'assurer que le fichier a un nom (pour les fichiers de caméra qui peuvent ne pas avoir de nom)
-        let fileName = file.name;
-        if (!fileName || fileName === 'image.jpg' || fileName === 'image.jpeg' || fileName === 'image.png') {
-          const extension = file.type?.includes('png') ? 'png' : 
-                           file.type?.includes('gif') ? 'gif' : 
-                           file.type?.includes('webp') ? 'webp' : 'jpg';
-          fileName = `camera-${Date.now()}.${extension}`;
+        // S'assurer que le fichier a un nom et un type MIME (pour les fichiers de caméra)
+        let fileName = file.name || '';
+        let fileType = file.type || '';
+        
+        // Si pas de nom ou nom générique, créer un nom unique
+        if (!fileName || fileName === 'image.jpg' || fileName === 'image.jpeg' || fileName === 'image.png' || fileName.startsWith('blob:')) {
+          const extension = fileType.includes('png') ? 'png' : 
+                           fileType.includes('gif') ? 'gif' : 
+                           fileType.includes('webp') ? 'webp' : 
+                           fileType.includes('heic') ? 'heic' :
+                           fileType.includes('heif') ? 'heif' : 'jpg';
+          fileName = `camera-${Date.now()}-${Math.random().toString(36).substring(7)}.${extension}`;
+        }
+        
+        // Si pas de type MIME, essayer de le déterminer
+        if (!fileType) {
+          const ext = fileName.split('.').pop()?.toLowerCase();
+          const mimeTypes: { [key: string]: string } = {
+            'jpg': 'image/jpeg',
+            'jpeg': 'image/jpeg',
+            'png': 'image/png',
+            'gif': 'image/gif',
+            'webp': 'image/webp',
+            'heic': 'image/heic',
+            'heif': 'image/heif',
+            'bmp': 'image/bmp',
+          };
+          fileType = mimeTypes[ext || ''] || 'image/jpeg';
         }
 
-        // Créer un nouveau fichier avec le nom correct si nécessaire
+        // Créer un nouveau fichier avec le nom والنوع الصحيح
         let fileToUpload = file;
-        if (fileName !== file.name) {
-          fileToUpload = new File([file], fileName, { type: file.type || 'image/jpeg' });
+        if (fileName !== file.name || fileType !== file.type) {
+          fileToUpload = new File([file], fileName, { type: fileType });
         }
 
         // Uploader l'image vers Cloudinary
@@ -134,8 +156,20 @@ export default function ImageUploader({
 
       // Ajouter les images uploadées avec succès à la liste
       if (newImages.length > 0) {
-        onChange([...images, ...newImages]);
+        const updatedImages = [...images, ...newImages];
+        console.log('ImageUploader: Adding images to state', {
+          currentImagesCount: images.length,
+          newImagesCount: newImages.length,
+          newImages: newImages,
+          updatedImagesCount: updatedImages.length,
+        });
+        onChange(updatedImages);
         toast.success(`${newImages.length} image(s) uploadée(s) avec succès`);
+      } else {
+        console.log('ImageUploader: No images to add', {
+          filesProcessed: filesArray.length,
+          currentImagesCount: images.length,
+        });
       }
     } catch (error: any) {
       console.error('Error uploading images:', error);
@@ -187,6 +221,11 @@ export default function ImageUploader({
     fileInputRef.current?.click();
   };
 
+  const handleCameraClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    cameraInputRef.current?.click();
+  };
+
   return (
     <div className="space-y-4">
       {label && (
@@ -214,6 +253,17 @@ export default function ImageUploader({
         <p className="mt-2 text-sm text-gray-600">
           {uploading ? 'Upload en cours...' : 'Cliquez ou glissez les images ici pour les uploader'}
         </p>
+        <div className="flex items-center justify-center gap-2 mt-2">
+          <button
+            type="button"
+            onClick={handleCameraClick}
+            className="px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+          >
+            📷 Prendre une photo
+          </button>
+          <span className="text-xs text-gray-400">ou</span>
+          <span className="text-xs text-gray-500">Sélectionner un fichier</span>
+        </div>
         <p className="text-xs text-gray-500 mt-1">
           PNG, JPG, GIF jusqu'à {maxSizeMB}MB (maximum {maxImages} images)
         </p>
@@ -228,8 +278,22 @@ export default function ImageUploader({
           ref={fileInputRef}
           type="file"
           accept={accept}
-          capture="environment"
           multiple
+          className="hidden"
+          onChange={(e) => {
+            handleFileSelect(e.target.files);
+            // Reset input to allow selecting the same file again
+            if (e.target) {
+              (e.target as HTMLInputElement).value = '';
+            }
+          }}
+          disabled={uploading}
+        />
+        <input
+          ref={cameraInputRef}
+          type="file"
+          accept={accept}
+          capture="environment"
           className="hidden"
           onChange={(e) => {
             handleFileSelect(e.target.files);
