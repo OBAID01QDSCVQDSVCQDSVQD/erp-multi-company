@@ -155,13 +155,13 @@ export async function POST(request: NextRequest) {
       },
       bonsReceptionIds: body.bonsReceptionIds || [],
       fichiers: body.fichiers || [],
-      images: Array.isArray(body.images) ? body.images : [],
+      images: [], // Will be set below
       paiements: body.paiements || [],
       notes: body.notes || '',
       createdBy: session.user.email,
     });
 
-    // Force Mongoose to recognize images as modified if it's an array
+    // Force Mongoose to recognize images as modified if it's an array (same logic as PUT route)
     if (Array.isArray(body.images) && body.images.length > 0) {
       // Clear and set images array
       invoice.images = [];

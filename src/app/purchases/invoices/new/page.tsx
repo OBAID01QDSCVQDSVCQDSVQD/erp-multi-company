@@ -661,8 +661,18 @@ export default function NewPurchaseInvoicePage() {
       // Create payload without images in formData, then add images separately
       const { images: formDataImages, ...formDataWithoutImages } = formData as any;
       
-      // Ensure images is an array
-      const imagesToSend = Array.isArray(images) ? images : [];
+      // Ensure images is an array and format them correctly (same format as PUT route)
+      const imagesToSend = Array.isArray(images) && images.length > 0 ? images.map((img: ImageData) => ({
+        id: img.id || `${Date.now()}-${Math.random()}`,
+        name: img.name || '',
+        url: img.url || '',
+        publicId: img.publicId || undefined,
+        type: img.type || 'image/jpeg',
+        size: img.size || 0,
+        width: img.width || undefined,
+        height: img.height || undefined,
+        format: img.format || undefined,
+      })) : [];
       
       const payload: any = {
         ...formDataWithoutImages,
@@ -986,6 +996,7 @@ export default function NewPurchaseInvoicePage() {
                   maxImages={10}
                   maxSizeMB={5}
                   label="Images jointes"
+                  folder="erp-uploads"
                 />
               </div>
             </div>
