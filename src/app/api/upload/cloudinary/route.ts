@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     }
 
     const formData = await request.formData();
-    const file = formData.get('file') as File;
+    let file = formData.get('file') as File;
     const folder = (formData.get('folder') as string) || 'erp-uploads';
     
     if (!file) {
@@ -22,10 +22,28 @@ export async function POST(request: NextRequest) {
 
     // Vérifier le type de fichier (accepter les fichiers de caméra même sans type MIME)
     const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/heic', 'image/heif', 'image/bmp'];
-    const hasImageExtension = /\.(jpg|jpeg|png|gif|webp|heic|heif|bmp)$/i.test(file.name);
+    const hasImageExtension = /\.(jpg|jpeg|png|gif|webp|heic|heif|bmp)$/i.test(file.name || '');
     const hasImageMimeType = file.type && allowedTypes.includes(file.type);
     
-    if (!hasImageMimeType && !hasImageExtension) {
+    // Si le fichier n'a pas de type MIME, essayer de le déterminer à partir du nom
+    if (!file.type || !hasImageMimeType) {
+      const fileName = file.name || '';
+      if (fileName.match(/\.(jpg|jpeg)$/i)) {
+        file = new File([file], fileName, { type: 'image/jpeg' });
+      } else if (fileName.match(/\.png$/i)) {
+        file = new File([file], fileName, { type: 'image/png' });
+      } else if (fileName.match(/\.gif$/i)) {
+        file = new File([file], fileName, { type: 'image/gif' });
+      } else if (fileName.match(/\.webp$/i)) {
+        file = new File([file], fileName, { type: 'image/webp' });
+      } else if (!file.type) {
+        // Si aucun type et aucune extension, supposer JPEG (format par défaut des caméras)
+        const newFileName = file.name || `camera-${Date.now()}.jpg`;
+        file = new File([file], newFileName, { type: 'image/jpeg' });
+      }
+    }
+    
+    if (!hasImageMimeType && !hasImageExtension && !file.type?.startsWith('image/')) {
       return NextResponse.json({ 
         error: 'Type de fichier non autorisé. Seuls les fichiers JPEG, PNG, GIF, WebP, HEIC et BMP sont acceptés.' 
       }, { status: 400 });

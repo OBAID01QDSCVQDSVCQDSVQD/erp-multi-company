@@ -64,19 +64,34 @@ export default function ImageUploader({
         const isImageFile = hasImageMimeType || hasImageExtension || (!file.type && file.size > 0);
         
         if (!isImageFile) {
-          toast.error(`Le fichier ${file.name} n'est pas une image`);
+          toast.error(`Le fichier ${file.name || 'fichier'} n'est pas une image`);
           continue;
         }
 
         // Vérifier la taille du fichier
         if (file.size > maxSizeBytes) {
-          toast.error(`La taille de l'image ${file.name} dépasse ${maxSizeMB}MB`);
+          toast.error(`La taille de l'image ${file.name || 'fichier'} dépasse ${maxSizeMB}MB`);
           continue;
+        }
+
+        // S'assurer que le fichier a un nom (pour les fichiers de caméra qui peuvent ne pas avoir de nom)
+        let fileName = file.name;
+        if (!fileName || fileName === 'image.jpg' || fileName === 'image.jpeg' || fileName === 'image.png') {
+          const extension = file.type?.includes('png') ? 'png' : 
+                           file.type?.includes('gif') ? 'gif' : 
+                           file.type?.includes('webp') ? 'webp' : 'jpg';
+          fileName = `camera-${Date.now()}.${extension}`;
+        }
+
+        // Créer un nouveau fichier avec le nom correct si nécessaire
+        let fileToUpload = file;
+        if (fileName !== file.name) {
+          fileToUpload = new File([file], fileName, { type: file.type || 'image/jpeg' });
         }
 
         // Uploader l'image vers Cloudinary
         const formData = new FormData();
-        formData.append('file', file);
+        formData.append('file', fileToUpload);
         formData.append('folder', folder);
 
         const response = await fetch('/api/upload/cloudinary', {
@@ -86,21 +101,34 @@ export default function ImageUploader({
 
         if (response.ok) {
           const result = await response.json();
-          const newImage: ImageData = {
-            id: result.image.id || `${Date.now()}-${Math.random()}`,
-            name: result.image.name || file.name,
-            url: result.image.url,
-            publicId: result.image.publicId,
-            type: result.image.type || file.type,
-            size: result.image.size || file.size,
-            width: result.image.width,
-            height: result.image.height,
-            format: result.image.format,
-          };
-          newImages.push(newImage);
+          if (result.success && result.image) {
+            const newImage: ImageData = {
+              id: result.image.id || result.image.publicId || `${Date.now()}-${Math.random()}`,
+              name: result.image.name || fileName || file.name || 'image',
+              url: result.image.url,
+              publicId: result.image.publicId,
+              type: result.image.type || file.type || 'image/jpeg',
+              size: result.image.size || file.size,
+              width: result.image.width,
+              height: result.image.height,
+              format: result.image.format,
+            };
+            newImages.push(newImage);
+          } else {
+            console.error('Réponse Cloudinary invalide:', result);
+            toast.error(`Erreur: réponse invalide lors de l'upload de ${fileName || file.name || 'fichier'}`);
+          }
         } else {
-          const error = await response.json();
-          toast.error(`Erreur lors de l'upload de ${file.name}: ${error.error || 'Erreur inconnue'}`);
+          const errorText = await response.text();
+          let errorMessage = 'Erreur inconnue';
+          try {
+            const errorJson = JSON.parse(errorText);
+            errorMessage = errorJson.error || errorMessage;
+          } catch (e) {
+            errorMessage = errorText || errorMessage;
+          }
+          console.error('Erreur upload Cloudinary:', errorMessage);
+          toast.error(`Erreur lors de l'upload de ${fileName || file.name || 'fichier'}: ${errorMessage}`);
         }
       }
 
