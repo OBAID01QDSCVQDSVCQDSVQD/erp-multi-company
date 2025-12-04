@@ -353,13 +353,13 @@ export async function POST(request: NextRequest) {
       return ligne;
     });
 
-    // Generate initial payment number
-    let numero = await generateNextPaymentNumber();
+    // Generate initial payment number using NumberingService (atomic operation)
+    let numero = await NumberingService.next(tenantId, 'pafo');
     
     // Retry logic for handling duplicate key errors
     let paiement: any = null;
     let retryCount = 0;
-    const maxRetries = 20; // Increased retries
+    const maxRetries = 10; // Reduced retries since NumberingService is atomic
 
     while (retryCount < maxRetries) {
       try {
@@ -370,26 +370,22 @@ export async function POST(request: NextRequest) {
         }).lean();
 
         if (existingPayment) {
-          // Number exists, increment and try again
+          // Number exists, generate a new one using NumberingService (atomic)
           retryCount++;
           
           if (retryCount >= maxRetries) {
+            console.error(`Failed to generate unique payment number after ${maxRetries} attempts. Last attempted number: ${numero}`);
             return NextResponse.json(
               { error: 'Impossible de générer un numéro unique après plusieurs tentatives. Veuillez réessayer.' },
               { status: 500 }
             );
           }
           
-          const incremented = incrementPaymentNumber(numero);
-          if (incremented) {
-            numero = incremented;
-          } else {
-            // If we can't increment, generate a completely new one
-            numero = await generateNextPaymentNumber();
-          }
+          // Use NumberingService to get next number (atomic operation)
+          numero = await NumberingService.next(tenantId, 'pafo');
           
           // Small delay to avoid rapid retries
-          await new Promise(resolve => setTimeout(resolve, 100));
+          await new Promise(resolve => setTimeout(resolve, 50));
           continue; // Skip to next iteration
         }
 
@@ -452,29 +448,9 @@ export async function POST(request: NextRequest) {
             );
           }
           
-          // Generate new number and try again
-          // First try to increment the current number
-          const incremented = incrementPaymentNumber(numero);
-          if (incremented && incremented !== numero) {
-            // Check if incremented number doesn't exist
-            const exists = await (PaiementFournisseur as any).findOne({
-              societeId: new mongoose.Types.ObjectId(tenantId),
-              numero: incremented
-            }).lean();
-            
-            if (!exists) {
-              numero = incremented;
-              console.log(`Incremented payment number to: ${numero}`);
-            } else {
-              // Incremented number also exists, regenerate from scratch
-              console.log(`Incremented number ${incremented} also exists, regenerating...`);
-              numero = await generateNextPaymentNumber();
-            }
-          } else {
-            // If we can't increment, generate a completely new one
-            console.log(`Cannot increment ${numero}, regenerating...`);
-            numero = await generateNextPaymentNumber();
-          }
+          // Generate new number using NumberingService (atomic operation)
+          numero = await NumberingService.next(tenantId, 'pafo');
+          console.log(`Regenerated payment number after duplicate key error: ${numero}`);
           
           // Small delay to avoid rapid retries
           await new Promise(resolve => setTimeout(resolve, 100));

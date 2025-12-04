@@ -223,6 +223,7 @@ export default function ImageUploader({
 
   const handleCameraClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    e.preventDefault();
     cameraInputRef.current?.click();
   };
 
@@ -253,16 +254,16 @@ export default function ImageUploader({
         <p className="mt-2 text-sm text-gray-600">
           {uploading ? 'Upload en cours...' : 'Cliquez ou glissez les images ici pour les uploader'}
         </p>
-        <div className="flex items-center justify-center gap-2 mt-2">
+        <div className="flex items-center justify-center gap-3 mt-3 flex-wrap">
           <button
             type="button"
             onClick={handleCameraClick}
-            className="px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+            className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors border border-blue-200"
           >
             📷 Prendre une photo
           </button>
           <span className="text-xs text-gray-400">ou</span>
-          <span className="text-xs text-gray-500">Sélectionner un fichier</span>
+          <span className="text-xs text-gray-500">Sélectionner des fichiers</span>
         </div>
         <p className="text-xs text-gray-500 mt-1">
           PNG, JPG, GIF jusqu'à {maxSizeMB}MB (maximum {maxImages} images)
@@ -281,7 +282,17 @@ export default function ImageUploader({
           multiple
           className="hidden"
           onChange={(e) => {
-            handleFileSelect(e.target.files);
+            if (e.target.files && e.target.files.length > 0) {
+              console.log('File input: Files selected', {
+                fileCount: e.target.files.length,
+                files: Array.from(e.target.files).map(f => ({
+                  name: f.name,
+                  size: f.size,
+                  type: f.type,
+                })),
+              });
+              handleFileSelect(e.target.files);
+            }
             // Reset input to allow selecting the same file again
             if (e.target) {
               (e.target as HTMLInputElement).value = '';
@@ -292,11 +303,18 @@ export default function ImageUploader({
         <input
           ref={cameraInputRef}
           type="file"
-          accept={accept}
+          accept="image/*"
           capture="environment"
           className="hidden"
           onChange={(e) => {
-            handleFileSelect(e.target.files);
+            if (e.target.files && e.target.files.length > 0) {
+              console.log('Camera input: File selected', {
+                fileName: e.target.files[0].name,
+                fileSize: e.target.files[0].size,
+                fileType: e.target.files[0].type,
+              });
+              handleFileSelect(e.target.files);
+            }
             // Reset input to allow selecting the same file again
             if (e.target) {
               (e.target as HTMLInputElement).value = '';
