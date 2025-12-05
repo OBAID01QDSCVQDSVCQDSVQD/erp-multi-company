@@ -172,8 +172,29 @@ export async function POST(request: NextRequest) {
 
     // Create stock movements for all products
     // Check if invoice is created from BL - if so, do NOT create stock movements
-    const isFromBL = invoice.linkedDocuments && invoice.linkedDocuments.length > 0;
+    // We need to check the actual type of the linked document, not just if linkedDocuments exists
+    let isFromBL = false;
+    if (invoice.linkedDocuments && invoice.linkedDocuments.length > 0) {
+      // Check if any linked document is a BL (Bon de Livraison)
+      const linkedDocId = invoice.linkedDocuments[0];
+      try {
+        const linkedDoc = await (Document as any).findOne({
+          _id: linkedDocId,
+          tenantId,
+        }).lean();
+        
+        if (linkedDoc && linkedDoc.type === 'BL') {
+          isFromBL = true;
+        }
+      } catch (err) {
+        console.error('Error checking linked document type:', err);
+        // If we can't check, assume it's not from BL to be safe
+      }
+    }
+    
     if (!isFromBL) {
+      // Only create stock movements if invoice is NOT from BL
+      // If from BL, stock was already reduced when BL was created
       await createStockMovementsForInvoice(invoice, tenantId, session.user.email);
     } else {
       console.log(`[Create Invoice] Skipping stock movements for invoice ${invoice._id} - created from BL`);

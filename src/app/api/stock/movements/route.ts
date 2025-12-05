@@ -284,17 +284,31 @@ export async function GET(request: NextRequest) {
       let referenceName = movement.sourceId || '-';
       if (document) {
         // For Sortie (BL or FAC sales invoice), show customer name
-        if (movement.type === 'SORTIE' && (movement.source === 'BL' || (movement.source === 'FAC' && document.isDocument && document.type === 'FAC'))) {
-          if (document.customerId) {
-            referenceName = customerMap.get(document.customerId) || movement.sourceId || '-';
+        if (movement.type === 'SORTIE') {
+          if (movement.source === 'BL' && document.isDocument && document.type === 'BL' && document.customerId) {
+            const customerIdStr = document.customerId instanceof mongoose.Types.ObjectId 
+              ? document.customerId.toString() 
+              : document.customerId?.toString() || document.customerId;
+            referenceName = customerMap.get(customerIdStr) || movement.sourceId || '-';
+          } else if (movement.source === 'FAC' && document.isDocument && document.type === 'FAC' && document.customerId) {
+            const customerIdStr = document.customerId instanceof mongoose.Types.ObjectId 
+              ? document.customerId.toString() 
+              : document.customerId?.toString() || document.customerId;
+            referenceName = customerMap.get(customerIdStr) || movement.sourceId || '-';
           }
         } 
         // For Entree (BR or FAC purchase invoice), show supplier name
         else if (movement.type === 'ENTREE') {
           if (movement.source === 'BR' && document.isReception && document.fournisseurId) {
-            referenceName = supplierMap.get(document.fournisseurId) || movement.sourceId || '-';
+            const supplierIdStr = document.fournisseurId instanceof mongoose.Types.ObjectId 
+              ? document.fournisseurId.toString() 
+              : document.fournisseurId?.toString() || document.fournisseurId;
+            referenceName = supplierMap.get(supplierIdStr) || movement.sourceId || '-';
           } else if (movement.source === 'FAC' && document.isPurchaseInvoice && document.fournisseurId) {
-            referenceName = supplierMap.get(document.fournisseurId) || movement.sourceId || '-';
+            const supplierIdStr = document.fournisseurId instanceof mongoose.Types.ObjectId 
+              ? document.fournisseurId.toString() 
+              : document.fournisseurId?.toString() || document.fournisseurId;
+            referenceName = supplierMap.get(supplierIdStr) || movement.sourceId || '-';
           }
         }
       }
