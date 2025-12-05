@@ -78,8 +78,6 @@ export async function GET(
     }
 
     const customerName = customer.raisonSociale || `${customer.nom || ''} ${customer.prenom || ''}`.trim();
-    
-    console.log(`[Customer Transactions] Customer found: ${customerName}, ID: ${id}, Tenant: ${tenantId}`);
 
     // Convert customerId to ObjectId - try multiple formats
     const customerObjectId = mongoose.Types.ObjectId.isValid(id) 
@@ -142,55 +140,6 @@ export async function GET(
     const allInvoices = Array.from(allInvoicesMap.values())
       .sort((a: any, b: any) => new Date(b.dateDoc || b.createdAt).getTime() - new Date(a.dateDoc || a.createdAt).getTime());
 
-    console.log(`[Customer Transactions] Query results: ObjectId=${invoices1.length}, String=${invoices2.length}, All=${invoices3.length}, Total unique=${allInvoices.length}`);
-    console.log(`[Customer Transactions] Found ${allInvoices.length} invoices for customer ${id}`);
-    
-    // Debug: Log invoice details
-    if (allInvoices.length > 0) {
-      console.log(`[Customer Transactions] Sample invoices:`, allInvoices.slice(0, 3).map((inv: any) => ({
-        numero: inv.numero,
-        type: inv.type,
-        customerId: inv.customerId?.toString() || inv.customerId,
-        customerIdType: typeof inv.customerId
-      })));
-    } else {
-      // If no invoices found, try comprehensive debug queries
-      console.log(`[Customer Transactions] DEBUG - No invoices found, running debug queries...`);
-      
-      // Query 1: All documents for this customerId (any type, any status)
-      const debugQuery1: any = {
-        tenantId: tenantId,
-        customerId: { $in: [customerObjectId, id.toString(), id] },
-      };
-      const debugInvoices1 = await (Document as any).find(debugQuery1).select('numero type customerId statut tenantId').limit(20).lean();
-      console.log(`[Customer Transactions] DEBUG Query 1 - All documents (any type/status): ${debugInvoices1.length}`, debugInvoices1.map((inv: any) => ({
-        numero: inv.numero,
-        type: inv.type,
-        statut: inv.statut,
-        customerId: inv.customerId?.toString(),
-        customerIdType: typeof inv.customerId
-      })));
-      
-      // Query 2: All FAC/INT_FAC invoices for this tenant (any customer)
-      const debugQuery2: any = {
-        tenantId: tenantId,
-        type: { $in: ['FAC', 'INT_FAC'] },
-      };
-      const debugInvoices2 = await (Document as any).find(debugQuery2).select('numero type customerId statut').limit(10).lean();
-      console.log(`[Customer Transactions] DEBUG Query 2 - All FAC/INT_FAC in tenant (first 10):`, debugInvoices2.map((inv: any) => ({
-        numero: inv.numero,
-        type: inv.type,
-        customerId: inv.customerId?.toString(),
-        customerIdMatches: inv.customerId?.toString() === id || inv.customerId?.toString() === customerObjectId.toString()
-      })));
-      
-      // Query 3: Count total invoices for this tenant
-      const totalInvoicesCount = await (Document as any).countDocuments({
-        tenantId: tenantId,
-        type: { $in: ['FAC', 'INT_FAC'] },
-      });
-      console.log(`[Customer Transactions] DEBUG Query 3 - Total FAC/INT_FAC invoices in tenant: ${totalInvoicesCount}`);
-    }
 
     // Get ALL payments for this customer
     const paymentQuery: any = {
@@ -216,7 +165,6 @@ export async function GET(
       .find(paymentQuery)
       .lean();
 
-    console.log(`[Customer Transactions] Found ${allPayments.length} payments for customer ${id}`);
 
     // Calculate paid amounts for each invoice
     const invoicePayments: { [key: string]: number } = {};
@@ -386,7 +334,6 @@ export async function GET(
       soldeAvanceDisponible: netAdvanceBalance,
     };
 
-    console.log(`[Customer Transactions] Summary: ${allInvoices.length} invoices, ${allPayments.length} payments, ${filteredTransactions.length} filtered transactions`);
 
     return NextResponse.json({
       customer: {
@@ -405,7 +352,6 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error('Erreur GET /api/customers/[id]/transactions:', error);
     return NextResponse.json(
       { error: 'Erreur serveur', details: (error as Error).message },
       { status: 500 }

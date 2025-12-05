@@ -296,12 +296,20 @@ export default function NewCustomerPaymentPage() {
         toast.success('Paiement créé avec succès');
         router.push(`/sales/payments/${payment._id}`);
       } else {
-        const error = await response.json();
-        toast.error(error.error || 'Erreur lors de la création');
+        const errorData = await response.json();
+        // Display the actual error message from the server
+        const errorMessage = errorData.error || errorData.message || 'Erreur lors de la création du paiement';
+        toast.error(errorMessage, {
+          duration: 5000, // Show for 5 seconds
+        });
+        console.error('Payment creation error:', errorData);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving payment:', error);
-      toast.error('Erreur lors de la sauvegarde');
+      const errorMessage = error?.message || 'Erreur de connexion lors de la sauvegarde';
+      toast.error(errorMessage, {
+        duration: 5000,
+      });
     } finally {
       setSaving(false);
     }

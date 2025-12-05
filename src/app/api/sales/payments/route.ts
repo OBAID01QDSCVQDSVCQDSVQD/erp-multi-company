@@ -126,9 +126,23 @@ export async function POST(request: NextRequest) {
     const advanceAmount = parseFloat(body.advanceAmount) || 0;
     const advanceUsed = useAdvanceBalance ? advanceAmount : (parseFloat(body.advanceUsed) || 0);
 
-    if (!customerId || !datePaiement || !modePaiement) {
+    if (!customerId) {
       return NextResponse.json(
-        { error: 'Données manquantes' },
+        { error: 'Veuillez sélectionner un client' },
+        { status: 400 }
+      );
+    }
+    
+    if (!datePaiement) {
+      return NextResponse.json(
+        { error: 'Veuillez saisir la date de paiement' },
+        { status: 400 }
+      );
+    }
+    
+    if (!modePaiement) {
+      return NextResponse.json(
+        { error: 'Veuillez sélectionner un mode de paiement' },
         { status: 400 }
       );
     }
@@ -149,7 +163,7 @@ export async function POST(request: NextRequest) {
       // For regular payments, lignes must not be empty
       if (!lignes || lignes.length === 0) {
         return NextResponse.json(
-          { error: 'Données manquantes' },
+          { error: 'Veuillez sélectionner au moins une facture à régler' },
           { status: 400 }
         );
       }
@@ -421,11 +435,30 @@ export async function POST(request: NextRequest) {
     // show the correct remaining balance by subtracting advanceUsed from totalPaymentsOnAccount.
 
     return NextResponse.json(paiement, { status: 201 });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erreur POST /api/sales/payments:', error);
+    
+    // Determine error message based on error type
+    let errorMessage = 'Erreur lors de l\'enregistrement du paiement';
+    
+    if (error.message) {
+      // Use the specific error message if available
+      errorMessage = error.message;
+    } else if (error.name === 'ValidationError') {
+      errorMessage = 'Données invalides. Veuillez vérifier les informations saisies.';
+    } else if (error.name === 'CastError') {
+      errorMessage = 'Format de données invalide. Veuillez réessayer.';
+    } else if (error.code === 11000) {
+      errorMessage = 'Un paiement avec ce numéro existe déjà.';
+    }
+    
+    // Return the specific error message instead of generic "Erreur serveur"
     return NextResponse.json(
-      { error: 'Erreur serveur', details: (error as Error).message },
-      { status: 500 }
+      { 
+        error: errorMessage,
+        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      },
+      { status: error.statusCode || 500 }
     );
   }
 }
