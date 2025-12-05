@@ -201,8 +201,16 @@ export async function POST(request: NextRequest) {
     await (invoice as any).save();
 
     // Create stock movements if invoice is VALIDEE
+    // Check if invoice is created from BR - if so, update existing BR stock movements to reference the invoice
+    const isFromBR = invoice.bonsReceptionIds && invoice.bonsReceptionIds.length > 0;
     if (body.statut === 'VALIDEE' || invoice.statut === 'VALIDEE') {
-      await createStockMovementsForPurchaseInvoice(invoice._id.toString(), tenantId, session.user.email);
+      if (isFromBR) {
+        // Update existing BR stock movements to reference the invoice instead of creating new ones
+        await updateStockMovementsFromBRToPurchaseInvoice(invoice, tenantId, session.user.email);
+      } else {
+        // Create new stock movements for direct invoice creation
+        await createStockMovementsForPurchaseInvoice(invoice._id.toString(), tenantId, session.user.email);
+      }
     }
 
     return NextResponse.json(invoice, { status: 201 });
@@ -212,6 +220,105 @@ export async function POST(request: NextRequest) {
       { error: 'Erreur serveur', details: (error as Error).message },
       { status: 500 }
     );
+  }
+}
+
+// Helper function to update stock movements from BR to Purchase Invoice
+// This prevents double stock increase when converting BR to Purchase Invoice
+async function updateStockMovementsFromBRToPurchaseInvoice(
+  invoice: any,
+  tenantId: string,
+  createdBy: string
+): Promise<void> {
+  if (!invoice.lignes || invoice.lignes.length === 0 || !invoice.bonsReceptionIds || invoice.bonsReceptionIds.length === 0) {
+    return;
+  }
+
+  const dateFacture = invoice.dateFacture || new Date();
+  const invoiceId = invoice._id.toString();
+
+  // Process each BR ID
+  for (const brId of invoice.bonsReceptionIds) {
+    // Process each line
+    for (const line of invoice.lignes) {
+      // Skip if no productId or quantity is 0
+      if (!line.produitId || !line.quantite || line.quantite <= 0) {
+        continue;
+      }
+
+      try {
+        const productIdStr = line.produitId.toString();
+        const brIdStr = brId.toString();
+
+        // Find existing stock movement from BR for this product
+        let existingMovement = null;
+        
+        try {
+          // Try to convert brId to ObjectId
+          const brIdObjectId = new mongoose.Types.ObjectId(brIdStr);
+          existingMovement = await (MouvementStock as any).findOne({
+            societeId: tenantId,
+            productId: productIdStr,
+            source: 'BR',
+            $or: [
+              { sourceId: brIdStr },
+              { sourceId: brIdObjectId },
+              { sourceId: brId.toString() }
+            ],
+            type: 'ENTREE',
+          });
+        } catch (err) {
+          // If ObjectId conversion fails, try string only
+          existingMovement = await (MouvementStock as any).findOne({
+            societeId: tenantId,
+            productId: productIdStr,
+            source: 'BR',
+            sourceId: brIdStr,
+            type: 'ENTREE',
+          });
+        }
+
+        // If still not found, try finding all BR movements for this product and match by string
+        if (!existingMovement) {
+          const allBRMovements = await (MouvementStock as any).find({
+            societeId: tenantId,
+            productId: productIdStr,
+            source: 'BR',
+            type: 'ENTREE',
+          }).lean();
+          
+          // Find the one that matches brId (as string)
+          existingMovement = allBRMovements.find((mov: any) => 
+            mov.sourceId?.toString() === brIdStr
+          );
+        }
+
+        if (existingMovement) {
+          // Update existing movement to reference the invoice instead of BR
+          // This prevents double stock increase
+          const movementDoc = await (MouvementStock as any).findById(existingMovement._id);
+          if (movementDoc) {
+            movementDoc.source = 'FAC';
+            movementDoc.sourceId = invoiceId;
+            movementDoc.date = dateFacture;
+            movementDoc.qte = line.quantite;
+            movementDoc.notes = `Facture d'achat ${invoice.numero}`;
+            await movementDoc.save();
+            console.log(`[Convert] Updated stock movement ${existingMovement._id} for product ${productIdStr} from BR ${brIdStr} to FAC ${invoiceId}`);
+          }
+        } else {
+          // If no existing movement found, this is an error
+          // When converting from BR, the stock movement should already exist from the BR creation
+          // We should NOT create a new movement as this would cause double stock increase
+          console.error(`[Convert] WARNING: No stock movement found for BR ${brIdStr}, product ${productIdStr}. Stock was not increased when BR was created.`);
+          // Do NOT create a new movement - this would cause double stock increase
+          // The stock should have been increased when the BR was created
+        }
+      } catch (error) {
+        console.error(`Error updating stock movement for product ${line.produitId}:`, error);
+        // Continue processing other lines even if one fails
+      }
+    }
   }
 }
 
