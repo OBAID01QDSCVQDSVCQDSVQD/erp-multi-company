@@ -3,10 +3,11 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
-import { PlusIcon, DocumentTextIcon, MagnifyingGlassIcon, EyeIcon, PencilIcon, ArrowDownTrayIcon, TrashIcon, ArrowRightIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, DocumentTextIcon, MagnifyingGlassIcon, EyeIcon, PencilIcon, ArrowDownTrayIcon, TrashIcon, ArrowRightIcon, ExclamationTriangleIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { useTenantId } from '@/hooks/useTenantId';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
+import ProductSearchModal from '@/components/common/ProductSearchModal';
 
 interface Invoice {
   _id: string;
@@ -87,9 +88,8 @@ export default function InvoicesPage() {
   
   // Product autocomplete state per line
   const [productSearches, setProductSearches] = useState<{ [key: number]: string }>({});
-  const [showProductDropdowns, setShowProductDropdowns] = useState<{ [key: number]: boolean }>({});
-  const [selectedProductIndices, setSelectedProductIndices] = useState<{ [key: number]: number }>({});
-  const [productDropdownPositions, setProductDropdownPositions] = useState<{ [key: number]: { top: number; left: number; width: number; isMobile?: boolean } }>({});
+  const [showProductModal, setShowProductModal] = useState<{ [key: number]: boolean }>({});
+  const [currentProductLineIndex, setCurrentProductLineIndex] = useState<number | null>(null);
   const [invoiceNumberPreview, setInvoiceNumberPreview] = useState<string | null>(null);
   const [invoiceNumberLoading, setInvoiceNumberLoading] = useState(false);
   const [productStocks, setProductStocks] = useState<{ [productId: string]: number }>({});
@@ -224,45 +224,11 @@ export default function InvoicesPage() {
       if (!target.closest('.customer-autocomplete')) {
         setShowCustomerDropdown(false);
       }
-      if (!target.closest('.product-autocomplete')) {
-        setShowProductDropdowns({});
-        setSelectedProductIndices({});
-        setProductDropdownPositions({});
-      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-
-  // Update dropdown positions when dropdowns are shown
-  useEffect(() => {
-    Object.keys(showProductDropdowns).forEach((key) => {
-      const lineIndex = parseInt(key);
-      if (showProductDropdowns[lineIndex]) {
-        // Find the input element for this line
-        const input = document.querySelector(`.product-autocomplete input[data-line-index="${lineIndex}"]`) as HTMLInputElement;
-        if (input && !productDropdownPositions[lineIndex]) {
-          const position = calculateDropdownPosition(input);
-          setProductDropdownPositions(prev => ({ ...prev, [lineIndex]: position }));
-        }
-      }
-    });
-  }, [showProductDropdowns]);
-
-  // Close dropdowns on scroll to prevent positioning issues
-  useEffect(() => {
-    const handleScroll = () => {
-      if (Object.keys(showProductDropdowns).length > 0) {
-        setShowProductDropdowns({});
-        setSelectedProductIndices({});
-        setProductDropdownPositions({});
-      }
-    };
-
-    window.addEventListener('scroll', handleScroll, true); // Use capture phase to catch all scroll events
-    return () => window.removeEventListener('scroll', handleScroll, true);
-  }, [showProductDropdowns]);
 
   // Filter customers based on search
   const filteredCustomers = customers.filter((customer) => {
@@ -437,9 +403,8 @@ export default function InvoicesPage() {
     setEditingInvoiceId(null);
     setLines([]);
     setProductSearches({});
-    setShowProductDropdowns({});
-    setSelectedProductIndices({});
-    setProductDropdownPositions({});
+    setShowProductModal({});
+    setCurrentProductLineIndex(null);
     setCustomerSearch('');
     setShowCustomerDropdown(false);
     setSelectedCustomerIndex(-1);
@@ -493,56 +458,6 @@ export default function InvoicesPage() {
     setSelectedCustomerIndex(0);
   };
 
-  // Filter products based on search (for a specific line)
-  const getFilteredProducts = (lineIndex: number) => {
-    const search = productSearches[lineIndex] || '';
-    const searchLower = search.toLowerCase().trim();
-    if (!searchLower) return products;
-    
-    return products.filter((product) => {
-      const name = product.nom.toLowerCase();
-      const sku = (product.sku || '').toLowerCase();
-      const refClient = (product.referenceClient || '').toLowerCase();
-      
-      // If single letter, use startsWith
-      if (searchLower.length === 1) {
-        return name.startsWith(searchLower) || sku.startsWith(searchLower);
-      }
-      
-      // If more than one letter, use contains
-      return name.includes(searchLower) || sku.includes(searchLower) || refClient.includes(searchLower);
-    });
-  };
-
-  // Calculate dropdown position based on input element
-  // Using fixed position (relative to viewport, not document)
-  const calculateDropdownPosition = (inputElement: HTMLInputElement) => {
-    const rect = inputElement.getBoundingClientRect();
-    const viewportWidth = window.innerWidth;
-    const isMobile = viewportWidth < 640; // sm breakpoint
-    
-    // On mobile, make dropdown full width with some padding
-    if (isMobile) {
-      return {
-        top: rect.bottom + 4,
-        left: 8, // 8px padding from screen edge
-        width: viewportWidth - 16, // Full width minus padding
-        isMobile: true
-      };
-    }
-    
-    // On desktop, use input width but ensure it doesn't go off screen
-    const maxWidth = Math.min(rect.width, viewportWidth - rect.left - 16);
-    const left = Math.max(8, Math.min(rect.left, viewportWidth - maxWidth - 8));
-    
-    return {
-      top: rect.bottom + 4,
-      left: left,
-      width: maxWidth,
-      isMobile: false
-    };
-  };
-
   // Fetch stock for a product
   const fetchProductStock = async (productId: string) => {
     if (!tenantId || !productId) return;
@@ -562,8 +477,9 @@ export default function InvoicesPage() {
     }
   };
 
-  // Handle product selection for a specific line
-  const handleSelectProduct = (lineIndex: number, product: Product) => {
+  const handleSelectProduct = (product: Product) => {
+    if (currentProductLineIndex === null) return;
+    const lineIndex = currentProductLineIndex;
     const newLines = [...lines];
     newLines[lineIndex].productId = product._id;
     newLines[lineIndex].designation = product.nom;
@@ -598,52 +514,22 @@ export default function InvoicesPage() {
       });
     }
     
-    // Update search and dropdown state
+    // Update search state
     setProductSearches({ ...productSearches, [lineIndex]: product.nom });
-    setShowProductDropdowns({ ...showProductDropdowns, [lineIndex]: false });
-    setSelectedProductIndices({ ...selectedProductIndices, [lineIndex]: -1 });
-    // Clear position when closing
-    const newPositions = { ...productDropdownPositions };
-    delete newPositions[lineIndex];
-    setProductDropdownPositions(newPositions);
+    setShowProductModal({ ...showProductModal, [lineIndex]: false });
+    setCurrentProductLineIndex(null);
   };
 
-  // Handle keyboard navigation for products
-  const handleProductKeyDown = (e: React.KeyboardEvent, lineIndex: number) => {
-    const dropdownVisible = showProductDropdowns[lineIndex];
-    if (!dropdownVisible) return;
-    
-    const filteredProducts = getFilteredProducts(lineIndex);
-    const currentIndex = selectedProductIndices[lineIndex] || -1;
-    
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      setSelectedProductIndices({ 
-        ...selectedProductIndices, 
-        [lineIndex]: currentIndex < filteredProducts.length - 1 ? currentIndex + 1 : currentIndex 
-      });
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setSelectedProductIndices({ 
-        ...selectedProductIndices, 
-        [lineIndex]: currentIndex > 0 ? currentIndex - 1 : -1 
-      });
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      if (currentIndex >= 0 && filteredProducts[currentIndex]) {
-        handleSelectProduct(lineIndex, filteredProducts[currentIndex]);
-      }
-    } else if (e.key === 'Escape') {
-      setShowProductDropdowns({ ...showProductDropdowns, [lineIndex]: false });
-      setSelectedProductIndices({ ...selectedProductIndices, [lineIndex]: -1 });
+  const handleOpenProductModal = (lineIndex: number) => {
+    setCurrentProductLineIndex(lineIndex);
+    setShowProductModal({ ...showProductModal, [lineIndex]: true });
+  };
+
+  const handleCloseProductModal = () => {
+    if (currentProductLineIndex !== null) {
+      setShowProductModal({ ...showProductModal, [currentProductLineIndex]: false });
     }
-  };
-
-  // Handle alphabet filter click for products
-  const handleProductAlphabetClick = (lineIndex: number, letter: string) => {
-    setProductSearches({ ...productSearches, [lineIndex]: letter });
-    setShowProductDropdowns({ ...showProductDropdowns, [lineIndex]: true });
-    setSelectedProductIndices({ ...selectedProductIndices, [lineIndex]: 0 });
+    setCurrentProductLineIndex(null);
   };
 
   const fetchCustomers = async () => {
@@ -774,6 +660,12 @@ export default function InvoicesPage() {
 
   const removeLine = (index: number) => {
     setLines(lines.filter((_, i) => i !== index));
+    const newSearches = { ...productSearches };
+    delete newSearches[index];
+    setProductSearches(newSearches);
+    const newModals = { ...showProductModal };
+    delete newModals[index];
+    setShowProductModal(newModals);
   };
 
   const updateLine = (index: number, field: string, value: any) => {
@@ -1189,8 +1081,8 @@ export default function InvoicesPage() {
         setShowCustomerDropdown(false);
         setSelectedCustomerIndex(-1);
         setProductSearches({});
-        setShowProductDropdowns({});
-        setSelectedProductIndices({});
+        setShowProductModal({});
+        setCurrentProductLineIndex(null);
         fetchInvoices(0);
       } else {
         const error = await response.json();
@@ -1242,8 +1134,8 @@ export default function InvoicesPage() {
         const hasBL = fullInvoice.linkedDocuments && fullInvoice.linkedDocuments.length > 0;
         setIsFromBL(hasBL || false);
         
-          // Populate form with invoice data
-          setFormData({
+        // Populate form with invoice data
+        setFormData({
             customerId: fullInvoice.customerId || '',
             dateDoc: fullInvoice.dateDoc?.split('T')[0] || new Date().toISOString().split('T')[0],
             referenceExterne: fullInvoice.referenceExterne || '',
@@ -1937,103 +1829,53 @@ export default function InvoicesPage() {
                         <tbody className="divide-y divide-gray-100">
                           {lines.map((line, index) => (
                             <tr key={index}>
-                              <td className="px-2 sm:px-4 py-3 overflow-visible">
-                                <div className="relative product-autocomplete">
-                                  <div className="relative">
-                                    <MagnifyingGlassIcon className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
+                              <td className="px-2 sm:px-4 py-3" style={{ width: 'auto', maxWidth: 'none' }}>
+                                <div className="flex items-center gap-2">
+                                  <div className="relative inline-block">
                                     <input
                                       type="text"
-                                      data-line-index={index}
-                                      value={productSearches[index] || ''}
+                                      value={productSearches[index] || line.designation || ''}
                                       onChange={(e) => {
-                                        const input = e.target as HTMLInputElement;
+                                        const updatedLines = [...lines];
+                                        updatedLines[index] = { ...updatedLines[index], designation: e.target.value };
+                                        setLines(updatedLines);
                                         setProductSearches({ ...productSearches, [index]: e.target.value });
-                                        setShowProductDropdowns({ ...showProductDropdowns, [index]: true });
-                                        setSelectedProductIndices({ ...selectedProductIndices, [index]: -1 });
-                                        const position = calculateDropdownPosition(input);
-                                        setProductDropdownPositions({ ...productDropdownPositions, [index]: position });
+                                      }}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        e.preventDefault();
+                                        handleOpenProductModal(index);
                                       }}
                                       onFocus={(e) => {
-                                        const input = e.target as HTMLInputElement;
-                                        setShowProductDropdowns({ ...showProductDropdowns, [index]: true });
-                                        const position = calculateDropdownPosition(input);
-                                        setProductDropdownPositions({ ...productDropdownPositions, [index]: position });
+                                        e.stopPropagation();
+                                        handleOpenProductModal(index);
                                       }}
-                                      onKeyDown={(e) => handleProductKeyDown(e, index)}
                                       placeholder="Rechercher un produit..."
-                                      className="w-full pl-8 sm:pl-10 pr-2 sm:pr-3 py-2 sm:py-2.5 border rounded-lg text-sm sm:text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                    />
-                                  </div>
-                                  
-                                  {/* Dropdown */}
-                                  {showProductDropdowns[index] && productDropdownPositions[index] && (
-                                    <div 
-                                      className={`fixed z-[9999] bg-white border border-gray-200 rounded-lg shadow-2xl overflow-hidden ${
-                                        productDropdownPositions[index].isMobile 
-                                          ? 'max-h-[60vh]' 
-                                          : 'max-h-[280px]'
-                                      }`}
-                                      style={{ 
-                                        width: `${productDropdownPositions[index].width}px`,
-                                        top: `${productDropdownPositions[index].top}px`,
-                                        left: `${productDropdownPositions[index].left}px`
+                                      className="px-3 py-2 pr-8 border rounded-lg text-sm cursor-pointer focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                      readOnly
+                                      style={{
+                                        minWidth: '150px',
+                                        width: line.designation ? `${Math.max(150, Math.min(500, (line.designation.length * 8) + 50))}px` : '150px',
+                                        maxWidth: '500px',
                                       }}
+                                    />
+                                    <MagnifyingGlassIcon className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                                  </div>
+                                  {line.designation && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        const updatedLines = [...lines];
+                                        updatedLines[index] = { ...updatedLines[index], designation: '', productId: '' };
+                                        setLines(updatedLines);
+                                        setProductSearches({ ...productSearches, [index]: '' });
+                                      }}
+                                      className="p-1 text-gray-400 hover:text-red-600 transition-colors flex-shrink-0"
+                                      title="Effacer"
+                                      type="button"
                                     >
-                                      {/* Alphabet filter bar - scrollable on mobile */}
-                                      <div className={`flex items-center gap-1 px-2 py-2 bg-gray-50 border-b ${
-                                        productDropdownPositions[index].isMobile 
-                                          ? 'overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300' 
-                                          : 'justify-center'
-                                      }`}>
-                                        {Array.from('ABCDEFGHIJKLMNOPQRSTUVWXYZ').map((letter) => (
-                                          <button
-                                            key={letter}
-                                            onClick={() => handleProductAlphabetClick(index, letter)}
-                                            className="px-2 sm:px-1.5 py-1 sm:py-0.5 rounded hover:bg-blue-100 hover:text-blue-600 active:bg-blue-200 transition-colors font-semibold text-xs sm:text-xs flex-shrink-0"
-                                          >
-                                            {letter}
-                                          </button>
-                                        ))}
-                                      </div>
-                                      
-                                      {/* Product list */}
-                                      <div className={`overflow-y-auto ${
-                                        productDropdownPositions[index].isMobile 
-                                          ? 'max-h-[calc(60vh-50px)]' 
-                                          : 'max-h-[240px]'
-                                      }`}>
-                                        {getFilteredProducts(index).length > 0 ? (
-                                          getFilteredProducts(index).map((product, prodIndex) => {
-                                            const displayName = product.nom;
-                                            const secondaryInfo = [
-                                              product.sku,
-                                              product.referenceClient
-                                            ].filter(Boolean).join(' - ');
-                                            
-                                            return (
-                                              <div
-                                                key={product._id}
-                                                onClick={() => handleSelectProduct(index, product)}
-                                                className={`px-3 sm:px-4 py-3 sm:py-2.5 cursor-pointer transition-colors touch-manipulation ${
-                                                  prodIndex === (selectedProductIndices[index] || -1)
-                                                    ? 'bg-blue-50 border-l-2 border-blue-500'
-                                                    : 'hover:bg-gray-50 active:bg-gray-100'
-                                                }`}
-                                              >
-                                                <div className="font-medium text-gray-900 text-sm sm:text-base">{displayName}</div>
-                                                {secondaryInfo && (
-                                                  <div className="text-xs sm:text-sm text-gray-500 mt-0.5">{secondaryInfo}</div>
-                                                )}
-                                              </div>
-                                            );
-                                          })
-                                        ) : (
-                                          <div className="px-4 py-8 text-center text-gray-500 text-sm sm:text-base">
-                                            Aucun produit trouvé
-                                          </div>
-                                        )}
-                                      </div>
-                                    </div>
+                                      <XMarkIcon className="w-4 h-4" />
+                                    </button>
                                   )}
                                 </div>
                               </td>
@@ -2428,6 +2270,18 @@ export default function InvoicesPage() {
           </div>
         )}
       </div>
+
+      {/* Product Search Modal */}
+      {currentProductLineIndex !== null && showProductModal[currentProductLineIndex] && (
+        <ProductSearchModal
+          isOpen={true}
+          onClose={handleCloseProductModal}
+          onSelect={handleSelectProduct}
+          products={products}
+          tenantId={tenantId || ''}
+          title="Rechercher un produit"
+        />
+      )}
     </DashboardLayout>
   );
 }

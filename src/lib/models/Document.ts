@@ -21,20 +21,14 @@ export interface IDocument extends Document {
   tenantId: string;
   
   // Basic info
-  type: 'DEVIS' | 'BC' | 'BL' | 'FAC' | 'AVOIR' | 'PO' | 'BR' | 'FACFO' | 'AVOIRFO' | 'INT_FAC' | 'RETOUR';
+  type: 'DEVIS' | 'BC' | 'BL' | 'FAC' | 'AVOIR' | 'PO' | 'BR' | 'FACFO' | 'AVOIRFO';
   numero: string;
   dateDoc: Date;
   statut?: 'BROUILLON' | 'VALIDEE' | 'PARTIELLEMENT_PAYEE' | 'PAYEE' | 'ANNULEE';
   
   // Party (customer or supplier)
-  customerId?: mongoose.Types.ObjectId;
-  supplierId?: mongoose.Types.ObjectId;
-  
-  // Project reference
-  projetId?: mongoose.Types.ObjectId;
-  
-  // BL reference (for RETOUR type)
-  blId?: mongoose.Types.ObjectId;
+  customerId?: string;
+  supplierId?: string;
   
   // References
   referenceExterne?: string;
@@ -58,11 +52,6 @@ export interface IDocument extends Document {
   netAPayer: number;
   totalTVADeductible?: number; // For purchases
   remiseGlobalePct?: number; // Global discount percentage
-  fodec?: {
-    enabled: boolean;
-    tauxPct: number;
-    montant?: number;
-  };
   
   // Settings
   devise?: string;
@@ -88,7 +77,7 @@ const DocumentLineSchema = new Schema({
   categorieCode: { type: String },
   designation: { type: String, required: true },
   uomCode: { type: String },
-  quantite: { type: Number, required: true },
+  quantite: { type: Number, required: true, min: 0 },
   prixUnitaireHT: { type: Number, required: true, min: 0 },
   taxCode: { type: String },
   tvaPct: { type: Number, min: 0, max: 100 },
@@ -99,24 +88,16 @@ const DocumentLineSchema = new Schema({
   qtyFacturee: { type: Number, default: 0 }
 }, { _id: true });
 
-const DocumentSchema = new (Schema as any)({
+const DocumentSchema = new Schema({
   tenantId: { type: String, required: true, index: true },
   
-  type: { type: String, enum: ['DEVIS', 'BC', 'BL', 'FAC', 'AVOIR', 'PO', 'BR', 'FACFO', 'AVOIRFO', 'INT_FAC', 'RETOUR'], required: true },
+  type: { type: String, enum: ['DEVIS', 'BC', 'BL', 'FAC', 'AVOIR', 'PO', 'BR', 'FACFO', 'AVOIRFO'], required: true },
   numero: { type: String, required: true },
   dateDoc: { type: Date, required: true, default: Date.now },
   statut: { type: String, enum: ['BROUILLON', 'VALIDEE', 'PARTIELLEMENT_PAYEE', 'PAYEE', 'ANNULEE'], default: 'BROUILLON' },
   
-  customerId: { 
-    type: Schema.Types.ObjectId, 
-    ref: 'Customer',
-    index: true 
-  },
-  supplierId: { 
-    type: Schema.Types.ObjectId, 
-    ref: 'Supplier',
-    index: true 
-  },
+  customerId: { type: String },
+  supplierId: { type: String },
   
   referenceExterne: { type: String },
   bonCommandeClient: { type: String },
@@ -136,11 +117,6 @@ const DocumentSchema = new (Schema as any)({
   netAPayer: { type: Number, default: 0 },
   totalTVADeductible: { type: Number, default: 0 },
   remiseGlobalePct: { type: Number, default: 0, min: 0, max: 100 },
-  fodec: {
-    enabled: { type: Boolean, default: false },
-    tauxPct: { type: Number, default: 1, min: 0, max: 100 },
-    montant: { type: Number, default: 0 }
-  },
   
   devise: { type: String, default: 'TND' },
   tauxChange: { type: Number, default: 1 },
@@ -154,26 +130,14 @@ const DocumentSchema = new (Schema as any)({
   notesInterne: { type: String },
   createdBy: { type: String },
   archived: { type: Boolean, default: false },
-  linkedDocuments: { type: [String] },
-  projetId: { 
-    type: Schema.Types.ObjectId, 
-    ref: 'Project',
-    index: true 
-  },
-  blId: { 
-    type: Schema.Types.ObjectId, 
-    ref: 'Document',
-    index: true 
-  }
-}, { timestamps: true });
+  linkedDocuments: { type: [String] }
+} as any, { timestamps: true });
 
 // Indexes
 DocumentSchema.index({ tenantId: 1, type: 1, dateDoc: -1 });
 DocumentSchema.index({ tenantId: 1, type: 1, numero: 1 }, { unique: true });
 DocumentSchema.index({ tenantId: 1, customerId: 1 });
 DocumentSchema.index({ tenantId: 1, supplierId: 1 });
-DocumentSchema.index({ tenantId: 1, projetId: 1 });
-DocumentSchema.index({ tenantId: 1, blId: 1 });
 DocumentSchema.index({ 'lignes.productId': 1 });
 
 // Clear cache
@@ -182,4 +146,4 @@ if (mongoose.models.Document) {
 }
 
 // Use 'documents' as collection name for all document types
-export default mongoose.model<IDocument>('Document', DocumentSchema, 'documents');
+export default mongoose.model<IDocument>('Document', DocumentSchema as any, 'documents');

@@ -4,9 +4,10 @@ import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
-import { PlusIcon, DocumentTextIcon, MagnifyingGlassIcon, EyeIcon, PencilIcon, ArrowDownTrayIcon, TrashIcon, ArrowRightIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, DocumentTextIcon, MagnifyingGlassIcon, EyeIcon, PencilIcon, ArrowDownTrayIcon, TrashIcon, ArrowRightIcon, ExclamationTriangleIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { useTenantId } from '@/hooks/useTenantId';
 import toast from 'react-hot-toast';
+import ProductSearchModal from '@/components/common/ProductSearchModal';
 
 interface Invoice {
   _id: string;
@@ -130,9 +131,11 @@ export default function InternalInvoicesPage() {
   
   // Product autocomplete state per line
   const [productSearches, setProductSearches] = useState<{ [key: number]: string }>({});
+  const [showProductModal, setShowProductModal] = useState<{ [key: number]: boolean }>({});
+  const [currentProductLineIndex, setCurrentProductLineIndex] = useState<number | null>(null);
   const [showProductDropdowns, setShowProductDropdowns] = useState<{ [key: number]: boolean }>({});
   const [selectedProductIndices, setSelectedProductIndices] = useState<{ [key: number]: number }>({});
-  const [productDropdownPositions, setProductDropdownPositions] = useState<{ [key: number]: { top: number; left: number; width: number; isMobile?: boolean } }>({});
+  const [productDropdownPositions, setProductDropdownPositions] = useState<{ [key: number]: { top: number; left: number; width: number; isMobile: boolean } }>({});
   const [invoiceNumberPreview, setInvoiceNumberPreview] = useState<string | null>(null);
   const [invoiceNumberLoading, setInvoiceNumberLoading] = useState(false);
   const [productStocks, setProductStocks] = useState<{ [productId: string]: number }>({});
@@ -296,45 +299,12 @@ export default function InternalInvoicesPage() {
       if (!target.closest('.customer-autocomplete')) {
         setShowCustomerDropdown(false);
       }
-      if (!target.closest('.product-autocomplete')) {
-        setShowProductDropdowns({});
-        setSelectedProductIndices({});
-        setProductDropdownPositions({});
-      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Update dropdown positions when dropdowns are shown
-  useEffect(() => {
-    Object.keys(showProductDropdowns).forEach((key) => {
-      const lineIndex = parseInt(key);
-      if (showProductDropdowns[lineIndex]) {
-        // Find the input element for this line
-        const input = document.querySelector(`.product-autocomplete input[data-line-index="${lineIndex}"]`) as HTMLInputElement;
-        if (input && !productDropdownPositions[lineIndex]) {
-          const position = calculateDropdownPosition(input);
-          setProductDropdownPositions(prev => ({ ...prev, [lineIndex]: position }));
-        }
-      }
-    });
-  }, [showProductDropdowns]);
-
-  // Close dropdowns on scroll to prevent positioning issues
-  useEffect(() => {
-    const handleScroll = () => {
-      if (Object.keys(showProductDropdowns).length > 0) {
-        setShowProductDropdowns({});
-        setSelectedProductIndices({});
-        setProductDropdownPositions({});
-      }
-    };
-
-    window.addEventListener('scroll', handleScroll, true); // Use capture phase to catch all scroll events
-    return () => window.removeEventListener('scroll', handleScroll, true);
-  }, [showProductDropdowns]);
 
   // Filter customers based on search
   const filteredProjects = useMemo(() => {
@@ -589,6 +559,98 @@ export default function InternalInvoicesPage() {
     setSelectedCustomerIndex(0);
   };
 
+
+  // Fetch stock for a product
+  const fetchProductStock = async (productId: string) => {
+    if (!tenantId || !productId) return;
+    try {
+      const response = await fetch(`/api/stock/product/${productId}`, {
+        headers: { 'X-Tenant-Id': tenantId },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setProductStocks((prev) => ({
+          ...prev,
+          [productId]: data.stockActuel || 0,
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching product stock:', error);
+    }
+  };
+
+  const handleSelectProduct = (lineIndexOrProduct: number | Product, product?: Product) => {
+    // Handle both signatures: (product) for modal and (lineIndex, product) for dropdown
+    let lineIndex: number;
+    let selectedProduct: Product;
+    
+    if (typeof lineIndexOrProduct === 'number') {
+      // Called from dropdown: (lineIndex, product)
+      lineIndex = lineIndexOrProduct;
+      selectedProduct = product!;
+    } else {
+      // Called from modal: (product)
+      if (currentProductLineIndex === null) return;
+      lineIndex = currentProductLineIndex;
+      selectedProduct = lineIndexOrProduct;
+    }
+    const newLines = [...lines];
+    newLines[lineIndex].productId = selectedProduct._id;
+    newLines[lineIndex].designation = selectedProduct.nom;
+    newLines[lineIndex].codeAchat = selectedProduct.referenceClient || selectedProduct.sku || '';
+    newLines[lineIndex].categorieCode = (selectedProduct as any).categorieCode || '';
+    newLines[lineIndex].prixUnitaireHT = selectedProduct.prixVenteHT || 0;
+    newLines[lineIndex].taxCode = selectedProduct.taxCode || '';
+    newLines[lineIndex].uomCode = selectedProduct.uomVenteCode || '';
+    
+    // Clear the price input value for this line so it uses the numeric value
+    setPriceInputValues(prev => {
+      const newValues = { ...prev };
+      delete newValues[lineIndex];
+      return newValues;
+    });
+    
+    // Use tvaPct from product if available
+    if (selectedProduct.tvaPct !== undefined && selectedProduct.tvaPct !== null) {
+      newLines[lineIndex].tvaPct = selectedProduct.tvaPct;
+    } else if (Array.isArray(taxRates) && taxRates.length > 0 && selectedProduct.taxCode) {
+      const taxRate = taxRates.find(t => t.code === selectedProduct.taxCode);
+      newLines[lineIndex].tvaPct = taxRate ? taxRate.tauxPct : 0;
+    } else {
+      newLines[lineIndex].tvaPct = 0;
+    }
+    
+    newLines[lineIndex].estStocke = selectedProduct.estStocke !== false;
+    setLines(newLines);
+    
+    // Fetch stock for the selected product only if it's an article (estStocke !== false) and NOT from BL
+    if (!isFromBL && selectedProduct.estStocke !== false) {
+      fetchProductStock(selectedProduct._id);
+    } else {
+      setProductStocks(prev => {
+        if (!prev[selectedProduct._id]) return prev;
+        const updated = { ...prev };
+        delete updated[selectedProduct._id];
+        return updated;
+      });
+    }
+    
+    // Update search state
+    setProductSearches({ ...productSearches, [lineIndex]: selectedProduct.nom });
+    setShowProductModal({ ...showProductModal, [lineIndex]: false });
+    setCurrentProductLineIndex(null);
+    
+    // Update dropdown state (for dropdown usage)
+    if (typeof lineIndexOrProduct === 'number') {
+      setShowProductDropdowns({ ...showProductDropdowns, [lineIndex]: false });
+      setSelectedProductIndices({ ...selectedProductIndices, [lineIndex]: -1 });
+      // Clear position when closing
+      const newPositions = { ...productDropdownPositions };
+      delete newPositions[lineIndex];
+      setProductDropdownPositions(newPositions);
+    }
+  };
+
   // Filter products based on search (for a specific line)
   const getFilteredProducts = (lineIndex: number) => {
     const search = productSearches[lineIndex] || '';
@@ -611,7 +673,6 @@ export default function InternalInvoicesPage() {
   };
 
   // Calculate dropdown position based on input element
-  // Using fixed position (relative to viewport, not document)
   const calculateDropdownPosition = (inputElement: HTMLInputElement) => {
     const rect = inputElement.getBoundingClientRect();
     const viewportWidth = window.innerWidth;
@@ -637,78 +698,6 @@ export default function InternalInvoicesPage() {
       width: maxWidth,
       isMobile: false
     };
-  };
-
-  // Fetch stock for a product
-  const fetchProductStock = async (productId: string) => {
-    if (!tenantId || !productId) return;
-    try {
-      const response = await fetch(`/api/stock/product/${productId}`, {
-        headers: { 'X-Tenant-Id': tenantId },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setProductStocks((prev) => ({
-          ...prev,
-          [productId]: data.stockActuel || 0,
-        }));
-      }
-    } catch (error) {
-      console.error('Error fetching product stock:', error);
-    }
-  };
-
-  // Handle product selection for a specific line
-  const handleSelectProduct = (lineIndex: number, product: Product) => {
-    const newLines = [...lines];
-    newLines[lineIndex].productId = product._id;
-    newLines[lineIndex].designation = product.nom;
-    newLines[lineIndex].codeAchat = product.referenceClient || product.sku || '';
-    newLines[lineIndex].categorieCode = (product as any).categorieCode || '';
-    newLines[lineIndex].prixUnitaireHT = product.prixVenteHT || 0;
-    newLines[lineIndex].taxCode = product.taxCode || '';
-    newLines[lineIndex].uomCode = product.uomVenteCode || '';
-    
-    // Clear the price input value for this line so it uses the numeric value
-    setPriceInputValues(prev => {
-      const newValues = { ...prev };
-      delete newValues[lineIndex];
-      return newValues;
-    });
-    
-    // Use tvaPct from product if available
-    if (product.tvaPct !== undefined && product.tvaPct !== null) {
-      newLines[lineIndex].tvaPct = product.tvaPct;
-    } else if (Array.isArray(taxRates) && taxRates.length > 0 && product.taxCode) {
-      const taxRate = taxRates.find(t => t.code === product.taxCode);
-      newLines[lineIndex].tvaPct = taxRate ? taxRate.tauxPct : 0;
-    } else {
-      newLines[lineIndex].tvaPct = 0;
-    }
-    
-    newLines[lineIndex].estStocke = product.estStocke !== false;
-    setLines(newLines);
-    
-    // Fetch stock for the selected product only if it's an article (estStocke !== false) and NOT from BL
-    if (!isFromBL && product.estStocke !== false) {
-      fetchProductStock(product._id);
-    } else {
-      setProductStocks(prev => {
-        if (!prev[product._id]) return prev;
-        const updated = { ...prev };
-        delete updated[product._id];
-        return updated;
-      });
-    }
-    
-    // Update search and dropdown state
-    setProductSearches({ ...productSearches, [lineIndex]: product.nom });
-    setShowProductDropdowns({ ...showProductDropdowns, [lineIndex]: false });
-    setSelectedProductIndices({ ...selectedProductIndices, [lineIndex]: -1 });
-    // Clear position when closing
-    const newPositions = { ...productDropdownPositions };
-    delete newPositions[lineIndex];
-    setProductDropdownPositions(newPositions);
   };
 
   // Handle keyboard navigation for products
@@ -747,6 +736,18 @@ export default function InternalInvoicesPage() {
     setProductSearches({ ...productSearches, [lineIndex]: letter });
     setShowProductDropdowns({ ...showProductDropdowns, [lineIndex]: true });
     setSelectedProductIndices({ ...selectedProductIndices, [lineIndex]: 0 });
+  };
+
+  const handleOpenProductModal = (lineIndex: number) => {
+    setCurrentProductLineIndex(lineIndex);
+    setShowProductModal({ ...showProductModal, [lineIndex]: true });
+  };
+
+  const handleCloseProductModal = () => {
+    if (currentProductLineIndex !== null) {
+      setShowProductModal({ ...showProductModal, [currentProductLineIndex]: false });
+    }
+    setCurrentProductLineIndex(null);
   };
 
   const fetchCustomers = async () => {
