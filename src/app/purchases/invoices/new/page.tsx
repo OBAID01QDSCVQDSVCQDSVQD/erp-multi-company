@@ -412,8 +412,10 @@ export default function NewPurchaseInvoicePage() {
   };
 
   const handleOpenProductModal = (lineIndex: number) => {
+    console.log('Opening product modal for line:', lineIndex);
     setCurrentProductLineIndex(lineIndex);
     setShowProductModal({ ...showProductModal, [lineIndex]: true });
+    console.log('Modal state:', { [lineIndex]: true });
   };
 
   const handleCloseProductModal = () => {
@@ -974,9 +976,9 @@ export default function NewPurchaseInvoicePage() {
                   <tbody className="divide-y divide-gray-100">
                     {lines.map((line, index) => (
                       <tr key={index}>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3" style={{ width: 'auto', maxWidth: 'none' }}>
                           <div className="flex items-center gap-2">
-                            <div className="relative" style={{ width: line.designation ? 'fit-content' : '100%', minWidth: '150px', maxWidth: '100%' }}>
+                            <div className="relative inline-block">
                               <input
                                 type="text"
                                 value={productSearches[index] || line.designation || ''}
@@ -984,28 +986,37 @@ export default function NewPurchaseInvoicePage() {
                                   updateLine(index, 'designation', e.target.value);
                                   setProductSearches({ ...productSearches, [index]: e.target.value });
                                 }}
-                                onClick={() => handleOpenProductModal(index)}
-                                onFocus={() => handleOpenProductModal(index)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  e.preventDefault();
+                                  handleOpenProductModal(index);
+                                }}
+                                onFocus={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenProductModal(index);
+                                }}
                                 placeholder="Rechercher un produit..."
                                 className="px-3 py-1.5 pr-8 border rounded text-sm cursor-pointer focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                 readOnly
                                 style={{
-                                  width: line.designation ? `${Math.max(150, Math.min(400, (line.designation.length * 8) + 40))}px` : '100%',
                                   minWidth: '150px',
-                                  maxWidth: '100%',
+                                  width: line.designation ? `${Math.max(150, Math.min(500, (line.designation.length * 8) + 50))}px` : '150px',
+                                  maxWidth: '500px',
                                 }}
                               />
                               <MagnifyingGlassIcon className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
                             </div>
                             {line.designation && (
                               <button
-                                onClick={() => {
+                                onClick={(e) => {
+                                  e.stopPropagation();
                                   updateLine(index, 'designation', '');
                                   updateLine(index, 'produitId', undefined);
                                   setProductSearches({ ...productSearches, [index]: '' });
                                 }}
                                 className="p-1 text-gray-400 hover:text-red-600 transition-colors flex-shrink-0"
                                 title="Effacer"
+                                type="button"
                               >
                                 <XMarkIcon className="w-4 h-4" />
                               </button>
@@ -1223,9 +1234,9 @@ export default function NewPurchaseInvoicePage() {
       </div>
 
       {/* Product Search Modal */}
-      {currentProductLineIndex !== null && (
+      {currentProductLineIndex !== null && showProductModal[currentProductLineIndex] && (
         <ProductSearchModal
-          isOpen={showProductModal[currentProductLineIndex] || false}
+          isOpen={true}
           onClose={handleCloseProductModal}
           onSelect={handleSelectProduct}
           products={products}
