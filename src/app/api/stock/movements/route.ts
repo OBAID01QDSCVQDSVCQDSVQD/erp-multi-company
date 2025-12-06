@@ -170,7 +170,7 @@ export async function GET(request: NextRequest) {
     // Separate source IDs by type
     const documentSourceIds = Array.from(new Set(
       movements
-        .filter((m: any) => m.sourceId && (m.source === 'BL' || (m.source === 'FAC' && m.type === 'SORTIE')))
+        .filter((m: any) => m.sourceId && (m.source === 'BL' || (m.source === 'FAC' && m.type === 'SORTIE') || m.source === 'RETOUR'))
         .map((m: any) => m.sourceId)
     ));
 
@@ -186,12 +186,13 @@ export async function GET(request: NextRequest) {
         .map((m: any) => m.sourceId)
     ));
 
-    // Fetch documents (BL, BR, FAC sales)
+    // Fetch documents (BL, BR, FAC sales, RETOUR)
     const documents = documentSourceIds.length > 0 ? await (Document as any).find({
       _id: { $in: documentSourceIds.map((id: string) => {
         return mongoose.Types.ObjectId.isValid(id) ? new mongoose.Types.ObjectId(id) : id;
       }) },
       tenantId,
+      type: { $in: ['BL', 'FAC', 'INT_FAC', 'RETOUR'] },
     }).select('_id type customerId supplierId').lean() : [];
 
     const documentMap = new Map();
@@ -297,9 +298,15 @@ export async function GET(request: NextRequest) {
             referenceName = customerMap.get(customerIdStr) || movement.sourceId || '-';
           }
         } 
-        // For Entree (BR or FAC purchase invoice), show supplier name
+        // For Entree (BR, RETOUR, or FAC purchase invoice), show supplier/customer name
         else if (movement.type === 'ENTREE') {
-          if (movement.source === 'BR' && document.isReception && document.fournisseurId) {
+          // RETOUR - show customer name (product returned from customer)
+          if (movement.source === 'RETOUR' && document.isDocument && document.type === 'RETOUR' && document.customerId) {
+            const customerIdStr = document.customerId instanceof mongoose.Types.ObjectId 
+              ? document.customerId.toString() 
+              : document.customerId?.toString() || document.customerId;
+            referenceName = customerMap.get(customerIdStr) || movement.sourceId || '-';
+          } else if (movement.source === 'BR' && document.isReception && document.fournisseurId) {
             const supplierIdStr = document.fournisseurId instanceof mongoose.Types.ObjectId 
               ? document.fournisseurId.toString() 
               : document.fournisseurId?.toString() || document.fournisseurId;

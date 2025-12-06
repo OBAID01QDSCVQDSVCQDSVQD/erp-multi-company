@@ -82,8 +82,9 @@ export async function GET(
     return NextResponse.json(retour);
   } catch (error) {
     console.error('Erreur GET /sales/returns/:id:', error);
+    const errorMessage = (error as Error).message || 'Erreur lors de la récupération du retour';
     return NextResponse.json(
-      { error: 'Erreur serveur', details: (error as Error).message },
+      { error: errorMessage },
       { status: 500 }
     );
   }
@@ -125,8 +126,9 @@ export async function DELETE(
     return NextResponse.json({ message: 'Bon de retour supprimé', retour });
   } catch (error) {
     console.error('Erreur DELETE /sales/returns/:id:', error);
+    const errorMessage = (error as Error).message || 'Erreur lors de la suppression du retour';
     return NextResponse.json(
-      { error: 'Erreur serveur', details: (error as Error).message },
+      { error: errorMessage },
       { status: 500 }
     );
   }

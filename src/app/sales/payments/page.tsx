@@ -411,15 +411,15 @@ export default function PaymentsPage() {
 
   return (
     <DashboardLayout>
-      <div className="p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Paiements clients</h1>
+      <div className="p-4 sm:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Paiements clients</h1>
           <button
             onClick={() => router.push('/sales/payments/new')}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm sm:text-base"
           >
             <PlusIcon className="w-5 h-5" />
-            Nouveau paiement
+            <span className="whitespace-nowrap">Nouveau paiement</span>
           </button>
         </div>
 
@@ -437,106 +437,189 @@ export default function PaymentsPage() {
           </div>
         </div>
 
-        {/* Payments Table */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Numéro</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Client</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mode</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Référence</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Montant</th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Images</th>
-                    <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {loading ? (
+        {/* Payments Table - Desktop */}
+        <div className="hidden lg:block bg-white rounded-lg shadow overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
                 <tr>
-                  <td colSpan={8} className="px-6 py-4 text-center text-gray-500">
-                    Chargement...
-                  </td>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Numéro</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Client</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mode</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Référence</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Montant</th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Images</th>
+                  <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                 </tr>
-              ) : filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="px-6 py-4 text-center text-gray-500">
-                    Aucun paiement trouvé
-                  </td>
-                </tr>
-              ) : (
-                filtered.map((payment) => {
-                  return (
-                  <tr key={payment._id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {payment.numero}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(payment.datePaiement).toLocaleDateString('fr-FR')}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {payment.customerNom || '-'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {payment.modePaiement}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {payment.reference || '-'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {formatCurrency(payment.montantTotal)} TND
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                      {payment.images && payment.images.length > 0 ? (
-                        <button
-                          onClick={() => setSelectedPaymentImages({ paymentNumero: payment.numero, images: payment.images! })}
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors text-xs font-medium"
-                          title={`${payment.images.length} image(s) jointe(s)`}
-                        >
-                          <PhotoIcon className="w-4 h-4" />
-                          <span>{payment.images.length}</span>
-                        </button>
-                      ) : (
-                        <span className="text-gray-400 text-xs">—</span>
-                      )}
-                    </td>
-                    <td className="px-2 py-2 whitespace-nowrap text-sm font-medium">
-                      <div className="flex items-center justify-end gap-0.5">
-                        <button
-                          onClick={() => router.push(`/sales/payments/${payment._id}`)}
-                          className="p-1.5 text-blue-600 hover:text-blue-900 hover:bg-blue-50 rounded transition-colors"
-                          title="Voir les détails"
-                        >
-                          <EyeIcon className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleAddImages(payment)}
-                          className="p-1.5 text-purple-600 hover:text-purple-900 hover:bg-purple-50 rounded transition-colors"
-                          title="Ajouter des images"
-                        >
-                          <PlusCircleIcon className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(payment._id)}
-                          className="p-1.5 text-red-600 hover:text-red-900 hover:bg-red-50 rounded transition-colors"
-                          title="Supprimer"
-                        >
-                          <TrashIcon className="w-4 h-4" />
-                        </button>
-                      </div>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {loading ? (
+                  <tr>
+                    <td colSpan={8} className="px-6 py-4 text-center text-gray-500">
+                      Chargement...
                     </td>
                   </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+                ) : filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="px-6 py-4 text-center text-gray-500">
+                      Aucun paiement trouvé
+                    </td>
+                  </tr>
+                ) : (
+                  filtered.map((payment) => {
+                    return (
+                    <tr key={payment._id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {payment.numero}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {new Date(payment.datePaiement).toLocaleDateString('fr-FR')}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {payment.customerNom || '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {payment.modePaiement}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {payment.reference || '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {formatCurrency(payment.montantTotal)} TND
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        {payment.images && payment.images.length > 0 ? (
+                          <button
+                            onClick={() => setSelectedPaymentImages({ paymentNumero: payment.numero, images: payment.images! })}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors text-xs font-medium"
+                            title={`${payment.images.length} image(s) jointe(s)`}
+                          >
+                            <PhotoIcon className="w-4 h-4" />
+                            <span>{payment.images.length}</span>
+                          </button>
+                        ) : (
+                          <span className="text-gray-400 text-xs">—</span>
+                        )}
+                      </td>
+                      <td className="px-2 py-2 whitespace-nowrap text-sm font-medium">
+                        <div className="flex items-center justify-end gap-0.5">
+                          <button
+                            onClick={() => router.push(`/sales/payments/${payment._id}`)}
+                            className="p-1.5 text-blue-600 hover:text-blue-900 hover:bg-blue-50 rounded transition-colors"
+                            title="Voir les détails"
+                          >
+                            <EyeIcon className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleAddImages(payment)}
+                            className="p-1.5 text-purple-600 hover:text-purple-900 hover:bg-purple-50 rounded transition-colors"
+                            title="Ajouter des images"
+                          >
+                            <PlusCircleIcon className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(payment._id)}
+                            className="p-1.5 text-red-600 hover:text-red-900 hover:bg-red-50 rounded transition-colors"
+                            title="Supprimer"
+                          >
+                            <TrashIcon className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Payments Cards - Mobile */}
+        <div className="lg:hidden space-y-4">
+          {loading ? (
+            <div className="bg-white rounded-lg shadow p-6 text-center text-gray-500">
+              Chargement...
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="bg-white rounded-lg shadow p-6 text-center text-gray-500">
+              Aucun paiement trouvé
+            </div>
+          ) : (
+            filtered.map((payment) => (
+              <div key={payment._id} className="bg-white rounded-lg shadow p-4 hover:shadow-md transition-shadow">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex-1">
+                    <div className="text-sm font-medium text-gray-900 mb-1">{payment.numero}</div>
+                    <div className="text-xs text-gray-500">
+                      {new Date(payment.datePaiement).toLocaleDateString('fr-FR')}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => router.push(`/sales/payments/${payment._id}`)}
+                      className="p-1.5 text-blue-600 hover:text-blue-900 hover:bg-blue-50 rounded transition-colors"
+                      title="Voir les détails"
+                    >
+                      <EyeIcon className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleAddImages(payment)}
+                      className="p-1.5 text-purple-600 hover:text-purple-900 hover:bg-purple-50 rounded transition-colors"
+                      title="Ajouter des images"
+                    >
+                      <PlusCircleIcon className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(payment._id)}
+                      className="p-1.5 text-red-600 hover:text-red-900 hover:bg-red-50 rounded transition-colors"
+                      title="Supprimer"
+                    >
+                      <TrashIcon className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-gray-500">Client</span>
+                    <span className="text-sm font-medium text-gray-900">{payment.customerNom || '-'}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-gray-500">Mode</span>
+                    <span className="text-sm text-gray-700">{payment.modePaiement}</span>
+                  </div>
+                  {payment.reference && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-500">Référence</span>
+                      <span className="text-sm text-gray-700">{payment.reference}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-center pt-2 border-t">
+                    <span className="text-xs text-gray-500">Montant</span>
+                    <span className="text-sm font-bold text-gray-900">{formatCurrency(payment.montantTotal)} TND</span>
+                  </div>
+                  {payment.images && payment.images.length > 0 && (
+                    <div className="flex justify-between items-center pt-2">
+                      <span className="text-xs text-gray-500">Images</span>
+                      <button
+                        onClick={() => setSelectedPaymentImages({ paymentNumero: payment.numero, images: payment.images! })}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors text-xs font-medium"
+                      >
+                        <PhotoIcon className="w-4 h-4" />
+                        <span>{payment.images.length}</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
         </div>
 
         {/* Create Payment Modal */}
         {showModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
               <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
                 <h2 className="text-xl font-bold text-gray-900">Nouveau paiement</h2>
@@ -595,7 +678,7 @@ export default function PaymentsPage() {
                 </div>
 
                 {/* Payment Details */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Date de paiement *
@@ -672,7 +755,7 @@ export default function PaymentsPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Factures impayées
                     </label>
-                    <div className="border rounded-lg overflow-hidden">
+                    <div className="border rounded-lg overflow-x-auto">
                       <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                           <tr>

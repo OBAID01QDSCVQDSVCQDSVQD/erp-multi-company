@@ -158,7 +158,8 @@ export default function NewReturnPage() {
         router.push('/sales/returns');
       } else {
         const error = await response.json();
-        toast.error(error.error || 'Erreur lors de la création du retour');
+        const errorMessage = error.error || error.details || 'Erreur lors de la création du retour';
+        toast.error(errorMessage, { duration: 5000 });
       }
     } catch (error) {
       console.error('Error creating return:', error);

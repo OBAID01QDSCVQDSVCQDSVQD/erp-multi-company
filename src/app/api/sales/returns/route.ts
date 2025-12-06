@@ -102,8 +102,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ items: filteredReturns, total: filteredReturns.length });
   } catch (error) {
     console.error('Erreur GET /sales/returns:', error);
+    const errorMessage = (error as Error).message || 'Erreur lors de la récupération des retours';
     return NextResponse.json(
-      { error: 'Erreur serveur', details: (error as Error).message },
+      { error: errorMessage },
       { status: 500 }
     );
   }
@@ -143,7 +144,7 @@ export async function POST(request: NextRequest) {
 
     // Update BL quantities and add note
     if (body.blId) {
-      await updateBLForReturn(returnDoc, body.blId, tenantId);
+      await updateBLForReturn(returnDoc, body.blId, tenantId, session.user.email);
     }
 
     // Return products to stock
@@ -152,8 +153,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(returnDoc, { status: 201 });
   } catch (error) {
     console.error('Erreur POST /sales/returns:', error);
+    const errorMessage = (error as Error).message || 'Erreur lors de la création du retour';
     return NextResponse.json(
-      { error: 'Erreur serveur', details: (error as Error).message },
+      { error: errorMessage },
       { status: 500 }
     );
   }
@@ -180,7 +182,7 @@ function calculateDocumentTotals(doc: any) {
   doc.netAPayer = doc.totalTTC;
 }
 
-async function updateBLForReturn(returnDoc: any, blId: string, tenantId: string) {
+async function updateBLForReturn(returnDoc: any, blId: string, tenantId: string, createdBy: string) {
   try {
     const bl = await (Document as any).findOne({
       _id: blId,
@@ -189,8 +191,7 @@ async function updateBLForReturn(returnDoc: any, blId: string, tenantId: string)
     });
 
     if (!bl) {
-      console.warn(`BL ${blId} not found for return ${returnDoc.numero}`);
-      return;
+      throw new Error(`Bon de livraison ${blId} non trouvé`);
     }
 
     // Update quantities in BL lines
@@ -205,26 +206,25 @@ async function updateBLForReturn(returnDoc: any, blId: string, tenantId: string)
         // Get current line as plain object
         const lineObj = blLine.toObject ? blLine.toObject() : (typeof blLine === 'object' ? { ...blLine } : {});
 
-        // Reduce delivered quantity by return quantity.
-        // NOTE: to make the change visible partout في واجهة BL,
-        // نحدّث كل من qtyLivree و quantite بالقيمة الجديدة.
+        // Subtract return quantity from the original quantity (quantite)
+        // الكمية الأصلية تنقص مباشرة عند عمل retour
+        const currentQuantite = lineObj.quantite || 0;
+        const returnQty = returnLine.quantite || 0;
+        const newQuantite = Math.max(0, currentQuantite - returnQty);
+
+        // Also update qtyLivree if it exists
         const currentQtyLivree =
           lineObj.qtyLivree !== undefined && lineObj.qtyLivree !== null
             ? lineObj.qtyLivree
-            : (lineObj.quantite || 0);
-        const returnQty = returnLine.quantite || 0;
+            : currentQuantite;
         const newQtyLivree = Math.max(0, currentQtyLivree - returnQty);
-
-        console.log(
-          `BL line ${index}: Product ${lineObj.designation} - quantite/qtyLivree: ${currentQtyLivree} -> ${newQtyLivree} (returned: ${returnQty})`
-        );
 
         return {
           ...lineObj,
-          // الكمية الفعلية المسلَّمة بعد الريتور
+          // تحديث الكمية الأصلية مباشرة
+          quantite: newQuantite,
+          // تحديث الكمية المسلمة
           qtyLivree: newQtyLivree,
-          // نحدّث أيضاً quantite حتى تتغيّر الكمية الظاهرة في BL
-          quantite: newQtyLivree,
         };
       }
       
@@ -265,10 +265,69 @@ async function updateBLForReturn(returnDoc: any, blId: string, tenantId: string)
       { new: true, runValidators: true }
     );
     
-    console.log(`BL ${bl.numero} updated for return ${returnDoc.numero} - qtyLivree reduced for ${returnDoc.lignes.length} line(s)`);
+    // Note: We don't update BL stock movements (SORTIE) - they remain with original quantity
+    // The RETOUR will create an ENTREE movement to add the returned quantity back to stock
+    // This way: Stock = Original Stock - BL (SORTIE) + RETOUR (ENTREE) = Correct final stock
+    
+    console.log(`BL ${bl.numero} updated for return ${returnDoc.numero} - quantite reduced for ${returnDoc.lignes.length} line(s)`);
   } catch (error) {
     console.error('Error updating BL for return:', error);
-    throw error;
+    const errorMessage = (error as Error).message || 'Erreur lors de la mise à jour du bon de livraison';
+    throw new Error(errorMessage);
+  }
+}
+
+// Update stock movements for BL after return (reduce quantity to reflect returned items)
+async function updateBLStockMovementsAfterReturn(
+  bl: any,
+  updatedLines: any[],
+  tenantId: string,
+  createdBy: string
+): Promise<void> {
+  try {
+    const MouvementStock = (await import('@/lib/models/MouvementStock')).default;
+    const Product = (await import('@/lib/models/Product')).default;
+
+    const blId = bl._id.toString();
+    const dateDoc = bl.dateDoc || new Date();
+
+    for (const line of updatedLines || []) {
+      if (!line.productId || !line.quantite || line.quantite <= 0) continue;
+
+      try {
+        const productIdStr = line.productId.toString();
+
+        // Check if product exists and is stocked
+        const product = await (Product as any).findOne({
+          _id: productIdStr,
+          tenantId,
+        }).lean();
+
+        if (!product || product.estStocke === false) {
+          continue;
+        }
+
+        // Find existing BL stock movement
+        const existingMovement = await (MouvementStock as any).findOne({
+          societeId: tenantId,
+          productId: productIdStr,
+          source: 'BL',
+          sourceId: blId,
+        });
+
+        if (existingMovement) {
+          // Update the movement with the new quantity (after return deduction)
+          existingMovement.qte = line.quantite;
+          existingMovement.date = dateDoc;
+          await (existingMovement as any).save();
+        }
+      } catch (error) {
+        console.error(`Error updating BL stock movement for product ${line.productId}:`, error);
+      }
+    }
+  } catch (error) {
+    console.error('Error updating BL stock movements after return:', error);
+    // Don't throw - this is not critical for return creation
   }
 }
 
@@ -299,28 +358,48 @@ async function returnProductsToStock(returnDoc: any, tenantId: string, createdBy
           continue;
         }
 
-        // Create stock movement (ENTREE - entry into stock)
-        const mouvement = new MouvementStock({
+        // Check if stock movement already exists for this return and product
+        const existingMovement = await (MouvementStock as any).findOne({
           societeId: tenantId,
           productId: productIdStr,
-          type: 'ENTREE',
-          qte: line.quantite,
-          date: returnDoc.dateDoc || new Date(),
           source: 'RETOUR',
           sourceId: returnDoc._id.toString(),
-          notes: `Retour ${returnDoc.numero} - ${line.designation}`,
-          createdBy,
         });
 
-        await (mouvement as any).save();
+        if (existingMovement) {
+          // Update existing movement
+          existingMovement.qte = line.quantite;
+          existingMovement.date = returnDoc.dateDoc || new Date();
+          existingMovement.notes = `Retour ${returnDoc.numero} - ${line.designation}`;
+          await (existingMovement as any).save();
+        } else {
+          // Create stock movement (ENTREE - entry into stock)
+          // هذه الحركة تضيف الكمية المرجوعة للمخزون
+          const mouvement = new MouvementStock({
+            societeId: tenantId,
+            productId: productIdStr,
+            type: 'ENTREE', // دخول - يزيد المخزون
+            qte: line.quantite, // الكمية المرجوعة
+            date: returnDoc.dateDoc || new Date(),
+            source: 'RETOUR',
+            sourceId: returnDoc._id.toString(),
+            notes: `Retour ${returnDoc.numero} - ${line.designation}`,
+            createdBy,
+          });
+
+          await (mouvement as any).save();
+          console.log(`[RETOUR Stock] Created ENTREE movement: ${line.quantite} units returned to stock for product ${productIdStr}`);
+        }
       } catch (error) {
         console.error(`Error creating stock movement for product ${line.productId}:`, error);
-        // Continue processing other products even if one fails
+        const errorMessage = (error as Error).message || `Erreur lors de la création du mouvement de stock pour le produit ${line.productId}`;
+        throw new Error(errorMessage);
       }
     }
   } catch (error) {
     console.error('Error returning products to stock:', error);
-    throw error;
+    const errorMessage = (error as Error).message || 'Erreur lors du retour des produits au stock';
+    throw new Error(errorMessage);
   }
 }
 

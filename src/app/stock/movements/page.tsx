@@ -16,7 +16,7 @@ interface StockMovement {
   type: 'ENTREE' | 'SORTIE' | 'INVENTAIRE';
   qte: number;
   date: string;
-  source: 'BR' | 'BL' | 'INV' | 'AJUST' | 'TRANSFERT' | 'AUTRE';
+  source: 'BR' | 'BL' | 'FAC' | 'INV' | 'AJUST' | 'TRANSFERT' | 'AUTRE' | 'RETOUR';
   sourceId?: string;
   referenceName?: string;
   notes?: string;
@@ -34,10 +34,12 @@ const TYPE_LABELS: Record<string, string> = {
 const SOURCE_LABELS: Record<string, string> = {
   BR: 'Bon de réception',
   BL: 'Bon de livraison',
+  FAC: 'Facture',
   INV: 'Inventaire',
   AJUST: 'Ajustement',
   TRANSFERT: 'Transfert',
   AUTRE: 'Autre',
+  RETOUR: 'Bon de retour',
 };
 
 const TYPE_COLORS: Record<string, string> = {
@@ -190,6 +192,8 @@ export default function StockMovementsPage() {
       } else if (movement?.type === 'ENTREE') {
         router.push(`/purchases/invoices/${sourceId}`);
       }
+    } else if (source === 'RETOUR') {
+      router.push(`/sales/returns/${sourceId}`);
     } else {
       toast('Source non navigable');
     }
@@ -305,9 +309,11 @@ export default function StockMovementsPage() {
                     <option value="">Toutes les sources</option>
                     <option value="BR">Bon de réception</option>
                     <option value="BL">Bon de livraison</option>
+                    <option value="FAC">Facture</option>
                     <option value="INV">Inventaire</option>
                     <option value="AJUST">Ajustement</option>
                     <option value="TRANSFERT">Transfert</option>
+                    <option value="RETOUR">Bon de retour</option>
                     <option value="AUTRE">Autre</option>
                   </select>
                 </div>

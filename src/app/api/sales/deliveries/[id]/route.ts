@@ -95,8 +95,76 @@ export async function PATCH(
     // Store old lines for stock movement updates
     const oldLignes = delivery.lignes ? JSON.parse(JSON.stringify(delivery.lignes)) : [];
 
-    // Update fields
+    // Preserve qtyLivree values from old lines (they may have been reduced by returns)
+    const qtyLivreeMap = new Map();
+    const hadReturnMap = new Map(); // Track if line had returns (qtyLivree < quantite)
+    oldLignes.forEach((line: any) => {
+      if (line.productId) {
+        const productIdStr = line.productId.toString();
+        // Save qtyLivree if it exists, otherwise use quantite as default
+        const qtyLivree = line.qtyLivree !== undefined && line.qtyLivree !== null
+          ? line.qtyLivree
+          : (line.quantite || 0);
+        const quantite = line.quantite || 0;
+        qtyLivreeMap.set(productIdStr, qtyLivree);
+        // Track if this line had returns (qtyLivree < quantite means some was returned)
+        hadReturnMap.set(productIdStr, qtyLivree < quantite);
+      }
+    });
+
+    // Validate quantity changes if there are returns (qtyLivree < quantite)
+    if (body.lignes && Array.isArray(body.lignes)) {
+      for (const newLine of body.lignes) {
+        if (newLine.productId) {
+          const productIdStr = newLine.productId.toString();
+          const qtyLivree = qtyLivreeMap.get(productIdStr);
+          
+          if (qtyLivree !== undefined) {
+            // Check if new quantity is less than qtyLivree
+            const newQuantite = newLine.quantite || 0;
+            if (newQuantite < qtyLivree) {
+              return NextResponse.json(
+                { 
+                  error: `Impossible de réduire la quantité. La quantité livrée (${qtyLivree.toFixed(2)}) est supérieure à la nouvelle quantité (${newQuantite.toFixed(2)}). Il y a eu des retours sur ce bon de livraison.`,
+                  productId: productIdStr,
+                  qtyLivree,
+                  newQuantite
+                },
+                { status: 400 }
+              );
+            }
+          }
+        }
+      }
+    }
+
+    // Update fields (but preserve qtyLivree)
     Object.assign(delivery, body);
+    
+    // Restore/update qtyLivree values after update
+    if (delivery.lignes && Array.isArray(delivery.lignes)) {
+      delivery.lignes.forEach((line: any) => {
+        if (line.productId) {
+          const productIdStr = line.productId.toString();
+          const savedQtyLivree = qtyLivreeMap.get(productIdStr);
+          const hadReturn = hadReturnMap.get(productIdStr);
+          const newQuantite = line.quantite || 0;
+          
+          if (savedQtyLivree !== undefined) {
+            if (hadReturn) {
+              // If there was a return, preserve qtyLivree (don't change it - it reflects actual delivered quantity)
+              line.qtyLivree = savedQtyLivree;
+            } else {
+              // If no return was made, update qtyLivree to match new quantite
+              line.qtyLivree = newQuantite;
+            }
+          } else if (line.qtyLivree === undefined) {
+            // New line - set qtyLivree to quantite
+            line.qtyLivree = newQuantite;
+          }
+        }
+      });
+    }
 
     // Recalculate totals
     calculateDocumentTotals(delivery);
