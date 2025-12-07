@@ -88,7 +88,7 @@ const DocumentLineSchema = new Schema({
   qtyFacturee: { type: Number, default: 0 }
 }, { _id: true });
 
-const DocumentSchema = new Schema({
+const DocumentSchema = new (Schema as any)({
   tenantId: { type: String, required: true, index: true },
   
   type: { type: String, enum: ['DEVIS', 'BC', 'BL', 'FAC', 'AVOIR', 'PO', 'BR', 'FACFO', 'AVOIRFO'], required: true },
@@ -131,7 +131,7 @@ const DocumentSchema = new Schema({
   createdBy: { type: String },
   archived: { type: Boolean, default: false },
   linkedDocuments: { type: [String] }
-} as any, { timestamps: true });
+}, { timestamps: true });
 
 // Indexes
 DocumentSchema.index({ tenantId: 1, type: 1, dateDoc: -1 });
@@ -146,4 +146,4 @@ if (mongoose.models.Document) {
 }
 
 // Use 'documents' as collection name for all document types
-export default mongoose.model<IDocument>('Document', DocumentSchema as any, 'documents');
+export default mongoose.model<any>('Document', DocumentSchema, 'documents');

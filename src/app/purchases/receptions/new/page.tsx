@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
 import { PlusIcon, XMarkIcon, MagnifyingGlassIcon, ClipboardDocumentCheckIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
+import ProductSearchModal from '@/components/common/ProductSearchModal';
 import { useTenantId } from '@/hooks/useTenantId';
 import toast from 'react-hot-toast';
 
@@ -74,12 +75,11 @@ export default function NewReceptionPage() {
   const [selectedSupplierIndex, setSelectedSupplierIndex] = useState(-1);
   const [supplierDropdownPosition, setSupplierDropdownPosition] = useState<{ top: number; left: number; width: number } | null>(null);
   
-  // Product search states
+  // Product search states (modal-based)
   const [products, setProducts] = useState<Product[]>([]);
   const [productSearches, setProductSearches] = useState<{ [key: number]: string }>({});
-  const [showProductDropdowns, setShowProductDropdowns] = useState<{ [key: number]: boolean }>({});
-  const [selectedProductIndices, setSelectedProductIndices] = useState<{ [key: number]: number }>({});
-  const [productDropdownPositions, setProductDropdownPositions] = useState<{ [key: number]: { top: number; left: number; width: number } }>({});
+  const [showProductModal, setShowProductModal] = useState<{ [key: number]: boolean }>({});
+  const [currentProductLineIndex, setCurrentProductLineIndex] = useState<number | null>(null);
   
   const [formData, setFormData] = useState({
     purchaseOrderId: '',
@@ -233,37 +233,6 @@ export default function NewReceptionPage() {
     });
   };
 
-  // Filter products based on search (for a specific line)
-  const getFilteredProducts = (lineIndex: number) => {
-    const search = productSearches[lineIndex] || '';
-    const searchLower = search.toLowerCase().trim();
-    if (!searchLower) return products;
-    
-    return products.filter((product) => {
-      const name = product.nom.toLowerCase();
-      const sku = (product.sku || '').toLowerCase();
-      const refClient = (product.referenceClient || '').toLowerCase();
-      
-      // If single letter, use startsWith
-      if (searchLower.length === 1) {
-        return name.startsWith(searchLower) || sku.startsWith(searchLower);
-      }
-      
-      // If more than one letter, use contains
-      return name.includes(searchLower) || sku.includes(searchLower) || refClient.includes(searchLower);
-    });
-  };
-
-  // Calculate dropdown position based on input element
-  const calculateProductDropdownPosition = (inputElement: HTMLInputElement) => {
-    const rect = inputElement.getBoundingClientRect();
-    return {
-      top: rect.bottom + 4,
-      left: rect.left,
-      width: rect.width
-    };
-  };
-
   // Handle product selection for a specific line
   const handleSelectProduct = (lineIndex: number, product: Product) => {
     const newLines = [...lines];
@@ -290,50 +259,25 @@ export default function NewReceptionPage() {
     
     // Update search and dropdown state
     setProductSearches({ ...productSearches, [lineIndex]: product.nom });
-    setShowProductDropdowns({ ...showProductDropdowns, [lineIndex]: false });
-    setSelectedProductIndices({ ...selectedProductIndices, [lineIndex]: -1 });
-    // Clear position when closing
-    const newPositions = { ...productDropdownPositions };
-    delete newPositions[lineIndex];
-    setProductDropdownPositions(newPositions);
+    setShowProductModal({ ...showProductModal, [lineIndex]: false });
+    setCurrentProductLineIndex(null);
   };
 
-  // Handle keyboard navigation for products
-  const handleProductKeyDown = (e: React.KeyboardEvent, lineIndex: number) => {
-    const dropdownVisible = showProductDropdowns[lineIndex];
-    if (!dropdownVisible) return;
-    
-    const filteredProducts = getFilteredProducts(lineIndex);
-    const currentIndex = selectedProductIndices[lineIndex] || -1;
-    
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      setSelectedProductIndices({ 
-        ...selectedProductIndices, 
-        [lineIndex]: currentIndex < filteredProducts.length - 1 ? currentIndex + 1 : currentIndex 
-      });
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setSelectedProductIndices({ 
-        ...selectedProductIndices, 
-        [lineIndex]: currentIndex > 0 ? currentIndex - 1 : -1 
-      });
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      if (currentIndex >= 0 && filteredProducts[currentIndex]) {
-        handleSelectProduct(lineIndex, filteredProducts[currentIndex]);
-      }
-    } else if (e.key === 'Escape') {
-      setShowProductDropdowns({ ...showProductDropdowns, [lineIndex]: false });
-      setSelectedProductIndices({ ...selectedProductIndices, [lineIndex]: -1 });
+  const handleSelectProductFromModal = (product: Product) => {
+    if (currentProductLineIndex === null) return;
+    handleSelectProduct(currentProductLineIndex, product);
+  };
+
+  const handleOpenProductModal = (lineIndex: number) => {
+    setCurrentProductLineIndex(lineIndex);
+    setShowProductModal({ ...showProductModal, [lineIndex]: true });
+  };
+
+  const handleCloseProductModal = () => {
+    if (currentProductLineIndex !== null) {
+      setShowProductModal({ ...showProductModal, [currentProductLineIndex]: false });
     }
-  };
-
-  // Handle alphabet filter click for products
-  const handleProductAlphabetClick = (lineIndex: number, letter: string) => {
-    setProductSearches({ ...productSearches, [lineIndex]: letter });
-    setShowProductDropdowns({ ...showProductDropdowns, [lineIndex]: true });
-    setSelectedProductIndices({ ...selectedProductIndices, [lineIndex]: 0 });
+    setCurrentProductLineIndex(null);
   };
 
   useEffect(() => {
@@ -348,11 +292,6 @@ export default function NewReceptionPage() {
         setShowSupplierDropdown(false);
         setSupplierDropdownPosition(null);
       }
-      // Close all product dropdowns on scroll
-      if (Object.keys(showProductDropdowns).length > 0) {
-        setShowProductDropdowns({});
-        setProductDropdownPositions({});
-      }
     };
     
     const handleClickOutside = (e: MouseEvent) => {
@@ -365,14 +304,6 @@ export default function NewReceptionPage() {
           setSupplierDropdownPosition(null);
         }
       }
-      
-      // Close product dropdowns when clicking outside
-      if (!target.closest('.product-autocomplete')) {
-        if (Object.keys(showProductDropdowns).length > 0) {
-          setShowProductDropdowns({});
-          setProductDropdownPositions({});
-        }
-      }
     };
     
     window.addEventListener('scroll', handleScroll, true);
@@ -381,21 +312,7 @@ export default function NewReceptionPage() {
       window.removeEventListener('scroll', handleScroll, true);
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [showSupplierDropdown, showProductDropdowns]);
-
-  // Update product dropdown positions when they open
-  useEffect(() => {
-    Object.keys(showProductDropdowns).forEach((key) => {
-      const lineIndex = parseInt(key);
-      if (showProductDropdowns[lineIndex]) {
-        const input = document.querySelector(`input[data-product-input="${lineIndex}"]`) as HTMLInputElement;
-        if (input && !productDropdownPositions[lineIndex]) {
-          const position = calculateProductDropdownPosition(input);
-          setProductDropdownPositions(prev => ({ ...prev, [lineIndex]: position }));
-        }
-      }
-    });
-  }, [showProductDropdowns]);
+  }, [showSupplierDropdown]);
 
   const handleSelectSupplier = (supplier: Supplier) => {
     const name = supplier.raisonSociale || `${supplier.nom || ''} ${supplier.prenom || ''}`.trim();
@@ -873,92 +790,50 @@ export default function NewReceptionPage() {
                               readOnly
                             />
                           ) : (
-                            <div className="relative product-autocomplete">
-                              <div className="relative">
-                                <MagnifyingGlassIcon className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                            <div className="flex items-center gap-2" style={{ width: 'auto', maxWidth: 'none' }}>
+                              <div className="relative inline-block">
                                 <input
                                   type="text"
-                                  data-product-input={index}
                                   value={productSearches[index] || line.designation || ''}
                                   onChange={(e) => {
-                                    const input = e.target as HTMLInputElement;
                                     updateLine(index, 'designation', e.target.value);
                                     setProductSearches({ ...productSearches, [index]: e.target.value });
-                                    setShowProductDropdowns({ ...showProductDropdowns, [index]: true });
-                                    setSelectedProductIndices({ ...selectedProductIndices, [index]: -1 });
-                                    const position = calculateProductDropdownPosition(input);
-                                    setProductDropdownPositions({ ...productDropdownPositions, [index]: position });
+                                  }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                    handleOpenProductModal(index);
                                   }}
                                   onFocus={(e) => {
-                                    const input = e.target as HTMLInputElement;
-                                    setShowProductDropdowns({ ...showProductDropdowns, [index]: true });
-                                    const position = calculateProductDropdownPosition(input);
-                                    setProductDropdownPositions({ ...productDropdownPositions, [index]: position });
+                                    e.stopPropagation();
+                                    handleOpenProductModal(index);
                                   }}
-                                  onKeyDown={(e) => handleProductKeyDown(e, index)}
                                   placeholder="Rechercher un produit..."
-                                  className="w-full pl-8 pr-2 py-1.5 border rounded text-sm"
-                                />
-                              </div>
-                              
-                              {/* Dropdown */}
-                              {showProductDropdowns[index] && productDropdownPositions[index] && (
-                                <div 
-                                  className="fixed z-[9999] bg-white border border-gray-200 rounded-lg shadow-xl max-h-[280px] overflow-hidden" 
-                                  style={{ 
-                                    minWidth: '300px',
-                                    width: `${productDropdownPositions[index].width}px`,
-                                    top: `${productDropdownPositions[index].top}px`,
-                                    left: `${productDropdownPositions[index].left}px`
+                                  className="px-3 py-1.5 pr-8 border rounded text-sm cursor-pointer focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                  readOnly
+                                  style={{
+                                    minWidth: '150px',
+                                    width: line.designation ? `${Math.max(150, Math.min(500, (line.designation.length * 8) + 50))}px` : '150px',
+                                    maxWidth: '500px',
                                   }}
+                                />
+                                <MagnifyingGlassIcon className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                              </div>
+                              {line.designation && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const updatedLines = [...lines];
+                                    updatedLines[index] = { ...updatedLines[index], designation: '', productId: '' };
+                                    setLines(updatedLines);
+                                    setProductSearches({ ...productSearches, [index]: '' });
+                                  }}
+                                  className="p-1 text-gray-400 hover:text-red-600 transition-colors flex-shrink-0"
+                                  title="Effacer"
+                                  type="button"
                                 >
-                                  {/* Alphabet filter bar */}
-                                  <div className="flex items-center justify-center gap-1 px-2 py-1 bg-gray-50 border-b text-xs">
-                                    {Array.from('ABCDEFGHIJKLMNOPQRSTUVWXYZ').map((letter) => (
-                                      <button
-                                        key={letter}
-                                        onClick={() => handleProductAlphabetClick(index, letter)}
-                                        className="px-1.5 py-0.5 rounded hover:bg-blue-100 hover:text-blue-600 transition-colors font-semibold"
-                                      >
-                                        {letter}
-                                      </button>
-                                    ))}
-                                  </div>
-                                  
-                                  {/* Product list */}
-                                  <div className="overflow-y-auto max-h-[240px]">
-                                    {getFilteredProducts(index).length > 0 ? (
-                                      getFilteredProducts(index).map((product, prodIndex) => {
-                                        const displayName = product.nom;
-                                        const secondaryInfo = [
-                                          product.sku,
-                                          product.referenceClient
-                                        ].filter(Boolean).join(' - ');
-                                        
-                                        return (
-                                          <div
-                                            key={product._id}
-                                            onClick={() => handleSelectProduct(index, product)}
-                                            className={`px-3 py-2 cursor-pointer transition-colors ${
-                                              prodIndex === (selectedProductIndices[index] || -1)
-                                                ? 'bg-blue-50 border-l-2 border-blue-500'
-                                                : 'hover:bg-gray-50'
-                                            }`}
-                                          >
-                                            <div className="font-medium text-gray-900 text-xs">{displayName}</div>
-                                            {secondaryInfo && (
-                                              <div className="text-xs text-gray-500">{secondaryInfo}</div>
-                                            )}
-                                          </div>
-                                        );
-                                      })
-                                    ) : (
-                                      <div className="px-3 py-4 text-center text-xs text-gray-500">
-                                        Aucun produit trouvé
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
+                                  <XMarkIcon className="w-4 h-4" />
+                                </button>
                               )}
                             </div>
                           )}
@@ -1126,6 +1001,18 @@ export default function NewReceptionPage() {
           </div>
         </div>
       </div>
+
+      {/* Product Search Modal */}
+      {currentProductLineIndex !== null && showProductModal[currentProductLineIndex] && (
+        <ProductSearchModal
+          isOpen={true}
+          onClose={handleCloseProductModal}
+          onSelect={handleSelectProductFromModal}
+          products={products}
+          tenantId={tenantId || ''}
+          title="Rechercher un produit"
+        />
+      )}
     </DashboardLayout>
   );
 }

@@ -458,6 +458,8 @@ export default function InvoicesPage() {
     setSelectedCustomerIndex(0);
   };
 
+  // Filter products based on search (for a specific line)
+
   // Fetch stock for a product
   const fetchProductStock = async (productId: string) => {
     if (!tenantId || !productId) return;

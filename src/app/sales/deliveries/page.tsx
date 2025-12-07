@@ -120,7 +120,6 @@ export default function DeliveriesPage() {
       if (!target.closest('.customer-autocomplete')) {
         setShowCustomerDropdown(false);
       }
-      // Product modal is handled by its own close button
     };
 
     document.addEventListener('mousedown', handleClickOutside);
