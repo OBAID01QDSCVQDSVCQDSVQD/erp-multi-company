@@ -3,6 +3,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import Document from '@/lib/models/Document';
+import Product from '@/lib/models/Product';
+import MouvementStock from '@/lib/models/MouvementStock';
 import mongoose from 'mongoose';
 
 // GET /api/internal-invoices/[id]
@@ -24,8 +26,16 @@ export async function GET(
 
     const invoice = await (Document as any)
       .findOne({ _id: id, tenantId, type: 'INT_FAC' })
-      .populate('customerId', 'raisonSociale nom prenom matriculeFiscale')
-      .populate('projetId', 'name projectNumber')
+      .populate({
+        path: 'customerId',
+        select: 'raisonSociale nom prenom matriculeFiscale',
+        model: 'Customer'
+      })
+      .populate({
+        path: 'projetId',
+        select: 'name projectNumber',
+        model: 'Project'
+      })
       .lean();
 
     if (!invoice) {
@@ -34,6 +44,12 @@ export async function GET(
         { status: 404 }
       );
     }
+
+    console.log('[API] Invoice customerId:', {
+      customerId: invoice.customerId,
+      type: typeof invoice.customerId,
+      isObject: typeof invoice.customerId === 'object' && invoice.customerId !== null
+    });
 
     return NextResponse.json(invoice);
   } catch (error) {
@@ -158,8 +174,43 @@ export async function PATCH(
       updateData.projetId = undefined;
     }
 
-    // Calculate totals
-    calculateDocumentTotals({ ...existingInvoice.toObject(), ...updateData });
+    // Calculate totals - merge existing invoice with update data first
+    const mergedData = { ...existingInvoice.toObject(), ...updateData };
+    calculateDocumentTotals(mergedData);
+    
+    // Update updateData with calculated totals
+    updateData.totalBaseHT = mergedData.totalBaseHT;
+    updateData.totalTVA = mergedData.totalTVA;
+    updateData.totalTTC = mergedData.totalTTC;
+    if (mergedData.fodec) {
+      updateData.fodec = mergedData.fodec;
+    }
+
+    // Prevent manual status change to PARTIELLEMENT_PAYEE or PAYEE (these are automatic based on payments)
+    if (updateData.statut === 'PARTIELLEMENT_PAYEE' || updateData.statut === 'PAYEE') {
+      return NextResponse.json(
+        { error: 'لا يمكن تغيير الحالة إلى "Partiellement payée" أو "Payée" يدوياً. هذه الحالات تحدث تلقائياً عند الدفع.' },
+        { status: 400 }
+      );
+    }
+
+    // Check if status changed to VALIDEE or projetId changed
+    const oldStatus = existingInvoice.statut || 'BROUILLON';
+    const newStatus = updateData.statut !== undefined ? updateData.statut : oldStatus;
+    const oldProjetId = existingInvoice.projetId?.toString();
+    const newProjetId = updateData.projetId !== undefined ? (updateData.projetId?.toString() || null) : oldProjetId;
+    
+    // Check if user wants to update stock (from confirmation modal)
+    const updateStock = updateData.updateStock !== undefined ? updateData.updateStock : true; // Default to true for backward compatibility
+    
+    console.log('[Stock Movement] Status check:', {
+      oldStatus,
+      newStatus,
+      statusChanged: oldStatus !== newStatus,
+      oldProjetId,
+      newProjetId,
+      hasProjetId: !!newProjetId
+    });
 
     // Update invoice
     const updatedInvoice = await (Document as any).findByIdAndUpdate(
@@ -170,6 +221,113 @@ export async function PATCH(
       .populate('customerId', 'raisonSociale nom prenom')
       .populate('projetId', 'name projectNumber')
       .lean();
+
+    // Handle stock movements based on status and project
+    const invoiceId = id.toString();
+    
+    // Debug logging
+    console.log('[Stock Movement] Invoice update:', {
+      invoiceId,
+      oldStatus,
+      newStatus,
+      oldProjetId,
+      newProjetId,
+      hasProjetId: !!updatedInvoice.projetId
+    });
+    
+    // Only handle stock movements if invoice is NOT linked to a project
+    const hasProject = !!(newProjetId || updatedInvoice.projetId);
+    console.log('[Stock Movement] Project check:', { hasProject, newProjetId, updatedInvoiceProjetId: updatedInvoice.projetId });
+    
+    if (!hasProject) {
+      // Case 1: Status changed from BROUILLON or ANNULEE to VALIDEE - Create SORTIE movements (decrease stock)
+      if ((oldStatus === 'BROUILLON' || oldStatus === 'ANNULEE') && newStatus === 'VALIDEE') {
+        if (updateStock) {
+          console.log('[Stock Movement] ✅ Status changed from', oldStatus, 'to VALIDEE - Creating SORTIE movements');
+          // Delete any existing movements if any
+          const deleted = await (MouvementStock as any).deleteMany({
+            $or: [
+              { societeId: tenantId, source: 'INT_FAC_BROUILLON', sourceId: invoiceId },
+              { societeId: tenantId, source: 'INT_FAC', sourceId: invoiceId }
+            ]
+          });
+          console.log('[Stock Movement] Deleted', deleted.deletedCount, 'existing movements');
+          // Create SORTIE movements (decrease stock)
+          await createStockMovementsForInternalInvoice(updatedInvoice, tenantId, session.user.email || '', 'VALIDEE');
+        } else {
+          console.log('[Stock Movement] ⏭️ User chose NOT to update stock - Status changed without stock movement');
+        }
+      }
+      // Case 2: Status changed from VALIDEE to BROUILLON - Delete SORTIE movements only (no ENTREE needed)
+      // When changing from VALIDEE to BROUILLON, we just remove the SORTIE movements
+      // This restores the stock to its previous state (before the invoice was validated)
+      else if (oldStatus === 'VALIDEE' && newStatus === 'BROUILLON') {
+        if (updateStock) {
+          console.log('[Stock Movement] ✅ Status changed from VALIDEE to BROUILLON - Deleting SORTIE movements only');
+          // Delete existing SORTIE movements (from VALIDEE status)
+          // This will restore stock to its previous level (before validation)
+          const deletedValidee = await (MouvementStock as any).deleteMany({
+            societeId: tenantId,
+            source: 'INT_FAC',
+            sourceId: invoiceId,
+          });
+          console.log('[Stock Movement] Deleted', deletedValidee.deletedCount, 'VALIDEE movements - Stock restored');
+          // Do NOT create ENTREE movements - just deleting SORTIE is enough to restore stock
+        } else {
+          console.log('[Stock Movement] ⏭️ User chose NOT to update stock - Status changed without stock movement');
+        }
+      }
+      // Case 3: Status changed from VALIDEE to ANNULEE - Delete SORTIE movements only (same as BROUILLON)
+      else if (oldStatus === 'VALIDEE' && newStatus === 'ANNULEE') {
+        if (updateStock) {
+          console.log('[Stock Movement] ✅ Status changed from VALIDEE to ANNULEE - Deleting SORTIE movements only');
+          // Delete existing SORTIE movements (from VALIDEE status)
+          // This will restore stock to its previous level (before validation)
+          const deletedValidee = await (MouvementStock as any).deleteMany({
+            societeId: tenantId,
+            source: 'INT_FAC',
+            sourceId: invoiceId,
+          });
+          console.log('[Stock Movement] Deleted', deletedValidee.deletedCount, 'VALIDEE movements - Stock restored');
+          // Do NOT create any movements - just deleting SORTIE is enough to restore stock
+        } else {
+          console.log('[Stock Movement] ⏭️ User chose NOT to update stock - Status changed without stock movement');
+        }
+      }
+      // Case 4: Status changed from VALIDEE to another status (not BROUILLON or ANNULEE) - Delete movements
+      else if (oldStatus === 'VALIDEE' && newStatus !== 'VALIDEE' && newStatus !== 'BROUILLON' && newStatus !== 'ANNULEE') {
+        console.log('[Stock Movement] Status changed from VALIDEE to', newStatus, '- Deleting movements');
+        await (MouvementStock as any).deleteMany({
+          societeId: tenantId,
+          source: 'INT_FAC',
+          sourceId: invoiceId,
+        });
+      }
+      // Case 5: Status changed from BROUILLON or ANNULEE to another status (not VALIDEE) - Delete movements
+      else if ((oldStatus === 'BROUILLON' || oldStatus === 'ANNULEE') && newStatus !== 'BROUILLON' && newStatus !== 'ANNULEE' && newStatus !== 'VALIDEE') {
+        console.log('[Stock Movement] Status changed from', oldStatus, 'to', newStatus, '- Deleting movements');
+        await (MouvementStock as any).deleteMany({
+          $or: [
+            { societeId: tenantId, source: 'INT_FAC_BROUILLON', sourceId: invoiceId },
+            { societeId: tenantId, source: 'INT_FAC', sourceId: invoiceId }
+          ]
+        });
+      }
+      // Case 5: Status is still VALIDEE but invoice was updated - Update movements
+      else if (newStatus === 'VALIDEE' && oldStatus === 'VALIDEE') {
+        console.log('[Stock Movement] Invoice still VALIDEE - Updating movements');
+        await createStockMovementsForInternalInvoice(updatedInvoice, tenantId, session.user.email || '', 'VALIDEE');
+      }
+    } else {
+      console.log('[Stock Movement] Skipping - Invoice linked to project');
+      // If invoice is linked to a project, delete all stock movements
+      await (MouvementStock as any).deleteMany({
+        $or: [
+          { societeId: tenantId, source: 'INT_FAC', sourceId: invoiceId },
+          { societeId: tenantId, source: 'INT_FAC_BROUILLON', sourceId: invoiceId }
+        ]
+      });
+    }
 
     return NextResponse.json(updatedInvoice);
   } catch (error) {
@@ -276,5 +434,144 @@ function calculateDocumentTotals(doc: any) {
   const timbreFiscal = doc.timbreFiscal || 0;
   doc.totalTTC = doc.totalBaseHT + fodec + doc.totalTVA + timbreFiscal;
   doc.netAPayer = doc.totalTTC;
+}
+
+// Helper function to create stock movements for internal invoice
+// Only creates movements if invoice is NOT linked to a project
+async function createStockMovementsForInternalInvoice(
+  invoice: any,
+  tenantId: string,
+  createdBy: string,
+  status: 'VALIDEE' | 'BROUILLON' = 'VALIDEE'
+): Promise<void> {
+  // Don't create stock movements if invoice is linked to a project
+  const projetId = invoice.projetId?.toString() || invoice.projetId;
+  if (projetId) {
+    console.log('[Stock Movement] Skipping - Invoice linked to project:', projetId);
+    return;
+  }
+
+  if (!invoice.lignes || invoice.lignes.length === 0) {
+    console.log('[Stock Movement] Skipping - No lines in invoice');
+    return;
+  }
+
+  const movementType = status === 'VALIDEE' ? 'SORTIE' : 'ENTREE';
+  const source = status === 'VALIDEE' ? 'INT_FAC' : 'INT_FAC_BROUILLON';
+  const notes = status === 'VALIDEE' 
+    ? `Facture interne ${invoice.numero}` 
+    : `Facture interne brouillon ${invoice.numero}`;
+
+  console.log('[Stock Movement] Creating', movementType, 'movements for invoice:', invoice.numero, 'Lines:', invoice.lignes.length);
+  console.log('[Stock Movement] Invoice details:', {
+    invoiceId: invoice._id?.toString(),
+    numero: invoice.numero,
+    lignesCount: invoice.lignes?.length || 0,
+    status,
+    source,
+    movementType
+  });
+
+  const dateDoc = invoice.dateDoc || new Date();
+  const invoiceId = invoice._id?.toString() || invoice._id;
+
+  if (!invoiceId) {
+    console.error('[Stock Movement] ❌ No invoice ID found!');
+    return;
+  }
+
+  let movementsCreated = 0;
+  let movementsUpdated = 0;
+  let movementsSkipped = 0;
+
+  for (const line of invoice.lignes) {
+    // Skip if no productId or quantity is 0
+    if (!line.productId || !line.quantite || line.quantite <= 0) {
+      continue;
+    }
+
+    try {
+      // Convert productId to string for consistency
+      const productIdStr = line.productId.toString();
+      
+      // Find product using ObjectId first, then string
+      let product = null;
+      try {
+        product = await (Product as any).findOne({
+          $or: [
+            { _id: new mongoose.Types.ObjectId(productIdStr) },
+            { _id: productIdStr },
+          ],
+          tenantId,
+        }).lean();
+      } catch (err) {
+        // If ObjectId conversion fails, try string directly
+        product = await (Product as any).findOne({
+          _id: productIdStr,
+          tenantId,
+        }).lean();
+      }
+
+      if (!product) {
+        console.warn(`[Stock] Product not found for ID: ${productIdStr}`);
+        continue;
+      }
+
+      // Skip services (non-stocked products)
+      if (product.estStocke === false) {
+        continue;
+      }
+
+      // Check if stock movement already exists for this invoice and product
+      const existingMovement = await (MouvementStock as any).findOne({
+        societeId: tenantId,
+        productId: productIdStr,
+        source: source,
+        sourceId: invoiceId,
+      });
+
+      if (existingMovement) {
+        // Update existing movement
+        existingMovement.type = movementType;
+        existingMovement.qte = line.quantite;
+        existingMovement.date = dateDoc;
+        existingMovement.notes = notes;
+        await (existingMovement as any).save();
+        movementsUpdated++;
+        console.log('[Stock Movement] ✅ Updated', movementType, 'movement for product:', productIdStr, 'Qty:', line.quantite);
+      } else {
+        // Create new stock movement
+        const mouvement = new MouvementStock({
+          societeId: tenantId,
+          productId: productIdStr,
+          type: movementType,
+          qte: line.quantite,
+          date: dateDoc,
+          source: source,
+          sourceId: invoiceId,
+          notes: notes,
+          createdBy,
+        });
+
+        await (mouvement as any).save();
+        movementsCreated++;
+        console.log('[Stock Movement] ✅ Created', movementType, 'movement for product:', productIdStr, 'Qty:', line.quantite, 'Source:', source);
+      }
+    } catch (error) {
+      movementsSkipped++;
+      console.error(`[Stock Movement] ❌ Error creating stock movement for product ${line.productId}:`, error);
+      // Continue processing other lines even if one fails
+    }
+  }
+  
+  console.log('[Stock Movement] Summary:', {
+    invoiceId,
+    status,
+    movementType,
+    movementsCreated,
+    movementsUpdated,
+    movementsSkipped,
+    total: movementsCreated + movementsUpdated + movementsSkipped
+  });
 }
 

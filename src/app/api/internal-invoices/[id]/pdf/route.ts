@@ -86,12 +86,11 @@ export async function GET(
     // Enrich lines with product references if missing
     const enrichedLines = await Promise.all(
       invoice.lignes.map(async (line: any) => {
-        // If codeAchat is missing, try to get it from product
+        // Enrich line with product data if available
         if (line.productId) {
           try {
             const product = await (Product as any).findOne({ _id: line.productId, tenantId });
             if (product) {
-              line.codeAchat = line.codeAchat || (product as any).referenceClient || (product as any).sku || '';
               line.categorieCode = line.categorieCode || (product as any).categorieCode || '';
               line.estStocke = (product as any).estStocke;
               line.descriptionProduit = (product as any).description;
@@ -142,18 +141,52 @@ export async function GET(
       totalTTC: invoice.totalTTC || 0,
       modePaiement: invoice.modePaiement || '',
       conditionsPaiement: invoice.conditionsPaiement || '',
-      notes: invoice.notes || ''
+      notes: invoice.notes || '',
+      statut: invoice.statut || 'VALIDEE' // Pass status for watermark
     };
 
     // Generate PDF
-    const pdfDoc = generateInvoicePdf(invoiceData, settings.societe);
+    let pdfDoc;
+    try {
+      pdfDoc = generateInvoicePdf(invoiceData, settings.societe);
+    } catch (pdfError: any) {
+      console.error('Error in generateInvoicePdf:', pdfError);
+      console.error('PDF Error stack:', pdfError.stack);
+      return NextResponse.json(
+        { error: 'Erreur lors de la génération du PDF', details: pdfError.message },
+        { status: 500 }
+      );
+    }
 
     // Convert to buffer
-    const pdfBuffer = Buffer.from(pdfDoc.output('arraybuffer'));
+    let pdfBuffer;
+    try {
+      pdfBuffer = Buffer.from(pdfDoc.output('arraybuffer'));
+    } catch (bufferError: any) {
+      console.error('Error converting PDF to buffer:', bufferError);
+      return NextResponse.json(
+        { error: 'Erreur lors de la conversion du PDF', details: bufferError.message },
+        { status: 500 }
+      );
+    }
 
     // Return PDF as response
-    const sanitizedCustomerName = customerName.replace(/[^a-zA-Z0-9 ]/g, '').trim().replace(/\s+/g, '_');
-    const filename = `Facture-Interne-${invoiceData.numero}${customerName ? '-' + sanitizedCustomerName : ''}.pdf`;
+    // Format filename: "Facture-Interne-[CustomerName]-[InvoiceNumber].pdf"
+    let sanitizedCustomerName = '';
+    if (customerName) {
+      // Remove special characters and replace spaces with underscores
+      sanitizedCustomerName = customerName
+        .replace(/[^a-zA-Z0-9\u0600-\u06FF ]/g, '') // Keep Arabic and Latin characters
+        .trim()
+        .replace(/\s+/g, '_')
+        .substring(0, 50); // Limit length to avoid filename issues
+    }
+    
+    // Build filename with customer name and invoice number
+    const filename = sanitizedCustomerName 
+      ? `Facture-Interne-${sanitizedCustomerName}-${invoiceData.numero}.pdf`
+      : `Facture-Interne-${invoiceData.numero}.pdf`;
+    
     return new NextResponse(pdfBuffer, {
       headers: {
         'Content-Type': 'application/pdf',
@@ -170,5 +203,9 @@ export async function GET(
     );
   }
 }
+
+
+
+
 
 

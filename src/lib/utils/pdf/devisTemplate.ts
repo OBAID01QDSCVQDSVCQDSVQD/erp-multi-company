@@ -82,7 +82,6 @@ function amountToWordsFr(amount: number, currency: string = 'Dinars'): string {
 
 interface QuoteLine {
   productId?: string;
-  codeAchat?: string;
   categorieCode?: string;
   produit?: string;
   designation?: string;
@@ -126,6 +125,7 @@ interface QuoteData {
   dateLivraisonReelle?: string; // For delivery notes
   lieuLivraison?: string; // For delivery notes
   moyenTransport?: string; // For delivery notes
+  statut?: string; // For internal invoices: BROUILLON, VALIDEE, ANNULEE, etc.
 }
 
 interface CompanyInfo {
@@ -662,12 +662,6 @@ function drawLinesTable(doc: jsPDF, quoteData: QuoteData, startY: number): numbe
     const prixHTAfterDiscount = prixUnitaire * (1 - remise / 100);
     const montantHT = prixHTAfterDiscount * quantite;
     const montantTTC = montantHT * (1 + tvaPct / 100);
-    const ref =
-      l.codeAchat ||
-      l.categorieCode ||
-      l.produit ||
-      l.designation ||
-      `Ligne ${index + 1}`;
     
     // Get the HTML content (same logic as web app)
     let htmlContent = '';
@@ -677,11 +671,10 @@ function drawLinesTable(doc: jsPDF, quoteData: QuoteData, startY: number): numbe
       htmlContent = l.designation || l.produit || l.description || '';
     }
     if (!htmlContent) {
-      htmlContent = ref || `Produit ${index + 1}`;
+      htmlContent = `Produit ${index + 1}`;
     }
 
     return [
-      ref || `Ligne ${index + 1}`,
       { content: htmlContent, isHtml: true },
       quantite.toString(),
       `${prixUnitaire.toFixed(3)}`,
@@ -695,7 +688,6 @@ function drawLinesTable(doc: jsPDF, quoteData: QuoteData, startY: number): numbe
   autoTable(doc, {
     startY,
     head: [[
-      'Réf',
       'Produit',
       'Qté',
       'Prix HT',
@@ -736,14 +728,13 @@ function drawLinesTable(doc: jsPDF, quoteData: QuoteData, startY: number): numbe
     },
     // نقسم الـ 190 على الكولونات
     columnStyles: {
-      0: { cellWidth: 18, halign: 'left', valign: 'top' },              // Réf
-      1: { cellWidth: 70, cellPadding: { top: 4, right: 3, bottom: 3, left: 3 }, valign: 'top', halign: 'left' }, // Produit
-      2: { cellWidth: 12, halign: 'right', valign: 'top' }, // Qté
-      3: { cellWidth: 22, halign: 'right', valign: 'top' }, // Prix HT
-      4: { cellWidth: 16, halign: 'right', valign: 'top' }, // Remise %
-      5: { cellWidth: 14, halign: 'right', valign: 'top' }, // TVA
-      6: { cellWidth: 19, halign: 'right', valign: 'top' }, // Total HT
-      7: { cellWidth: 19, halign: 'right', valign: 'top' }, // Total TTC
+      0: { cellWidth: 88, cellPadding: { top: 4, right: 3, bottom: 3, left: 3 }, valign: 'top', halign: 'left' }, // Produit
+      1: { cellWidth: 12, halign: 'right', valign: 'top' }, // Qté
+      2: { cellWidth: 22, halign: 'right', valign: 'top' }, // Prix HT
+      3: { cellWidth: 16, halign: 'right', valign: 'top' }, // Remise %
+      4: { cellWidth: 14, halign: 'right', valign: 'top' }, // TVA
+      5: { cellWidth: 19, halign: 'right', valign: 'top' }, // Total HT
+      6: { cellWidth: 19, halign: 'right', valign: 'top' }, // Total TTC
     },
     willDrawCell: (data: any) => {
       // Ensure all cells in the row have the same height as the tallest cell
@@ -753,7 +744,7 @@ function drawLinesTable(doc: jsPDF, quoteData: QuoteData, startY: number): numbe
     },
     didParseCell: (data: any) => {
       // Handle HTML content in Produit column (column index 1)
-      if (data.column.index === 1 && data.cell.raw && typeof data.cell.raw === 'object' && data.cell.raw.isHtml) {
+      if (data.column.index === 0 && data.cell.raw && typeof data.cell.raw === 'object' && data.cell.raw.isHtml) {
         const html = data.cell.raw.content || '';
         // Store HTML for custom rendering
         (data.cell as any).htmlContent = html;
@@ -809,7 +800,7 @@ function drawLinesTable(doc: jsPDF, quoteData: QuoteData, startY: number): numbe
     },
     didDrawCell: (data: any) => {
       // Custom rendering for HTML content in Produit column
-      if (data.column.index === 1 && (data.cell as any).htmlContent) {
+      if (data.column.index === 0 && (data.cell as any).htmlContent) {
         const html = (data.cell as any).htmlContent;
         const cell = data.cell;
         // Get padding from cell styles (matches columnStyles: left: 3, top: 4)
@@ -1230,6 +1221,86 @@ export function generateDevisPdf(quoteData: QuoteData, companyInfo: CompanyInfo)
         // Enough space, draw totals on the last page
         drawTotals(doc, quoteData, tableEndY + 5, footerY - 3);
       }
+    }
+  }
+
+  // Add watermark for internal invoices with BROUILLON or ANNULEE status
+  if (quoteData.statut === 'BROUILLON' || quoteData.statut === 'ANNULEE') {
+    try {
+      const finalPageCount = doc.getNumberOfPages();
+      const watermarkText = quoteData.statut === 'BROUILLON' ? 'BROUILLON' : 'ANNULEE';
+      
+      console.log('[PDF Watermark] Adding watermark:', watermarkText, 'statut:', quoteData.statut, 'on', finalPageCount, 'pages');
+      
+      // Add watermark on all pages
+      for (let i = 1; i <= finalPageCount; i++) {
+      doc.setPage(i);
+      
+      // Save current graphics state
+      const currentTextColor = doc.getTextColor();
+      const currentFont = doc.getFont();
+      const currentFontSize = doc.getFontSize();
+      
+      // Get page dimensions (in mm for A4)
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      
+      // Set watermark properties: bold, large, 30% opacity
+      doc.setFontSize(72); // Large font size
+      doc.setFont('helvetica', 'bold');
+      
+      // Set text color with 30% opacity (RGB with alpha)
+      // jsPDF doesn't support alpha directly, so we use a light gray color
+      // 30% opacity = 70% transparency = light gray (approximately RGB(180, 180, 180))
+      doc.setTextColor(180, 180, 180);
+      
+      // Calculate text dimensions to center it
+      const textWidth = doc.getTextWidth(watermarkText);
+      
+      // Center the watermark on the page
+      const centerX = pageWidth / 2;
+      const centerY = pageHeight / 2;
+      
+      // Simple approach: draw text directly in center (without rotation for now)
+      // This ensures the watermark appears even if rotation fails
+      try {
+        doc.text(watermarkText, centerX, centerY, {
+          align: 'center',
+          baseline: 'middle'
+        });
+      } catch (textError) {
+        console.error('[PDF Watermark] Error drawing text:', textError);
+        // Continue even if text drawing fails
+      }
+      
+      // Restore original graphics state
+      // getTextColor() returns a string like "rgb(0,0,0)" or array [r,g,b]
+      if (typeof currentTextColor === 'string') {
+        // Parse RGB string like "rgb(0,0,0)" or "#000000"
+        const rgbMatch = currentTextColor.match(/\d+/g);
+        if (rgbMatch && rgbMatch.length >= 3) {
+          doc.setTextColor(parseInt(rgbMatch[0]), parseInt(rgbMatch[1]), parseInt(rgbMatch[2]));
+        } else {
+          doc.setTextColor(0, 0, 0); // Default to black
+        }
+      } else if (Array.isArray(currentTextColor)) {
+        const colorArray = currentTextColor as number[];
+        if (colorArray.length >= 3) {
+          doc.setTextColor(colorArray[0], colorArray[1], colorArray[2]);
+        } else {
+          doc.setTextColor(0, 0, 0); // Default to black
+        }
+      } else {
+        doc.setTextColor(0, 0, 0); // Default to black
+      }
+      doc.setFont(currentFont.fontName, currentFont.fontStyle);
+      doc.setFontSize(currentFontSize);
+      }
+      
+      console.log('[PDF Watermark] Watermark added successfully');
+    } catch (watermarkError: any) {
+      console.error('[PDF Watermark] Error adding watermark:', watermarkError);
+      // Don't fail PDF generation if watermark fails
     }
   }
 

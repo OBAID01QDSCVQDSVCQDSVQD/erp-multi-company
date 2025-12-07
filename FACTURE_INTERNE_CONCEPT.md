@@ -141,3 +141,7 @@ interface InternalInvoice {
 - علامة "Interne" في العنوان والطباعة
 
 
+
+
+
+

@@ -170,7 +170,7 @@ export async function GET(request: NextRequest) {
     // Separate source IDs by type
     const documentSourceIds = Array.from(new Set(
       movements
-        .filter((m: any) => m.sourceId && (m.source === 'BL' || (m.source === 'FAC' && m.type === 'SORTIE') || m.source === 'RETOUR'))
+        .filter((m: any) => m.sourceId && (m.source === 'BL' || (m.source === 'FAC' && m.type === 'SORTIE') || m.source === 'RETOUR' || m.source === 'INT_FAC' || m.source === 'INT_FAC_BROUILLON'))
         .map((m: any) => m.sourceId)
     ));
 
@@ -186,19 +186,19 @@ export async function GET(request: NextRequest) {
         .map((m: any) => m.sourceId)
     ));
 
-    // Fetch documents (BL, BR, FAC sales, RETOUR)
+    // Fetch documents (BL, BR, FAC sales, INT_FAC, INT_FAC_BROUILLON, RETOUR)
     const documents = documentSourceIds.length > 0 ? await (Document as any).find({
       _id: { $in: documentSourceIds.map((id: string) => {
         return mongoose.Types.ObjectId.isValid(id) ? new mongoose.Types.ObjectId(id) : id;
       }) },
       tenantId,
       type: { $in: ['BL', 'FAC', 'INT_FAC', 'RETOUR'] },
-    }).select('_id type customerId supplierId').lean() : [];
+    }).select('_id type numero customerId supplierId').lean() : [];
 
     const documentMap = new Map();
     documents.forEach((doc: any) => {
       const id = doc._id instanceof mongoose.Types.ObjectId ? doc._id.toString() : doc._id;
-      documentMap.set(id, { ...doc, isDocument: true });
+      documentMap.set(id, { ...doc, isDocument: true, numero: doc.numero });
     });
 
     // Fetch receptions (BR)
@@ -284,8 +284,19 @@ export async function GET(request: NextRequest) {
       // Determine reference name based on type and source
       let referenceName = movement.sourceId || '-';
       if (document) {
+        // For internal invoices (INT_FAC or INT_FAC_BROUILLON), show customer name
+        if ((movement.source === 'INT_FAC' || movement.source === 'INT_FAC_BROUILLON') && document.isDocument && document.type === 'INT_FAC') {
+          if (document.customerId) {
+            const customerIdStr = document.customerId instanceof mongoose.Types.ObjectId 
+              ? document.customerId.toString() 
+              : document.customerId?.toString() || document.customerId;
+            referenceName = customerMap.get(customerIdStr) || document.numero || movement.sourceId || '-';
+          } else {
+            referenceName = document.numero || movement.sourceId || '-';
+          }
+        }
         // For Sortie (BL or FAC sales invoice), show customer name
-        if (movement.type === 'SORTIE') {
+        else if (movement.type === 'SORTIE') {
           if (movement.source === 'BL' && document.isDocument && document.type === 'BL' && document.customerId) {
             const customerIdStr = document.customerId instanceof mongoose.Types.ObjectId 
               ? document.customerId.toString() 

@@ -82,11 +82,12 @@ export async function POST(
     }
 
     // Prepare invoice data (convert INT_FAC to FAC)
+    // Use current date (conversion date) instead of internal invoice date
     const invoiceData: any = {
       tenantId,
       type: 'FAC',
       numero,
-      dateDoc: internalInvoice.dateDoc || new Date(),
+      dateDoc: new Date(), // Use conversion date, not the internal invoice date
       statut: 'VALIDEE', // Automatically validate the official invoice when converted
       customerId: internalInvoice.customerId ? new mongoose.Types.ObjectId(internalInvoice.customerId) : undefined,
       projetId: internalInvoice.projetId ? new mongoose.Types.ObjectId(internalInvoice.projetId) : undefined,

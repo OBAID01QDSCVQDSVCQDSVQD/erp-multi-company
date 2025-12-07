@@ -7,7 +7,7 @@ export interface IMouvementStock extends Document {
   type: 'ENTREE' | 'SORTIE' | 'INVENTAIRE';
   qte: number;
   date: Date;
-  source: 'BR' | 'BL' | 'FAC' | 'INV' | 'AJUST' | 'TRANSFERT' | 'AUTRE' | 'RETOUR';
+  source: 'BR' | 'BL' | 'FAC' | 'INV' | 'AJUST' | 'TRANSFERT' | 'AUTRE' | 'RETOUR' | 'INT_FAC' | 'INT_FAC_BROUILLON';
   sourceId?: string;
   notes?: string;
   createdBy?: string;
@@ -48,7 +48,7 @@ const MouvementStockSchema = new (Schema as any)({
   },
   source: {
     type: String,
-    enum: ['BR', 'BL', 'FAC', 'INV', 'AJUST', 'TRANSFERT', 'AUTRE', 'RETOUR'],
+    enum: ['BR', 'BL', 'FAC', 'INV', 'AJUST', 'TRANSFERT', 'AUTRE', 'RETOUR', 'INT_FAC', 'INT_FAC_BROUILLON'],
     required: true,
   },
   sourceId: {
@@ -70,19 +70,11 @@ MouvementStockSchema.index({ societeId: 1, source: 1, sourceId: 1 });
 MouvementStockSchema.index({ societeId: 1, projectId: 1 });
 MouvementStockSchema.index({ date: -1 });
 
-let MouvementStock: any;
+// Clear the model from cache to ensure enum updates are applied
 if (mongoose.models.MouvementStock) {
-  // Model exists in cache, update the source enum if RETOUR is missing
-  const existingModel = mongoose.models.MouvementStock as any;
-  const sourcePath = existingModel.schema.path('source');
-  if (sourcePath && sourcePath.enumValues && !sourcePath.enumValues.includes('RETOUR')) {
-    // Update enum values dynamically
-    sourcePath.enum = ['BR', 'BL', 'FAC', 'INV', 'AJUST', 'TRANSFERT', 'AUTRE', 'RETOUR'];
-    sourcePath.enumValues = ['BR', 'BL', 'FAC', 'INV', 'AJUST', 'TRANSFERT', 'AUTRE', 'RETOUR'];
-  }
-  MouvementStock = existingModel;
-} else {
-  MouvementStock = mongoose.model<IMouvementStock>('MouvementStock', MouvementStockSchema) as any;
+  delete mongoose.models.MouvementStock;
 }
+
+const MouvementStock = mongoose.model<IMouvementStock>('MouvementStock', MouvementStockSchema) as any;
 
 export default MouvementStock;

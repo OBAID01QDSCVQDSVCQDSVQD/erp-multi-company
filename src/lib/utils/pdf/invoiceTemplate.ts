@@ -7,7 +7,6 @@ import { generateDevisPdf } from './devisTemplate';
 
 interface InvoiceLine {
   productId?: string;
-  codeAchat?: string;
   categorieCode?: string;
   produit?: string;
   designation?: string;
@@ -41,6 +40,7 @@ interface InvoiceData {
   modePaiement?: string;
   conditionsPaiement?: string;
   notes?: string;
+  statut?: string; // For internal invoices: BROUILLON, VALIDEE, ANNULEE, etc.
 }
 
 interface CompanyInfo {
@@ -79,6 +79,7 @@ export function generateInvoicePdf(invoiceData: InvoiceData, companyInfo: Compan
     ...invoiceData,
     documentType: 'FACTURE',
     dateValidite: invoiceData.dateEcheance, // Use dateEcheance as validité equivalent
+    statut: invoiceData.statut, // Pass status for watermark
   };
   
   // Use the same PDF generator but with documentType = 'FACTURE'

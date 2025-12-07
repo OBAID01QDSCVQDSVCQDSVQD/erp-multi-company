@@ -163,6 +163,44 @@ export default function InternalInvoiceDetailPage() {
 
       if (response.ok) {
         const data = await response.json();
+        
+        console.log('[Invoice Detail] Invoice data:', {
+          customerId: data.customerId,
+          customerIdType: typeof data.customerId,
+          customerIdIsObject: typeof data.customerId === 'object' && data.customerId !== null
+        });
+        
+        // If customerId is a string (not populated), fetch customer data
+        if (data.customerId) {
+          if (typeof data.customerId === 'string') {
+            // customerId is a string, need to fetch customer data
+            try {
+              const customerResponse = await fetch(`/api/customers/${data.customerId}`, {
+                headers: { 'X-Tenant-Id': tenantId }
+              });
+              if (customerResponse.ok) {
+                const customerData = await customerResponse.json();
+                console.log('[Invoice Detail] Fetched customer data:', customerData);
+                data.customerId = {
+                  _id: customerData._id,
+                  raisonSociale: customerData.raisonSociale,
+                  nom: customerData.nom,
+                  prenom: customerData.prenom
+                };
+              } else {
+                console.warn('[Invoice Detail] Failed to fetch customer:', customerResponse.status);
+              }
+            } catch (customerError) {
+              console.error('[Invoice Detail] Error fetching customer:', customerError);
+            }
+          } else if (typeof data.customerId === 'object' && data.customerId !== null) {
+            // customerId is already populated
+            console.log('[Invoice Detail] Customer already populated:', data.customerId);
+          }
+        } else {
+          console.warn('[Invoice Detail] No customerId found in invoice');
+        }
+        
         setInvoice(data);
         
         // Check if invoice has been converted by looking for conversion note or checking for linked official invoice
@@ -240,8 +278,28 @@ export default function InternalInvoiceDetailPage() {
         headers: { 'X-Tenant-Id': tenantId },
       });
 
-      if (!response.ok) {
-        throw new Error('Erreur lors de la génération du PDF');
+      // Check content type first
+      const contentType = response.headers.get('content-type');
+      
+      // If it's a PDF, proceed even if status is not 200
+      if (contentType?.includes('application/pdf')) {
+        // It's a PDF, continue with download
+      } else if (!response.ok) {
+        // Not a PDF and response is not ok, try to get error message
+        try {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Erreur lors de la génération du PDF');
+        } catch (jsonError) {
+          throw new Error('Erreur lors de la génération du PDF');
+        }
+      } else if (contentType && !contentType.includes('application/pdf')) {
+        // Response is ok but not a PDF
+        try {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Le serveur n\'a pas retourné un PDF valide');
+        } catch (jsonError) {
+          throw new Error('Le serveur n\'a pas retourné un PDF valide');
+        }
       }
 
       const blob = await response.blob();
@@ -510,9 +568,26 @@ export default function InternalInvoiceDetailPage() {
     );
   }
 
-  const customerName = invoice.customerId
-    ? invoice.customerId.raisonSociale || `${invoice.customerId.nom || ''} ${invoice.customerId.prenom || ''}`.trim()
-    : 'Non spécifié';
+  // Get customer name - handle both populated and non-populated customerId
+  const customerName = (() => {
+    if (!invoice?.customerId) {
+      return 'Non spécifié';
+    }
+    
+    // If customerId is an object (populated)
+    if (typeof invoice.customerId === 'object' && invoice.customerId !== null) {
+      const customer = invoice.customerId as { raisonSociale?: string; nom?: string; prenom?: string };
+      if (customer.raisonSociale) {
+        return customer.raisonSociale;
+      }
+      const fullName = `${customer.nom || ''} ${customer.prenom || ''}`.trim();
+      return fullName || 'Non spécifié';
+    }
+    
+    // If customerId is a string (not populated), we need to fetch it
+    // For now, return a placeholder
+    return 'Non spécifié';
+  })();
 
   return (
     <DashboardLayout>

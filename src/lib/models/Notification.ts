@@ -66,5 +66,3 @@ if (mongoose.models.Notification) {
 }
 
 export default mongoose.model<any>('Notification', NotificationSchema);
-
-

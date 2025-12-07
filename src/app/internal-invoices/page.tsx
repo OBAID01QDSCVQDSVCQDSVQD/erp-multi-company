@@ -13,6 +13,7 @@ interface Invoice {
   _id: string;
   numero: string;
   dateDoc: string;
+  statut?: 'BROUILLON' | 'VALIDEE' | 'PARTIELLEMENT_PAYEE' | 'PAYEE' | 'ANNULEE';
   customerId?: string;
   customerName?: string;
   projetId?: {
@@ -97,6 +98,13 @@ export default function InternalInvoicesPage() {
   const [convertSearchQuery, setConvertSearchQuery] = useState('');
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [showStockConfirmModal, setShowStockConfirmModal] = useState(false);
+  const [pendingStatusChange, setPendingStatusChange] = useState<{
+    invoiceId: string;
+    oldStatus: string;
+    newStatus: 'BROUILLON' | 'VALIDEE' | 'ANNULEE';
+    invoiceNumero: string;
+  } | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loadingData, setLoadingData] = useState(false);
   const [taxRates, setTaxRates] = useState<Array<{ code: string; tauxPct: number }>>([]);
@@ -146,7 +154,6 @@ export default function InternalInvoicesPage() {
   
   const [lines, setLines] = useState<Array<{
     productId: string;
-    codeAchat?: string;
     categorieCode?: string;
     designation: string;
     quantite: number;
@@ -581,7 +588,6 @@ export default function InternalInvoicesPage() {
     const newLines = [...lines];
     newLines[lineIndex].productId = product._id;
     newLines[lineIndex].designation = product.nom;
-    newLines[lineIndex].codeAchat = product.referenceClient || product.sku || '';
     newLines[lineIndex].categorieCode = (product as any).categorieCode || '';
     newLines[lineIndex].prixUnitaireHT = product.prixVenteHT || 0;
     newLines[lineIndex].taxCode = product.taxCode || '';
@@ -852,7 +858,6 @@ export default function InternalInvoicesPage() {
   const addLine = () => {
     setLines([...lines, {
       productId: '',
-      codeAchat: '',
       categorieCode: '',
       designation: '',
       quantite: 1,
@@ -901,7 +906,6 @@ export default function InternalInvoicesPage() {
       const product = products.find(p => p._id === value);
       if (product) {
         newLines[index].designation = product.nom;
-        newLines[index].codeAchat = product.referenceClient || product.sku || '';
         newLines[index].categorieCode = (product as any).categorieCode || '';
         newLines[index].prixUnitaireHT = product.prixVenteHT || 0;
         newLines[index].taxCode = product.taxCode || '';
@@ -1003,7 +1007,25 @@ export default function InternalInvoicesPage() {
     };
   };
 
-  const totals = calculateTotals();
+  // Recalculate totals whenever lines or formData changes
+  // Force recalculation by creating a dependency string from all relevant line values
+  const linesDependency = useMemo(() => {
+    return lines.map(l => 
+      `${l.quantite || 0}-${l.prixUnitaireHT || 0}-${l.remisePct || 0}-${l.tvaPct || 0}`
+    ).join('|');
+  }, [lines]);
+  
+  const totals = useMemo(() => {
+    return calculateTotals();
+  }, [
+    linesDependency, // Use the dependency string instead of lines directly
+    formData.remiseGlobalePct,
+    formData.fodec?.enabled,
+    formData.fodec?.tauxPct,
+    formData.timbreActif,
+    tvaSettings?.timbreFiscal?.actif,
+    tvaSettings?.timbreFiscal?.montantFixe
+  ]);
 
   // Fetch source documents for conversion
   const fetchSourceDocuments = async (sourceType: 'BL' | 'DEVIS') => {
@@ -1189,7 +1211,6 @@ export default function InternalInvoicesPage() {
           if (fullInvoice.lignes && fullInvoice.lignes.length > 0) {
             const mappedLines = fullInvoice.lignes.map((line: any) => ({
               productId: line.productId || '',
-              codeAchat: line.codeAchat || '',
               categorieCode: line.categorieCode || '',
               designation: line.designation || '',
               quantite: line.quantite || 0,
@@ -1278,7 +1299,6 @@ export default function InternalInvoicesPage() {
         .filter(line => line.designation && line.designation.trim() !== '')
         .map(line => ({
           productId: line.productId,
-          codeAchat: line.codeAchat || '',
           categorieCode: line.categorieCode || '',
           designation: line.designation.trim(),
           quantite: line.quantite,
@@ -1519,21 +1539,28 @@ export default function InternalInvoicesPage() {
         headers: { 'X-Tenant-Id': tenantId },
       });
 
-      if (!response.ok) {
-        // Check if response is JSON (error) or PDF
-        const contentType = response.headers.get('content-type');
-        if (contentType?.includes('application/json')) {
+      // Check content type first before checking response.ok
+      const contentType = response.headers.get('content-type');
+      
+      // If it's a PDF, proceed even if status is not 200 (some servers return 200 with PDF)
+      if (contentType?.includes('application/pdf')) {
+        // It's a PDF, continue with download
+      } else if (!response.ok) {
+        // Not a PDF and response is not ok, try to get error message
+        try {
           const errorData = await response.json();
           throw new Error(errorData.error || 'Erreur lors de la génération du PDF');
+        } catch (jsonError) {
+          throw new Error('Erreur lors de la génération du PDF');
         }
-        throw new Error('Erreur lors de la génération du PDF');
-      }
-
-      // Check if response is actually a PDF
-      const contentType = response.headers.get('content-type');
-      if (!contentType?.includes('application/pdf')) {
-        const errorData = await response.json().catch(() => ({ error: 'Réponse invalide du serveur' }));
-        throw new Error(errorData.error || 'Le serveur n\'a pas retourné un PDF valide');
+      } else if (contentType && !contentType.includes('application/pdf')) {
+        // Response is ok but not a PDF
+        try {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Le serveur n\'a pas retourné un PDF valide');
+        } catch (jsonError) {
+          throw new Error('Le serveur n\'a pas retourné un PDF valide');
+        }
       }
 
       const blob = await response.blob();
@@ -1603,6 +1630,86 @@ export default function InternalInvoicesPage() {
   };
 
   // Handle convert to official invoice
+  const handleStatusChange = async (invoiceId: string, newStatus: 'BROUILLON' | 'VALIDEE' | 'ANNULEE') => {
+    // Find the invoice to get current status
+    const invoice = invoices.find(inv => inv._id === invoiceId);
+    if (!invoice) return;
+    
+    const oldStatus = invoice.statut || 'BROUILLON';
+    
+    // Check if invoice is linked to a project - if yes, no stock movement needed
+    const hasProject = invoice.projetId && typeof invoice.projetId === 'object' && invoice.projetId !== null;
+    
+    // If invoice has a project, change status directly without confirmation
+    if (hasProject) {
+      await performStatusChange(invoiceId, newStatus, false);
+      return;
+    }
+    
+    // Determine if stock movement will occur based on status change
+    const willAffectStock = 
+      ((oldStatus === 'BROUILLON' || oldStatus === 'ANNULEE') && newStatus === 'VALIDEE') || // Will decrease stock
+      (oldStatus === 'VALIDEE' && (newStatus === 'BROUILLON' || newStatus === 'ANNULEE')); // Will restore stock
+    
+    // If status change will affect stock, show confirmation modal
+    if (willAffectStock) {
+      setPendingStatusChange({
+        invoiceId,
+        oldStatus,
+        newStatus,
+        invoiceNumero: invoice.numero
+      });
+      setShowStockConfirmModal(true);
+    } else {
+      // No stock movement, change directly
+      await performStatusChange(invoiceId, newStatus, false);
+    }
+  };
+
+  // Perform the actual status change
+  const performStatusChange = async (
+    invoiceId: string, 
+    newStatus: 'BROUILLON' | 'VALIDEE' | 'ANNULEE',
+    updateStock: boolean
+  ) => {
+    try {
+      const response = await fetch(`/api/internal-invoices/${invoiceId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          statut: newStatus,
+          updateStock: updateStock // Flag to control stock movement
+        }),
+      });
+
+      if (response.ok) {
+        toast.success('Statut mis à jour avec succès');
+        fetchInvoices(0);
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Erreur lors de la mise à jour du statut');
+      }
+    } catch (error) {
+      console.error('Error updating status:', error);
+      toast.error('Erreur de connexion');
+    }
+  };
+
+  // Handle stock confirmation modal actions
+  const handleStockConfirm = (updateStock: boolean) => {
+    if (pendingStatusChange) {
+      performStatusChange(
+        pendingStatusChange.invoiceId,
+        pendingStatusChange.newStatus,
+        updateStock
+      );
+    }
+    setShowStockConfirmModal(false);
+    setPendingStatusChange(null);
+  };
+
   const handleConvertToOfficial = async (invoiceId: string) => {
     // Check if invoice is already converted
     const invoice = invoices.find(inv => inv._id === invoiceId);
@@ -1765,6 +1872,7 @@ export default function InternalInvoicesPage() {
                     <tr>
                   <th className="px-3 py-4 text-left text-sm font-semibold text-gray-700">Numéro</th>
                   <th className="px-3 py-4 text-center text-sm font-semibold text-gray-700">État</th>
+                  <th className="px-3 py-4 text-center text-sm font-semibold text-gray-700">Statut</th>
                   <th className="px-3 py-4 text-left text-sm font-semibold text-gray-700">Date</th>
                   <th className="px-3 py-4 text-left text-sm font-semibold text-gray-700">Client</th>
                   <th className="px-3 py-4 text-left text-sm font-semibold text-gray-700">Projet</th>
@@ -1787,6 +1895,30 @@ export default function InternalInvoicesPage() {
                       ) : (
                         <span className="text-gray-400">-</span>
                       )}
+                    </td>
+                    <td className="px-3 py-4 text-center">
+                      <select
+                        value={invoice.statut || 'VALIDEE'}
+                        onChange={(e) => handleStatusChange(invoice._id, e.target.value as 'BROUILLON' | 'VALIDEE' | 'ANNULEE')}
+                        className={`text-xs font-medium px-2 py-1 rounded-full border-0 focus:ring-2 focus:ring-offset-1 ${
+                          invoice.statut === 'VALIDEE' 
+                            ? 'bg-green-100 text-green-800' 
+                            : invoice.statut === 'BROUILLON'
+                            ? 'bg-gray-100 text-gray-800'
+                            : invoice.statut === 'PARTIELLEMENT_PAYEE'
+                            ? 'bg-yellow-100 text-yellow-800'
+                            : invoice.statut === 'PAYEE'
+                            ? 'bg-blue-100 text-blue-800'
+                            : invoice.statut === 'ANNULEE'
+                            ? 'bg-red-100 text-red-800'
+                            : 'bg-green-100 text-green-800'
+                        }`}
+                        disabled={invoice.archived || invoice.notesInterne?.includes('Convertie en facture officielle') || invoice.statut === 'PARTIELLEMENT_PAYEE' || invoice.statut === 'PAYEE'}
+                      >
+                        <option value="VALIDEE">Validée</option>
+                        <option value="BROUILLON">Brouillon</option>
+                        <option value="ANNULEE">Annulée</option>
+                      </select>
                     </td>
                     <td className="px-3 py-4 text-sm text-gray-600 whitespace-nowrap">
                       {new Date(invoice.dateDoc).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
@@ -1894,6 +2026,31 @@ export default function InternalInvoicesPage() {
                     </div>
                   </div>
                   <div className="border-t pt-3 space-y-2">
+                    <div className="flex justify-between text-sm items-center">
+                      <span className="text-gray-600">Statut:</span>
+                      <select
+                        value={invoice.statut || 'VALIDEE'}
+                        onChange={(e) => handleStatusChange(invoice._id, e.target.value as 'BROUILLON' | 'VALIDEE' | 'ANNULEE')}
+                        className={`text-xs font-medium px-2 py-1 rounded-full border-0 focus:ring-2 focus:ring-offset-1 ${
+                          invoice.statut === 'VALIDEE' 
+                            ? 'bg-green-100 text-green-800' 
+                            : invoice.statut === 'BROUILLON'
+                            ? 'bg-gray-100 text-gray-800'
+                            : invoice.statut === 'PARTIELLEMENT_PAYEE'
+                            ? 'bg-yellow-100 text-yellow-800'
+                            : invoice.statut === 'PAYEE'
+                            ? 'bg-blue-100 text-blue-800'
+                            : invoice.statut === 'ANNULEE'
+                            ? 'bg-red-100 text-red-800'
+                            : 'bg-green-100 text-green-800'
+                        }`}
+                        disabled={invoice.archived || invoice.notesInterne?.includes('Convertie en facture officielle') || invoice.statut === 'PARTIELLEMENT_PAYEE' || invoice.statut === 'PAYEE'}
+                      >
+                        <option value="VALIDEE">Validée</option>
+                        <option value="BROUILLON">Brouillon</option>
+                        <option value="ANNULEE">Annulée</option>
+                      </select>
+                    </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600">Client:</span>
                       <span className="font-medium text-gray-900">{invoice.customerName || '-'}</span>
@@ -2870,6 +3027,53 @@ export default function InternalInvoicesPage() {
                       ? (editingInvoiceId ? 'Enregistrement...' : 'Création en cours...')
                       : (editingInvoiceId ? 'Modifier' : 'Créer')}
                   </span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Stock Movement Confirmation Modal */}
+        {showStockConfirmModal && pendingStatusChange && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl max-w-md w-full shadow-2xl">
+              <div className="p-6">
+                <div className="flex items-center justify-center w-12 h-12 mx-auto bg-blue-100 rounded-full mb-4">
+                  <ExclamationTriangleIcon className="w-6 h-6 text-blue-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 text-center mb-2">
+                  Changement de statut - Mouvement de stock
+                </h3>
+                <p className="text-sm text-gray-600 text-center mb-4">
+                  Facture n°: <span className="font-semibold">{pendingStatusChange.invoiceNumero}</span>
+                </p>
+                <p className="text-sm text-gray-700 text-center mb-6">
+                  {pendingStatusChange.oldStatus === 'VALIDEE' 
+                    ? 'Voulez-vous restaurer la quantité en stock ?'
+                    : 'Voulez-vous diminuer la quantité du stock ?'}
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => handleStockConfirm(true)}
+                    className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition"
+                  >
+                    Oui, {pendingStatusChange.oldStatus === 'VALIDEE' ? 'restaurer' : 'diminuer'}
+                  </button>
+                  <button
+                    onClick={() => handleStockConfirm(false)}
+                    className="flex-1 px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg font-medium transition"
+                  >
+                    Non, changer le statut uniquement
+                  </button>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowStockConfirmModal(false);
+                    setPendingStatusChange(null);
+                  }}
+                  className="w-full mt-3 px-4 py-2 text-gray-600 hover:text-gray-800 text-sm"
+                >
+                  Annuler
                 </button>
               </div>
             </div>

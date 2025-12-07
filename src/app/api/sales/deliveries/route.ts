@@ -31,11 +31,34 @@ export async function GET(request: NextRequest) {
     
     if (customerId) query.customerId = customerId;
     
+    // Get all deliveries - don't use select() to ensure all fields including projetId are returned
     let deliveries = await (Document as any).find(query)
       .sort('-createdAt')
       .skip((page - 1) * limit)
       .limit(limit)
       .lean();
+    
+    // Debug: Check if projetId exists in raw data
+    console.log('Raw deliveries projetId check:', deliveries.slice(0, 3).map((d: any) => ({
+      numero: d.numero,
+      hasProjetId: 'projetId' in d,
+      projetId: d.projetId,
+      projetIdType: typeof d.projetId
+    })));
+    
+    // Manually select only the fields we need, ensuring projetId is included
+    deliveries = deliveries.map((d: any) => ({
+      _id: d._id,
+      numero: d.numero,
+      dateDoc: d.dateDoc,
+      date: d.date,
+      createdAt: d.createdAt,
+      customerId: d.customerId,
+      projetId: d.projetId || null, // Explicitly include projetId, even if null
+      totalBaseHT: d.totalBaseHT,
+      totalHT: d.totalHT,
+      totalTTC: d.totalTTC
+    }));
 
     // Populate customerId manuellement (qu'il soit string ou ObjectId)
     const Customer = (await import('@/lib/models/Customer')).default;

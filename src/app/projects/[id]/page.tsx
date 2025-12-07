@@ -280,15 +280,14 @@ export default function ProjectDetailPage() {
   };
 
   const handleSearchDocuments = async () => {
-    if (!searchQuery.trim()) {
-      setSearchResults([]);
-      return;
-    }
-
     try {
       setSearching(true);
       const endpoint = linkType === 'devis' ? '/api/sales/quotes' : '/api/sales/deliveries';
-      const response = await fetch(`${endpoint}?q=${encodeURIComponent(searchQuery)}&limit=50`, {
+      // If search query is empty, get all documents (no q parameter)
+      const url = searchQuery.trim() 
+        ? `${endpoint}?q=${encodeURIComponent(searchQuery)}&limit=100`
+        : `${endpoint}?limit=100`;
+      const response = await fetch(url, {
         headers: { 'X-Tenant-Id': tenantId || '' }
       });
 
@@ -296,18 +295,89 @@ export default function ProjectDetailPage() {
         const data = await response.json();
         const allResults = data.items || [];
         
-        // Get already linked document IDs
+        // Fetch all projects to check which documents are linked to which projects
+        const projectsResponse = await fetch('/api/projects?limit=1000', {
+          headers: { 'X-Tenant-Id': tenantId || '' }
+        });
+        
+        let allProjects: any[] = [];
+        if (projectsResponse.ok) {
+          const projectsData = await projectsResponse.json();
+          allProjects = projectsData.items || [];
+        }
+        
+        // Create a map: documentId -> projectId (to know which document is linked to which project)
+        const documentToProjectMap = new Map<string, string>();
+        allProjects.forEach((proj: any) => {
+          const projId = proj._id?.toString() || proj.toString();
+          
+          // Check devisIds
+          if (proj.devisIds && Array.isArray(proj.devisIds)) {
+            proj.devisIds.forEach((devis: any) => {
+              const devisId = devis._id?.toString() || devis.toString();
+              documentToProjectMap.set(devisId, projId);
+            });
+          }
+          
+          // Check blIds
+          if (proj.blIds && Array.isArray(proj.blIds)) {
+            proj.blIds.forEach((bl: any) => {
+              const blId = bl._id?.toString() || bl.toString();
+              documentToProjectMap.set(blId, projId);
+            });
+          }
+        });
+        
+        console.log('Document to Project Map:', Array.from(documentToProjectMap.entries()).slice(0, 5));
+        
+        // Get already linked document IDs to this project
         const linkedIds = linkType === 'devis'
           ? (project?.devisIds || []).map((d: any) => d._id?.toString() || d.toString())
           : (project?.blIds || []).map((b: any) => b._id?.toString() || b.toString());
         
-        // Filter out already linked documents
-        const filteredResults = allResults.filter((doc: any) => {
+        // Enrich all results - show ALL documents, but mark which ones cannot be linked
+        const enrichedResults = allResults.map((doc: any) => {
           const docId = doc._id?.toString() || doc.toString();
-          return !linkedIds.includes(docId);
+          const isAlreadyLinkedToThisProject = linkedIds.includes(docId);
+          
+          // Check if document is linked to any project using the map we created
+          const linkedProjectId = documentToProjectMap.get(docId) || null;
+          const hasProjetId = linkedProjectId !== null;
+          
+          // Determine if linked to this project or another project
+          const normalizedLinkedProjectId = linkedProjectId ? linkedProjectId.trim() : null;
+          const normalizedCurrentProjectId = projectId ? projectId.trim() : null;
+          
+          const isLinkedToThisProject = normalizedLinkedProjectId && normalizedLinkedProjectId === normalizedCurrentProjectId;
+          const isLinkedToOtherProject = hasProjetId && normalizedLinkedProjectId && !isLinkedToThisProject;
+          
+          // Cannot link if: already linked to this project OR linked to ANY other project
+          const cannotLink = isAlreadyLinkedToThisProject || isLinkedToOtherProject;
+          
+          // Debug log for troubleshooting
+          if (hasProjetId) {
+            console.log(`[${doc.numero}]`, {
+              docId,
+              linkedProjectId: normalizedLinkedProjectId,
+              currentProjectId: normalizedCurrentProjectId,
+              isLinkedToThisProject,
+              isLinkedToOtherProject,
+              cannotLink
+            });
+          }
+          
+          return {
+            ...doc,
+            isAlreadyLinkedToThisProject,
+            isLinkedToThisProject,
+            isLinkedToOtherProject,
+            hasProjetId,
+            linkedProjectId: normalizedLinkedProjectId,
+            cannotLink
+          };
         });
         
-        setSearchResults(filteredResults);
+        setSearchResults(enrichedResults);
       } else {
         toast.error('Erreur lors de la recherche');
       }
@@ -422,7 +492,8 @@ export default function ProjectDetailPage() {
       if (searchQuery.trim()) {
         handleSearchDocuments();
       } else {
-        setSearchResults([]);
+        // When modal opens, show all documents (empty search)
+        handleSearchDocuments();
       }
     }, 300);
 
@@ -845,11 +916,11 @@ export default function ProjectDetailPage() {
 
       {/* Link Document Modal */}
       {showLinkModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col">
             {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b">
-              <h2 className="text-xl font-semibold text-gray-900">
+            <div className="flex items-center justify-between p-4 sm:p-6 border-b">
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
                 Lier un {linkType === 'devis' ? 'Devis' : 'Bon de livraison'}
               </h2>
               <button
@@ -860,44 +931,44 @@ export default function ProjectDetailPage() {
                 }}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
               >
-                <XMarkIcon className="w-6 h-6" />
+                <XMarkIcon className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
             </div>
 
             {/* Search */}
-            <div className="p-6 border-b">
+            <div className="p-4 sm:p-6 border-b">
               <div className="relative">
-                <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder={`Rechercher par numéro ou nom de client...`}
-                  className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full pl-9 sm:pl-10 pr-4 py-2 text-sm sm:text-base border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   autoFocus
                 />
               </div>
             </div>
 
             {/* Results */}
-            <div className="flex-1 overflow-y-auto p-6">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6">
               {searching ? (
                 <div className="text-center py-8">
                   <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                  <p className="mt-4 text-gray-600">Recherche en cours...</p>
+                  <p className="mt-4 text-sm sm:text-base text-gray-600">Recherche en cours...</p>
                 </div>
               ) : searchResults.length === 0 ? (
                 <div className="text-center py-8">
-                  <DocumentTextIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-600">
+                  <DocumentTextIcon className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mx-auto mb-4" />
+                  <p className="text-sm sm:text-base text-gray-600">
                     {searchQuery.trim() 
                       ? 'Aucun résultat trouvé' 
                       : 'Commencez à taper pour rechercher'}
                   </p>
                 </div>
               ) : (
-                <div className="space-y-2">
-                  {searchResults.map((doc) => {
+                <div className="space-y-2 sm:space-y-3">
+                  {searchResults.map((doc: any) => {
                     let customerName = 'N/A';
                     if (doc.customerId) {
                       if (typeof doc.customerId === 'object' && doc.customerId !== null && !Array.isArray(doc.customerId)) {
@@ -912,30 +983,64 @@ export default function ProjectDetailPage() {
                       }
                     }
                     
+                    const cannotLink = doc.cannotLink;
+                    const isLinkedToThisProject = doc.isLinkedToThisProject;
+                    const isLinkedToOtherProject = doc.isLinkedToOtherProject;
+                    
                     return (
                       <div
                         key={doc._id}
-                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+                        className={`flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 border rounded-lg transition-colors ${
+                          cannotLink 
+                            ? 'bg-amber-50 border-amber-200 opacity-75' 
+                            : 'bg-white hover:bg-gray-50'
+                        }`}
                       >
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <DocumentTextIcon className="w-5 h-5 text-gray-400" />
-                            <span className="font-medium text-gray-900">{doc.numero}</span>
+                        <div className="flex-1 mb-3 sm:mb-0">
+                          <div className="flex flex-wrap items-center gap-2 mb-1 sm:mb-2">
+                            <DocumentTextIcon className={`w-4 h-4 sm:w-5 sm:h-5 ${cannotLink ? 'text-amber-500' : 'text-gray-400'}`} />
+                            <span className={`font-medium ${cannotLink ? 'text-amber-900' : 'text-gray-900'}`}>
+                              {doc.numero}
+                            </span>
+                            {isLinkedToThisProject && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">
+                                ✓ Lié à ce projet
+                              </span>
+                            )}
+                            {isLinkedToOtherProject && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800 border border-amber-200">
+                                ⚠️ Indisponible - Déjà lié à un autre projet
+                              </span>
+                            )}
                           </div>
-                          <div className="text-sm text-gray-600">
-                            <span>Client: {customerName}</span>
-                            <span className="mx-2">•</span>
-                            <span>Date: {formatDate(doc.dateDoc || doc.date || doc.createdAt)}</span>
-                            <span className="mx-2">•</span>
-                            <span>Total: {formatPrice(doc.totalTTC || doc.totalBaseHT || 0, project?.currency || 'TND')}</span>
+                          <div className="text-xs sm:text-sm text-gray-600 space-y-1 sm:space-y-0">
+                            <div className="flex flex-wrap items-center gap-1 sm:gap-2">
+                              <span>Client: {customerName}</span>
+                              <span className="hidden sm:inline">•</span>
+                              <span>Date: {formatDate(doc.dateDoc || doc.date || doc.createdAt)}</span>
+                              <span className="hidden sm:inline">•</span>
+                              <span>Total: {formatPrice(doc.totalTTC || doc.totalBaseHT || 0, project?.currency || 'TND')}</span>
+                            </div>
+                            {cannotLink && (
+                              <p className="text-xs text-amber-700 mt-1 sm:mt-0 font-medium">
+                                {isLinkedToThisProject 
+                                  ? `Ce ${linkType === 'devis' ? 'devis' : 'bon de livraison'} est déjà lié à ce projet.`
+                                  : `⚠️ Ce ${linkType === 'devis' ? 'devis' : 'bon de livraison'} est déjà utilisé dans un autre projet et ne peut pas être sélectionné.`
+                                }
+                              </p>
+                            )}
                           </div>
                         </div>
                         <button
                           onClick={() => handleLinkDocument(doc._id)}
-                          disabled={loading}
-                          className="ml-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                          disabled={loading || cannotLink}
+                          className={`ml-0 sm:ml-4 px-3 sm:px-4 py-2 text-sm rounded-lg transition-colors whitespace-nowrap font-medium ${
+                            cannotLink
+                              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                              : 'bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed'
+                          }`}
                         >
-                          Lier
+                          {cannotLink ? 'Indisponible' : 'Lier'}
                         </button>
                       </div>
                     );

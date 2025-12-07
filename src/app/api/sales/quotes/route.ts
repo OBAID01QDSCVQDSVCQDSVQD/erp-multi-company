@@ -28,11 +28,26 @@ export async function GET(request: NextRequest) {
     
     if (customerId) query.customerId = customerId;
     
+    // First, get all quotes without select to ensure projetId is included
     let quotes = await (Document as any).find(query)
       .sort('-createdAt')
       .skip((page - 1) * limit)
       .limit(limit)
       .lean();
+    
+    // Manually select only the fields we need, ensuring projetId is included
+    quotes = quotes.map((q: any) => ({
+      _id: q._id,
+      numero: q.numero,
+      dateDoc: q.dateDoc,
+      date: q.date,
+      createdAt: q.createdAt,
+      customerId: q.customerId,
+      projetId: q.projetId, // Ensure projetId is included
+      totalBaseHT: q.totalBaseHT,
+      totalHT: q.totalHT,
+      totalTTC: q.totalTTC
+    }));
 
     // Populate customerId manuellement (qu'il soit string ou ObjectId)
     const Customer = (await import('@/lib/models/Customer')).default;

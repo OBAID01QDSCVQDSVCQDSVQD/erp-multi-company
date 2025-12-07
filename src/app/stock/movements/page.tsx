@@ -35,6 +35,8 @@ const SOURCE_LABELS: Record<string, string> = {
   BR: 'Bon de réception',
   BL: 'Bon de livraison',
   FAC: 'Facture',
+  INT_FAC: 'Facture interne',
+  INT_FAC_BROUILLON: 'Facture interne brouillon',
   INV: 'Inventaire',
   AJUST: 'Ajustement',
   TRANSFERT: 'Transfert',
@@ -192,6 +194,8 @@ export default function StockMovementsPage() {
       } else if (movement?.type === 'ENTREE') {
         router.push(`/purchases/invoices/${sourceId}`);
       }
+    } else if (source === 'INT_FAC' || source === 'INT_FAC_BROUILLON') {
+      router.push(`/internal-invoices/${sourceId}`);
     } else if (source === 'RETOUR') {
       router.push(`/sales/returns/${sourceId}`);
     } else {
@@ -310,6 +314,8 @@ export default function StockMovementsPage() {
                     <option value="BR">Bon de réception</option>
                     <option value="BL">Bon de livraison</option>
                     <option value="FAC">Facture</option>
+                    <option value="INT_FAC">Facture interne</option>
+                    <option value="INT_FAC_BROUILLON">Facture interne brouillon</option>
                     <option value="INV">Inventaire</option>
                     <option value="AJUST">Ajustement</option>
                     <option value="TRANSFERT">Transfert</option>
