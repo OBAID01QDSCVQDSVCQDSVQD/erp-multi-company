@@ -284,30 +284,33 @@ export default function ViewDeliveryPage() {
             <div>
               <label className="text-sm text-gray-600">Client</label>
               {customer ? (
-                <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 space-y-1">
-                  <p className="text-lg font-medium text-gray-900">
+                <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 md:p-4 shadow-sm space-y-2">
+                  <p className="text-base md:text-lg font-semibold text-gray-900 leading-snug">
                     {customer.raisonSociale || `${customer.nom || ''} ${customer.prenom || ''}`.trim() || 'N/A'}
                   </p>
-                  {customer.matriculeFiscale && (
-                    <p className="text-sm text-gray-700">
-                      <span className="font-medium">Matricule fiscal:</span> {customer.matriculeFiscale}
-                    </p>
-                  )}
-                  {customer.adresseFacturation && (
-                    <p className="text-sm text-gray-700">
-                      <span className="font-medium">Adresse:</span> {[
-                        customer.adresseFacturation.ligne1,
-                        customer.adresseFacturation.ligne2,
-                        customer.adresseFacturation.codePostal,
-                        customer.adresseFacturation.ville
-                      ].filter(Boolean).join(', ')}
-                    </p>
-                  )}
-                  {customer.code && (
-                    <p className="text-sm text-gray-700">
-                      <span className="font-medium">Code:</span> {customer.code}
-                    </p>
-                  )}
+                  <div className="grid grid-cols-1 gap-1 text-xs md:text-sm text-gray-700">
+                    {customer.matriculeFiscale && (
+                      <p>
+                        <span className="font-medium">Matricule fiscal: </span>{customer.matriculeFiscale}
+                      </p>
+                    )}
+                    {customer.code && (
+                      <p>
+                        <span className="font-medium">Code: </span>{customer.code}
+                      </p>
+                    )}
+                    {customer.adresseFacturation && (
+                      <p className="leading-snug">
+                        <span className="font-medium">Adresse: </span>
+                        {[
+                          customer.adresseFacturation.ligne1,
+                          customer.adresseFacturation.ligne2,
+                          customer.adresseFacturation.codePostal,
+                          customer.adresseFacturation.ville
+                        ].filter(Boolean).join(', ')}
+                      </p>
+                    )}
+                  </div>
                 </div>
               ) : (
                 <p className="text-lg font-medium">Chargement...</p>
