@@ -491,10 +491,10 @@ export default function PurchaseOrdersPage() {
       if (response.ok) {
         toast.success(editingOrderId ? 'Commande d\'achat modifiée avec succès' : 'Commande d\'achat créée avec succès');
         setShowModal(false);
-    setLines([]);
-    setProductSearches({});
-    setShowProductModal({});
-    setCurrentProductLineIndex(null);
+        setLines([]);
+        setProductSearches({});
+        setShowProductModal({});
+        setCurrentProductLineIndex(null);
         setEditingOrderId(null);
         setFormData({
           fournisseurId: '',
