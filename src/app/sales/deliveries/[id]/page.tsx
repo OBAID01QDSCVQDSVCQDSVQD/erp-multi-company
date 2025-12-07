@@ -329,56 +329,99 @@ export default function ViewDeliveryPage() {
 
           {/* Lines Table */}
           {delivery.lignes && delivery.lignes.length > 0 && (
-            <div className="mt-6">
-              <table className="w-full">
-                <thead className="bg-gray-100 border-b-2 border-gray-300">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">Produit</th>
-                    <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">Qté</th>
-                    <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">Prix HT</th>
-                    <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">Remise %</th>
-                    <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">TVA</th>
-                    <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">Total HT</th>
-                    <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">Total TTC</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {delivery.lignes.map((line: any, index: number) => {
-                    // If it's a service (estStocke = false), show description
-                    const displayText = line.estStocke === false && line.descriptionProduit 
-                      ? line.descriptionProduit 
-                      : line.designation;
-                    
-                    return (
-                      <tr key={index} className={index % 2 === 0 ? 'bg-blue-50' : 'bg-pink-50'}>
-                        <td className="px-4 py-3 text-sm">
-                          {displayText ? (
-                            <div dangerouslySetInnerHTML={{ __html: displayText }} />
-                          ) : (
-                            line.designation
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-sm">{line.quantite}</td>
-                        <td className="px-4 py-3 text-sm">{line.prixUnitaireHT?.toFixed(3)} {delivery.devise}</td>
-                        <td className="px-4 py-3 text-sm">{line.remisePct || 0}%</td>
-                        <td className="px-4 py-3 text-sm">{line.tvaPct || 0}%</td>
-                        <td className="px-4 py-3 text-sm font-medium">
-                          {((line.quantite * line.prixUnitaireHT) * (1 - ((line.remisePct || 0) / 100))).toFixed(3)} {delivery.devise}
-                        </td>
-                        <td className="px-4 py-3 text-sm font-medium text-blue-600">
-                          {(((line.quantite * line.prixUnitaireHT) * (1 - ((line.remisePct || 0) / 100))) * (1 + (line.tvaPct || 0) / 100)).toFixed(3)} {delivery.devise}
-                        </td>
+            <div className="mt-6 space-y-4">
+              {/* Desktop table */}
+              <div className="hidden md:block border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full">
+                    <thead className="bg-gray-100 border-b-2 border-gray-300">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">Produit</th>
+                        <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">Qté</th>
+                        <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">Prix HT</th>
+                        <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">Remise %</th>
+                        <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">TVA</th>
+                        <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">Total HT</th>
+                        <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">Total TTC</th>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {delivery.lignes.map((line: any, index: number) => {
+                        const displayText = line.estStocke === false && line.descriptionProduit 
+                          ? line.descriptionProduit 
+                          : line.designation;
+                        
+                        return (
+                          <tr key={index} className={index % 2 === 0 ? 'bg-blue-50' : 'bg-pink-50'}>
+                            <td className="px-4 py-3 text-sm">
+                              {displayText ? (
+                                <div dangerouslySetInnerHTML={{ __html: displayText }} />
+                              ) : (
+                                line.designation
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-sm">{line.quantite}</td>
+                            <td className="px-4 py-3 text-sm">{line.prixUnitaireHT?.toFixed(3)} {delivery.devise}</td>
+                            <td className="px-4 py-3 text-sm">{line.remisePct || 0}%</td>
+                            <td className="px-4 py-3 text-sm">{line.tvaPct || 0}%</td>
+                            <td className="px-4 py-3 text-sm font-medium">
+                              {((line.quantite * line.prixUnitaireHT) * (1 - ((line.remisePct || 0) / 100))).toFixed(3)} {delivery.devise}
+                            </td>
+                            <td className="px-4 py-3 text-sm font-medium text-blue-600">
+                              {(((line.quantite * line.prixUnitaireHT) * (1 - ((line.remisePct || 0) / 100))) * (1 + (line.tvaPct || 0) / 100)).toFixed(3)} {delivery.devise}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Mobile cards */}
+              <div className="md:hidden space-y-3">
+                {delivery.lignes.map((line: any, index: number) => {
+                  const displayText = line.estStocke === false && line.descriptionProduit 
+                    ? line.descriptionProduit 
+                    : line.designation;
+
+                  return (
+                    <div key={index} className="border border-gray-200 rounded-lg p-3 shadow-sm bg-white">
+                      <div className="flex justify-between items-center mb-2">
+                        <div className="text-sm font-semibold text-gray-900">{line.nom || 'Produit'}</div>
+                        <div className="text-xs text-gray-500">{line.reference || '-'}</div>
+                      </div>
+                      <div className="text-sm text-gray-700 whitespace-pre-line mb-2">
+                        {displayText || line.designation}
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs text-gray-700">
+                        <div>Qté: <span className="font-semibold text-gray-900">{line.quantite}</span></div>
+                        <div>Prix HT: <span className="font-semibold text-gray-900">{line.prixUnitaireHT?.toFixed(3)} {delivery.devise}</span></div>
+                        <div>Remise: <span className="font-semibold text-gray-900">{line.remisePct || 0}%</span></div>
+                        <div>TVA: <span className="font-semibold text-gray-900">{line.tvaPct || 0}%</span></div>
+                      </div>
+                      <div className="mt-2 text-sm flex justify-between">
+                        <span className="font-medium text-gray-900">Total HT</span>
+                        <span className="font-semibold text-gray-900">
+                          {((line.quantite * line.prixUnitaireHT) * (1 - ((line.remisePct || 0) / 100))).toFixed(3)} {delivery.devise}
+                        </span>
+                      </div>
+                      <div className="text-sm flex justify-between text-blue-600">
+                        <span className="font-medium">Total TTC</span>
+                        <span className="font-semibold">
+                          {(((line.quantite * line.prixUnitaireHT) * (1 - ((line.remisePct || 0) / 100))) * (1 + (line.tvaPct || 0) / 100)).toFixed(3)} {delivery.devise}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
 
           {/* Totals */}
-          <div className="mt-6 flex justify-end">
-            <div className="w-80 bg-blue-50 border border-blue-100 rounded-lg p-4 space-y-3">
+          <div className="mt-6 flex justify-start md:justify-end">
+            <div className="w-full md:w-80 bg-blue-50 border border-blue-100 rounded-lg p-4 space-y-3">
               <div className="flex justify-between text-sm">
                 <span className="text-gray-700">Total HT</span>
                 <span className="font-medium text-gray-900">{(delivery.totalBaseHT || delivery.totalHT || 0).toFixed(3)} {delivery.devise}</span>
