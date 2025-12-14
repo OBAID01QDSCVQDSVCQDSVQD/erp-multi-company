@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
-import { PlusIcon, ClipboardDocumentCheckIcon, MagnifyingGlassIcon, EyeIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, ClipboardDocumentCheckIcon, MagnifyingGlassIcon, EyeIcon, ArrowDownTrayIcon, PencilIcon } from '@heroicons/react/24/outline';
 import { useTenantId } from '@/hooks/useTenantId';
 import toast from 'react-hot-toast';
 
@@ -230,6 +230,15 @@ export default function ReceptionsPage() {
                           >
                             <EyeIcon className="h-5 w-5" />
                           </button>
+                          {reception.statut === 'BROUILLON' && (
+                            <button
+                              onClick={() => router.push(`/purchases/receptions/${reception._id}/edit`)}
+                              className="text-blue-600 hover:text-blue-900"
+                              title="Modifier"
+                            >
+                              <PencilIcon className="h-5 w-5" />
+                            </button>
+                          )}
                           <button
                             onClick={async () => {
                               try {
@@ -317,6 +326,15 @@ export default function ReceptionsPage() {
                       <EyeIcon className="w-4 h-4" />
                       Voir
                     </button>
+                    {reception.statut === 'BROUILLON' && (
+                      <button
+                        onClick={() => router.push(`/purchases/receptions/${reception._id}/edit`)}
+                        className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm border rounded-lg hover:bg-gray-50"
+                      >
+                        <PencilIcon className="w-4 h-4" />
+                        Modifier
+                      </button>
+                    )}
                     <button
                       onClick={async () => {
                         try {

@@ -57,6 +57,16 @@ export async function GET(
       reception.totaux.timbre = 0;
     }
 
+    // Ensure remisePct exists for all lines (default to 0 if missing)
+    if (reception.lignes && Array.isArray(reception.lignes)) {
+      reception.lignes = reception.lignes.map((ligne: any) => {
+        if (ligne.remisePct === undefined || ligne.remisePct === null) {
+          ligne.remisePct = 0;
+        }
+        return ligne;
+      });
+    }
+
     return NextResponse.json(reception);
   } catch (error) {
     console.error('Erreur GET /purchases/receptions/[id]:', error);
@@ -118,23 +128,105 @@ export async function PUT(
     // Check if status is being changed to VALIDE
     const isStatusChangeToValide = body.statut === 'VALIDE' && existingReception.statut !== 'VALIDE';
 
+    // Prepare update data
+    const updateData: any = {
+      dateDoc: body.dateDoc ? new Date(body.dateDoc) : existingReception.dateDoc,
+      fournisseurId: body.fournisseurId || existingReception.fournisseurId,
+      fournisseurNom: body.fournisseurNom || existingReception.fournisseurNom,
+      lignes: body.lignes || existingReception.lignes,
+      fodecActif: body.fodecActif !== undefined ? body.fodecActif : existingReception.fodecActif,
+      tauxFodec: body.tauxFodec !== undefined ? body.tauxFodec : existingReception.tauxFodec,
+      timbreActif: body.timbreActif !== undefined ? body.timbreActif : existingReception.timbreActif,
+      montantTimbre: body.montantTimbre !== undefined ? body.montantTimbre : existingReception.montantTimbre,
+      remiseGlobalePct: body.remiseGlobalePct !== undefined ? body.remiseGlobalePct : (existingReception.remiseGlobalePct || 0),
+      notes: body.notes !== undefined ? body.notes : existingReception.notes,
+      statut: body.statut || existingReception.statut,
+    };
+
+    // Calculate totaux (same logic as in ReceptionSchema.pre('save'))
+    const lignes = updateData.lignes || [];
+    let totalHTBeforeDiscount = 0;
+    let totalHTAfterLineDiscount = 0;
+    let totalTVA = 0;
+
+    // Calculate TotalHT before and after line remise
+    lignes.forEach((ligne: any) => {
+      if (ligne.prixUnitaireHT && ligne.qteRecue > 0) {
+        const lineHTBeforeDiscount = ligne.prixUnitaireHT * ligne.qteRecue;
+        totalHTBeforeDiscount += lineHTBeforeDiscount;
+        
+        // Apply line remise if exists
+        let prixAvecRemise = ligne.prixUnitaireHT;
+        const remisePct = ligne.remisePct || 0;
+        if (remisePct > 0) {
+          prixAvecRemise = prixAvecRemise * (1 - remisePct / 100);
+        }
+        const ligneHT = prixAvecRemise * ligne.qteRecue;
+        ligne.totalLigneHT = ligneHT;
+        totalHTAfterLineDiscount += ligneHT;
+      } else {
+        ligne.totalLigneHT = ligne.totalLigneHT || 0;
+        totalHTBeforeDiscount += (ligne.prixUnitaireHT || 0) * (ligne.qteRecue || 0);
+        totalHTAfterLineDiscount += ligne.totalLigneHT;
+      }
+    });
+
+    // Apply global remise
+    const remiseGlobalePct = updateData.remiseGlobalePct || 0;
+    const totalHT = totalHTAfterLineDiscount * (1 - (remiseGlobalePct / 100));
+
+    // Calculate FODEC (on totalHT after all discounts)
+    const fodecActif = updateData.fodecActif || false;
+    const tauxFodec = updateData.tauxFodec || 1;
+    const fodec = fodecActif ? totalHT * (tauxFodec / 100) : 0;
+
+    // Calculate TVA (base includes FODEC if active, after global remise)
+    lignes.forEach((ligne: any) => {
+      if (ligne.prixUnitaireHT && ligne.qteRecue > 0 && ligne.tvaPct) {
+        // Apply line remise
+        let prixAvecRemise = ligne.prixUnitaireHT;
+        const remisePct = ligne.remisePct || 0;
+        if (remisePct > 0) {
+          prixAvecRemise = prixAvecRemise * (1 - remisePct / 100);
+        }
+        const ligneHT = prixAvecRemise * ligne.qteRecue;
+        // Apply global remise to line HT for TVA calculation
+        const lineHTAfterGlobalRemise = ligneHT * (1 - (remiseGlobalePct / 100));
+        // Calculate FODEC proportion for this line
+        const ligneFodec = fodecActif ? lineHTAfterGlobalRemise * (tauxFodec / 100) : 0;
+        const ligneBaseTVA = lineHTAfterGlobalRemise + ligneFodec;
+        const ligneTVA = ligneBaseTVA * (ligne.tvaPct / 100);
+        totalTVA += ligneTVA;
+      } else if (ligne.totalLigneHT && ligne.tvaPct) {
+        // Apply global remise to existing totalLigneHT
+        const lineHTAfterGlobalRemise = ligne.totalLigneHT * (1 - (remiseGlobalePct / 100));
+        const ligneFodec = fodecActif ? lineHTAfterGlobalRemise * (tauxFodec / 100) : 0;
+        const ligneBaseTVA = lineHTAfterGlobalRemise + ligneFodec;
+        const ligneTVA = ligneBaseTVA * (ligne.tvaPct / 100);
+        totalTVA += ligneTVA;
+      }
+    });
+
+    // Calculate TIMBRE
+    const timbreActif = updateData.timbreActif !== undefined ? updateData.timbreActif : true;
+    const montantTimbre = updateData.montantTimbre || 1.000;
+    const timbre = timbreActif ? montantTimbre : 0;
+
+    // Calculate TotalTTC
+    const totalTTC = totalHT + fodec + totalTVA + timbre;
+
+    updateData.totaux = {
+      totalHT,
+      fodec,
+      totalTVA,
+      timbre,
+      totalTTC,
+    };
+
     // Update reception
     const updatedReception = await (Reception as any).findOneAndUpdate(
       { _id: id, societeId: tenantId, statut: 'BROUILLON' },
-      {
-        $set: {
-          dateDoc: body.dateDoc ? new Date(body.dateDoc) : existingReception.dateDoc,
-          fournisseurId: body.fournisseurId || existingReception.fournisseurId,
-          fournisseurNom: body.fournisseurNom || existingReception.fournisseurNom,
-          lignes: body.lignes || existingReception.lignes,
-          fodecActif: body.fodecActif !== undefined ? body.fodecActif : existingReception.fodecActif,
-          tauxFodec: body.tauxFodec !== undefined ? body.tauxFodec : existingReception.tauxFodec,
-          timbreActif: body.timbreActif !== undefined ? body.timbreActif : existingReception.timbreActif,
-          montantTimbre: body.montantTimbre !== undefined ? body.montantTimbre : existingReception.montantTimbre,
-          notes: body.notes !== undefined ? body.notes : existingReception.notes,
-          statut: body.statut || existingReception.statut,
-        },
-      },
+      { $set: updateData },
       { new: true }
     );
 
@@ -158,6 +250,14 @@ export async function PUT(
       { status: 500 }
     );
   }
+}
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  // PATCH uses the same logic as PUT
+  return PUT(request, { params });
 }
 
 export async function DELETE(

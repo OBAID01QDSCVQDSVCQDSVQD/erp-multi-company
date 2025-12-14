@@ -35,6 +35,7 @@ export interface IReception extends Document {
   tauxFodec?: number;
   timbreActif?: boolean;
   montantTimbre?: number;
+  remiseGlobalePct?: number;
   notes?: string;
   createdBy?: string;
   createdAt: Date;
@@ -134,6 +135,13 @@ const ReceptionSchema = new Schema<IReception>({
     min: 0,
     required: false,
   },
+  remiseGlobalePct: {
+    type: Number,
+    default: 0,
+    min: 0,
+    max: 100,
+    required: false,
+  },
   notes: {
     type: String,
   },
@@ -158,6 +166,9 @@ ReceptionSchema.pre('save', function(next) {
   }
   if (this.montantTimbre === undefined) {
     this.montantTimbre = 1.000;
+  }
+  if (this.remiseGlobalePct === undefined) {
+    this.remiseGlobalePct = 0;
   }
   
   // Ensure totaux structure exists
@@ -189,44 +200,54 @@ ReceptionSchema.pre('save', function(next) {
 // Pre-save hook: recalculate totals with FODEC and TIMBRE
 ReceptionSchema.pre('save', function(next) {
   if (this.lignes && this.lignes.length > 0) {
-    let totalHT = 0;
+    let totalHTBeforeDiscount = 0;
+    let totalHTAfterLineDiscount = 0;
     let totalTVA = 0;
 
-    // Calculate TotalHT (sum of lines)
+    // Calculate TotalHT before and after line remise
     this.lignes.forEach((ligne) => {
       if (ligne.prixUnitaireHT && ligne.qteRecue > 0) {
-        const ligneHT = ligne.prixUnitaireHT * ligne.qteRecue;
-        ligne.totalLigneHT = ligneHT;
-        totalHT += ligneHT;
-      } else {
-        ligne.totalLigneHT = 0;
-      }
-    });
-
-    // Calculate FODEC if active
-    const fodecActif = this.fodecActif || false;
-    const tauxFodec = this.tauxFodec || 1;
-    const fodec = fodecActif ? totalHT * (tauxFodec / 100) : 0;
-
-    // Calculate TVA (base includes FODEC if active)
-    // TVA is calculated per line, but we need to recalculate based on (TotalHT + FODEC)
-    // For simplicity, we'll calculate TVA on the base (TotalHT + FODEC) using average rate
-    // Better approach: calculate per line with FODEC proportion
-    let baseTVA = totalHT + fodec;
-    totalTVA = 0;
-    
-    this.lignes.forEach((ligne) => {
-      if (ligne.prixUnitaireHT && ligne.qteRecue > 0 && ligne.tvaPct) {
-        // Apply remise if exists
+        const lineHTBeforeDiscount = ligne.prixUnitaireHT * ligne.qteRecue;
+        totalHTBeforeDiscount += lineHTBeforeDiscount;
+        
+        // Apply line remise if exists
         let prixAvecRemise = ligne.prixUnitaireHT;
         const remisePct = ligne.remisePct || 0;
         if (remisePct > 0) {
           prixAvecRemise = prixAvecRemise * (1 - remisePct / 100);
         }
         const ligneHT = prixAvecRemise * ligne.qteRecue;
+        ligne.totalLigneHT = ligneHT;
+        totalHTAfterLineDiscount += ligneHT;
+      } else {
+        ligne.totalLigneHT = 0;
+      }
+    });
+
+    // Apply global remise
+    const remiseGlobalePct = this.remiseGlobalePct || 0;
+    const totalHT = totalHTAfterLineDiscount * (1 - (remiseGlobalePct / 100));
+
+    // Calculate FODEC if active (on totalHT after all discounts)
+    const fodecActif = this.fodecActif || false;
+    const tauxFodec = this.tauxFodec || 1;
+    const fodec = fodecActif ? totalHT * (tauxFodec / 100) : 0;
+
+    // Calculate TVA (base includes FODEC if active, after global remise)
+    this.lignes.forEach((ligne) => {
+      if (ligne.prixUnitaireHT && ligne.qteRecue > 0 && ligne.tvaPct) {
+        // Apply line remise
+        let prixAvecRemise = ligne.prixUnitaireHT;
+        const remisePct = ligne.remisePct || 0;
+        if (remisePct > 0) {
+          prixAvecRemise = prixAvecRemise * (1 - remisePct / 100);
+        }
+        const ligneHT = prixAvecRemise * ligne.qteRecue;
+        // Apply global remise to line HT for TVA calculation
+        const lineHTAfterGlobalRemise = ligneHT * (1 - (remiseGlobalePct / 100));
         // Calculate FODEC proportion for this line
-        const ligneFodec = fodecActif ? ligneHT * (tauxFodec / 100) : 0;
-        const ligneBaseTVA = ligneHT + ligneFodec;
+        const ligneFodec = fodecActif ? lineHTAfterGlobalRemise * (tauxFodec / 100) : 0;
+        const ligneBaseTVA = lineHTAfterGlobalRemise + ligneFodec;
         const ligneTVA = ligneBaseTVA * (ligne.tvaPct / 100);
         totalTVA += ligneTVA;
       }

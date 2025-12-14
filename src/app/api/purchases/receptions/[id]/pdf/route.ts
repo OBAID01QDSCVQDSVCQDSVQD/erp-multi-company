@@ -25,6 +25,11 @@ export async function GET(
     }
 
     const { id } = await params;
+    
+    if (!id) {
+      return NextResponse.json({ error: 'ID de réception manquant' }, { status: 400 });
+    }
+    
     await connectDB();
 
         // Fetch reception
@@ -59,6 +64,11 @@ export async function GET(
         if (reception.totaux.timbre === undefined) {
           reception.totaux.timbre = 0;
         }
+        // Ensure remiseGlobalePct exists
+        if (reception.remiseGlobalePct === undefined || reception.remiseGlobalePct === null) {
+          reception.remiseGlobalePct = 0;
+        }
+        console.log('Reception remiseGlobalePct:', reception.remiseGlobalePct);
 
     // Fetch company settings
     const settings = await (CompanySettings as any).findOne({ tenantId: tenantId });
@@ -121,19 +131,48 @@ export async function GET(
       tauxFodec: reception.tauxFodec || 1,
       timbreActif: reception.timbreActif || false,
       montantTimbre: reception.montantTimbre || 1.000,
+      remiseGlobalePct: reception.remiseGlobalePct || 0,
       notes: reception.notes || '',
       statut: reception.statut,
     };
+    
+    console.log('PDF receptionData remiseGlobalePct:', receptionData.remiseGlobalePct);
 
     // Generate PDF
-    const pdfDoc = generateReceptionPdf(receptionData, settings.societe);
+    let pdfDoc;
+    try {
+      pdfDoc = generateReceptionPdf(receptionData, settings.societe);
+    } catch (error: any) {
+      console.error('Error in generateReceptionPdf:', error);
+      console.error('Error stack:', error.stack);
+      return NextResponse.json(
+        { error: 'Erreur lors de la génération du PDF', details: error.message },
+        { status: 500 }
+      );
+    }
 
-    // Convert to buffer
-    const pdfBuffer = Buffer.from(pdfDoc.output('arraybuffer'));
+    // Convert to buffer (same as internal invoices)
+    let pdfBuffer;
+    try {
+      pdfBuffer = Buffer.from(pdfDoc.output('arraybuffer'));
+    } catch (bufferError: any) {
+      console.error('Error converting PDF to buffer:', bufferError);
+      return NextResponse.json(
+        { error: 'Erreur lors de la conversion du PDF', details: bufferError.message },
+        { status: 500 }
+      );
+    }
 
     // Return PDF as response
-    const sanitizedSupplierName = reception.fournisseurNom.replace(/[^a-zA-Z0-9 ]/g, '').trim().replace(/\s+/g, '_');
-    const filename = `Reception-${receptionData.numero}${reception.fournisseurNom ? '-' + sanitizedSupplierName : ''}.pdf`;
+    const sanitizedSupplierName = (reception.fournisseurNom || '')
+      .replace(/[^a-zA-Z0-9\u0600-\u06FF ]/g, '') // Keep Arabic and Latin characters
+      .trim()
+      .replace(/\s+/g, '_')
+      .substring(0, 50); // Limit length
+    const filename = sanitizedSupplierName 
+      ? `Reception-${receptionData.numero}-${sanitizedSupplierName}.pdf`
+      : `Reception-${receptionData.numero}.pdf`;
+    
     return new NextResponse(pdfBuffer, {
       headers: {
         'Content-Type': 'application/pdf',

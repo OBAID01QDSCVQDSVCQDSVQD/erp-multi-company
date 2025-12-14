@@ -32,6 +32,7 @@ interface ReceptionData {
   tauxFodec?: number;
   timbreActif?: boolean;
   montantTimbre?: number;
+  remiseGlobalePct?: number;
   notes?: string;
   statut: string;
 }
@@ -221,7 +222,7 @@ function drawLinesTable(doc: jsPDF, receptionData: ReceptionData, startY: number
       l.qteRecue.toString(),
       l.unite || 'PCE',
       l.prixUnitaireHT ? l.prixUnitaireHT.toFixed(3) : '—',
-      l.remisePct ? `${l.remisePct} %` : '—',
+      l.remisePct !== undefined && l.remisePct !== null && l.remisePct > 0 ? `${l.remisePct} %` : '—',
       l.tvaPct ? `${l.tvaPct} %` : '—',
       l.totalLigneHT ? l.totalLigneHT.toFixed(3) : '—',
     ];
@@ -285,13 +286,59 @@ function drawLinesTable(doc: jsPDF, receptionData: ReceptionData, startY: number
 }
 
 function drawTotals(doc: jsPDF, receptionData: ReceptionData, startY: number, maxHeightBeforeFooter: number): void {
-  const x = 125;
-  const w = 75;
-  const lineH = 6;
-  const currencySymbol = receptionData.devise === 'TND' ? ' DT' : ` ${receptionData.devise}`;
+  try {
+    const x = 125;
+    const w = 75;
+    const lineH = 6;
+    const currencySymbol = receptionData.devise === 'TND' ? ' DT' : ` ${receptionData.devise}`;
+
+    // Calculate remise amounts for display
+    let totalHTBeforeDiscount = 0;
+    let totalHTAfterLineDiscount = 0;
+    
+    if (receptionData.lignes && Array.isArray(receptionData.lignes)) {
+      receptionData.lignes.forEach((l) => {
+        if (l.prixUnitaireHT && l.qteRecue > 0) {
+          const lineHTBeforeDiscount = l.prixUnitaireHT * l.qteRecue;
+          totalHTBeforeDiscount += lineHTBeforeDiscount;
+          const remisePct = l.remisePct || 0;
+          const prixAvecRemise = remisePct > 0 
+            ? l.prixUnitaireHT * (1 - remisePct / 100)
+            : l.prixUnitaireHT;
+          totalHTAfterLineDiscount += prixAvecRemise * l.qteRecue;
+        } else if (l.totalLigneHT) {
+          totalHTBeforeDiscount += (l.prixUnitaireHT || 0) * (l.qteRecue || 0);
+          totalHTAfterLineDiscount += l.totalLigneHT;
+        }
+      });
+    }
+    
+    const remiseFromLines = totalHTBeforeDiscount - totalHTAfterLineDiscount;
+    const remiseGlobalePct = receptionData.remiseGlobalePct !== undefined && receptionData.remiseGlobalePct !== null 
+      ? receptionData.remiseGlobalePct 
+      : 0;
+    
+    // Calculate remise globale: apply percentage to totalHTAfterLineDiscount
+    // The base should be totalHT after line discounts but before global discount
+    // If totalHTAfterLineDiscount is calculated, use it; otherwise use receptionData.totalHT
+    // But we need to account for the fact that receptionData.totalHT might already have remise globale applied
+    // So we calculate from totalHTAfterLineDiscount if available
+    const baseForRemiseGlobale = totalHTAfterLineDiscount > 0 
+      ? totalHTAfterLineDiscount 
+      : (receptionData.totalHT || 0);
+    
+    const remiseGlobale = remiseGlobalePct > 0 && baseForRemiseGlobale > 0
+      ? baseForRemiseGlobale * (remiseGlobalePct / 100)
+      : 0;
 
   // Count lines dynamically
   let lineCount = 2; // Total HT + Total TVA
+  if (remiseFromLines > 0) {
+    lineCount++;
+  }
+  if (remiseGlobale > 0) {
+    lineCount++;
+  }
   if (receptionData.fodecActif) {
     lineCount++;
   }
@@ -310,6 +357,28 @@ function drawTotals(doc: jsPDF, receptionData: ReceptionData, startY: number, ma
 
   doc.setFontSize(9);
   let y = actualStartY + 6;
+
+  // Show remise lignes if exists
+  if (remiseFromLines > 0) {
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(220, 38, 38);
+    doc.text('Remise lignes', x + 4, y);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`-${remiseFromLines.toFixed(3)}${currencySymbol}`, x + w - 4, y, { align: 'right' });
+    doc.setTextColor(0, 0, 0);
+    y += lineH;
+  }
+
+  // Show remise globale if percentage is set (even if amount is 0)
+  if (remiseGlobalePct > 0) {
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(220, 38, 38);
+    doc.text(`Remise globale (${remiseGlobalePct}%)`, x + 4, y);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`-${remiseGlobale.toFixed(3)}${currencySymbol}`, x + w - 4, y, { align: 'right' });
+    doc.setTextColor(0, 0, 0);
+    y += lineH;
+  }
 
   doc.setFont('helvetica', 'normal');
   doc.text('Total HT', x + 4, y);
@@ -366,6 +435,21 @@ function drawTotals(doc: jsPDF, receptionData: ReceptionData, startY: number, ma
       doc.text(line, 10, boxBottomY + 5 + (idx * 4));
     });
     doc.setTextColor(0, 0, 0);
+  }
+  
+  } catch (error: any) {
+    console.error('Error in drawTotals:', error);
+    console.error('Error stack:', error.stack);
+    // Draw a simple error message
+    try {
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(220, 38, 38);
+      doc.text('Erreur lors du calcul des totaux', 10, startY + 10);
+      doc.setTextColor(0, 0, 0);
+    } catch (drawError) {
+      console.error('Error drawing error message:', drawError);
+    }
   }
 }
 

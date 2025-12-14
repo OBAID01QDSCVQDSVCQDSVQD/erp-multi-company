@@ -166,7 +166,6 @@ function calculateDocumentTotals(doc: any) {
   let totalTVA = 0;
 
   if (!doc.lignes || !Array.isArray(doc.lignes)) {
-    console.warn('[calculateDocumentTotals] No lignes found or lignes is not an array');
     doc.totalBaseHT = 0;
     doc.totalTVA = 0;
     doc.totalTTC = 0;
@@ -174,7 +173,7 @@ function calculateDocumentTotals(doc: any) {
     return;
   }
 
-  doc.lignes.forEach((line: any, index: number) => {
+  doc.lignes.forEach((line: any) => {
     const quantite = line.quantite || 0;
     const remise = line.remisePct || 0;
     const prixHT = (line.prixUnitaireHT || 0) * (1 - remise / 100);
@@ -184,8 +183,6 @@ function calculateDocumentTotals(doc: any) {
     if (line.tvaPct) {
       totalTVA += montantHT * (line.tvaPct / 100);
     }
-    
-    console.log(`[calculateDocumentTotals] Line ${index}: quantite=${quantite}, prixHT=${prixHT}, montantHT=${montantHT}, totalBaseHT so far=${totalBaseHT}`);
   });
 
   doc.totalBaseHT = Math.round(totalBaseHT * 100) / 100;
@@ -195,8 +192,6 @@ function calculateDocumentTotals(doc: any) {
   const timbreFiscal = doc.timbreFiscal || 0;
   doc.totalTTC = doc.totalBaseHT + doc.totalTVA + timbreFiscal;
   doc.netAPayer = doc.totalTTC;
-
-  console.log(`[calculateDocumentTotals] Calculated: HT=${doc.totalBaseHT}, TVA=${doc.totalTVA}, TTC=${doc.totalTTC} (from ${doc.lignes.length} lines)`);
 }
 
 async function updateBLForReturn(returnDoc: any, blId: string, tenantId: string, createdBy: string) {
@@ -211,8 +206,6 @@ async function updateBLForReturn(returnDoc: any, blId: string, tenantId: string,
     if (!bl) {
       throw new Error(`Bon de livraison ${blId} non trouvé`);
     }
-    
-    console.log(`[RETOUR BL] Found BL ${bl.numero}, current totals: HT=${bl.totalBaseHT}, TVA=${bl.totalTVA}, TTC=${bl.totalTTC}`);
 
     // Update quantities in BL lines
     const updatedLines = bl.lignes.map((blLine: any, index: number) => {
@@ -238,8 +231,6 @@ async function updateBLForReturn(returnDoc: any, blId: string, tenantId: string,
             ? lineObj.qtyLivree
             : currentQuantite;
         const newQtyLivree = Math.max(0, currentQtyLivree - returnQty);
-
-        console.log(`[RETOUR BL] Product ${lineObj.designation}: ${currentQuantite} -> ${newQuantite} (returned: ${returnQty})`);
 
         return {
           ...lineObj,
@@ -274,32 +265,16 @@ async function updateBLForReturn(returnDoc: any, blId: string, tenantId: string,
       linkedDocuments.push(returnDocIdStr);
     }
 
-    console.log(`[RETOUR BL] Before update - Original totals: HT=${bl.totalBaseHT}, TVA=${bl.totalTVA}, TTC=${bl.totalTTC}`);
-    console.log(`[RETOUR BL] Updated lines count: ${updatedLines.length}`);
-    updatedLines.forEach((line: any, idx: number) => {
-      console.log(`[RETOUR BL] Line ${idx}: quantite=${line.quantite}, prixHT=${line.prixUnitaireHT}, remise=${line.remisePct || 0}%`);
-    });
-
     // Create temporary object for calculation
     const blForCalc = {
       ...(bl.toObject ? bl.toObject() : bl),
       lignes: updatedLines,
     };
 
-    console.log(`[RETOUR BL] Before calculation - blForCalc.lignes.length=${blForCalc.lignes.length}`);
-    blForCalc.lignes.forEach((line: any, idx: number) => {
-      console.log(`[RETOUR BL] Line ${idx} for calc: quantite=${line.quantite}, prixHT=${line.prixUnitaireHT}, remise=${line.remisePct || 0}%`);
-    });
-
     // Recalculate totals based on updated quantities
-    console.log(`[RETOUR BL] Recalculating totals with ${updatedLines.length} lines...`);
     calculateDocumentTotals(blForCalc);
 
-    console.log(`[RETOUR BL Update] BL ${bl.numero} - Calculated totals: HT=${blForCalc.totalBaseHT}, TVA=${blForCalc.totalTVA}, TTC=${blForCalc.totalTTC}`);
-
     // Update BL document using findOneAndUpdate to ensure all fields are updated
-    console.log(`[RETOUR BL] Updating BL in DB with totals: HT=${blForCalc.totalBaseHT}, TVA=${blForCalc.totalTVA}, TTC=${blForCalc.totalTTC}`);
-    
     const updatedBL = await (Document as any).findOneAndUpdate(
       { _id: bl._id, tenantId },
       {
@@ -319,18 +294,10 @@ async function updateBLForReturn(returnDoc: any, blId: string, tenantId: string,
     if (!updatedBL) {
       throw new Error(`Failed to update BL ${bl.numero}`);
     }
-
-    console.log(`[RETOUR BL Update] BL ${bl.numero} - Updated in DB: HT=${updatedBL.totalBaseHT}, TVA=${updatedBL.totalTVA}, TTC=${updatedBL.totalTTC}`);
-    
-    // Double-check by reloading
-    const reloadedBL = await (Document as any).findOne({ _id: bl._id, tenantId }).lean();
-    console.log(`[RETOUR BL Update] BL ${bl.numero} - Reloaded from DB: HT=${reloadedBL?.totalBaseHT}, TVA=${reloadedBL?.totalTVA}, TTC=${reloadedBL?.totalTTC}`);
     
     // Note: We don't update BL stock movements (SORTIE) - they remain with original quantity
     // The RETOUR will create an ENTREE movement to add the returned quantity back to stock
     // This way: Stock = Original Stock - BL (SORTIE) + RETOUR (ENTREE) = Correct final stock
-    
-    console.log(`BL ${bl.numero} updated for return ${returnDoc.numero} - quantite reduced for ${returnDoc.lignes.length} line(s)`);
   } catch (error) {
     console.error('Error updating BL for return:', error);
     const errorMessage = (error as Error).message || 'Erreur lors de la mise à jour du bon de livraison';
@@ -410,7 +377,6 @@ async function returnProductsToStock(returnDoc: any, tenantId: string, createdBy
         }).lean();
 
         if (!product) {
-          console.warn(`Product ${productIdStr} not found for return ${returnDoc.numero}`);
           continue;
         }
 
@@ -449,7 +415,6 @@ async function returnProductsToStock(returnDoc: any, tenantId: string, createdBy
           });
 
           await (mouvement as any).save();
-          console.log(`[RETOUR Stock] Created ENTREE movement: ${line.quantite} units returned to stock for product ${productIdStr}`);
         }
       } catch (error) {
         console.error(`Error creating stock movement for product ${line.productId}:`, error);

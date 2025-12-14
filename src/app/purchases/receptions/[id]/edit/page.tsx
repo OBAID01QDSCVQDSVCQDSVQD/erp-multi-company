@@ -61,11 +61,29 @@ interface ReceptionLine {
   totalLigneHT?: number;
 }
 
-export default function NewReceptionPage() {
+interface Reception {
+  _id: string;
+  numero: string;
+  purchaseOrderId?: string;
+  fournisseurId: string;
+  fournisseurNom: string;
+  dateDoc: string;
+  statut: 'BROUILLON' | 'VALIDE' | 'ANNULE';
+  lignes: ReceptionLine[];
+  fodecActif?: boolean;
+  tauxFodec?: number;
+  timbreActif?: boolean;
+  montantTimbre?: number;
+  remiseGlobalePct?: number;
+  notes?: string;
+}
+
+export default function EditReceptionPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
   const { tenantId } = useTenantId();
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [receptionId, setReceptionId] = useState<string>('');
   
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [selectedPurchaseOrderId, setSelectedPurchaseOrderId] = useState<string>('');
@@ -97,18 +115,76 @@ export default function NewReceptionPage() {
   const [lines, setLines] = useState<ReceptionLine[]>([]);
 
   useEffect(() => {
-    if (tenantId) {
+    async function loadId() {
+      const resolvedParams = await params;
+      setReceptionId(resolvedParams.id);
+    }
+    loadId();
+  }, [params]);
+
+  useEffect(() => {
+    if (tenantId && receptionId) {
+      fetchReception();
       fetchPurchaseOrders();
       fetchSuppliers();
       fetchProducts();
     }
-  }, [tenantId]);
+  }, [tenantId, receptionId]);
 
-  useEffect(() => {
-    if (selectedPurchaseOrderId) {
-      loadPurchaseOrderLines();
+  async function fetchReception() {
+    if (!tenantId || !receptionId) return;
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/purchases/receptions/${receptionId}`, {
+        headers: { 'X-Tenant-Id': tenantId },
+      });
+      
+      if (response.ok) {
+        const reception: Reception = await response.json();
+        
+        // Check if reception is in draft status
+        if (reception.statut !== 'BROUILLON') {
+          toast.error('Seuls les brouillons peuvent être modifiés');
+          router.push(`/purchases/receptions/${receptionId}`);
+          return;
+        }
+        
+        setFormData({
+          purchaseOrderId: reception.purchaseOrderId || '',
+          fournisseurId: reception.fournisseurId,
+          fournisseurNom: reception.fournisseurNom,
+          dateDoc: new Date(reception.dateDoc).toISOString().split('T')[0],
+          fodecActif: reception.fodecActif || false,
+          tauxFodec: reception.tauxFodec || 1,
+          timbreActif: reception.timbreActif !== undefined ? reception.timbreActif : true,
+          montantTimbre: reception.montantTimbre || 1.000,
+          remiseGlobalePct: reception.remiseGlobalePct || 0,
+          notes: reception.notes || '',
+        });
+        
+        setSelectedPurchaseOrderId(reception.purchaseOrderId || '');
+        setSupplierSearch(reception.fournisseurNom);
+        setLines(reception.lignes || []);
+        
+        // Initialize product searches for loaded lines
+        const searches: { [key: number]: string } = {};
+        (reception.lignes || []).forEach((line, idx) => {
+          if (line.designation) {
+            searches[idx] = line.designation;
+          }
+        });
+        setProductSearches(searches);
+      } else {
+        toast.error('Bon de réception non trouvé');
+        router.push('/purchases/receptions');
+      }
+    } catch (error) {
+      console.error('Error fetching reception:', error);
+      toast.error('Erreur de connexion');
+    } finally {
+      setLoading(false);
     }
-  }, [selectedPurchaseOrderId]);
+  }
 
   async function fetchPurchaseOrders() {
     if (!tenantId) return;
@@ -214,6 +290,12 @@ export default function NewReceptionPage() {
       toast.error('Erreur lors du chargement du bon de commande');
     }
   }
+
+  useEffect(() => {
+    if (selectedPurchaseOrderId && selectedPurchaseOrderId !== formData.purchaseOrderId) {
+      loadPurchaseOrderLines();
+    }
+  }, [selectedPurchaseOrderId]);
 
   const filteredSuppliers = suppliers.filter((supplier) => {
     const searchLower = supplierSearch.toLowerCase().trim();
@@ -471,7 +553,7 @@ export default function NewReceptionPage() {
   }
 
   async function handleSave(saveAsValid: boolean = false) {
-    if (!tenantId) return;
+    if (!tenantId || !receptionId) return;
     
     // Validate
     if (!formData.fournisseurId) {
@@ -500,9 +582,9 @@ export default function NewReceptionPage() {
     try {
       setSaving(true);
       
-      // Create reception
-      const response = await fetch('/api/purchases/receptions', {
-        method: 'POST',
+      // Update reception
+      const response = await fetch(`/api/purchases/receptions/${receptionId}`, {
+        method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           'X-Tenant-Id': tenantId,
@@ -523,30 +605,28 @@ export default function NewReceptionPage() {
       });
       
       if (response.ok) {
-        const reception = await response.json();
-        
         // If save as valid, validate it
         if (saveAsValid) {
-          const validateResponse = await fetch(`/api/purchases/receptions/${reception._id}/valider`, {
+          const validateResponse = await fetch(`/api/purchases/receptions/${receptionId}/valider`, {
             method: 'POST',
             headers: { 'X-Tenant-Id': tenantId },
           });
           
           if (validateResponse.ok) {
-            toast.success('Réception créée et validée avec succès');
-            router.push(`/purchases/receptions/${reception._id}`);
+            toast.success('Réception modifiée et validée avec succès');
+            router.push(`/purchases/receptions/${receptionId}`);
             return;
           } else {
-            toast.error('Réception créée mais erreur lors de la validation');
+            toast.error('Réception modifiée mais erreur lors de la validation');
           }
         } else {
-          toast.success('Réception enregistrée en brouillon');
+          toast.success('Réception modifiée avec succès');
         }
         
-        router.push(`/purchases/receptions/${reception._id}`);
+        router.push(`/purchases/receptions/${receptionId}`);
       } else {
         const error = await response.json();
-        toast.error(error.error || 'Erreur lors de la création');
+        toast.error(error.error || 'Erreur lors de la modification');
       }
     } catch (error) {
       console.error('Error saving reception:', error);
@@ -568,6 +648,16 @@ export default function NewReceptionPage() {
     );
   }
 
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout>
       <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
@@ -583,7 +673,7 @@ export default function NewReceptionPage() {
             </button>
             <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
               <ClipboardDocumentCheckIcon className="w-6 h-6 sm:w-8 sm:h-8" />
-              <span>Nouveau bon de réception</span>
+              <span>Modifier bon de réception</span>
             </h1>
           </div>
           <button
@@ -1127,3 +1217,4 @@ export default function NewReceptionPage() {
     </DashboardLayout>
   );
 }
+

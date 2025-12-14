@@ -21,7 +21,7 @@ export interface IDocument extends Document {
   tenantId: string;
   
   // Basic info
-  type: 'DEVIS' | 'BC' | 'BL' | 'FAC' | 'AVOIR' | 'PO' | 'BR' | 'FACFO' | 'AVOIRFO' | 'INT_FAC';
+  type: 'DEVIS' | 'BC' | 'BL' | 'FAC' | 'AVOIR' | 'PO' | 'BR' | 'FACFO' | 'AVOIRFO' | 'INT_FAC' | 'RETOUR';
   numero: string;
   dateDoc: Date;
   statut?: 'BROUILLON' | 'VALIDEE' | 'PARTIELLEMENT_PAYEE' | 'PAYEE' | 'ANNULEE';
@@ -30,6 +30,9 @@ export interface IDocument extends Document {
   customerId?: string;
   supplierId?: string;
   projetId?: mongoose.Types.ObjectId | string;
+  
+  // Return specific fields
+  blId?: string; // Reference to the delivery note (BL) this return is based on
   
   // References
   referenceExterne?: string;
@@ -92,7 +95,7 @@ const DocumentLineSchema = new Schema({
 const DocumentSchema = new (Schema as any)({
   tenantId: { type: String, required: true, index: true },
   
-  type: { type: String, enum: ['DEVIS', 'BC', 'BL', 'FAC', 'AVOIR', 'PO', 'BR', 'FACFO', 'AVOIRFO', 'INT_FAC'], required: true },
+  type: { type: String, enum: ['DEVIS', 'BC', 'BL', 'FAC', 'AVOIR', 'PO', 'BR', 'FACFO', 'AVOIRFO', 'INT_FAC', 'RETOUR'], required: true },
   numero: { type: String, required: true },
   dateDoc: { type: Date, required: true, default: Date.now },
   statut: { type: String, enum: ['BROUILLON', 'VALIDEE', 'PARTIELLEMENT_PAYEE', 'PAYEE', 'ANNULEE'], default: 'BROUILLON' },
@@ -100,6 +103,7 @@ const DocumentSchema = new (Schema as any)({
   customerId: { type: String },
   supplierId: { type: String },
   projetId: { type: Schema.Types.ObjectId, ref: 'Project' },
+  blId: { type: String }, // Reference to BL for returns
   
   referenceExterne: { type: String },
   bonCommandeClient: { type: String },

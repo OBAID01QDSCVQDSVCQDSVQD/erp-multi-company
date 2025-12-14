@@ -309,6 +309,7 @@ export async function POST(request: NextRequest) {
       tauxFodec: body.tauxFodec !== undefined ? body.tauxFodec : 1,
       timbreActif: body.timbreActif !== undefined ? body.timbreActif : true,
       montantTimbre: body.montantTimbre !== undefined ? body.montantTimbre : 1.000,
+      remiseGlobalePct: body.remiseGlobalePct !== undefined ? body.remiseGlobalePct : 0,
       totaux: {
         totalHT: 0,
         fodec: 0,

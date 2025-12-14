@@ -51,6 +51,8 @@ export default function NewReturnPage() {
     designation: string;
     quantite: number;
     quantiteMax: number;
+    quantiteOriginale: number; // Original quantity from BL
+    qtyLivree: number; // Delivered quantity (may be less if there were previous returns)
     prixUnitaireHT: number;
     uomCode?: string;
     tvaPct: number;
@@ -81,23 +83,58 @@ export default function NewReturnPage() {
     return bl.numero.toLowerCase().includes(searchLower);
   });
 
-  const handleSelectBL = (bl: BL) => {
+  const handleSelectBL = async (bl: BL) => {
     setSelectedBL(bl);
     setBlSearch(bl.numero);
     setShowBlDropdown(false);
     
-    // Initialize return lines from BL lines
-    if (bl.lignes) {
-      const lines = bl.lignes.map((line) => ({
-        productId: line.productId || '',
-        designation: line.designation,
-        quantite: 0,
-        quantiteMax: line.qtyLivree || line.quantite || 0,
-        prixUnitaireHT: line.prixUnitaireHT || 0,
-        uomCode: line.uomCode || '',
-        tvaPct: line.tvaPct || 0,
-      }));
-      setReturnLines(lines);
+    // Fetch full BL details including lignes
+    try {
+      const response = await fetch(`/api/sales/deliveries/${bl._id}`, {
+        headers: { 'X-Tenant-Id': tenantId },
+      });
+      if (response.ok) {
+        const fullBL = await response.json();
+        setSelectedBL(fullBL);
+        
+        // Initialize return lines from BL lines
+        if (fullBL.lignes && Array.isArray(fullBL.lignes) && fullBL.lignes.length > 0) {
+          const lines = fullBL.lignes.map((line: any) => {
+            // Use qtyLivree if it exists and is > 0, otherwise use quantite
+            // qtyLivree represents the actual delivered quantity (after any previous returns)
+            // quantite is the original quantity in the BL
+            const quantiteOriginale = line.quantite || 0;
+            const qtyLivree = line.qtyLivree !== undefined && line.qtyLivree !== null 
+              ? line.qtyLivree 
+              : quantiteOriginale;
+            
+            // The maximum returnable quantity is the delivered quantity (qtyLivree)
+            // If qtyLivree is 0 or not set, use the original quantity
+            const quantiteMax = qtyLivree > 0 ? qtyLivree : quantiteOriginale;
+            
+            return {
+              productId: line.productId || '',
+              designation: line.designation,
+              quantite: 0,
+              quantiteMax: quantiteMax,
+              quantiteOriginale: quantiteOriginale,
+              qtyLivree: qtyLivree,
+              prixUnitaireHT: line.prixUnitaireHT || 0,
+              uomCode: line.uomCode || '',
+              tvaPct: line.tvaPct || 0,
+            };
+          });
+          setReturnLines(lines);
+        } else {
+          setReturnLines([]);
+          toast.error('Ce BL ne contient aucune ligne');
+        }
+      } else {
+        toast.error('Erreur lors du chargement des détails du BL');
+      }
+    } catch (error) {
+      console.error('Error fetching BL details:', error);
+      toast.error('Erreur de connexion lors du chargement du BL');
     }
   };
 
@@ -277,7 +314,12 @@ export default function NewReturnPage() {
                         <div className="flex-1">
                           <p className="font-medium text-gray-900">{line.designation}</p>
                           <p className="text-sm text-gray-600">
-                            Quantité livrée: {line.quantiteMax} {line.uomCode || ''}
+                            Quantité livrée: {line.quantiteOriginale} {line.uomCode || ''}
+                            {line.qtyLivree !== line.quantiteOriginale && (
+                              <span className="text-orange-600 ml-2">
+                                (Disponible pour retour: {line.quantiteMax} {line.uomCode || ''})
+                              </span>
+                            )}
                           </p>
                         </div>
                         {returnLines.length > 1 && (

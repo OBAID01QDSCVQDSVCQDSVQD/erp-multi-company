@@ -38,6 +38,7 @@ interface Reception {
   tauxFodec?: number;
   timbreActif?: boolean;
   montantTimbre?: number;
+  remiseGlobalePct?: number;
   notes?: string;
 }
 
@@ -67,15 +68,25 @@ export default function ReceptionDetailPage({ params }: { params: Promise<{ id: 
   }, [tenantId, receptionId]);
 
   async function fetchReception() {
-    if (!tenantId || !receptionId) return;
+    if (!tenantId || !receptionId) {
+      console.log('fetchReception skipped - tenantId:', tenantId, 'receptionId:', receptionId);
+      return;
+    }
     try {
       setLoading(true);
+      console.log('Fetching reception:', receptionId);
       const response = await fetch(`/api/purchases/receptions/${receptionId}`, {
         headers: { 'X-Tenant-Id': tenantId },
       });
       
       if (response.ok) {
         const data = await response.json();
+        console.log('Reception data:', data);
+        console.log('Reception _id:', data._id);
+        console.log('Reception lignes:', data.lignes);
+        if (data.lignes && data.lignes.length > 0) {
+          console.log('First line remisePct:', data.lignes[0].remisePct);
+        }
         setReception(data);
         
         // Fetch Purchase Order number if purchaseOrderId exists
@@ -277,25 +288,56 @@ export default function ReceptionDetailPage({ params }: { params: Promise<{ id: 
             </span>
             <button
               onClick={async () => {
+                if (!reception || !tenantId) {
+                  toast.error('Données manquantes pour le téléchargement');
+                  return;
+                }
+
                 try {
-                  const response = await fetch(`/api/purchases/receptions/${receptionId}/pdf`, {
+                  toast.loading('Génération du PDF en cours...', { id: 'pdf-download' });
+                  
+                  const response = await fetch(`/api/purchases/receptions/${reception._id}/pdf`, {
                     headers: { 'X-Tenant-Id': tenantId },
                   });
-                  if (response.ok) {
-                    const blob = await response.blob();
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `Reception-${reception.numero}.pdf`;
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    document.body.removeChild(a);
-                    toast.success('PDF téléchargé avec succès');
+
+                  // Check content type first
+                  const contentType = response.headers.get('content-type');
+                  
+                  // If it's a PDF, proceed even if status is not 200
+                  if (contentType?.includes('application/pdf')) {
+                    // It's a PDF, continue with download (same as internal invoices)
+                  } else if (!response.ok) {
+                    // Not a PDF and response is not ok, try to get error message
+                    try {
+                      const errorData = await response.json();
+                      throw new Error(errorData.error || 'Erreur lors de la génération du PDF');
+                    } catch (jsonError) {
+                      throw new Error('Erreur lors de la génération du PDF');
+                    }
+                  } else if (contentType && !contentType.includes('application/pdf')) {
+                    // Response is ok but not a PDF
+                    try {
+                      const errorData = await response.json();
+                      throw new Error(errorData.error || 'Le serveur n\'a pas retourné un PDF valide');
+                    } catch (jsonError) {
+                      throw new Error('Le serveur n\'a pas retourné un PDF valide');
+                    }
                   }
-                } catch (error) {
-                  console.error('Error downloading PDF:', error);
-                  toast.error('Erreur lors du téléchargement du PDF');
+
+                  const blob = await response.blob();
+                  const url = window.URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `Reception-${reception.numero}${reception.fournisseurNom ? '-' + reception.fournisseurNom.replace(/[^a-zA-Z0-9]/g, '_') : ''}.pdf`;
+                  document.body.appendChild(a);
+                  a.click();
+                  window.URL.revokeObjectURL(url);
+                  document.body.removeChild(a);
+                  
+                  toast.success('PDF téléchargé avec succès', { id: 'pdf-download' });
+                } catch (err: any) {
+                  console.error('Error downloading PDF:', err);
+                  toast.error(err.message || 'Erreur lors du téléchargement du PDF', { id: 'pdf-download' });
                 }
               }}
               className="flex items-center gap-2 px-3 py-2 border rounded-lg hover:bg-gray-50 text-sm"
@@ -431,15 +473,85 @@ export default function ReceptionDetailPage({ params }: { params: Promise<{ id: 
                     <td className="px-3 sm:px-4 py-4 whitespace-nowrap text-sm text-right font-medium text-gray-900">{line.qteRecue}</td>
                     <td className="px-3 sm:px-4 py-4 whitespace-nowrap text-sm text-center text-gray-900">{line.uom || 'PCE'}</td>
                     <td className="px-3 sm:px-4 py-4 whitespace-nowrap text-sm text-right text-gray-900">{line.prixUnitaireHT ? line.prixUnitaireHT.toFixed(3) : '—'}</td>
-                    <td className="px-3 sm:px-4 py-4 whitespace-nowrap text-sm text-right text-gray-900">{line.remisePct ? `${line.remisePct} %` : '—'}</td>
+                    <td className="px-3 sm:px-4 py-4 whitespace-nowrap text-sm text-right text-gray-900">
+                      {(line.remisePct !== undefined && line.remisePct !== null && line.remisePct > 0) 
+                        ? `${Number(line.remisePct).toFixed(2)} %` 
+                        : '—'}
+                    </td>
                     <td className="px-3 sm:px-4 py-4 whitespace-nowrap text-sm text-right text-gray-900">{line.tvaPct ? `${line.tvaPct} %` : '—'}</td>
                     <td className="px-3 sm:px-4 py-4 whitespace-nowrap text-sm text-right font-medium text-gray-900">{line.totalLigneHT ? line.totalLigneHT.toFixed(3) : '—'}</td>
                   </tr>
                 ))}
               </tbody>
               <tfoot className="bg-gray-50">
+                {(() => {
+                  // Calculate remise amounts for display (same logic as backend)
+                  let totalHTBeforeDiscount = 0;
+                  let totalHTAfterLineDiscount = 0;
+                  
+                  reception.lignes.forEach((line) => {
+                    if (line.prixUnitaireHT && line.qteRecue > 0) {
+                      // Calculate before discount
+                      const lineHTBeforeDiscount = line.prixUnitaireHT * line.qteRecue;
+                      totalHTBeforeDiscount += lineHTBeforeDiscount;
+                      
+                      // Apply line remise if exists
+                      let prixAvecRemise = line.prixUnitaireHT;
+                      const remisePct = line.remisePct || 0;
+                      if (remisePct > 0) {
+                        prixAvecRemise = prixAvecRemise * (1 - remisePct / 100);
+                      }
+                      const ligneHT = prixAvecRemise * line.qteRecue;
+                      totalHTAfterLineDiscount += ligneHT;
+                    } else if (line.totalLigneHT !== undefined && line.totalLigneHT !== null) {
+                      // Use stored totalLigneHT if available, but recalculate before discount
+                      const lineHTBeforeDiscount = (line.prixUnitaireHT || 0) * (line.qteRecue || 0);
+                      totalHTBeforeDiscount += lineHTBeforeDiscount;
+                      totalHTAfterLineDiscount += line.totalLigneHT;
+                    }
+                  });
+                  
+                  const remiseFromLines = totalHTBeforeDiscount - totalHTAfterLineDiscount;
+                  const remiseGlobalePct = reception.remiseGlobalePct || 0;
+                  const remiseGlobale = remiseGlobalePct > 0 
+                    ? totalHTAfterLineDiscount * (remiseGlobalePct / 100)
+                    : 0;
+                  
+                  // Verify: totalHT should equal totalHTAfterLineDiscount - remiseGlobale
+                  const calculatedTotalHT = totalHTAfterLineDiscount - remiseGlobale;
+                  const actualTotalHT = reception.totaux.totalHT;
+                  
+                  // Use calculated values, but ensure they match totaux
+                  const finalRemiseFromLines = Math.abs(remiseFromLines) > 0.001 ? remiseFromLines : 0;
+                  const finalRemiseGlobale = Math.abs(remiseGlobale) > 0.001 ? remiseGlobale : 0;
+                  
+                  return (
+                    <>
+                      {finalRemiseFromLines > 0 && (
+                        <tr>
+                          <td colSpan={9} className="px-4 sm:px-6 py-3 text-right text-sm font-semibold text-gray-700">
+                            Remise lignes:
+                          </td>
+                          <td className="px-2 sm:px-4 py-3 text-right text-sm font-bold text-red-600">
+                            -{finalRemiseFromLines.toFixed(3)} DT
+                          </td>
+                        </tr>
+                      )}
+                      {finalRemiseGlobale > 0 && (
+                        <tr>
+                          <td colSpan={9} className="px-4 sm:px-6 py-3 text-right text-sm font-semibold text-gray-700">
+                            Remise globale ({remiseGlobalePct}%):
+                          </td>
+                          <td className="px-2 sm:px-4 py-3 text-right text-sm font-bold text-red-600">
+                            -{finalRemiseGlobale.toFixed(3)} DT
+                          </td>
+                        </tr>
+                      )}
+                    </>
+                  );
+                })()}
                 <tr>
-                  <td colSpan={8} className="px-4 sm:px-6 py-3 text-right text-sm font-semibold text-gray-700">
+                  <td colSpan={9} className="px-4 sm:px-6 py-3 text-right text-sm font-semibold text-gray-700">
                     Total HT:
                   </td>
                   <td className="px-2 sm:px-4 py-3 text-right text-sm font-bold text-gray-900">
@@ -449,7 +561,7 @@ export default function ReceptionDetailPage({ params }: { params: Promise<{ id: 
                 {/* Only show FODEC if active */}
                 {reception.fodecActif && (
                   <tr>
-                    <td colSpan={8} className="px-4 sm:px-6 py-3 text-right text-sm font-semibold text-gray-700">
+                    <td colSpan={9} className="px-4 sm:px-6 py-3 text-right text-sm font-semibold text-gray-700">
                       FODEC ({reception.tauxFodec || 1}%):
                     </td>
                     <td className="px-2 sm:px-4 py-3 text-right text-sm font-bold text-gray-900">
@@ -458,7 +570,7 @@ export default function ReceptionDetailPage({ params }: { params: Promise<{ id: 
                   </tr>
                 )}
                 <tr>
-                  <td colSpan={8} className="px-4 sm:px-6 py-3 text-right text-sm font-semibold text-gray-700">
+                  <td colSpan={9} className="px-4 sm:px-6 py-3 text-right text-sm font-semibold text-gray-700">
                     Total TVA:
                   </td>
                   <td className="px-2 sm:px-4 py-3 text-right text-sm font-bold text-gray-900">
@@ -468,7 +580,7 @@ export default function ReceptionDetailPage({ params }: { params: Promise<{ id: 
                 {/* Always show TIMBRE if field exists */}
                 {(reception.timbreActif !== undefined || reception.totaux?.timbre !== undefined) && (
                   <tr>
-                    <td colSpan={8} className="px-4 sm:px-6 py-3 text-right text-sm font-semibold text-gray-700">
+                    <td colSpan={9} className="px-4 sm:px-6 py-3 text-right text-sm font-semibold text-gray-700">
                       Timbre fiscal{reception.timbreActif ? '' : ' (non activé)'}:
                     </td>
                     <td className="px-2 sm:px-4 py-3 text-right text-sm font-bold text-gray-900">
@@ -477,7 +589,7 @@ export default function ReceptionDetailPage({ params }: { params: Promise<{ id: 
                   </tr>
                 )}
                 <tr>
-                  <td colSpan={8} className="px-4 sm:px-6 py-3 text-right text-sm font-semibold text-blue-600">
+                  <td colSpan={9} className="px-4 sm:px-6 py-3 text-right text-sm font-semibold text-blue-600">
                     Total TTC:
                   </td>
                   <td className="px-2 sm:px-4 py-3 text-right text-sm font-bold text-blue-600">
