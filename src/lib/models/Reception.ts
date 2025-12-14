@@ -63,7 +63,7 @@ const ReceptionTotauxSchema = new Schema({
   totalTTC: { type: Number, default: 0, min: 0 },
 }, { _id: false });
 
-const ReceptionSchema = new Schema<IReception>({
+const ReceptionSchema = new Schema({
   societeId: {
     type: String,
     required: true,
@@ -288,6 +288,11 @@ ReceptionSchema.index({ societeId: 1, fournisseurId: 1 });
 ReceptionSchema.index({ societeId: 1, dateDoc: -1 });
 ReceptionSchema.index({ purchaseOrderId: 1 });
 
-const Reception = mongoose.models.Reception || mongoose.model<IReception>('Reception', ReceptionSchema);
+// Export model
+if (mongoose.models && (mongoose.models as any)['Reception']) {
+  delete (mongoose.models as any)['Reception'];
+}
 
-export default Reception;
+const Reception = mongoose.model<IReception>('Reception', ReceptionSchema as any);
+
+export default Reception as any;
