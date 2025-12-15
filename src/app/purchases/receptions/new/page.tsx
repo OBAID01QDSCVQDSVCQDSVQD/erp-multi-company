@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
 import { PlusIcon, XMarkIcon, MagnifyingGlassIcon, ClipboardDocumentCheckIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
 import ProductSearchModal from '@/components/common/ProductSearchModal';
@@ -63,6 +63,8 @@ interface ReceptionLine {
 
 export default function NewReceptionPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const editId = searchParams.get('editId');
   const { tenantId } = useTenantId();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -95,20 +97,90 @@ export default function NewReceptionPage() {
   });
   
   const [lines, setLines] = useState<ReceptionLine[]>([]);
+  const isEditMode = !!editId;
 
   useEffect(() => {
     if (tenantId) {
       fetchPurchaseOrders();
       fetchSuppliers();
       fetchProducts();
+
+      if (editId) {
+        loadExistingReception(editId);
+      }
     }
-  }, [tenantId]);
+  }, [tenantId, editId]);
 
   useEffect(() => {
     if (selectedPurchaseOrderId) {
       loadPurchaseOrderLines();
     }
   }, [selectedPurchaseOrderId]);
+
+  async function loadExistingReception(receptionId: string) {
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/purchases/receptions/${receptionId}`, {
+        headers: { 'X-Tenant-Id': tenantId || '' },
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        toast.error(error.error || 'Bon de réception non trouvé');
+        return;
+      }
+      const reception = await response.json();
+
+      setFormData(prev => ({
+        ...prev,
+        purchaseOrderId: reception.purchaseOrderId || '',
+        fournisseurId: reception.fournisseurId,
+        fournisseurNom: reception.fournisseurNom,
+        dateDoc: reception.dateDoc
+          ? new Date(reception.dateDoc).toISOString().split('T')[0]
+          : prev.dateDoc,
+        fodecActif: reception.fodecActif ?? false,
+        tauxFodec: reception.tauxFodec ?? 1,
+        timbreActif: reception.timbreActif ?? true,
+        montantTimbre: reception.montantTimbre ?? 1.0,
+        remiseGlobalePct: reception.remiseGlobalePct ?? 0,
+        notes: reception.notes || '',
+      }));
+
+      setSupplierSearch(reception.fournisseurNom || '');
+
+      const existingLines: ReceptionLine[] = (reception.lignes || []).map(
+        (l: any) => ({
+          productId: l.productId,
+          reference: l.reference,
+          designation: l.designation,
+          uom: l.uom,
+          qteCommandee: l.qteCommandee,
+          qteRecue: l.qteRecue,
+          prixUnitaireHT: l.prixUnitaireHT,
+          remisePct: l.remisePct ?? 0,
+          tvaPct: l.tvaPct,
+          totalLigneHT: l.totalLigneHT,
+        })
+      );
+
+      setLines(existingLines);
+
+      const searches: { [key: number]: string } = {};
+      existingLines.forEach((line, idx) => {
+        if (line.designation) {
+          searches[idx] = line.designation;
+        }
+      });
+      setProductSearches(searches);
+    } catch (error) {
+      console.error('Error loading reception:', error);
+      toast.error(
+        "Erreur lors du chargement du bon de réception pour la modification"
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function fetchPurchaseOrders() {
     if (!tenantId) return;
@@ -500,9 +572,13 @@ export default function NewReceptionPage() {
     try {
       setSaving(true);
       
-      // Create reception
-      const response = await fetch('/api/purchases/receptions', {
-        method: 'POST',
+      const url = isEditMode && editId
+        ? `/api/purchases/receptions/${editId}`
+        : '/api/purchases/receptions';
+      const method = isEditMode && editId ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
         headers: {
           'Content-Type': 'application/json',
           'X-Tenant-Id': tenantId,
@@ -525,12 +601,15 @@ export default function NewReceptionPage() {
       if (response.ok) {
         const reception = await response.json();
         
-        // If save as valid, validate it
-        if (saveAsValid) {
-          const validateResponse = await fetch(`/api/purchases/receptions/${reception._id}/valider`, {
-            method: 'POST',
-            headers: { 'X-Tenant-Id': tenantId },
-          });
+        // If save as valid and we are in creation mode, valider
+        if (saveAsValid && !isEditMode) {
+          const validateResponse = await fetch(
+            `/api/purchases/receptions/${reception._id}/valider`,
+            {
+              method: 'POST',
+              headers: { 'X-Tenant-Id': tenantId },
+            }
+          );
           
           if (validateResponse.ok) {
             toast.success('Réception créée et validée avec succès');
@@ -540,13 +619,22 @@ export default function NewReceptionPage() {
             toast.error('Réception créée mais erreur lors de la validation');
           }
         } else {
-          toast.success('Réception enregistrée en brouillon');
+          toast.success(
+            isEditMode
+              ? 'Réception mise à jour avec succès'
+              : 'Réception enregistrée en brouillon'
+          );
         }
         
         router.push(`/purchases/receptions/${reception._id}`);
       } else {
         const error = await response.json();
-        toast.error(error.error || 'Erreur lors de la création');
+        toast.error(
+          error.error ||
+            (isEditMode
+              ? 'Erreur lors de la mise à jour'
+              : 'Erreur lors de la création')
+        );
       }
     } catch (error) {
       console.error('Error saving reception:', error);

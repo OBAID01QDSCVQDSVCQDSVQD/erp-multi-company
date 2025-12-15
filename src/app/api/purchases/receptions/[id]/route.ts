@@ -93,7 +93,7 @@ export async function PUT(
 
     const tenantId = request.headers.get('X-Tenant-Id') || session.user.companyId?.toString() || '';
 
-    // Check if reception exists and is in BROUILLON status
+    // Check if reception exists
     const existingReception = await (Reception as any).findOne({
       _id: id,
       societeId: tenantId,
@@ -103,13 +103,6 @@ export async function PUT(
       return NextResponse.json(
         { error: 'Bon de réception non trouvé' },
         { status: 404 }
-      );
-    }
-
-    if (existingReception.statut !== 'BROUILLON') {
-      return NextResponse.json(
-        { error: 'Seuls les brouillons peuvent être modifiés' },
-        { status: 400 }
       );
     }
 
@@ -225,7 +218,7 @@ export async function PUT(
 
     // Update reception
     const updatedReception = await (Reception as any).findOneAndUpdate(
-      { _id: id, societeId: tenantId, statut: 'BROUILLON' },
+      { _id: id, societeId: tenantId },
       { $set: updateData },
       { new: true }
     );
@@ -237,8 +230,8 @@ export async function PUT(
       );
     }
 
-    // Create stock movements if status changed to VALIDE
-    if (isStatusChangeToValide || updatedReception.statut === 'VALIDE') {
+    // Create stock movements only when status changes إلى VALIDE للمرة الأولى
+    if (isStatusChangeToValide) {
       await createStockMovementsForReception(id, tenantId, session.user.email || '');
     }
 

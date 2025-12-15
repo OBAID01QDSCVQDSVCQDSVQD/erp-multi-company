@@ -170,7 +170,15 @@ export async function GET(request: NextRequest) {
     // Separate source IDs by type
     const documentSourceIds = Array.from(new Set(
       movements
-        .filter((m: any) => m.sourceId && (m.source === 'BL' || (m.source === 'FAC' && m.type === 'SORTIE') || m.source === 'RETOUR' || m.source === 'INT_FAC' || m.source === 'INT_FAC_BROUILLON'))
+        .filter((m: any) => m.sourceId && (
+          m.source === 'BL' ||
+          (m.source === 'FAC' && m.type === 'SORTIE') ||
+          m.source === 'RETOUR' ||
+          m.source === 'INT_FAC' ||
+          m.source === 'INT_FAC_BROUILLON' ||
+          // Avoir génère un mouvement d'entrée source FAC mais type document = AVOIR
+          (m.source === 'FAC' && m.type === 'ENTREE')
+        ))
         .map((m: any) => m.sourceId)
     ));
 
@@ -192,7 +200,8 @@ export async function GET(request: NextRequest) {
         return mongoose.Types.ObjectId.isValid(id) ? new mongoose.Types.ObjectId(id) : id;
       }) },
       tenantId,
-      type: { $in: ['BL', 'FAC', 'INT_FAC', 'RETOUR'] },
+      // Inclure AVOIR حتى نتمكن من إظهار اسم العميل في référence
+      type: { $in: ['BL', 'FAC', 'INT_FAC', 'RETOUR', 'AVOIR'] },
     }).select('_id type numero customerId supplierId').lean() : [];
 
     const documentMap = new Map();
@@ -313,6 +322,12 @@ export async function GET(request: NextRequest) {
         else if (movement.type === 'ENTREE') {
           // RETOUR - show customer name (product returned from customer)
           if (movement.source === 'RETOUR' && document.isDocument && document.type === 'RETOUR' && document.customerId) {
+            const customerIdStr = document.customerId instanceof mongoose.Types.ObjectId 
+              ? document.customerId.toString() 
+              : document.customerId?.toString() || document.customerId;
+            referenceName = customerMap.get(customerIdStr) || movement.sourceId || '-';
+          // AVOIR (source FAC mais doc type AVOIR) - afficher nom client
+          } else if (movement.source === 'FAC' && document.isDocument && document.type === 'AVOIR' && document.customerId) {
             const customerIdStr = document.customerId instanceof mongoose.Types.ObjectId 
               ? document.customerId.toString() 
               : document.customerId?.toString() || document.customerId;

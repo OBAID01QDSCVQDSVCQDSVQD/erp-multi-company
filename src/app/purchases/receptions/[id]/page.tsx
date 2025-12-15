@@ -287,6 +287,13 @@ export default function ReceptionDetailPage({ params }: { params: Promise<{ id: 
               {getStatutLabel(reception.statut)}
             </span>
             <button
+              onClick={() => router.push(`/purchases/receptions/${receptionId}/edit`)}
+              className="flex items-center gap-2 px-3 py-2 border rounded-lg hover:bg-gray-50 text-sm"
+            >
+              <PencilIcon className="w-5 h-5" />
+              <span className="hidden sm:inline">Modifier</span>
+            </button>
+            <button
               onClick={async () => {
                 if (!reception || !tenantId) {
                   toast.error('Données manquantes pour le téléchargement');
@@ -449,7 +456,8 @@ export default function ReceptionDetailPage({ params }: { params: Promise<{ id: 
 
         {/* Lines Table */}
         <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="overflow-x-auto">
+          {/* Desktop table */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-blue-50 border-b-2 border-blue-200">
                 <tr>
@@ -598,6 +606,67 @@ export default function ReceptionDetailPage({ params }: { params: Promise<{ id: 
                 </tr>
               </tfoot>
             </table>
+          </div>
+
+          {/* Mobile cards */}
+          <div className="md:hidden divide-y divide-gray-200">
+            {reception.lignes.map((line, index) => (
+              <div key={index} className="p-4">
+                <div className="flex justify-between items-start mb-2">
+                  <div>
+                    <div className="text-sm font-medium text-gray-900">
+                      {line.designation || '—'}
+                    </div>
+                    {line.reference && (
+                      <div className="text-xs text-gray-500 mt-1">
+                        Réf: {line.reference}
+                      </div>
+                    )}
+                  </div>
+                  <div className="text-sm font-semibold text-gray-900 text-right">
+                    {line.qteRecue} {line.uom || 'PCE'}
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
+                  <div>
+                    <div className="text-gray-500">Qté commandée</div>
+                    <div className="font-medium">
+                      {line.qteCommandee ?? '—'}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-gray-500">Prix HT</div>
+                    <div className="font-medium">
+                      {line.prixUnitaireHT
+                        ? `${line.prixUnitaireHT.toFixed(3)} DT`
+                        : '—'}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-gray-500">Remise %</div>
+                    <div className="font-medium">
+                      {line.remisePct && line.remisePct > 0
+                        ? `${Number(line.remisePct).toFixed(2)} %`
+                        : '—'}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-gray-500">TVA %</div>
+                    <div className="font-medium">
+                      {line.tvaPct ? `${line.tvaPct} %` : '—'}
+                    </div>
+                  </div>
+                  <div className="col-span-2">
+                    <div className="text-gray-500">Total HT</div>
+                    <div className="font-semibold text-gray-900">
+                      {line.totalLigneHT
+                        ? `${line.totalLigneHT.toFixed(3)} DT`
+                        : '—'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
