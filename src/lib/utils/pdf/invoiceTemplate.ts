@@ -30,6 +30,7 @@ interface InvoiceData {
   customerMatricule?: string;
   customerCode?: string;
   customerPhone?: string;
+  referenceExterne?: string; // original invoice number for avoir
   devise: string;
   lignes: InvoiceLine[];
   totalBaseHT: number;
@@ -91,6 +92,7 @@ export function generateCreditNotePdf(invoiceData: InvoiceData, companyInfo: Com
     ...invoiceData,
     documentType: 'AVOIR',
     dateValidite: invoiceData.dateEcheance,
+    referenceExterne: invoiceData.referenceExterne,
   };
 
   return generateDevisPdf(quoteData, companyInfo);

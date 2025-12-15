@@ -102,7 +102,8 @@ export async function POST(request: NextRequest) {
       type: 'AVOIR',
       numero,
       dateDoc: new Date(),
-      statut: sourceInvoice.statut === 'PAYEE' ? 'PAYEE' : 'BROUILLON',
+      // Create credit note directly as VALIDEE (or PAYEE if source invoice is already paid)
+      statut: sourceInvoice.statut === 'PAYEE' ? 'PAYEE' : 'VALIDEE',
       customerId: sourceInvoice.customerId,
       referenceExterne: sourceInvoice.numero,
       lignes,

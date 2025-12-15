@@ -81,7 +81,9 @@ const DocumentLineSchema = new Schema({
   categorieCode: { type: String },
   designation: { type: String, required: true },
   uomCode: { type: String },
-  quantite: { type: Number, required: true, min: 0 },
+  // Allow negative quantities for documents like AVOIR / RETOUR
+  // Front-end and business logic are responsible for preventing invalid negatives
+  quantite: { type: Number, required: true },
   prixUnitaireHT: { type: Number, required: true, min: 0 },
   taxCode: { type: String },
   tvaPct: { type: Number, min: 0, max: 100 },

@@ -214,10 +214,32 @@ function drawInfoBlocks(doc: jsPDF, receptionData: ReceptionData, companyInfo: C
 }
 
 function drawLinesTable(doc: jsPDF, receptionData: ReceptionData, startY: number): number {
-  const body = receptionData.lignes.map((l) => {
+  const body = receptionData.lignes.map((l, index) => {
+    const rawDesignation = l.designation && l.designation.trim().length > 0
+      ? l.designation
+      : `Ligne ${index + 1}`;
+
+    const designation = rawDesignation
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<p[^>]*>/gi, '\n')
+      .replace(/<\/p>/gi, '\n')
+      .replace(/<div[^>]*>/gi, '\n')
+      .replace(/<\/div>/gi, '\n')
+      .replace(/<li[^>]*>/gi, '')
+      .replace(/<\/li>/gi, '\n')
+      .replace(/<[^>]*>/g, '')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/\n\s*\n\s*\n/g, '\n\n')
+      .trim();
+
     return [
       l.reference || '—',
-      l.designation || '—',
+      designation,
       l.qteCommandee ? l.qteCommandee.toString() : '—',
       l.qteRecue.toString(),
       l.unite || 'PCE',

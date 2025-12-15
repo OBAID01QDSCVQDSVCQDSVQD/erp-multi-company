@@ -18,11 +18,19 @@ export async function GET(request: NextRequest) {
     const numero = searchParams.get('numero');
     const query = searchParams.get('q');
 
+    // Si aucun filtre, retourner simplement les dernières factures
     if (!numero && !query) {
-      return NextResponse.json(
-        { error: 'Un numéro ou une recherche est requis' },
-        { status: 400 }
-      );
+      const invoices = await (Document as any)
+        .find({
+          tenantId,
+          type: 'FAC',
+        })
+        .sort({ dateDoc: -1 })
+        .limit(20)
+        .select('numero customerId dateDoc totalTTC devise statut')
+        .lean();
+
+      return NextResponse.json({ items: invoices });
     }
 
     if (query) {

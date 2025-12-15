@@ -134,6 +134,8 @@ export async function GET(
       customerMatricule,
       customerCode,
       customerPhone,
+      // Pass original invoice number so it can be printed on PDF
+      referenceExterne: creditNote.referenceExterne,
       devise: creditNote.devise || 'TND',
       lignes: enrichedLines,
       totalBaseHT: Math.abs(creditNote.totalBaseHT || 0),

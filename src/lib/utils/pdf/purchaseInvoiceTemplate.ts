@@ -294,18 +294,49 @@ function parseColor(colorStr: string): number[] | undefined {
 }
 
 function drawLinesTable(doc: jsPDF, invoiceData: PurchaseInvoiceData, startY: number): number {
-  const body = invoiceData.lignes.map((l) => {
-    // Check if designation contains HTML
-    const designation = l.designation || '—';
-    const hasHtml = typeof designation === 'string' && (designation.includes('<') && designation.includes('>'));
-    
+  const body = invoiceData.lignes.map((l, index) => {
+    const quantRaw = typeof l.quantite === 'number' ? l.quantite : parseFloat(String(l.quantite || 0));
+    const quantite = Math.abs(Number.isFinite(quantRaw) ? quantRaw : 0);
+    const puRaw = typeof l.prixUnitaireHT === 'number' ? l.prixUnitaireHT : parseFloat(String(l.prixUnitaireHT || 0));
+    const prixUnitaire = Number.isFinite(puRaw) ? puRaw : 0;
+    const remiseRaw = typeof l.remisePct === 'number' ? l.remisePct : parseFloat(String(l.remisePct || 0));
+    const remise = Number.isFinite(remiseRaw) ? remiseRaw : 0;
+    const tvaRaw = typeof l.tvaPct === 'number' ? l.tvaPct : parseFloat(String(l.tvaPct || 0));
+    const tvaPct = Number.isFinite(tvaRaw) ? tvaRaw : 0;
+    const montantHT = (l.totalLigneHT !== undefined && l.totalLigneHT !== null)
+      ? l.totalLigneHT
+      : (prixUnitaire * quantite * (1 - remise / 100));
+
+    const designationRaw = l.designation && l.designation.trim().length > 0
+      ? l.designation
+      : `Ligne ${index + 1}`;
+
+    // تحويل HTML إلى نص عادي بدون تنسيقات، مثل devis
+    const plain = designationRaw
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<p[^>]*>/gi, '\n')
+      .replace(/<\/p>/gi, '\n')
+      .replace(/<div[^>]*>/gi, '\n')
+      .replace(/<\/div>/gi, '\n')
+      .replace(/<li[^>]*>/gi, '')
+      .replace(/<\/li>/gi, '\n')
+      .replace(/<[^>]*>/g, '')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/\n\s*\n\s*\n/g, '\n\n')
+      .trim();
+
     return [
-      hasHtml ? { content: designation, isHtml: true } : designation,
-      l.quantite.toString(),
+      plain,
+      quantite ? quantite.toString() : '—',
       l.prixUnitaireHT ? l.prixUnitaireHT.toFixed(3) : '—',
       l.remisePct ? `${l.remisePct} %` : '—',
       l.tvaPct ? `${l.tvaPct} %` : '—',
-      l.totalLigneHT ? l.totalLigneHT.toFixed(3) : '—',
+      montantHT ? montantHT.toFixed(3) : '—',
     ];
   });
 

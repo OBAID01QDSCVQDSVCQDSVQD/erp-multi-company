@@ -14,6 +14,7 @@ import {
   EyeIcon,
   ArrowDownTrayIcon,
   TrashIcon,
+  PencilSquareIcon,
 } from '@heroicons/react/24/outline';
 
 interface CreditNote {
@@ -119,8 +120,9 @@ export default function CreditNotesPage() {
   };
 
   useEffect(() => {
+    if (!showModal) return;
+
     if (
-      showModal &&
       invoiceLookup.status === 'success' &&
       invoiceLookup.data?.numero &&
       formData.invoiceNumber.trim() !== invoiceLookup.data.numero
@@ -137,7 +139,46 @@ export default function CreditNotesPage() {
       invoiceLookup.data?.numero &&
       invoiceLookup.data.numero === query;
 
-    if (isCurrentSelection || !tenantId || query.length < 2) {
+    if (!tenantId) return;
+
+    // إذا لم يُكتب شيء، نعرض آخر الفواتير
+    if (!formData.invoiceNumber.trim()) {
+      setInvoiceSearchLoading(true);
+      setInvoiceSearchError(null);
+
+      const controller = new AbortController();
+      const timeout = setTimeout(async () => {
+        try {
+          const response = await fetch(`/api/sales/invoices/by-number`, {
+            headers: { 'X-Tenant-Id': tenantId },
+            signal: controller.signal,
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            setInvoiceSearchResults(data.items || []);
+          } else {
+            const error = await response.json();
+            setInvoiceSearchError(error.error || 'Erreur lors de la recherche');
+            setInvoiceSearchResults([]);
+          }
+        } catch (error) {
+          if ((error as any).name === 'AbortError') return;
+          console.error('Error searching invoices:', error);
+          setInvoiceSearchError('Erreur lors de la recherche');
+          setInvoiceSearchResults([]);
+        } finally {
+          setInvoiceSearchLoading(false);
+        }
+      }, 200);
+
+      return () => {
+        clearTimeout(timeout);
+        controller.abort();
+      };
+    }
+
+    if (isCurrentSelection || formData.invoiceNumber.trim().length < 2) {
       setInvoiceSearchResults([]);
       setInvoiceSearchError(null);
       setInvoiceSearchLoading(false);
@@ -419,9 +460,6 @@ export default function CreditNotesPage() {
                       Montant
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                      Statut
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
@@ -442,18 +480,14 @@ export default function CreditNotesPage() {
                         {formatPrice(Math.abs(note.totalTTC || 0), note.devise)}
                       </td>
                       <td className="px-4 py-3">
-                        <span
-                          className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                            note.statut === 'PAYEE'
-                              ? 'bg-green-100 text-green-700'
-                              : 'bg-yellow-100 text-yellow-700'
-                          }`}
-                        >
-                          {note.statut || 'BROUILLON'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => router.push(`/sales/credit-notes/${note._id}/edit`)}
+                            className="p-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50"
+                            title="Modifier l'avoir"
+                          >
+                            <PencilSquareIcon className="w-4 h-4" />
+                          </button>
                           <button
                             onClick={() => handleViewCreditNote(note)}
                             className="p-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50"
@@ -553,33 +587,46 @@ export default function CreditNotesPage() {
                             zIndex: 2000,
                           }}
                         >
-                          {invoiceSearchResults.map((invoice) => (
-                            <button
-                              type="button"
-                              key={invoice._id || invoice.numero}
-                              onClick={() => {
-                                setFormData((prev) => ({
-                                  ...prev,
-                                  invoiceNumber: invoice.numero,
-                                }));
-                                setInvoiceSearchResults([]);
-                                setInvoiceSearchError(null);
-                                fetchInvoiceDetails(invoice.numero);
-                              }}
-                              className="w-full text-left px-4 py-2 text-sm hover:bg-blue-50"
-                            >
-                              <div className="font-semibold text-gray-900">
-                                {invoice.numero}
-                              </div>
-                              <div className="text-xs text-gray-500">
-                                {formatDate(invoice.dateDoc)} ·{' '}
-                                {formatPrice(
-                                  invoice.totalTTC || 0,
-                                  invoice.devise || 'TND'
-                                )}
-                              </div>
-                            </button>
-                          ))}
+                          {invoiceSearchResults.map((invoice) => {
+                            const alreadyUsed = creditNotes.some(
+                              (note) => note.referenceExterne === invoice.numero
+                            );
+
+                            return (
+                              <button
+                                type="button"
+                                key={invoice._id || invoice.numero}
+                                disabled={alreadyUsed}
+                                onClick={() => {
+                                  if (alreadyUsed) return;
+                                  setFormData((prev) => ({
+                                    ...prev,
+                                    invoiceNumber: invoice.numero,
+                                  }));
+                                  setInvoiceSearchResults([]);
+                                  setInvoiceSearchError(null);
+                                  fetchInvoiceDetails(invoice.numero);
+                                }}
+                                className={`w-full text-left px-4 py-2 text-sm ${
+                                  alreadyUsed
+                                    ? 'text-gray-400 bg-gray-50 cursor-not-allowed'
+                                    : 'hover:bg-blue-50'
+                                }`}
+                              >
+                                <div className="font-semibold">
+                                  {invoice.numero}
+                                </div>
+                                <div className="text-xs">
+                                  {formatDate(invoice.dateDoc)} ·{' '}
+                                  {formatPrice(
+                                    invoice.totalTTC || 0,
+                                    invoice.devise || 'TND'
+                                  )}
+                                  {alreadyUsed && ' (déjà utilisé dans un avoir)'}
+                                </div>
+                              </button>
+                            );
+                          })}
                         </div>,
                         document.body
                       )}
