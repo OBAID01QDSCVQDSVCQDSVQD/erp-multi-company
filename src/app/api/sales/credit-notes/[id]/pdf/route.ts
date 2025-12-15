@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import Document from '@/lib/models/Document';
 import CompanySettings from '@/lib/models/CompanySettings';
+import Customer from '@/lib/models/Customer';
 import Product from '@/lib/models/Product';
 import { generateCreditNotePdf } from '@/lib/utils/pdf/invoiceTemplate';
 
@@ -53,17 +54,16 @@ export async function GET(
 
     if (creditNote.customerId) {
       try {
-        const response = await fetch(
-          `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/customers/${creditNote.customerId}`,
-          {
-            headers: { 'X-Tenant-Id': tenantId },
-          }
-        );
-        if (response.ok) {
-          const customer = await response.json();
+        const customer = await (Customer as any).findOne({
+          _id: creditNote.customerId,
+          tenantId,
+        });
+
+        if (customer) {
           customerName =
             customer.raisonSociale ||
             `${customer.nom || ''} ${customer.prenom || ''}`.trim();
+
           if (customer.adresseFacturation) {
             customerAddress = [
               customer.adresseFacturation.ligne1,
@@ -74,12 +74,13 @@ export async function GET(
               .filter(Boolean)
               .join(', ');
           }
+
           customerMatricule = customer.matriculeFiscale || '';
           customerCode = customer.code || '';
           customerPhone = customer.telephone || '';
         }
       } catch (error) {
-        console.error('Error fetching customer:', error);
+        console.error('Error fetching customer for credit note PDF:', error);
       }
     }
 
