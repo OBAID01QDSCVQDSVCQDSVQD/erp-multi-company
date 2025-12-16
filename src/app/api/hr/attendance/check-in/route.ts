@@ -64,12 +64,6 @@ export async function POST(request: NextRequest) {
       23, 59, 59, 999
     ));
 
-    console.log('=== Check-In Request ===');
-    console.log('Employee ID:', body.employeeId);
-    console.log('Target date (from body):', body.date);
-    console.log('Target date (UTC):', targetDate.toISOString());
-    console.log('End of day (UTC):', endOfDay.toISOString());
-
     // Check if attendance record already exists for the target date
     let attendance = await (Attendance as any).findOne({
       tenantId,
@@ -77,12 +71,6 @@ export async function POST(request: NextRequest) {
       date: { $gte: targetDate, $lte: endOfDay },
     });
 
-    console.log('Existing attendance record found:', attendance ? 'YES' : 'NO');
-    if (attendance) {
-      console.log('Existing record ID:', attendance._id);
-      console.log('Existing record date:', attendance.date);
-      console.log('Existing record checkIn:', attendance.checkIn);
-    }
 
     const checkInTime = body.checkIn ? new Date(body.checkIn) : new Date();
 
@@ -131,10 +119,6 @@ export async function POST(request: NextRequest) {
       if (body.projectId) {
         attendance.projectId = new mongoose.Types.ObjectId(body.projectId);
       }
-
-      console.log('Creating new attendance record');
-      console.log('Date:', targetDate.toISOString());
-      console.log('CheckIn:', checkInTime.toISOString());
 
       // Calculate late minutes
       const workStartTime = new Date(targetDate);

@@ -36,10 +36,6 @@ export async function GET(request: NextRequest) {
       const endOfDay = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999));
       query.date = { $gte: startOfDay, $lte: endOfDay };
       
-      console.log('Date filter - Input:', date);
-      console.log('Date filter - Date string:', dateStr);
-      console.log('Date filter - Start of day:', startOfDay.toISOString());
-      console.log('Date filter - End of day:', endOfDay.toISOString());
     }
 
     // Filter by month
@@ -68,25 +64,6 @@ export async function GET(request: NextRequest) {
         .lean(),
       (Attendance as any).countDocuments(query),
     ]);
-
-    console.log('=== Attendance GET ===');
-    console.log('Query:', JSON.stringify(query, null, 2));
-    console.log('Total records found:', total);
-    console.log('Items returned:', items.length);
-    if (items.length > 0) {
-      items.forEach((item: any, index: number) => {
-        console.log(`Item ${index + 1}:`, {
-          _id: item._id,
-          employeeId: item.employeeId,
-          employeeIdType: typeof item.employeeId,
-          employeeIdIsObject: typeof item.employeeId === 'object',
-          employeeId_id: item.employeeId?._id,
-          date: item.date,
-          checkIn: item.checkIn,
-          checkOut: item.checkOut
-        });
-      });
-    }
 
     return NextResponse.json({
       items,

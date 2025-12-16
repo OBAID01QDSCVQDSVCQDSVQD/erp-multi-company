@@ -52,6 +52,11 @@ interface Expense {
     type: string;
   }>;
   createdAt: string;
+  createdBy?: {
+    _id: string;
+    firstName?: string;
+    lastName?: string;
+  } | null;
 }
 
 interface ExpenseCategory {
@@ -806,11 +811,8 @@ export default function ExpensesPage() {
                       <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Projet
                       </th>
-                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">
-                        FODEC
-                      </th>
                       <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Total HT
+                        Utilisateur
                       </th>
                       <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Total TTC
@@ -838,11 +840,10 @@ export default function ExpensesPage() {
                         <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-500">
                           {expense.projetId?.name || '-'}
                         </td>
-                        <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-500 hidden md:table-cell" style={{ whiteSpace: 'nowrap' }}>
-                          {formatPrice(expense.fodec || 0, expense.devise || 'TND')}
-                        </td>
-                        <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900" style={{ whiteSpace: 'nowrap' }}>
-                          {formatPrice(expense.totalHT || expense.baseHT || expense.montant || 0, expense.devise || 'TND')}
+                        <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-500">
+                          {expense.createdBy
+                            ? `${expense.createdBy.firstName || ''} ${expense.createdBy.lastName || ''}`.trim() || '-'
+                            : '-'}
                         </td>
                         <td className="px-2 py-2 whitespace-nowrap text-xs font-medium text-gray-900" style={{ whiteSpace: 'nowrap' }}>
                           {formatPrice(expense.totalTTC || expense.montant || 0, expense.devise || 'TND')}
