@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -41,6 +41,16 @@ export default function Header({ onMenuClick }: HeaderProps) {
   
   // Check if user is the specific admin
   const isSystemAdmin = session?.user?.email === 'admin@entreprise-demo.com';
+  
+  // Check if user is admin (role or permissions) - use useMemo to recalculate when session changes
+  const isAdmin = useMemo(() => {
+    if (!session?.user) return false;
+    const userRole = session.user.role;
+    const userPermissions = session.user.permissions || [];
+    const isAdminRole = userRole === 'admin';
+    const hasAllPermissions = Array.isArray(userPermissions) && userPermissions.includes('all');
+    return isAdminRole || hasAllPermissions;
+  }, [session?.user]);
 
   // Clear timeout on unmount
   useEffect(() => {
@@ -72,9 +82,13 @@ export default function Header({ onMenuClick }: HeaderProps) {
     return match ? match[1] : null;
   };
 
-  // Fetch notifications on mount
+  // Fetch notifications on mount - Only for admin
   useEffect(() => {
-    if (session?.user) {
+    const userRole = session?.user?.role;
+    const hasAllPermissions = session?.user?.permissions?.includes('all');
+    const isUserAdmin = userRole === 'admin' || hasAllPermissions;
+    
+    if (session?.user && isUserAdmin) {
       fetchNotifications();
     }
   }, [session]);
@@ -218,16 +232,20 @@ export default function Header({ onMenuClick }: HeaderProps) {
           </div>
         </div>
         <div className="ml-4 flex items-center md:ml-6" style={{ overflow: 'visible', position: 'relative', zIndex: 1000 }}>
-          <Link
-            href="/"
-            className="bg-white p-1 rounded-full text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 mr-2"
-            title="Retour à la page d'accueil"
-          >
-            <HomeIcon className="h-6 w-6" />
-          </Link>
+          {/* Home Icon - Only for admin */}
+          {isAdmin && (
+            <Link
+              href="/"
+              className="bg-white p-1 rounded-full text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 mr-2"
+              title="Retour à la page d'accueil"
+            >
+              <HomeIcon className="h-6 w-6" />
+            </Link>
+          )}
 
-          {/* Notifications */}
-          <div className="relative mr-2" ref={notifRef}>
+          {/* Notifications - Only for admin */}
+          {isAdmin && (
+            <div className="relative mr-2" ref={notifRef}>
             <button
               type="button"
               onClick={() =>
@@ -318,6 +336,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
               </div>
             )}
           </div>
+          )}
 
           {/* Administration Dropdown - Only for admin@entreprise-demo.com */}
           {isSystemAdmin && (
