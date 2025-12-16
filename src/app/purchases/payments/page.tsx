@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
-import { PlusIcon, EyeIcon, TrashIcon, ArrowDownTrayIcon, MagnifyingGlassIcon, PhotoIcon, XMarkIcon, PlusCircleIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, EyeIcon, TrashIcon, ArrowDownTrayIcon, MagnifyingGlassIcon, PhotoIcon, XMarkIcon, PlusCircleIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
 import { useTenantId } from '@/hooks/useTenantId';
 import toast from 'react-hot-toast';
 import ImageGallery, { ImageItem } from '@/components/common/ImageGallery';
@@ -165,9 +165,18 @@ export default function PurchasePaymentsPage() {
       <div className="p-4 sm:p-6">
         <div className="mb-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-            <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Paiements Fournisseurs</h1>
-              <p className="text-xs sm:text-sm text-gray-600 mt-1">Gérez les paiements de vos fournisseurs</p>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => router.back()}
+                className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-colors"
+                title="Retour à la page précédente"
+              >
+                <ArrowLeftIcon className="w-5 h-5 sm:w-6 sm:h-6" />
+              </button>
+              <div>
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Paiements Fournisseurs</h1>
+                <p className="text-xs sm:text-sm text-gray-600 mt-1">Gérez les paiements de vos fournisseurs</p>
+              </div>
             </div>
             <button
               onClick={() => router.push('/purchases/payments/new')}

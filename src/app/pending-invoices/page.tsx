@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
-import { DocumentTextIcon, ExclamationTriangleIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
+import { DocumentTextIcon, ExclamationTriangleIcon, ArrowRightIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
 import { useTenantId } from '@/hooks/useTenantId';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
@@ -152,14 +152,23 @@ export default function PendingInvoicesPage() {
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-3">
-              <ExclamationTriangleIcon className="w-8 h-8 text-orange-500" />
-              Factures en attente de paiement
-            </h1>
-            <p className="text-gray-600 mt-2">
-              Liste des factures (internes et officielles) non payées ou partiellement payées
-            </p>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => router.back()}
+              className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-colors"
+              title="Retour à la page précédente"
+            >
+              <ArrowLeftIcon className="w-5 h-5 sm:w-6 sm:h-6" />
+            </button>
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-3">
+                <ExclamationTriangleIcon className="w-8 h-8 text-orange-500" />
+                Factures en attente de paiement
+              </h1>
+              <p className="text-gray-600 mt-2">
+                Liste des factures (internes et officielles) non payées ou partiellement payées
+              </p>
+            </div>
           </div>
         </div>
 

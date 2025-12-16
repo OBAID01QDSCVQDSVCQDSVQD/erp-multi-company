@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
-import { PlusIcon, TruckIcon, MagnifyingGlassIcon, EyeIcon, PencilIcon, TrashIcon, XMarkIcon, FolderIcon, EnvelopeIcon, PhoneIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, TruckIcon, MagnifyingGlassIcon, EyeIcon, PencilIcon, TrashIcon, XMarkIcon, FolderIcon, EnvelopeIcon, PhoneIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
 import { useTenantId } from '@/hooks/useTenantId';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 
 interface Supplier {
   _id: string;
@@ -34,6 +34,7 @@ interface Supplier {
 
 export default function SuppliersPage() {
   const { tenantId } = useTenantId();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
@@ -364,9 +365,18 @@ export default function SuppliersPage() {
       <div className="p-6 space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <TruckIcon className="w-8 h-8" /> Fournisseurs
-          </h1>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => router.back()}
+              className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-colors"
+              title="Retour à la page précédente"
+            >
+              <ArrowLeftIcon className="w-5 h-5 sm:w-6 sm:h-6" />
+            </button>
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <TruckIcon className="w-8 h-8" /> Fournisseurs
+            </h1>
+          </div>
           <button onClick={handleNew} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
             <PlusIcon className="w-5 h-5" /> Nouveau fournisseur
           </button>

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
 import { useTenantId } from '@/hooks/useTenantId';
-import { MagnifyingGlassIcon, EyeIcon, CalendarIcon } from '@heroicons/react/24/outline';
+import { MagnifyingGlassIcon, EyeIcon, CalendarIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
 import { useRouter } from 'next/navigation';
 
 interface CustomerBalance {
@@ -117,7 +117,16 @@ export default function CustomerBalancesPage() {
       <div className="p-6 space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Soldes clients</h1>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => router.back()}
+              className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-colors"
+              title="Retour à la page précédente"
+            >
+              <ArrowLeftIcon className="w-5 h-5 sm:w-6 sm:h-6" />
+            </button>
+            <h1 className="text-2xl font-bold">Soldes clients</h1>
+          </div>
         </div>
 
         {/* Filters */}

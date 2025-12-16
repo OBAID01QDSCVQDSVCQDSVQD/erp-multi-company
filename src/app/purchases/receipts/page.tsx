@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
-import { PlusIcon, ClipboardDocumentCheckIcon, MagnifyingGlassIcon, EyeIcon, ArrowDownTrayIcon, PencilIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, ClipboardDocumentCheckIcon, MagnifyingGlassIcon, EyeIcon, ArrowDownTrayIcon, PencilIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
 import { useTenantId } from '@/hooks/useTenantId';
 import toast from 'react-hot-toast';
 
@@ -108,10 +108,19 @@ export default function ReceiptsPage() {
       <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
-            <ClipboardDocumentCheckIcon className="w-6 h-6 sm:w-8 sm:h-8" />
-            <span className="whitespace-nowrap">Bons de réception</span>
-          </h1>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => router.back()}
+              className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-colors"
+              title="Retour à la page précédente"
+            >
+              <ArrowLeftIcon className="w-5 h-5 sm:w-6 sm:h-6" />
+            </button>
+            <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
+              <ClipboardDocumentCheckIcon className="w-6 h-6 sm:w-8 sm:h-8" />
+              <span className="whitespace-nowrap">Bons de réception</span>
+            </h1>
+          </div>
           <button
             onClick={() => router.push('/purchases/receptions/new')}
             className="flex items-center gap-2 bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-blue-700 text-sm sm:text-base w-full sm:w-auto justify-center"

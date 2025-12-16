@@ -15,6 +15,7 @@ import {
   ArrowDownTrayIcon,
   TrashIcon,
   PencilSquareIcon,
+  ArrowLeftIcon,
 } from '@heroicons/react/24/outline';
 
 interface CreditNote {
@@ -389,14 +390,23 @@ export default function CreditNotesPage() {
     <DashboardLayout>
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <DocumentTextIcon className="w-7 h-7 text-blue-600" />
-              Avoirs clients
-            </h1>
-            <p className="text-gray-600 text-sm">
-              Générez des notes de crédit à partir d’une facture existante.
-            </p>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => router.back()}
+              className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-colors"
+              title="Retour à la page précédente"
+            >
+              <ArrowLeftIcon className="w-5 h-5 sm:w-6 sm:h-6" />
+            </button>
+            <div>
+              <h1 className="text-2xl font-bold flex items-center gap-2">
+                <DocumentTextIcon className="w-7 h-7 text-blue-600" />
+                Avoirs clients
+              </h1>
+              <p className="text-gray-600 text-sm">
+                Générez des notes de crédit à partir d'une facture existante.
+              </p>
+            </div>
           </div>
           <div className="flex gap-2">
             <button

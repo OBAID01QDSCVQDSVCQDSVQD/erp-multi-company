@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
-import { PlusIcon, MagnifyingGlassIcon, EyeIcon, TrashIcon, BanknotesIcon, XMarkIcon, CheckCircleIcon, PhotoIcon, PlusCircleIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, MagnifyingGlassIcon, EyeIcon, TrashIcon, BanknotesIcon, XMarkIcon, CheckCircleIcon, PhotoIcon, PlusCircleIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
 import { useTenantId } from '@/hooks/useTenantId';
 import toast from 'react-hot-toast';
 import ImageGallery, { ImageItem } from '@/components/common/ImageGallery';
@@ -413,7 +413,16 @@ export default function PaymentsPage() {
     <DashboardLayout>
       <div className="p-4 sm:p-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Paiements clients</h1>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => router.back()}
+              className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-colors"
+              title="Retour à la page précédente"
+            >
+              <ArrowLeftIcon className="w-5 h-5 sm:w-6 sm:h-6" />
+            </button>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Paiements clients</h1>
+          </div>
           <button
             onClick={() => router.push('/sales/payments/new')}
             className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm sm:text-base"
