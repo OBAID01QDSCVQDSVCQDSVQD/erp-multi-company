@@ -225,14 +225,18 @@ export default function ReceptionsPage() {
                         <div className="flex items-center justify-end gap-2">
                           <button
                             onClick={() => router.push(`/purchases/receptions/${reception._id}`)}
-                            className="text-indigo-600 hover:text-indigo-900"
+                            className="text-indigo-600 hover:text-indigo-900 p-2 rounded transition-colors"
                             title="Voir"
                           >
                             <EyeIcon className="h-5 w-5" />
                           </button>
                           <button
-                            onClick={() => router.push(`/purchases/receptions/${reception._id}/edit`)}
-                            className="text-blue-600 hover:text-blue-900"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              router.push(`/purchases/receptions/${reception._id}/edit`);
+                            }}
+                            className="text-blue-600 hover:text-blue-900 p-2 rounded transition-colors"
                             title="Modifier"
                           >
                             <PencilIcon className="h-5 w-5" />
@@ -260,7 +264,7 @@ export default function ReceptionsPage() {
                                 toast.error('Erreur lors du téléchargement du PDF');
                               }
                             }}
-                            className="text-gray-600 hover:text-gray-900"
+                            className="text-gray-600 hover:text-gray-900 p-2 rounded transition-colors"
                             title="Télécharger PDF"
                           >
                             <ArrowDownTrayIcon className="h-5 w-5" />

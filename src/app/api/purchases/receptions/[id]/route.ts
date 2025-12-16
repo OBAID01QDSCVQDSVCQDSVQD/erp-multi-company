@@ -230,9 +230,13 @@ export async function PUT(
       );
     }
 
-    // Create stock movements only when status changes إلى VALIDE للمرة الأولى
+    // Handle stock movements
     if (isStatusChangeToValide) {
+      // Create stock movements when status changes to VALIDE for the first time
       await createStockMovementsForReception(id, tenantId, session.user.email || '');
+    } else if (updatedReception.statut === 'VALIDE') {
+      // If BR is already VALIDE and quantities are being updated, update stock movements
+      await updateStockMovementsForReception(id, tenantId, existingReception, updatedReception, session.user.email || '');
     }
 
     return NextResponse.json(updatedReception);
@@ -356,6 +360,63 @@ async function createStockMovementsForReception(receptionId: string, tenantId: s
     }
   } catch (error) {
     console.error('Erreur lors de la création des mouvements de stock pour la réception:', error);
+    // Don't throw error, just log it
+  }
+}
+
+// Helper function to update stock movements when BR quantities are modified
+async function updateStockMovementsForReception(
+  receptionId: string,
+  tenantId: string,
+  oldReception: any,
+  newReception: any,
+  updatedBy: string
+) {
+  try {
+    // Get the reception with all fields to ensure we have numero
+    const reception = await (Reception as any).findOne({
+      _id: receptionId,
+      societeId: tenantId,
+    }).lean();
+
+    if (!reception || reception.statut !== 'VALIDE') {
+      return;
+    }
+
+    // Delete all existing stock movements for this reception
+    await (MouvementStock as any).deleteMany({
+      societeId: tenantId,
+      source: 'BR',
+      sourceId: receptionId,
+    });
+
+    // Create new stock movements with updated quantities
+    const stockMovements = [];
+    if (reception.lignes && reception.lignes.length > 0) {
+      for (const ligne of reception.lignes) {
+        if (ligne.qteRecue > 0 && ligne.productId) {
+          const mouvement = new MouvementStock({
+            societeId: tenantId,
+            productId: ligne.productId.toString(),
+            type: 'ENTREE',
+            qte: ligne.qteRecue,
+            date: reception.dateDoc || new Date(),
+            source: 'BR',
+            sourceId: receptionId,
+            notes: `Réception ${reception.numero} - ${ligne.designation || ''}`,
+            createdBy: updatedBy,
+          });
+          stockMovements.push(mouvement);
+        }
+      }
+    }
+
+    // Save all new stock movements
+    if (stockMovements.length > 0) {
+      await MouvementStock.insertMany(stockMovements);
+    }
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour des mouvements de stock pour la réception:', error);
     // Don't throw error, just log it
   }
 }
