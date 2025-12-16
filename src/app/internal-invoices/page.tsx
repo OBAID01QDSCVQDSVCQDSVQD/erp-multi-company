@@ -1320,14 +1320,33 @@ export default function InternalInvoicesPage() {
       
       const method = editingInvoiceId ? 'PATCH' : 'POST';
 
-      // If creating new invoice (not editing), always let API generate the number
-      // This ensures the counter is incremented correctly
-      let numeroToSend = undefined;
-      if (editingInvoiceId) {
-        // When editing, send the numero if provided
-        numeroToSend = formData.numero?.trim() || undefined;
-      }
-      // For new invoices, always send undefined to let API generate using NumberingService.next()
+      // Use manual number if provided, otherwise let API generate automatically
+      const numeroToSend =
+        formData.numero && formData.numero.trim() !== ''
+          ? formData.numero.trim()
+          : (invoiceNumberPreview || undefined);
+
+      const payload: any = {
+        customerId: formData.customerId,
+        projetId: formData.projetId || undefined,
+        dateDoc: formData.dateDoc,
+        dateEcheance: formData.dateEcheance || undefined,
+        referenceExterne: formData.referenceExterne,
+        devise: formData.devise,
+        tauxChange: formData.tauxChange || 1,
+        modePaiement: formData.modePaiement || undefined,
+        conditionsPaiement: formData.conditionsPaiement || undefined,
+        notes: formData.notes,
+        numero: numeroToSend, // always send a value if available (manual or preview) to keep counter in sync
+        lignes: lignesData,
+        timbreFiscal: totals.timbreAmount || 0,
+        remiseGlobalePct: formData.remiseGlobalePct || 0,
+        fodec: formData.fodec?.enabled ? {
+          enabled: true,
+          tauxPct: formData.fodec.tauxPct || 1,
+          montant: totals.fodec || 0
+        } : { enabled: false, tauxPct: 1, montant: 0 }
+      };
 
       const response = await fetch(url, {
         method,
@@ -1335,27 +1354,7 @@ export default function InternalInvoicesPage() {
           'Content-Type': 'application/json',
           'X-Tenant-Id': tenantId 
         },
-        body: JSON.stringify({
-          customerId: formData.customerId,
-          projetId: formData.projetId || undefined,
-          dateDoc: formData.dateDoc,
-          dateEcheance: formData.dateEcheance || undefined,
-          referenceExterne: formData.referenceExterne,
-          devise: formData.devise,
-          tauxChange: formData.tauxChange || 1,
-          modePaiement: formData.modePaiement || undefined,
-          conditionsPaiement: formData.conditionsPaiement || undefined,
-          notes: formData.notes,
-          numero: numeroToSend,
-          lignes: lignesData,
-          timbreFiscal: totals.timbreAmount || 0,
-          remiseGlobalePct: formData.remiseGlobalePct || 0,
-          fodec: formData.fodec?.enabled ? {
-            enabled: true,
-            tauxPct: formData.fodec.tauxPct || 1,
-            montant: totals.fodec || 0
-          } : { enabled: false, tauxPct: 1, montant: 0 }
-        })
+        body: JSON.stringify(payload)
       });
 
       if (response.ok) {

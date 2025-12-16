@@ -91,8 +91,36 @@ export async function POST(request: NextRequest) {
     const tenantId = session.user.companyId?.toString() || '';
     const body = await request.json();
 
-    // Generate invoice number
-    const numero = await NumberingService.next(tenantId, 'facfo');
+    // Use manual number if provided, otherwise generate automatically
+    console.log('========================================');
+    console.log('POST /api/purchases/invoices: START');
+    console.log('Body keys:', Object.keys(body));
+    console.log('Body.numero:', body.numero);
+    console.log('Body.numero type:', typeof body.numero);
+    console.log('Body.numero value:', JSON.stringify(body.numero));
+    console.log('========================================');
+    let numero: string;
+    
+    // Check if manual number is provided and not empty
+    if (body.numero && typeof body.numero === 'string' && body.numero.trim() !== '') {
+      numero = body.numero.trim();
+      console.log('POST /api/purchases/invoices: Using manual number:', numero);
+      // Check if manual number already exists
+      const existingInvoice = await (PurchaseInvoice as any).findOne({
+        societeId: tenantId,
+        numero: numero,
+      });
+      if (existingInvoice) {
+        return NextResponse.json(
+          { error: 'Un numéro de facture avec ce numéro existe déjà' },
+          { status: 400 }
+        );
+      }
+    } else {
+      console.log('POST /api/purchases/invoices: No manual number provided, generating automatically');
+      numero = await NumberingService.next(tenantId, 'facfo');
+    }
+    console.log('POST /api/purchases/invoices: Final numero to use:', numero);
 
     // Get supplier name if not provided
     let fournisseurNom = body.fournisseurNom || '';

@@ -109,12 +109,15 @@ export async function POST(request: NextRequest) {
 
     const tenantId = session.user.companyId?.toString() || '';
     
+    console.log('POST /api/internal-invoices: Received body.numero:', body.numero, 'Type:', typeof body.numero);
+    
     let numero =
       typeof body.numero === 'string' && body.numero.trim().length > 0
         ? body.numero.trim()
         : '';
 
     if (numero) {
+      console.log('POST /api/internal-invoices: Using manual number:', numero);
       const exists = await (Document as any).findOne({
         tenantId,
         type: 'INT_FAC',
@@ -126,11 +129,77 @@ export async function POST(request: NextRequest) {
           { status: 409 }
         );
       }
+      
+      // Update Counter if manual number is greater than current counter value
+      try {
+        const CounterModel = (await import('@/lib/models/Counter')).default;
+        
+        // Extract numeric part from manual number
+        const numericMatch = numero.match(/(\d+)$/);
+        if (numericMatch) {
+          const manualNumberValue = parseInt(numericMatch[1], 10);
+          
+          // Get current counter value
+          let counter = await (CounterModel as any).findOne({ tenantId, seqName: 'int_fac' });
+          const currentCounterValue = counter ? counter.value : 0;
+          
+          // If manual number is greater than current counter, update counter
+          if (manualNumberValue > currentCounterValue) {
+            console.log(`POST /api/internal-invoices: Updating counter from ${currentCounterValue} to ${manualNumberValue}`);
+            await (CounterModel as any).findOneAndUpdate(
+              { tenantId, seqName: 'int_fac' },
+              { $set: { value: manualNumberValue } },
+              { upsert: true, new: true }
+            );
+          }
+        }
+      } catch (error: any) {
+        console.error('Error updating counter for manual number:', error);
+        // Continue anyway, don't fail the request
+      }
     } else {
       // Generate invoice number using NumberingService
+      console.log('POST /api/internal-invoices: No manual number, generating automatically');
       try {
+        // First, sync Counter with the last invoice number if Counter doesn't exist or is behind
+        try {
+          const CounterModel = (await import('@/lib/models/Counter')).default;
+          let counter = await (CounterModel as any).findOne({ tenantId, seqName: 'int_fac' });
+          
+          // Get the last invoice to sync counter
+          const lastInvoice = await (Document as any).findOne({
+            tenantId,
+            type: 'INT_FAC'
+          })
+          .sort({ createdAt: -1 })
+          .lean();
+          
+          if (lastInvoice && lastInvoice.numero) {
+            // Extract numeric part from last invoice
+            const numericMatch = lastInvoice.numero.match(/(\d+)$/);
+            if (numericMatch) {
+              const lastInvoiceNumber = parseInt(numericMatch[1], 10);
+              const currentCounterValue = counter ? counter.value : 0;
+              
+              // If last invoice number is greater than counter, sync counter
+              if (lastInvoiceNumber > currentCounterValue) {
+                console.log(`POST /api/internal-invoices: Syncing counter from ${currentCounterValue} to ${lastInvoiceNumber}`);
+                await (CounterModel as any).findOneAndUpdate(
+                  { tenantId, seqName: 'int_fac' },
+                  { $set: { value: lastInvoiceNumber } },
+                  { upsert: true, new: true }
+                );
+              }
+            }
+          }
+        } catch (syncError: any) {
+          console.error('Error syncing counter with last invoice:', syncError);
+          // Continue anyway, don't fail the request
+        }
+        
         const { NumberingService } = await import('@/lib/services/NumberingService');
         numero = await NumberingService.next(tenantId, 'int_fac');
+        console.log('POST /api/internal-invoices: Generated number:', numero);
       } catch (error: any) {
         console.error('Error generating internal invoice number:', error);
         // Fallback: generate simple number starting from 1
