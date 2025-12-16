@@ -35,9 +35,11 @@ import {
   UserIcon,
   PlusIcon,
   ExclamationTriangleIcon,
+  SparklesIcon,
 } from '@heroicons/react/24/outline';
 
 const navigation = [
+  { name: 'Accueil', href: '/home', icon: SparklesIcon, permission: null }, // Visible to non-admin users only
   { name: 'Tableau de bord', href: '/dashboard', icon: HomeIcon, permission: null }, // Always visible
   { name: 'Entreprises', href: '/companies', icon: BuildingOfficeIcon, permission: 'settings' },
   { name: 'Utilisateurs', href: '/users', icon: UserGroupIcon, permission: 'users' },
@@ -125,6 +127,21 @@ export default function Sidebar({ sidebarOpen: externalSidebarOpen, setSidebarOp
   // Filter navigation items based on permissions
   const getFilteredNavigation = () => {
     return navigation.filter((item) => {
+      // "Accueil" should only be visible to non-admin users
+      if (item.name === 'Accueil') {
+        return session?.user?.role !== 'admin' && !session?.user?.permissions?.includes('all');
+      }
+      
+      // "Tableau de bord" should only be visible to admin
+      if (item.name === 'Tableau de bord') {
+        return session?.user?.role === 'admin' || session?.user?.permissions?.includes('all');
+      }
+      
+      // "Mon abonnement" should only be visible to admin
+      if (item.name === 'Mon abonnement') {
+        return session?.user?.role === 'admin' || session?.user?.permissions?.includes('all');
+      }
+      
       if (!hasPermission(item.permission)) {
         return false;
       }

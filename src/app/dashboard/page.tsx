@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
 import { useTenantId } from '@/hooks/useTenantId';
 import {
@@ -54,12 +55,25 @@ interface RecentPayment {
 
 export default function DashboardPage() {
   const { data: session } = useSession();
+  const router = useRouter();
   const { tenantId } = useTenantId();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [recentInvoices, setRecentInvoices] = useState<RecentInvoice[]>([]);
   const [recentPayments, setRecentPayments] = useState<RecentPayment[]>([]);
   const [pendingSummary, setPendingSummary] = useState<{ totalCount: number; totalPendingAmount: number } | null>(null);
+
+  // Redirect non-admin users to home page
+  useEffect(() => {
+    if (session?.user) {
+      const userRole = session.user.role;
+      const hasAllPermissions = session.user.permissions?.includes('all');
+      
+      if (userRole !== 'admin' && !hasAllPermissions) {
+        router.push('/home');
+      }
+    }
+  }, [session, router]);
 
   useEffect(() => {
     if (tenantId) {

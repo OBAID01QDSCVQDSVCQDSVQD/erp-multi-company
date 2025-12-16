@@ -38,14 +38,6 @@ export async function GET(request: NextRequest) {
       .limit(limit)
       .lean();
     
-    // Debug: Check if projetId exists in raw data
-    console.log('Raw deliveries projetId check:', deliveries.slice(0, 3).map((d: any) => ({
-      numero: d.numero,
-      hasProjetId: 'projetId' in d,
-      projetId: d.projetId,
-      projetIdType: typeof d.projetId
-    })));
-    
     // Manually select only the fields we need, ensuring projetId is included
     deliveries = deliveries.map((d: any) => ({
       _id: d._id,

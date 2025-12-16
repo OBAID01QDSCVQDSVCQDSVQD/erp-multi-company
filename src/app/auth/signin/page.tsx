@@ -46,7 +46,15 @@ export default function SignInPage() {
       } else {
         const session = await getSession();
         if (session) {
-          router.push('/dashboard');
+          // Redirect based on user role
+          const userRole = session.user?.role;
+          const hasAllPermissions = session.user?.permissions?.includes('all');
+          
+          if (userRole === 'admin' || hasAllPermissions) {
+            router.push('/dashboard');
+          } else {
+            router.push('/home');
+          }
         }
       }
     } catch (error) {
