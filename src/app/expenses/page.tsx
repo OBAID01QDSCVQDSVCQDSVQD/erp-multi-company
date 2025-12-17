@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
 import ExpenseCategoryModal from '@/components/ExpenseCategoryModal';
 import { useTenantId } from '@/hooks/useTenantId';
-import { PlusIcon, FunnelIcon, DocumentArrowDownIcon, CogIcon, EyeIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, FunnelIcon, DocumentArrowDownIcon, CogIcon, EyeIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
 
 interface Expense {
   _id: string;
@@ -384,11 +384,20 @@ export default function ExpensesPage() {
       <div className="space-y-6">
         {/* Header */}
         <div className="sm:flex sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">💸 Dépenses</h1>
-            <p className="mt-1 text-sm text-gray-500">
-              Gérez les dépenses de votre entreprise
-            </p>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => router.back()}
+              className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-colors"
+              title="Retour à la page précédente"
+            >
+              <ArrowLeftIcon className="w-5 h-5 sm:w-6 sm:h-6" />
+            </button>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">💸 Dépenses</h1>
+              <p className="mt-1 text-sm text-gray-500">
+                Gérez les dépenses de votre entreprise
+              </p>
+            </div>
           </div>
           <div className="mt-4 sm:mt-0 space-x-3">
             <button

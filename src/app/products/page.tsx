@@ -1,13 +1,15 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
-import { PlusIcon, ShoppingBagIcon, MagnifyingGlassIcon, XMarkIcon, ArrowsRightLeftIcon, EyeIcon, PencilIcon, TrashIcon, BoldIcon, ListBulletIcon, PaintBrushIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, ShoppingBagIcon, MagnifyingGlassIcon, XMarkIcon, ArrowsRightLeftIcon, EyeIcon, PencilIcon, TrashIcon, BoldIcon, ListBulletIcon, PaintBrushIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
 import { useTenantId } from '@/hooks/useTenantId';
 
 interface Product { _id: string; sku: string; nom: string; referenceClient?: string; prixVenteHT?: number; taxCode?: string; uomVenteCode?: string; categorieCode?: string; estStocke: boolean; actif: boolean; }
 
 export default function ProductsPage() {
+  const router = useRouter();
   const { tenantId } = useTenantId();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -396,11 +398,20 @@ export default function ProductsPage() {
       <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Produits & Services</h1>
-            <p className="mt-1 text-xs sm:text-sm text-gray-500">
-              Gérez votre catalogue de produits et services
-            </p>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => router.back()}
+              className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-colors"
+              title="Retour à la page précédente"
+            >
+              <ArrowLeftIcon className="w-5 h-5 sm:w-6 sm:h-6" />
+            </button>
+            <div>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Produits & Services</h1>
+              <p className="mt-1 text-xs sm:text-sm text-gray-500">
+                Gérez votre catalogue de produits et services
+              </p>
+            </div>
           </div>
           <div className="w-full sm:w-auto">
             <div className="relative">

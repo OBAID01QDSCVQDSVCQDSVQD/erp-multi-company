@@ -63,11 +63,7 @@ const navigation = [
     { name: 'Présence / Pointage', href: '/hr/attendance', icon: ClockIcon, permission: 'attendance' },
     { name: 'Heures de travail', href: '/hr/work-hours', icon: CalendarIcon, permission: 'work_hours' },
     { name: 'Jours de travail', href: '/hr/work-days', icon: CalendarDaysIcon, permission: 'work_days' },
-    { name: 'Affectation aux projets', href: '/hr/project-assignments', icon: BriefcaseIcon, permission: 'hr_project_assignments' },
     { name: 'Salaires', href: '/hr/salaries', icon: CurrencyDollarIcon, permission: 'salaries' },
-    { name: 'Contrats', href: '/hr/contracts', icon: DocumentTextIcon, permission: 'hr_contracts' },
-    { name: 'Absences & Congés', href: '/hr/absences', icon: XCircleIcon, permission: 'hr_absences' },
-    { name: 'Performance', href: '/hr/performance', icon: ChartBarIcon, permission: 'hr_performance' },
   ]},
   { name: '📁 Projets', href: '#', icon: BriefcaseIcon, hasSubmenu: true, submenu: [
     { name: 'Liste des projets', href: '/projects', icon: BriefcaseIcon, permission: 'projects' },

@@ -25,10 +25,6 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const tenantId = session.user.companyId;
     
-    // Debug: Log tenantId
-    console.log('Expenses API - tenantId:', tenantId);
-    console.log('Expenses API - session.user:', JSON.stringify(session.user, null, 2));
-    
     // Filtres
     const periode = searchParams.get('periode');
     const categorieId = searchParams.get('categorieId');
@@ -82,24 +78,7 @@ export async function GET(request: NextRequest) {
       filter.projetId = projetId;
     }
 
-    // Debug: Log filter and count
-    console.log('Expenses filter:', JSON.stringify(filter, null, 2));
-    
-    // Check total without filter first
-    const totalWithoutFilter = await (Expense as any).countDocuments({});
-    console.log('Total expenses in DB (all tenants):', totalWithoutFilter);
-    
     const total = await (Expense as any).countDocuments(filter);
-    console.log('Total expenses found with filter:', total);
-    
-    // If no expenses found, check if there are expenses with different tenantId format
-    if (total === 0 && totalWithoutFilter > 0) {
-      const sampleExpense = await (Expense as any).findOne({}).lean();
-      if (sampleExpense) {
-        console.log('Sample expense tenantId:', sampleExpense.tenantId, 'Type:', typeof sampleExpense.tenantId);
-        console.log('Filter tenantId:', tenantId, 'Type:', typeof tenantId);
-      }
-    }
 
     // Récupération des dépenses avec pagination
     // Tri par date (plus récent en premier), puis par createdAt si même date
@@ -169,8 +148,6 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    console.log('Expenses retrieved:', expenses?.length || 0);
-
     return NextResponse.json({
       expenses: expenses || [],
       pagination: {
@@ -213,9 +190,6 @@ export async function POST(request: NextRequest) {
     const tenantId = session.user.companyId;
     const societeId = session.user.companyId; // Use companyId as societeId
     const tenantIdString = String(tenantId); // Ensure consistent string format
-    
-    console.log('POST /api/expenses - Body received:', JSON.stringify(body, null, 2));
-    console.log('POST /api/expenses - TenantId:', tenantId);
 
     await connectDB();
 
@@ -266,7 +240,6 @@ export async function POST(request: NextRequest) {
         });
         if (existingExpense) {
           // If numero exists, increment counter and try again
-          console.log(`Numero ${numero} already exists, retrying with incremented counter...`);
           retryCount++;
           continue;
         }
