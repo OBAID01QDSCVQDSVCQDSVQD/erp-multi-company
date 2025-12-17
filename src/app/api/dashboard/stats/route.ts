@@ -14,13 +14,13 @@ import mongoose from 'mongoose';
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }
 
     const tenantId = request.headers.get('X-Tenant-Id') || session.user.companyId;
-    
+
     if (!tenantId) {
       return NextResponse.json({ error: 'Tenant ID manquant' }, { status: 400 });
     }
@@ -32,12 +32,14 @@ export async function GET(request: NextRequest) {
     const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
 
-    // Convert tenantId to ObjectId for models that use ObjectId (PaiementClient, PaiementFournisseur)
+    // For historical charts (last 6 months)
+    const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+
+    // Convert tenantId to ObjectId for models that use ObjectId
     let tenantObjectId: mongoose.Types.ObjectId;
     try {
       tenantObjectId = new mongoose.Types.ObjectId(tenantId);
     } catch (error) {
-      // If tenantId is not a valid ObjectId, try to find it as string
       console.warn('tenantId is not a valid ObjectId, using as string for Paiement models');
       tenantObjectId = tenantId as any;
     }
@@ -64,153 +66,133 @@ export async function GET(request: NextRequest) {
       lowStockProducts,
       recentInvoices,
       recentPayments,
+      monthlyRevenue,
+      monthlyExpenses,
+      topProducts
     ] = await Promise.all([
-      // Clients - uses 'actif' not 'isActive'
+      // ... existing single value queries ...
       (Customer as any).countDocuments({ tenantId, actif: true }),
-      
-      // Fournisseurs - uses 'actif' not 'isActive'
       (Supplier as any).countDocuments({ tenantId, actif: true }),
-      
-      // Produits - uses 'actif' not 'isActive'
       (Product as any).countDocuments({ tenantId, actif: true }),
-      
-      // Factures clients (total) - Document uses 'totalTTC' directly, not 'totaux.totalTTC'
       (Document as any).countDocuments({ tenantId, type: 'FAC' }),
-      
-      // Devis (total)
       (Document as any).countDocuments({ tenantId, type: 'DEVIS' }),
-      
-      // Bons de livraison (total)
       (Document as any).countDocuments({ tenantId, type: 'BL' }),
-      
-      // Factures fournisseurs (total) - uses 'societeId' not 'tenantId'
       (PurchaseInvoice as any).countDocuments({ societeId: tenantId }),
-      
-      // Factures clients ce mois
-      (Document as any).countDocuments({
-        tenantId,
-        type: 'FAC',
-        dateDoc: { $gte: startOfMonth },
-      }),
-      
-      // Factures clients mois dernier
-      (Document as any).countDocuments({
-        tenantId,
-        type: 'FAC',
-        dateDoc: { $gte: startOfLastMonth, $lte: endOfLastMonth },
-      }),
-      
-      // Factures fournisseurs ce mois - uses 'societeId' and 'dateFacture' not 'dateDoc'
-      (PurchaseInvoice as any).countDocuments({
-        societeId: tenantId,
-        dateFacture: { $gte: startOfMonth },
-      }),
-      
-      // Factures fournisseurs mois dernier
-      (PurchaseInvoice as any).countDocuments({
-        societeId: tenantId,
-        dateFacture: { $gte: startOfLastMonth, $lte: endOfLastMonth },
-      }),
-      
-      // Chiffre d'affaires ce mois (factures clients) - Document uses 'totalTTC' directly
+
+      // Invoices counts
+      (Document as any).countDocuments({ tenantId, type: 'FAC', dateDoc: { $gte: startOfMonth } }),
+      (Document as any).countDocuments({ tenantId, type: 'FAC', dateDoc: { $gte: startOfLastMonth, $lte: endOfLastMonth } }),
+
+      // Purchase Invoices counts
+      (PurchaseInvoice as any).countDocuments({ societeId: tenantId, dateFacture: { $gte: startOfMonth } }),
+      (PurchaseInvoice as any).countDocuments({ societeId: tenantId, dateFacture: { $gte: startOfLastMonth, $lte: endOfLastMonth } }),
+
+      // Revenue this month
       (Document as any).aggregate([
-        {
-          $match: {
-            tenantId,
-            type: 'FAC',
-            dateDoc: { $gte: startOfMonth },
-          },
-        },
-        {
-          $group: {
-            _id: null,
-            total: { $sum: '$totalTTC' },
-          },
-        },
+        { $match: { tenantId, type: 'FAC', dateDoc: { $gte: startOfMonth } } },
+        { $group: { _id: null, total: { $sum: '$totalTTC' } } }
       ]),
-      
-      // Chiffre d'affaires mois dernier
+      // Revenue last month
       (Document as any).aggregate([
-        {
-          $match: {
-            tenantId,
-            type: 'FAC',
-            dateDoc: { $gte: startOfLastMonth, $lte: endOfLastMonth },
-          },
-        },
-        {
-          $group: {
-            _id: null,
-            total: { $sum: '$totalTTC' },
-          },
-        },
+        { $match: { tenantId, type: 'FAC', dateDoc: { $gte: startOfLastMonth, $lte: endOfLastMonth } } },
+        { $group: { _id: null, total: { $sum: '$totalTTC' } } }
       ]),
-      
-      // Dépenses ce mois (factures fournisseurs) - uses 'societeId' and 'dateFacture' and 'totaux.totalTTC'
+
+      // Expenses this month
       (PurchaseInvoice as any).aggregate([
-        {
-          $match: {
-            societeId: tenantId,
-            dateFacture: { $gte: startOfMonth },
-          },
-        },
-        {
-          $group: {
-            _id: null,
-            total: { $sum: '$totaux.totalTTC' },
-          },
-        },
+        { $match: { societeId: tenantId, dateFacture: { $gte: startOfMonth } } },
+        { $group: { _id: null, total: { $sum: '$totaux.totalTTC' } } }
       ]),
-      
-      // Dépenses mois dernier
+      // Expenses last month
       (PurchaseInvoice as any).aggregate([
-        {
-          $match: {
-            societeId: tenantId,
-            dateFacture: { $gte: startOfLastMonth, $lte: endOfLastMonth },
-          },
-        },
-        {
-          $group: {
-            _id: null,
-            total: { $sum: '$totaux.totalTTC' },
-          },
-        },
+        { $match: { societeId: tenantId, dateFacture: { $gte: startOfLastMonth, $lte: endOfLastMonth } } },
+        { $group: { _id: null, total: { $sum: '$totaux.totalTTC' } } }
       ]),
-      
-      // Paiements clients (total) - uses 'societeId' (ObjectId) not 'tenantId' (string)
+
       (PaiementClient as any).countDocuments({ societeId: tenantObjectId }),
-      
-      // Paiements fournisseurs (total) - uses 'societeId' (ObjectId) not 'tenantId' (string)
       (PaiementFournisseur as any).countDocuments({ societeId: tenantObjectId }),
-      
-      // Produits en stock faible - uses 'actif' not 'isActive'
+
+      // Low stock
       (Product as any).countDocuments({
-        tenantId,
-        actif: true,
-        estStocke: true,
-        $expr: {
-          $lte: ['$stockActuel', '$min'],
-        },
+        tenantId, actif: true, estStocke: true,
+        $expr: { $lte: ['$stockActuel', '$min'] }
       }),
-      
-      // Factures récentes (5 dernières) - Document uses 'totalTTC' directly
-      (Document as any)
-        .find({ tenantId, type: 'FAC' })
-        .sort({ dateDoc: -1 })
-        .limit(5)
+
+      // Recent Invoices
+      (Document as any).find({ tenantId, type: 'FAC' })
+        .sort({ dateDoc: -1 }).limit(5)
         .populate('customerId', 'raisonSociale nom prenom type')
         .lean(),
-      
-      // Paiements récents (5 derniers) - uses 'societeId' (ObjectId)
-      (PaiementClient as any)
-        .find({ societeId: tenantObjectId })
-        .sort({ datePaiement: -1 })
-        .limit(5)
+
+      // Recent Payments
+      (PaiementClient as any).find({ societeId: tenantObjectId })
+        .sort({ datePaiement: -1 }).limit(5)
         .lean(),
+
+      // [NEW] Monthly Revenue History (Last 6 Months)
+      (Document as any).aggregate([
+        {
+          $match: {
+            tenantId,
+            type: 'FAC',
+            dateDoc: { $gte: sixMonthsAgo }
+          }
+        },
+        {
+          $group: {
+            _id: {
+              month: { $month: "$dateDoc" },
+              year: { $year: "$dateDoc" }
+            },
+            total: { $sum: "$totalTTC" }
+          }
+        },
+        { $sort: { "_id.year": 1, "_id.month": 1 } }
+      ]),
+
+      // [NEW] Monthly Expenses History (Last 6 Months)
+      (PurchaseInvoice as any).aggregate([
+        {
+          $match: {
+            societeId: tenantId,
+            dateFacture: { $gte: sixMonthsAgo }
+          }
+        },
+        {
+          $group: {
+            _id: {
+              month: { $month: "$dateFacture" },
+              year: { $year: "$dateFacture" }
+            },
+            total: { $sum: "$totaux.totalTTC" }
+          }
+        },
+        { $sort: { "_id.year": 1, "_id.month": 1 } }
+      ]),
+
+      // [NEW] Top Selling Products
+      (Document as any).aggregate([
+        {
+          $match: {
+            tenantId,
+            type: 'FAC',
+            dateDoc: { $gte: startOfMonth } // Top products this month
+          }
+        },
+        { $unwind: "$lignes" },
+        {
+          $group: {
+            _id: "$lignes.designation",
+            totalSales: { $sum: "$lignes.quantite" },
+            revenue: { $sum: { $multiply: ["$lignes.quantite", "$lignes.prixUnitaireHT"] } }
+          }
+        },
+        { $sort: { revenue: -1 } },
+        { $limit: 5 }
+      ])
     ]);
 
-    // Calculer les pourcentages de changement
+    // ... Calculations ...
     const invoiceChange = invoicesLastMonth > 0
       ? ((invoicesThisMonth - invoicesLastMonth) / invoicesLastMonth * 100).toFixed(1)
       : invoicesThisMonth > 0 ? '100' : '0';
@@ -231,7 +213,27 @@ export async function GET(request: NextRequest) {
       ? ((expenses - lastExpenses) / lastExpenses * 100).toFixed(1)
       : expenses > 0 ? '100' : '0';
 
-    // Formater les factures récentes
+    // Format Data Structure for Charts
+    const monthNames = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
+
+    // Merge revenue and expenses by month
+    const chartData = [];
+    const today = new Date();
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+      const monthIndex = d.getMonth() + 1;
+      const year = d.getFullYear();
+
+      const revEntry = monthlyRevenue.find((r: any) => r._id.month === monthIndex && r._id.year === year);
+      const expEntry = monthlyExpenses.find((e: any) => e._id.month === monthIndex && e._id.year === year);
+
+      chartData.push({
+        name: monthNames[d.getMonth()],
+        revenus: revEntry ? revEntry.total : 0,
+        depenses: expEntry ? expEntry.total : 0
+      });
+    }
+
     const formattedRecentInvoices = recentInvoices.map((inv: any) => ({
       id: inv._id,
       numero: inv.numero,
@@ -242,9 +244,9 @@ export async function GET(request: NextRequest) {
           : `${inv.customerId.nom || ''} ${inv.customerId.prenom || ''}`.trim())
         : 'N/A',
       total: inv.totalTTC || 0,
+      status: inv.statut // Added status
     }));
 
-    // Formater les paiements récents
     const formattedRecentPayments = recentPayments.map((pay: any) => ({
       id: pay._id,
       numero: pay.numero,
@@ -253,62 +255,47 @@ export async function GET(request: NextRequest) {
       montant: pay.montantTotal || 0,
     }));
 
+    const formattedTopProducts = topProducts.map((p: any) => ({
+      name: p._id,
+      value: p.revenue
+    }));
+
     return NextResponse.json({
       stats: {
-        customers: {
-          total: totalCustomers,
-          label: 'Clients',
-        },
-        suppliers: {
-          total: totalSuppliers,
-          label: 'Fournisseurs',
-        },
-        products: {
-          total: totalProducts,
-          label: 'Produits',
-        },
+        customers: { total: totalCustomers, label: 'Clients' },
+        suppliers: { total: totalSuppliers, label: 'Fournisseurs' },
+        products: { total: totalProducts, label: 'Produits' },
         invoices: {
           total: totalInvoices,
           thisMonth: invoicesThisMonth,
           change: parseFloat(invoiceChange),
-          label: 'Factures clients',
+          label: 'Factures clients'
         },
-        quotes: {
-          total: totalQuotes,
-          label: 'Devis',
-        },
-        deliveries: {
-          total: totalDeliveries,
-          label: 'Bons de livraison',
-        },
+        quotes: { total: totalQuotes, label: 'Devis' },
+        deliveries: { total: totalDeliveries, label: 'Bons de livraison' },
         purchaseInvoices: {
           total: totalPurchaseInvoices,
           thisMonth: purchaseInvoicesThisMonth,
           change: parseFloat(purchaseInvoiceChange),
-          label: 'Factures fournisseurs',
+          label: 'Factures fournisseurs'
         },
         revenue: {
           total: revenue || 0,
           change: parseFloat(revenueChange),
-          label: 'Chiffre d\'affaires',
+          label: 'Chiffre d\'affaires'
         },
         expenses: {
           total: expenses || 0,
           change: parseFloat(expensesChange),
-          label: 'Dépenses',
+          label: 'Dépenses'
         },
-        customerPayments: {
-          total: totalCustomerPayments,
-          label: 'Paiements clients',
-        },
-        supplierPayments: {
-          total: totalSupplierPayments,
-          label: 'Paiements fournisseurs',
-        },
-        lowStock: {
-          total: lowStockProducts,
-          label: 'Alertes stock',
-        },
+        customerPayments: { total: totalCustomerPayments, label: 'Paiements clients' },
+        supplierPayments: { total: totalSupplierPayments, label: 'Paiements fournisseurs' },
+        lowStock: { total: lowStockProducts, label: 'Alertes stock' },
+      },
+      charts: {
+        revenue: chartData,
+        topProducts: formattedTopProducts
       },
       recent: {
         invoices: formattedRecentInvoices,

@@ -6,7 +6,7 @@ import Customer from '@/lib/models/Customer';
 export async function GET(request: NextRequest) {
   try {
     await connectMongo();
-    
+
     const tenantId = request.headers.get('X-Tenant-Id');
     if (!tenantId) {
       return NextResponse.json({ error: 'Tenant ID manquant' }, { status: 401 });
@@ -59,15 +59,15 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit;
 
     const [items, total] = await Promise.all([
-      Customer.find(query).sort(sort).skip(skip).limit(limit).lean(),
-      Customer.countDocuments(query)
+      (Customer as any).find(query).sort(sort).skip(skip).limit(limit).lean(),
+      (Customer as any).countDocuments(query)
     ]);
 
     // Facets pour filtres
     const [villes, gouvernorats, commerciaux] = await Promise.all([
-      Customer.distinct('adresseFacturation.ville', { tenantId, archive: false }),
-      Customer.distinct('adresseFacturation.gouvernorat', { tenantId, archive: false }),
-      Customer.distinct('commercialId', { tenantId, archive: false })
+      (Customer as any).distinct('adresseFacturation.ville', { tenantId, archive: false }),
+      (Customer as any).distinct('adresseFacturation.gouvernorat', { tenantId, archive: false }),
+      (Customer as any).distinct('commercialId', { tenantId, archive: false })
     ]);
 
     return NextResponse.json({
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
 
   try {
     await connectMongo();
-    
+
     tenantId = request.headers.get('X-Tenant-Id');
     if (!tenantId) {
       return NextResponse.json({ error: 'Tenant ID manquant' }, { status: 401 });
@@ -152,7 +152,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(customer, { status: 201 });
   } catch (error: any) {
     console.error('Erreur POST /customers:', error);
-    
+
     if (error.code === 11000) {
       const keyPattern = error.keyPattern || {};
       const keyValue = error.keyValue || {};
@@ -206,7 +206,7 @@ export async function POST(request: NextRequest) {
         { status: 409 }
       );
     }
-    
+
     return NextResponse.json(
       { error: 'Erreur serveur', details: error.message },
       { status: 500 }
