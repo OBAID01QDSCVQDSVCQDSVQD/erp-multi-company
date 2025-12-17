@@ -48,7 +48,7 @@ export interface IProduct extends Document {
   createdBy?: string;
 }
 
-const ProductSchema = new Schema<IProduct>({
+const ProductSchema = new Schema<any>({
   tenantId: { type: String, required: true, index: true },
   sku: { type: String, required: true, uppercase: true, trim: true },
   barcode: { type: String, default: undefined },
@@ -89,4 +89,4 @@ ProductSchema.index({ tenantId: 1, sku: 1 }, { unique: true });
 ProductSchema.index({ tenantId: 1, categorieCode: 1, actif: 1 });
 ProductSchema.index({ nom: 'text', description: 'text', tags: 'text' });
 
-export default mongoose.models.Product || mongoose.model<IProduct>('Product', ProductSchema);
+export default (mongoose.models.Product as any) || mongoose.model<any>('Product', ProductSchema);
