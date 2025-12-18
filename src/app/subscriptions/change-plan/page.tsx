@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
-import { 
+import {
   CreditCardIcon,
   CheckCircleIcon,
   XMarkIcon,
@@ -16,77 +16,56 @@ import {
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 
-const plans = {
-  free: {
-    name: 'Gratuit',
-    price: 0,
-    currency: 'DT',
-    period: '/mois',
-    description: 'Parfait pour tester et démarrer',
-    icon: SparklesIcon,
-    color: 'from-gray-400 to-gray-600',
-    borderColor: 'border-gray-300',
-    buttonColor: 'from-gray-600 to-gray-700',
-    limit: '100 documents/an',
-    features: [
-      '100 documents par an',
-      'Gestion multi-entreprises',
-      'Clients et fournisseurs illimités',
-      'Gestion du stock',
-      'Facturation de base',
-      'Rapports basiques',
-      'Support par email',
-    ],
-  },
-  starter: {
-    name: 'Starter',
-    price: 20,
-    currency: 'DT',
-    period: '/mois',
-    description: 'Idéal pour les petites entreprises',
-    icon: RocketLaunchIcon,
-    color: 'from-blue-500 to-indigo-600',
-    borderColor: 'border-blue-400',
-    buttonColor: 'from-blue-600 to-indigo-700',
-    limit: '1,000 documents/an',
-    features: [
-      '1,000 documents par an',
-      'Gestion multi-entreprises',
-      'Clients et fournisseurs illimités',
-      'Gestion du stock avancée',
-      'Facturation complète',
-      'Rapports détaillés',
-      'Support prioritaire',
-      'Export de données',
-      'Personnalisation des documents',
-    ],
-  },
-  premium: {
-    name: 'Premium',
-    price: 40,
-    currency: 'DT',
-    period: '/mois',
-    description: 'Pour les entreprises en croissance',
-    icon: TrophyIcon,
-    color: 'from-purple-500 to-pink-600',
-    borderColor: 'border-purple-400',
-    buttonColor: 'from-purple-600 to-pink-700',
-    limit: 'Illimité',
-    features: [
-      'Documents illimités',
-      'Gestion multi-entreprises',
-      'Clients et fournisseurs illimités',
-      'Gestion du stock avancée',
-      'Facturation complète',
-      'Rapports avancés et analytics',
-      'Support prioritaire 24/7',
-      'Export de données illimité',
-      'Personnalisation complète',
-      'API access',
-      'Intégrations tierces',
-      'Formation personnalisée',
-    ],
-  },
+interface Plan {
+  _id: string;
+  name: string;
+  slug: string;
+  price: number;
+  currency: string;
+  interval: string;
+  features: string[];
+  limits: {
+    maxUsers: number;
+    maxCompanies: number;
+    maxDocuments: number;
+  };
+}
+
+const getPlanStyles = (slug: string) => {
+  switch (slug) {
+    case 'free':
+      return {
+        icon: SparklesIcon,
+        color: 'from-gray-400 to-gray-600',
+        borderColor: 'border-gray-300',
+        buttonColor: 'from-gray-600 to-gray-700',
+        description: 'Parfait pour tester et démarrer',
+      };
+    case 'starter':
+      return {
+        icon: RocketLaunchIcon,
+        color: 'from-blue-500 to-indigo-600',
+        borderColor: 'border-blue-400',
+        buttonColor: 'from-blue-600 to-indigo-700',
+        description: 'Idéal pour les petites entreprises',
+      };
+    case 'premium':
+      return {
+        icon: TrophyIcon,
+        color: 'from-purple-500 to-pink-600',
+        borderColor: 'border-purple-400',
+        buttonColor: 'from-purple-600 to-pink-700',
+        description: 'Pour les entreprises en croissance',
+      };
+    default:
+      return {
+        icon: SparklesIcon,
+        color: 'from-indigo-500 to-indigo-700',
+        borderColor: 'border-indigo-300',
+        buttonColor: 'from-indigo-600 to-indigo-800',
+        description: 'Plan personnalisé',
+      };
+  }
 };
 
 export default function ChangePlanPage() {
@@ -94,6 +73,7 @@ export default function ChangePlanPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [currentSubscription, setCurrentSubscription] = useState<any>(null);
+  const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
@@ -105,13 +85,39 @@ export default function ChangePlanPage() {
     }
 
     if (status === 'authenticated') {
-      const planParam = searchParams.get('plan');
-      if (planParam && ['free', 'starter', 'premium'].includes(planParam)) {
-        setSelectedPlan(planParam);
-      }
-      fetchCurrentSubscription();
+      fetchData();
     }
-  }, [status, searchParams, router]);
+  }, [status]);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      await Promise.all([
+        fetchCurrentSubscription(),
+        fetchPlans()
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchPlans = async () => {
+    try {
+      const response = await fetch('/api/plans');
+      if (response.ok) {
+        const data = await response.json();
+        setPlans(data);
+
+        // Handle plan param from URL
+        const planParam = searchParams.get('plan');
+        if (planParam && data.some((p: Plan) => p.slug === planParam)) {
+          setSelectedPlan(planParam);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching plans:', error);
+    }
+  };
 
   const fetchCurrentSubscription = async () => {
     try {
@@ -126,23 +132,21 @@ export default function ChangePlanPage() {
     } catch (error) {
       console.error('Error fetching subscription:', error);
       toast.error('Erreur lors du chargement de l\'abonnement');
-    } finally {
-      setLoading(false);
     }
   };
 
-  const handleChangePlan = async (planKey: string) => {
+  const handleChangePlan = async (plan: Plan) => {
     if (!session?.user) {
       router.push('/auth/signin');
       return;
     }
 
-    if (currentSubscription?.plan === planKey) {
+    if (currentSubscription?.plan === plan.slug) {
       toast.error('Vous êtes déjà sur ce plan');
       return;
     }
 
-    if (currentSubscription?.pendingPlanChange === planKey) {
+    if (currentSubscription?.pendingPlanChange === plan.slug) {
       toast.error('Vous avez déjà une demande en attente pour ce plan');
       return;
     }
@@ -155,7 +159,7 @@ export default function ChangePlanPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          plan: planKey,
+          plan: plan.slug,
           status: 'active',
         }),
       });
@@ -166,16 +170,16 @@ export default function ChangePlanPage() {
       }
 
       const data = await response.json();
-      
+
       if (data.pendingApproval) {
-        toast.success(`Demande de changement vers ${plans[planKey as keyof typeof plans].name} envoyée. En attente d'approbation de l'administrateur.`);
+        toast.success(`Demande de changement vers ${plan.name} envoyée. En attente d'approbation de l'administrateur.`);
       } else {
-        toast.success(`Plan changé avec succès vers ${plans[planKey as keyof typeof plans].name}`);
+        toast.success(`Plan changé avec succès vers ${plan.name}`);
       }
-      
+
       // Refresh subscription data
       await fetchCurrentSubscription();
-      
+
       // Redirect to subscriptions page after 2 seconds
       setTimeout(() => {
         router.push('/subscriptions');
@@ -203,7 +207,8 @@ export default function ChangePlanPage() {
   }
 
   const currentPlanKey = currentSubscription?.plan || 'free';
-  const currentPlan = plans[currentPlanKey as keyof typeof plans];
+  const currentPlan = plans.find(p => p.slug === currentPlanKey);
+  const currentPlanStyles = currentPlan ? getPlanStyles(currentPlan.slug) : getPlanStyles('free');
 
   return (
     <DashboardLayout>
@@ -220,15 +225,15 @@ export default function ChangePlanPage() {
           </div>
 
           {/* Current Plan Info */}
-          {currentSubscription && (
-            <div className="mb-8 bg-white rounded-lg shadow-md p-6 border-2 border-indigo-200">
+          {currentPlan && (
+            <div className={`mb-8 bg-white rounded-lg shadow-md p-6 border-2 ${currentPlanStyles.borderColor}`}>
               <div className="flex items-center justify-between">
                 <div className="flex-1">
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">
                     Plan Actuel: {currentPlan.name}
                   </h3>
                   <p className="text-sm text-gray-600">
-                    {currentPlan.limit} • {currentPlan.price} {currentPlan.currency}{currentPlan.period}
+                    {currentPlan.limits?.maxDocuments === -1 ? 'Documents Illimités' : `${currentPlan.limits?.maxDocuments ?? 100} documents`} • {currentPlan.price} {currentPlan.currency}/{currentPlan.interval === 'month' ? 'mois' : 'an'}
                   </p>
                   {currentSubscription.documentsUsed !== undefined && (
                     <p className="text-sm text-gray-500 mt-1">
@@ -238,7 +243,7 @@ export default function ChangePlanPage() {
                   {currentSubscription.pendingPlanChange && (
                     <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                       <p className="text-sm font-medium text-yellow-800">
-                        ⏳ Demande en attente: Changement vers {plans[currentSubscription.pendingPlanChange as keyof typeof plans]?.name || currentSubscription.pendingPlanChange}
+                        ⏳ Demande en attente: Changement vers {plans.find(p => p.slug === currentSubscription.pendingPlanChange)?.name || currentSubscription.pendingPlanChange}
                       </p>
                       <p className="text-xs text-yellow-600 mt-1">
                         En attente d'approbation de l'administrateur
@@ -255,63 +260,77 @@ export default function ChangePlanPage() {
 
           {/* Plans Grid */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-10 mb-8">
-            {Object.entries(plans).map(([planKey, plan]) => {
-              const isCurrentPlan = currentPlanKey === planKey;
-              const PlanIcon = plan.icon;
-              
+            {plans.map((plan) => {
+              const isCurrentPlan = currentPlanKey === plan.slug;
+              const styles = getPlanStyles(plan.slug);
+              const PlanIcon = styles.icon;
+
               return (
                 <div
-                  key={planKey}
-                  className={`relative bg-white rounded-2xl shadow-xl border-2 ${
-                    isCurrentPlan ? plan.borderColor : 'border-gray-200'
-                  } overflow-hidden transition-all duration-200 hover:shadow-2xl hover:scale-105`}
+                  key={plan._id}
+                  className={`relative bg-white rounded-2xl shadow-xl border-2 ${isCurrentPlan ? styles.borderColor : 'border-gray-200'
+                    } overflow-hidden transition-all duration-200 hover:shadow-2xl hover:scale-105`}
                 >
                   {isCurrentPlan && (
-                    <div className={`absolute top-0 left-0 right-0 bg-gradient-to-r ${plan.color} text-white text-center py-2 text-sm font-semibold`}>
+                    <div className={`absolute top-0 left-0 right-0 bg-gradient-to-r ${styles.color} text-white text-center py-2 text-sm font-semibold`}>
                       Plan Actuel
                     </div>
                   )}
-                  
+
                   <div className={`${isCurrentPlan ? 'pt-12' : 'pt-8'} pb-8 px-8`}>
                     <div className="text-center mb-6">
-                      <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-r ${plan.color} mb-4`}>
+                      <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-r ${styles.color} mb-4`}>
                         <PlanIcon className="h-8 w-8 text-white" />
                       </div>
                       <h3 className="text-2xl font-bold text-gray-900 mb-2">{plan.name}</h3>
-                      <p className="text-gray-600 text-sm mb-4">{plan.description}</p>
+                      <p className="text-gray-600 text-sm mb-4">{styles.description}</p>
                       <div className="mb-4">
                         <span className="text-5xl font-extrabold text-gray-900">{plan.price}</span>
                         <span className="text-xl text-gray-600 ml-1">{plan.currency}</span>
-                        <span className="text-gray-600 ml-1">{plan.period}</span>
+                        <span className="text-gray-600 ml-1">{plan.interval === 'month' ? '/mois' : '/an'}</span>
                       </div>
-                      <div className={`inline-block px-4 py-2 rounded-full text-sm font-medium ${
-                        plan.color.includes('gray') ? 'bg-gray-100 text-gray-700' :
-                        plan.color.includes('blue') ? 'bg-blue-100 text-blue-700' :
-                        'bg-purple-100 text-purple-700'
-                      }`}>
-                        {plan.limit}
+                      <div className={`inline-block px-4 py-2 rounded-full text-sm font-medium ${styles.color.includes('gray') ? 'bg-gray-100 text-gray-700' :
+                        styles.color.includes('blue') ? 'bg-blue-100 text-blue-700' :
+                          'bg-purple-100 text-purple-700'
+                        }`}>
+                        {plan.limits?.maxDocuments === -1
+                          ? 'Documents Illimités'
+                          : `${(plan.limits?.maxDocuments ?? 100).toLocaleString()} documents`}
                       </div>
                     </div>
 
                     <ul className="space-y-4 mb-8">
-                      {plan.features.map((feature, idx) => (
-                        <li key={idx} className="flex items-start">
-                          <CheckCircleIcon className="h-6 w-6 text-green-500 mr-3 flex-shrink-0 mt-0.5" />
-                          <span className="text-sm text-gray-700">
-                            {feature}
-                          </span>
-                        </li>
-                      ))}
+                      {/* Dynamic Document Limit Feature */}
+                      <li className="flex items-start">
+                        <CheckCircleIcon className="h-6 w-6 text-green-500 mr-3 flex-shrink-0 mt-0.5" />
+                        <span className="text-sm font-bold text-gray-900 italic">
+                          {plan.limits?.maxDocuments === -1
+                            ? 'Documents illimités'
+                            : `${(plan.limits?.maxDocuments ?? 100).toLocaleString()} documents au total`}
+                        </span>
+                      </li>
+
+                      {/* Other features from database, filtering out any redundant document limit strings */}
+                      {plan.features
+                        .filter(f => !f.toLowerCase().includes('document'))
+                        .map((feature, idx) => (
+                          <li key={idx} className="flex items-start">
+                            <CheckCircleIcon className="h-6 w-6 text-green-500 mr-3 flex-shrink-0 mt-0.5" />
+                            <span className="text-sm text-gray-700">
+                              {feature}
+                            </span>
+                          </li>
+                        ))}
                     </ul>
 
                     <button
-                      onClick={() => handleChangePlan(planKey)}
-                      disabled={isCurrentPlan || submitting || currentSubscription?.pendingPlanChange === planKey}
-                      className={`block w-full text-center px-6 py-3 rounded-lg font-semibold text-white bg-gradient-to-r ${plan.buttonColor} hover:shadow-lg transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none`}
+                      onClick={() => handleChangePlan(plan)}
+                      disabled={isCurrentPlan || submitting || currentSubscription?.pendingPlanChange === plan.slug}
+                      className={`block w-full text-center px-6 py-3 rounded-lg font-semibold text-white bg-gradient-to-r ${styles.buttonColor} hover:shadow-lg transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none`}
                     >
                       {isCurrentPlan ? (
                         'Plan Actuel'
-                      ) : currentSubscription?.pendingPlanChange === planKey ? (
+                      ) : currentSubscription?.pendingPlanChange === plan.slug ? (
                         'Demande en attente'
                       ) : submitting ? (
                         'Envoi de la demande...'

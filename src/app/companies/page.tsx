@@ -1,21 +1,17 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import DashboardLayout from '@/components/Layout/DashboardLayout';
-import { 
-  PlusIcon, 
-  BuildingOfficeIcon, 
-  EnvelopeIcon, 
-  PhoneIcon, 
-  GlobeAltIcon,
-  IdentificationIcon,
-  CreditCardIcon,
-  MapPinIcon,
-  CalendarIcon,
+import { useSession } from 'next-auth/react';
+import AdminLayout from '@/components/Layout/AdminLayout';
+import {
+  MagnifyingGlassIcon,
+  ArrowRightOnRectangleIcon,
+  PowerIcon,
+  TrashIcon,
   CheckCircleIcon,
   XCircleIcon
 } from '@heroicons/react/24/outline';
-import { useTenantId } from '@/hooks/useTenantId';
+import toast from 'react-hot-toast';
 
 interface Company {
   _id: string;
@@ -34,18 +30,35 @@ interface Company {
 }
 
 export default function CompaniesPage() {
-  const { tenantId } = useTenantId();
+  const { data: session } = useSession();
   const [companies, setCompanies] = useState<Company[]>([]);
-  const [companySettings, setCompanySettings] = useState<any>(null);
+  const [filteredCompanies, setFilteredCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const isAdmin = session?.user?.role === 'admin';
 
   useEffect(() => {
-    fetchCompanies();
-    if (tenantId) {
-      fetchCompanySettings();
+    if (isAdmin) {
+      fetchCompanies();
     }
-  }, [tenantId]);
+  }, [isAdmin]);
+
+  useEffect(() => {
+    if (searchQuery.trim() === '') {
+      setFilteredCompanies(companies);
+    } else {
+      const lowerQuery = searchQuery.toLowerCase();
+      setFilteredCompanies(
+        companies.filter(
+          (c) =>
+            c.name.toLowerCase().includes(lowerQuery) ||
+            c.code.toLowerCase().includes(lowerQuery) ||
+            c.contact?.email?.toLowerCase().includes(lowerQuery)
+        )
+      );
+    }
+  }, [searchQuery, companies]);
 
   const fetchCompanies = async () => {
     try {
@@ -53,271 +66,242 @@ export default function CompaniesPage() {
       if (response.ok) {
         const data = await response.json();
         setCompanies(data);
+        setFilteredCompanies(data);
       } else {
-        setError('Erreur lors du chargement des entreprises');
+        toast.error('Erreur lors du chargement des entreprises');
       }
     } catch (err) {
-      setError('Erreur de connexion');
+      toast.error('Erreur de connexion');
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchCompanySettings = async () => {
+  const toggleCompanyStatus = async (companyId: string, currentStatus: boolean) => {
+    if (!confirm("Êtes-vous sûr de vouloir changer le statut de cette entreprise ?")) return;
+
     try {
-      const response = await fetch('/api/settings', {
-        headers: { 'X-Tenant-Id': tenantId },
+      const response = await fetch(`/api/companies/${companyId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: !currentStatus })
       });
-      if (response.ok) {
+
+      if (!response.ok) throw new Error("Erreur serveur");
+
+      toast.success("Statut mis à jour");
+      setCompanies(prev => prev.map(c => c._id === companyId ? { ...c, isActive: !currentStatus } : c));
+    } catch (e) {
+      toast.error("Erreur lors de la mise à jour");
+    }
+  };
+
+  const deleteCompany = async (companyId: string) => {
+    if (!confirm("Êtes-vous sûr de vouloir supprimer cette entreprise DÉFINITIVEMENT ? Cette action est irréversible.")) return;
+
+    try {
+      const response = await fetch(`/api/companies/${companyId}`, {
+        method: 'DELETE'
+      });
+
+      if (!response.ok) throw new Error("Erreur serveur");
+
+      toast.success("Entreprise supprimée");
+      setCompanies(prev => prev.filter(c => c._id !== companyId));
+    } catch (e) {
+      toast.error("Erreur lors de la suppression");
+    }
+  };
+
+  const handleImpersonate = async (companyId: string) => {
+    try {
+      const loadingToast = toast.loading("Connexion à l'entreprise...");
+
+      const response = await fetch('/api/admin/impersonate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ companyId })
+      });
+
+      if (!response.ok) {
         const data = await response.json();
-        setCompanySettings(data);
+        throw new Error(data.error || "Impossible de se connecter");
       }
-    } catch (error) {
-      console.error('Error fetching company settings:', error);
+
+      const { impersonationToken } = await response.json();
+      const { signIn } = await import('next-auth/react');
+
+      const result = await signIn('credentials', {
+        redirect: false,
+        impersonationToken,
+        callbackUrl: '/dashboard'
+      });
+
+      toast.dismiss(loadingToast);
+
+      if (result?.error) {
+        throw new Error("Échec de l'authentification");
+      }
+
+      toast.success("Connexion réussie");
+      window.location.href = '/dashboard';
+
+    } catch (e: any) {
+      toast.dismiss();
+      toast.error(e.message || "Erreur lors de la connexion");
     }
   };
 
   if (loading) {
     return (
-      <DashboardLayout>
+      <AdminLayout>
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-indigo-600"></div>
         </div>
-      </DashboardLayout>
+      </AdminLayout>
+    );
+  }
+
+  // Not Admin ? AdminLayout handles redirect usually, but let's be safe
+  if (!isAdmin) {
+    return (
+      <AdminLayout>
+        <div>Checking permissions...</div>
+      </AdminLayout>
     );
   }
 
   return (
-    <DashboardLayout>
+    <AdminLayout>
       <div className="space-y-6">
-        {/* Header */}
-        <div className="sm:flex sm:items-center sm:justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Entreprises</h1>
-            <p className="mt-2 text-sm text-gray-600">
-              Gérez les informations de votre entreprise
+            <h1 className="text-2xl font-bold text-gray-900">Gestion des Entreprises</h1>
+            <p className="mt-1 text-sm text-gray-500">
+              Administration globale de toutes les entreprises enregistrées.
             </p>
           </div>
         </div>
 
-        {/* Error message */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-            <p className="text-sm text-red-600">{error}</p>
+        {/* Filters and Actions */}
+        <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex flex-col sm:flex-row gap-4 justify-between items-center">
+          <div className="relative w-full sm:w-96">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+            </div>
+            <input
+              type="text"
+              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              placeholder="Rechercher (Nom, Code, Email)..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
           </div>
-        )}
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-500">{filteredCompanies.length} entreprises trouvées</span>
+          </div>
+        </div>
 
-        {/* Company Settings Display */}
-        {companySettings?.societe && (
-          <div className="space-y-6">
-            {/* Company Header Card */}
-            <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl shadow-xl overflow-hidden">
-              <div className="p-8">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-6">
-                    {/* Logo */}
-                    {companySettings.societe.logoUrl && (
-                      <div className="flex-shrink-0">
-                        <img
-                          src={companySettings.societe.logoUrl}
-                          alt="Company Logo"
-                          className="h-24 w-24 rounded-2xl bg-white p-2 object-contain shadow-lg"
-                        />
+        {/* Companies Table */}
+        <div className="bg-white shadow-sm rounded-lg border border-gray-200 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Entreprise
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Contact
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Statut
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Date de création
+                  </th>
+                  <th scope="col" className="relative px-6 py-3">
+                    <span className="sr-only">Actions</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredCompanies.map((company) => (
+                  <tr key={company._id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0 h-10 w-10 bg-indigo-100 rounded-lg flex items-center justify-center text-indigo-600 font-bold text-lg">
+                          {company.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="ml-4">
+                          <div className="text-sm font-medium text-gray-900">{company.name}</div>
+                          <div className="text-sm text-gray-500">Code: <span className="font-mono bg-gray-100 px-1 rounded">{company.code}</span></div>
+                        </div>
                       </div>
-                    )}
-                    
-                    {/* Company Info */}
-                    <div className="text-white">
-                      <h2 className="text-3xl font-bold mb-2">{companySettings.societe.nom}</h2>
-                      {companySettings.societe.enTete?.slogan && (
-                        <p className="text-lg text-indigo-100 italic mb-4">
-                          {companySettings.societe.enTete.slogan}
-                        </p>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        {company.contact?.email || 'N/A'}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {company.contact?.phone || 'N/A'}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {company.isActive ? (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          <CheckCircleIcon className="w-4 h-4 mr-1" />
+                          Active
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                          <XCircleIcon className="w-4 h-4 mr-1" />
+                          Inactive
+                        </span>
                       )}
-                      <div className="flex items-center gap-4 text-sm">
-                        <div className="flex items-center gap-2">
-                          <IdentificationIcon className="h-5 w-5" />
-                          <span className="bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full">
-                            {companySettings.societe.tva || 'N/A'}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <CreditCardIcon className="h-5 w-5" />
-                          <span className="bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full">
-                            {companySettings.societe.devise}
-                          </span>
-                        </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {new Date(company.createdAt).toLocaleDateString('fr-FR')}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => toggleCompanyStatus(company._id, company.isActive)}
+                          className={`p-1 rounded-md transition-colors ${company.isActive ? 'text-red-600 hover:bg-red-50' : 'text-green-600 hover:bg-green-50'}`}
+                          title={company.isActive ? "Désactiver" : "Activer"}
+                        >
+                          <PowerIcon className="h-5 w-5" />
+                        </button>
+                        <button
+                          onClick={() => handleImpersonate(company._id)}
+                          className="p-1 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors"
+                          title="Se connecter en tant que (Impersonate)"
+                        >
+                          <ArrowRightOnRectangleIcon className="h-5 w-5" />
+                        </button>
+                        <button
+                          onClick={() => deleteCompany(company._id)}
+                          className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                          title="Supprimer (Attention)"
+                        >
+                          <TrashIcon className="h-5 w-5" />
+                        </button>
                       </div>
-                    </div>
-                  </div>
-                  
-                  {/* Status Badge */}
-                  <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full">
-                    <CheckCircleIcon className="h-5 w-5 text-green-200" />
-                    <span className="text-white font-medium">Active</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Information Cards Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Address Card */}
-              <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2 bg-blue-50 rounded-lg">
-                    <MapPinIcon className="h-6 w-6 text-blue-600" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-gray-900">Adresse</h3>
-                </div>
-                <div className="space-y-2 text-sm text-gray-600">
-                  <p className="font-medium">{companySettings.societe.adresse.rue}</p>
-                  <p>{companySettings.societe.adresse.ville}, {companySettings.societe.adresse.codePostal}</p>
-                  <p className="text-gray-800 font-medium">{companySettings.societe.adresse.pays}</p>
-                </div>
-              </div>
-
-              {/* Contact Card */}
-              <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2 bg-green-50 rounded-lg">
-                    <PhoneIcon className="h-6 w-6 text-green-600" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-gray-900">Contact</h3>
-                </div>
-                <div className="space-y-3 text-sm">
-                  {companySettings.societe.enTete?.telephone && (
-                    <div className="flex items-center gap-3 text-gray-600">
-                      <PhoneIcon className="h-5 w-5 text-gray-400" />
-                      <span>{companySettings.societe.enTete.telephone}</span>
-                    </div>
-                  )}
-                  {companySettings.societe.enTete?.email && (
-                    <div className="flex items-center gap-3 text-gray-600">
-                      <EnvelopeIcon className="h-5 w-5 text-gray-400" />
-                      <span>{companySettings.societe.enTete.email}</span>
-                    </div>
-                  )}
-                  {companySettings.societe.enTete?.siteWeb && (
-                    <div className="flex items-center gap-3 text-gray-600">
-                      <GlobeAltIcon className="h-5 w-5 text-gray-400" />
-                      <a href={companySettings.societe.enTete.siteWeb} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                        {companySettings.societe.enTete.siteWeb}
-                      </a>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Legal Information */}
-              {(companySettings.societe.enTete?.matriculeFiscal || 
-                companySettings.societe.enTete?.registreCommerce || 
-                companySettings.societe.enTete?.capitalSocial) && (
-                <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="p-2 bg-purple-50 rounded-lg">
-                      <IdentificationIcon className="h-6 w-6 text-purple-600" />
-                    </div>
-                    <h3 className="text-lg font-semibold text-gray-900">Informations légales</h3>
-                  </div>
-                  <div className="space-y-3 text-sm">
-                    {companySettings.societe.enTete?.matriculeFiscal && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-600 font-medium">Matricule fiscal:</span>
-                        <span className="text-gray-900">{companySettings.societe.enTete.matriculeFiscal}</span>
-                      </div>
-                    )}
-                    {companySettings.societe.enTete?.registreCommerce && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-600 font-medium">Régistre de commerce:</span>
-                        <span className="text-gray-900">{companySettings.societe.enTete.registreCommerce}</span>
-                      </div>
-                    )}
-                    {companySettings.societe.enTete?.capitalSocial && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-600 font-medium">Capital social:</span>
-                        <span className="text-gray-900">{companySettings.societe.enTete.capitalSocial}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Banking Information */}
-              {companySettings.societe.piedPage?.coordonneesBancaires && (
-                <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="p-2 bg-orange-50 rounded-lg">
-                      <CreditCardIcon className="h-6 w-6 text-orange-600" />
-                    </div>
-                    <h3 className="text-lg font-semibold text-gray-900">Coordonnées bancaires</h3>
-                  </div>
-                  <div className="space-y-3 text-sm">
-                    {companySettings.societe.piedPage.coordonneesBancaires.banque && (
-                      <div>
-                        <span className="text-gray-600 font-medium">Banque: </span>
-                        <span className="text-gray-900">{companySettings.societe.piedPage.coordonneesBancaires.banque}</span>
-                      </div>
-                    )}
-                    {companySettings.societe.piedPage.coordonneesBancaires.rib && (
-                      <div>
-                        <span className="text-gray-600 font-medium">RIB: </span>
-                        <span className="text-gray-900 font-mono">{companySettings.societe.piedPage.coordonneesBancaires.rib}</span>
-                      </div>
-                    )}
-                    {companySettings.societe.piedPage.coordonneesBancaires.swift && (
-                      <div>
-                        <span className="text-gray-600 font-medium">SWIFT: </span>
-                        <span className="text-gray-900 font-mono">{companySettings.societe.piedPage.coordonneesBancaires.swift}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Footer Information */}
-            {(companySettings.societe.piedPage?.texte || 
-              companySettings.societe.piedPage?.conditionsGenerales || 
-              companySettings.societe.piedPage?.mentionsLegales) && (
-              <div className="bg-gray-50 rounded-xl shadow-lg p-6 border border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Informations supplémentaires</h3>
-                <div className="space-y-4 text-sm text-gray-600">
-                  {companySettings.societe.piedPage.texte && (
-                    <div>
-                      <p className="font-medium text-gray-800 mb-1">Texte personnalisé:</p>
-                      <p className="leading-relaxed">{companySettings.societe.piedPage.texte}</p>
-                    </div>
-                  )}
-                  {companySettings.societe.piedPage.conditionsGenerales && (
-                    <div>
-                      <p className="font-medium text-gray-800 mb-1">Conditions générales:</p>
-                      <p className="leading-relaxed">{companySettings.societe.piedPage.conditionsGenerales}</p>
-                    </div>
-                  )}
-                  {companySettings.societe.piedPage.mentionsLegales && (
-                    <div>
-                      <p className="font-medium text-gray-800 mb-1">Mentions légales:</p>
-                      <p className="leading-relaxed">{companySettings.societe.piedPage.mentionsLegales}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
+                    </td>
+                  </tr>
+                ))}
+                {filteredCompanies.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
+                      Aucune entreprise trouvée pour "{searchQuery}"
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
-        )}
-
-        {/* Empty State */}
-        {!companySettings && !loading && (
-          <div className="text-center py-12 bg-white rounded-xl shadow-lg">
-            <BuildingOfficeIcon className="mx-auto h-16 w-16 text-gray-300" />
-            <h3 className="mt-4 text-lg font-medium text-gray-900">Aucune information disponible</h3>
-            <p className="mt-2 text-sm text-gray-500">
-              Configurez les informations de votre entreprise dans les paramètres.
-            </p>
-          </div>
-        )}
+        </div>
       </div>
-    </DashboardLayout>
+    </AdminLayout>
   );
 }

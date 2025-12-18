@@ -42,14 +42,20 @@ export default function SignInPage() {
       });
 
       if (result?.error) {
-        setError('Email ou mot de passe incorrect');
+        if (result.error.includes('Compte désactivé')) {
+          setError('Votre compte est désactivé. Veuillez contacter l\'administration.');
+        } else if (result.error.includes('Maintenance')) {
+          setError('Le système est actuellement en maintenance. Veuillez réessayer plus tard.');
+        } else {
+          setError('Email ou mot de passe incorrect');
+        }
       } else {
         const session = await getSession();
         if (session) {
           // Redirect based on user role
           const userRole = session.user?.role;
           const hasAllPermissions = session.user?.permissions?.includes('all');
-          
+
           if (userRole === 'admin' || hasAllPermissions) {
             router.push('/dashboard');
           } else {
@@ -124,7 +130,7 @@ export default function SignInPage() {
             <h1 className="text-3xl font-bold text-gray-900 mb-2">ERP Multi-Entreprises</h1>
             <p className="text-gray-600">Gérez votre entreprise efficacement</p>
           </div>
-          
+
           <div className="bg-white py-8 px-6 shadow-xl rounded-2xl sm:px-10 border border-gray-100">
             <div className="mb-8">
               <h2 className="text-2xl font-bold text-gray-900 text-center">

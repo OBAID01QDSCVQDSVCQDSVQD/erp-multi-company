@@ -24,20 +24,20 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '50');
 
-    const query: any = { 
-      tenantId, 
-      type: 'BL' 
+    const query: any = {
+      tenantId,
+      type: 'BL'
     };
-    
+
     if (customerId) query.customerId = customerId;
-    
+
     // Get all deliveries - don't use select() to ensure all fields including projetId are returned
     let deliveries = await (Document as any).find(query)
       .sort('-createdAt')
       .skip((page - 1) * limit)
       .limit(limit)
       .lean();
-    
+
     // Manually select only the fields we need, ensuring projetId is included
     deliveries = deliveries.map((d: any) => ({
       _id: d._id,
@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
           .map((id: any) => id.toString())
       ),
     ];
-    
+
     if (customerIds.length > 0) {
       const customers = await (Customer as any)
         .find({
@@ -71,9 +71,9 @@ export async function GET(request: NextRequest) {
         })
         .select('nom prenom raisonSociale')
         .lean();
-      
+
       const customerMap = new Map(customers.map((c: any) => [c._id.toString(), c]));
-      
+
       for (const delivery of deliveries) {
         if (delivery.customerId) {
           const key = delivery.customerId.toString();
@@ -129,7 +129,14 @@ export async function POST(request: NextRequest) {
     await connectDB();
 
     const tenantId = session.user.companyId?.toString() || '';
-    
+
+    // Check Subscription Limit
+    const { checkSubscriptionLimit } = await import('@/lib/subscription-check');
+    const limitCheck = await checkSubscriptionLimit(tenantId);
+    if (!limitCheck.allowed) {
+      return NextResponse.json({ error: limitCheck.error }, { status: 403 });
+    }
+
     // Generate numero
     const numero = await NumberingService.next(tenantId, 'bl');
 
@@ -165,6 +172,16 @@ export async function POST(request: NextRequest) {
     // Create stock movements for all products
     await createStockMovementsForDelivery(delivery, tenantId, session.user.email, projectId);
 
+    // Log action
+    const { logAction } = await import('@/lib/logger');
+    await logAction(
+      session,
+      'CREATE_DELIVERY',
+      'Sales',
+      `Created BL ${delivery.numero}`,
+      { deliveryId: delivery._id, totalTTC: delivery.totalTTC }
+    );
+
     return NextResponse.json(delivery, { status: 201 });
   } catch (error) {
     console.error('Erreur POST /sales/deliveries:', error);
@@ -191,7 +208,7 @@ function calculateDocumentTotals(doc: any) {
     if (line.tvaPct) {
       const tvaAmount = montantHT * (line.tvaPct / 100);
       totalTVA += tvaAmount;
-      
+
       if (!taxGroups[line.taxCode || 'DEFAULT']) {
         taxGroups[line.taxCode || 'DEFAULT'] = 0;
       }
@@ -201,7 +218,7 @@ function calculateDocumentTotals(doc: any) {
 
   doc.totalBaseHT = Math.round(totalBaseHT * 100) / 100;
   doc.totalTVA = Math.round(totalTVA * 100) / 100;
-  
+
   // Add timbre fiscal if it exists in the document
   const timbreFiscal = doc.timbreFiscal || 0;
   doc.totalTTC = doc.totalBaseHT + doc.totalTVA + timbreFiscal;
@@ -233,7 +250,7 @@ async function createStockMovementsForDelivery(
     try {
       // Convert productId to string for consistency
       const productIdStr = line.productId.toString();
-      
+
       // Find product using ObjectId first, then string
       let product = null;
       try {

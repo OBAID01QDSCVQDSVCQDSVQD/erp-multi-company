@@ -38,10 +38,10 @@ export default function Header({ onMenuClick }: HeaderProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const adminContainerRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
-  
+
   // Check if user is the specific admin
   const isSystemAdmin = session?.user?.email === 'admin@entreprise-demo.com';
-  
+
   // Check if user is admin (role or permissions) - use useMemo to recalculate when session changes
   const isAdmin = useMemo(() => {
     if (!session?.user) return false;
@@ -87,7 +87,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
     const userRole = session?.user?.role;
     const hasAllPermissions = session?.user?.permissions?.includes('all');
     const isUserAdmin = userRole === 'admin' || hasAllPermissions;
-    
+
     if (session?.user && isUserAdmin) {
       fetchNotifications();
     }
@@ -187,7 +187,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
   const handleMouseLeave = () => {
     timeoutRef.current = setTimeout(() => {
       setUserMenuOpen(false);
-    }, 150);
+    }, 300);
   };
 
   const handleMouseEnter = () => {
@@ -201,7 +201,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
   const handleAdminMenuLeave = () => {
     adminTimeoutRef.current = setTimeout(() => {
       setAdminMenuOpen(false);
-    }, 150);
+    }, 300);
   };
 
   const handleAdminMenuEnter = () => {
@@ -213,7 +213,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
   };
 
   return (
-    <div className="relative z-10 flex-shrink-0 flex h-16 bg-white shadow" style={{ overflow: 'visible' }}>
+    <div className="relative z-40 flex-shrink-0 flex h-16 bg-white shadow" style={{ overflow: 'visible' }}>
       <button
         type="button"
         className="px-4 border-r border-gray-200 text-gray-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500 lg:hidden relative z-50"
@@ -246,101 +246,100 @@ export default function Header({ onMenuClick }: HeaderProps) {
           {/* Notifications - Only for admin */}
           {isAdmin && (
             <div className="relative mr-2" ref={notifRef}>
-            <button
-              type="button"
-              onClick={() =>
-                setNotifOpen((open) => {
-                  const next = !open;
-                  // When opening the panel, mark all as read so the red badge disappears
-                  if (!open && next && unreadCount > 0) {
-                    markAsRead();
-                  }
-                  return next;
-                })
-              }
-              className="bg-white p-1 rounded-full text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 relative"
-            >
-              <BellIcon className="h-6 w-6" />
-              {unreadCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 inline-flex items-center justify-center px-1.5 py-0.5 rounded-full text-xs font-semibold bg-red-500 text-white">
-                  {unreadCount > 9 ? '9+' : unreadCount}
-                </span>
-              )}
-            </button>
-            {notifOpen && (
-              <div className="origin-top-right absolute right-0 mt-2 w-80 rounded-lg shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50">
-                <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-                  <span className="text-sm font-semibold text-gray-800">
-                    Notifications
+              <button
+                type="button"
+                onClick={() =>
+                  setNotifOpen((open) => {
+                    const next = !open;
+                    // When opening the panel, mark all as read so the red badge disappears
+                    if (!open && next && unreadCount > 0) {
+                      markAsRead();
+                    }
+                    return next;
+                  })
+                }
+                className="bg-white p-1 rounded-full text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 relative"
+              >
+                <BellIcon className="h-6 w-6" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 inline-flex items-center justify-center px-1.5 py-0.5 rounded-full text-xs font-semibold bg-red-500 text-white">
+                    {unreadCount > 9 ? '9+' : unreadCount}
                   </span>
-                  {unreadCount > 0 && (
-                    <button
-                      onClick={() => markAsRead()}
-                      className="text-xs text-indigo-600 hover:text-indigo-800"
-                    >
-                      Tout marquer comme lu
-                    </button>
-                  )}
-                </div>
-                <div className="max-h-80 overflow-y-auto">
-                  {loadingNotifs ? (
-                    <div className="py-6 text-center text-gray-500 text-sm">
-                      Chargement...
-                    </div>
-                  ) : notifications.length === 0 ? (
-                    <div className="py-6 text-center text-gray-500 text-sm">
-                      Aucune notification
-                    </div>
-                  ) : (
-                    <ul className="divide-y divide-gray-100">
-                      {notifications.map((notif) => (
-                        <li
-                          key={notif._id}
-                          className={`px-4 py-3 text-sm cursor-pointer hover:bg-gray-50 ${
-                            notif.status === 'unread' ? 'bg-indigo-50' : ''
-                          }`}
-                          onClick={() =>
-                            markAsRead(notif._id, notif.link || undefined)
-                          }
-                        >
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1 pr-2">
-                              <p className="font-medium text-gray-900">
-                                {notif.title}
-                              </p>
-                              <p className="text-xs text-gray-600 mt-0.5 line-clamp-2">
-                                {notif.message}
-                              </p>
-                              <p className="text-[11px] text-gray-400 mt-1">
-                                {formatDate(notif.createdAt)}
-                              </p>
+                )}
+              </button>
+              {notifOpen && (
+                <div className="origin-top-right absolute right-0 mt-2 w-80 rounded-lg shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50">
+                  <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+                    <span className="text-sm font-semibold text-gray-800">
+                      Notifications
+                    </span>
+                    {unreadCount > 0 && (
+                      <button
+                        onClick={() => markAsRead()}
+                        className="text-xs text-indigo-600 hover:text-indigo-800"
+                      >
+                        Tout marquer comme lu
+                      </button>
+                    )}
+                  </div>
+                  <div className="max-h-80 overflow-y-auto">
+                    {loadingNotifs ? (
+                      <div className="py-6 text-center text-gray-500 text-sm">
+                        Chargement...
+                      </div>
+                    ) : notifications.length === 0 ? (
+                      <div className="py-6 text-center text-gray-500 text-sm">
+                        Aucune notification
+                      </div>
+                    ) : (
+                      <ul className="divide-y divide-gray-100">
+                        {notifications.map((notif) => (
+                          <li
+                            key={notif._id}
+                            className={`px-4 py-3 text-sm cursor-pointer hover:bg-gray-50 ${notif.status === 'unread' ? 'bg-indigo-50' : ''
+                              }`}
+                            onClick={() =>
+                              markAsRead(notif._id, notif.link || undefined)
+                            }
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1 pr-2">
+                                <p className="font-medium text-gray-900">
+                                  {notif.title}
+                                </p>
+                                <p className="text-xs text-gray-600 mt-0.5 line-clamp-2">
+                                  {notif.message}
+                                </p>
+                                <p className="text-[11px] text-gray-400 mt-1">
+                                  {formatDate(notif.createdAt)}
+                                </p>
+                              </div>
+                              {notif.status === 'unread' && (
+                                <span className="mt-1 inline-flex h-2 w-2 rounded-full bg-indigo-500" />
+                              )}
                             </div>
-                            {notif.status === 'unread' && (
-                              <span className="mt-1 inline-flex h-2 w-2 rounded-full bg-indigo-500" />
-                            )}
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                  <div className="px-4 py-2 border-t border-gray-100 text-xs text-right">
+                    <Link
+                      href="/notifications"
+                      className="text-indigo-600 hover:text-indigo-800"
+                      onClick={() => setNotifOpen(false)}
+                    >
+                      Voir toutes les notifications
+                    </Link>
+                  </div>
                 </div>
-                <div className="px-4 py-2 border-t border-gray-100 text-xs text-right">
-                  <Link
-                    href="/notifications"
-                    className="text-indigo-600 hover:text-indigo-800"
-                    onClick={() => setNotifOpen(false)}
-                  >
-                    Voir toutes les notifications
-                  </Link>
-                </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
           )}
 
           {/* Administration Dropdown - Only for admin@entreprise-demo.com */}
           {isSystemAdmin && (
-            <div 
+            <div
               ref={adminContainerRef}
               className="ml-3 relative"
               style={{ zIndex: 1000, overflow: 'visible' }}
@@ -396,7 +395,33 @@ export default function Header({ onMenuClick }: HeaderProps) {
             </div>
           )}
 
-          <div 
+          {/* Back to Admin Button (Impersonation Mode) */}
+          {(session?.user as any)?.isImpersonating && (
+            <button
+              onClick={async () => {
+                try {
+                  const res = await fetch('/api/admin/unimpersonate', { method: 'POST' });
+                  if (res.ok) {
+                    const { impersonationToken } = await res.json();
+                    const { signIn } = await import('next-auth/react');
+                    await signIn('credentials', {
+                      impersonationToken,
+                      redirect: false
+                    });
+                    window.location.href = '/admin';
+                  }
+                } catch (e) {
+                  console.error(e);
+                }
+              }}
+              className="mr-4 flex items-center px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-sm font-medium hover:bg-amber-200 transition-colors border border-amber-300 shadow-sm animate-pulse"
+            >
+              <span className="mr-1">⚠️</span>
+              <span>Retour Admin</span>
+            </button>
+          )}
+
+          <div
             ref={containerRef}
             className="ml-3 relative"
             style={{ zIndex: 1000 }}
@@ -423,13 +448,13 @@ export default function Header({ onMenuClick }: HeaderProps) {
               )}
               <div className="text-left">
                 <p className="text-sm font-medium text-gray-700">{session?.user?.name}</p>
-                <p className="text-xs text-gray-500">{session?.user?.companyName}</p>
+                <p className="text-xs text-gray-500 capitalize">{session?.user?.role === 'admin' ? 'Administrateur' : (session?.user?.role || 'Utilisateur')}</p>
               </div>
             </button>
             {userMenuOpen && (
-              <div 
+              <div
                 className="absolute right-0 bg-white rounded-lg shadow-xl py-2 border border-gray-200"
-                style={{ 
+                style={{
                   top: 'calc(100% + 4px)',
                   width: '224px',
                   zIndex: 1001
@@ -437,40 +462,40 @@ export default function Header({ onMenuClick }: HeaderProps) {
                 onMouseEnter={handleMouseEnter}
                 onMouseLeave={handleMouseLeave}
               >
-                  <div className="px-4 py-2 border-b border-gray-200">
-                    <p className="text-sm font-medium text-gray-900">{session?.user?.name}</p>
-                    <p className="text-xs text-gray-500">{session?.user?.email}</p>
-                    <p className="text-xs text-gray-500">{session?.user?.companyName}</p>
-                    {session?.user?.role === 'admin' && (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800 mt-1">
-                        Admin Système
-                      </span>
-                    )}
-                  </div>
-                  <Link
-                    href="/settings"
-                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
-                    onClick={() => setUserMenuOpen(false)}
-                  >
-                    <div className="flex items-center">
-                      <CogIcon className="h-5 w-5 mr-2" />
-                      Paramètres
-                    </div>
-                  </Link>
-                  <button
-                    onClick={async () => {
-                      await signOut({ redirect: false });
-                      router.push('/auth/signin');
-                      setUserMenuOpen(false);
-                    }}
-                    className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors"
-                  >
-                    <div className="flex items-center">
-                      <ArrowRightOnRectangleIcon className="h-5 w-5 mr-2" />
-                      Déconnexion
-                    </div>
-                  </button>
+                <div className="px-4 py-2 border-b border-gray-200">
+                  <p className="text-sm font-medium text-gray-900">{session?.user?.name}</p>
+                  <p className="text-xs text-gray-500">{session?.user?.email}</p>
+
+                  {session?.user?.role === 'admin' && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800 mt-1">
+                      Admin Système
+                    </span>
+                  )}
                 </div>
+                <Link
+                  href="/settings"
+                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
+                  onClick={() => setUserMenuOpen(false)}
+                >
+                  <div className="flex items-center">
+                    <CogIcon className="h-5 w-5 mr-2" />
+                    Paramètres
+                  </div>
+                </Link>
+                <button
+                  onClick={async () => {
+                    await signOut({ redirect: false });
+                    router.push('/auth/signin');
+                    setUserMenuOpen(false);
+                  }}
+                  className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors"
+                >
+                  <div className="flex items-center">
+                    <ArrowRightOnRectangleIcon className="h-5 w-5 mr-2" />
+                    Déconnexion
+                  </div>
+                </button>
+              </div>
             )}
           </div>
         </div>

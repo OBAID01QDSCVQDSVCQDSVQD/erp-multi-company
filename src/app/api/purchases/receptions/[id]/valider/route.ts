@@ -87,7 +87,7 @@ export async function POST(
 
     // Save all stock movements
     if (stockMovements.length > 0) {
-      await MouvementStock.insertMany(stockMovements);
+      await (MouvementStock as any).insertMany(stockMovements);
     }
 
     // Update purchase order status if purchaseOrderId is provided
@@ -135,7 +135,7 @@ async function updatePurchaseOrderReceptionProgress(purchaseOrderId: string, ten
 
     // Calculate total received quantities per product
     const qteRecueByProduct: { [key: string]: number } = {};
-    
+
     receptions.forEach((reception: any) => {
       reception.lignes.forEach((ligne: any) => {
         if (ligne.productId && ligne.qteRecue > 0) {

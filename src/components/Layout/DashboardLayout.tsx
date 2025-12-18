@@ -13,6 +13,7 @@ interface DashboardLayoutProps {
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [announcement, setAnnouncement] = useState('');
   const { data: session, status } = useSession();
   const router = useRouter();
 
@@ -20,6 +21,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     if (status === 'loading') return;
     if (!session) {
       router.push('/auth/signin');
+    } else {
+      // Fetch settings when authenticated
+      fetch('/api/system-settings')
+        .then(res => res.json())
+        .then(data => {
+          if (data?.announcementMessage) setAnnouncement(data.announcementMessage);
+        })
+        .catch(console.error);
     }
   }, [session, status, router]);
 
@@ -40,6 +49,15 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
       <div className="flex flex-col w-0 flex-1 overflow-hidden">
         <Header onMenuClick={() => setSidebarOpen(true)} />
+        {announcement && (
+          <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 relative z-30">
+            <div className="max-w-7xl mx-auto flex items-center justify-center">
+              <span className="text-amber-800 text-sm font-medium text-center flex items-center gap-2">
+                <span className="text-lg">📢</span> {announcement}
+              </span>
+            </div>
+          </div>
+        )}
         <main className="flex-1 relative overflow-y-auto focus:outline-none">
           <div className="py-6">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">

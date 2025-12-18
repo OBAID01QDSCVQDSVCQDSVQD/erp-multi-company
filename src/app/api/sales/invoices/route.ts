@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
 
     const tenantIdHeader = request.headers.get('X-Tenant-Id');
     const tenantId = tenantIdHeader || session.user.companyId?.toString() || '';
-    
+
     if (!tenantId) {
       return NextResponse.json(
         { error: 'Tenant ID manquant' },
@@ -105,7 +105,14 @@ export async function POST(request: NextRequest) {
     await connectDB();
 
     const tenantId = session.user.companyId?.toString() || '';
-    
+
+    // Check Subscription Limit
+    const { checkSubscriptionLimit } = await import('@/lib/subscription-check');
+    const limitCheck = await checkSubscriptionLimit(tenantId);
+    if (!limitCheck.allowed) {
+      return NextResponse.json({ error: limitCheck.error }, { status: 403 });
+    }
+
     let numero =
       typeof body.numero === 'string' && body.numero.trim().length > 0
         ? body.numero.trim()
@@ -130,19 +137,19 @@ export async function POST(request: NextRequest) {
         tenantId,
         type: 'FAC'
       })
-      .sort({ createdAt: -1 })
-      .lean();
+        .sort({ createdAt: -1 })
+        .lean();
 
       if (lastInvoice && lastInvoice.numero) {
         // Extract numeric part from last invoice number
         const lastNumero = lastInvoice.numero;
         // Try to extract the numeric part (handle formats like "FAC-001", "001", "1", etc.)
         const numericMatch = lastNumero.match(/(\d+)$/);
-        
+
         if (numericMatch) {
           const lastNumber = parseInt(numericMatch[1], 10);
           const nextNumber = lastNumber + 1;
-          
+
           // Preserve the prefix if it exists (e.g., "FAC-" from "FAC-001")
           const prefix = lastNumero.substring(0, lastNumero.length - numericMatch[1].length);
           // Preserve padding if it exists (e.g., "001" -> "002")
@@ -182,7 +189,7 @@ export async function POST(request: NextRequest) {
           _id: linkedDocId,
           tenantId,
         }).lean();
-        
+
         if (linkedDoc && linkedDoc.type === 'BL') {
           isFromBL = true;
         }
@@ -191,7 +198,7 @@ export async function POST(request: NextRequest) {
         // If we can't check, assume it's not from BL to be safe
       }
     }
-    
+
     if (!isFromBL) {
       // Only create stock movements if invoice is NOT from BL
       // If from BL, stock was already reduced when BL was created
@@ -242,7 +249,7 @@ function calculateDocumentTotals(doc: any) {
     // Add FODEC to base for TVA calculation (proportional to line)
     const ligneFodec = fodecEnabled ? montantHTAfterGlobalRemise * (fodecTauxPct / 100) : 0;
     const ligneBaseTVA = montantHTAfterGlobalRemise + ligneFodec;
-    
+
     if (line.tvaPct) {
       totalTVA += ligneBaseTVA * (line.tvaPct / 100);
     }
@@ -250,12 +257,12 @@ function calculateDocumentTotals(doc: any) {
 
   doc.totalBaseHT = Math.round(totalBaseHT * 100) / 100;
   doc.totalTVA = Math.round(totalTVA * 100) / 100;
-  
+
   // Update FODEC in document
   if (doc.fodec) {
     doc.fodec.montant = Math.round(fodec * 100) / 100;
   }
-  
+
   // Add timbre fiscal if it exists in the document
   const timbreFiscal = doc.timbreFiscal || 0;
   doc.totalTTC = doc.totalBaseHT + fodec + doc.totalTVA + timbreFiscal;
@@ -284,7 +291,7 @@ async function createStockMovementsForInvoice(
     try {
       // Convert productId to string for consistency
       const productIdStr = line.productId.toString();
-      
+
       // Find product using ObjectId first, then string
       let product = null;
       try {

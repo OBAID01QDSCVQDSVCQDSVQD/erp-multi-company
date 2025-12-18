@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
     console.log('Body.numero value:', JSON.stringify(body.numero));
     console.log('========================================');
     let numero: string;
-    
+
     // Check if manual number is provided and not empty
     if (body.numero && typeof body.numero === 'string' && body.numero.trim() !== '') {
       numero = body.numero.trim();
@@ -196,7 +196,7 @@ export async function POST(request: NextRequest) {
       imagesLength: Array.isArray(body.images) ? body.images.length : 0,
       images: body.images,
     });
-    
+
     if (Array.isArray(body.images) && body.images.length > 0) {
       // Clear and set images array
       invoice.images = [];
@@ -280,7 +280,7 @@ async function updateStockMovementsFromBRToPurchaseInvoice(
 
         // Find existing stock movement from BR for this product
         let existingMovement = null;
-        
+
         try {
           // Try to convert brId to ObjectId
           const brIdObjectId = new mongoose.Types.ObjectId(brIdStr);
@@ -314,9 +314,9 @@ async function updateStockMovementsFromBRToPurchaseInvoice(
             source: 'BR',
             type: 'ENTREE',
           }).lean();
-          
+
           // Find the one that matches brId (as string)
-          existingMovement = allBRMovements.find((mov: any) => 
+          existingMovement = allBRMovements.find((mov: any) =>
             mov.sourceId?.toString() === brIdStr
           );
         }
@@ -397,7 +397,7 @@ async function createStockMovementsForPurchaseInvoice(invoiceId: string, tenantI
 
     // Save all stock movements
     if (stockMovements.length > 0) {
-      await MouvementStock.insertMany(stockMovements);
+      await (MouvementStock as any).insertMany(stockMovements);
     }
   } catch (error) {
     console.error('Erreur lors de la création des mouvements de stock pour la facture d\'achat:', error);

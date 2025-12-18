@@ -25,6 +25,30 @@ export async function GET(req: NextRequest) {
     const plan = searchParams.get('plan');
     const search = searchParams.get('search');
 
+    // Ensure all companies have a subscription
+    const companies = await (Company as any).find({}).select('_id');
+    const existingSubs = await (Subscription as any).find({}).select('companyId');
+    const companiesWithSubs = new Set(existingSubs.map((s: any) => s.companyId?.toString()));
+
+    const missingSubs = companies.filter((c: any) => !companiesWithSubs.has(c._id.toString()));
+
+    if (missingSubs.length > 0) {
+      // Create default free subscriptions
+      const newSubs = missingSubs.map((c: any) => ({
+        companyId: c._id,
+        plan: 'free',
+        status: 'active',
+        startDate: new Date(),
+        documentsLimit: 100, // Default limit for free
+        documentsUsed: 0,
+        price: 0,
+        currency: 'TND',
+        autoRenew: true
+      }));
+
+      await (Subscription as any).insertMany(newSubs);
+    }
+
     // Build query
     const query: any = {};
     if (status) query.status = status;
@@ -58,6 +82,43 @@ export async function GET(req: NextRequest) {
         return false;
       });
     }
+
+    // Recalculate usage (Total Lifetime)
+    const DocumentModel = (await import('@/lib/models/Document')).default; // Lazy load to avoid circular dep issues if any
+
+    // Aggregate counts for all fetched subscriptions
+    const companyIds = subscriptions.map((s: any) => s.companyId?._id || s.companyId);
+
+    // Count ALL documents for these tenants (no date filter)
+    const usageStats = await (DocumentModel as any).aggregate([
+      {
+        $match: {
+          tenantId: { $in: companyIds.map((id: any) => id ? id.toString() : '') }
+        }
+      },
+      {
+        $group: {
+          _id: '$tenantId',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    const usageMap = new Map(usageStats.map((s: any) => [s._id.toString(), s.count]));
+
+    // Update subscriptions with real usage
+    subscriptions = subscriptions.map((sub: any) => {
+      const companyId = sub.companyId?._id?.toString() || sub.companyId?.toString();
+      const realUsage = usageMap.get(companyId) || 0;
+      // Update in memory for response
+      sub.documentsUsed = realUsage;
+      return sub;
+    });
+
+    // Fire and forget: Update DB in background to keep it synced
+    Promise.all(subscriptions.map((sub: any) =>
+      (Subscription as any).findByIdAndUpdate(sub._id, { documentsUsed: sub.documentsUsed })
+    )).catch(err => console.error('Background usage sync error', err));
 
     // Get statistics
     const stats = {
@@ -135,4 +196,3 @@ export async function PATCH(req: NextRequest) {
     );
   }
 }
-

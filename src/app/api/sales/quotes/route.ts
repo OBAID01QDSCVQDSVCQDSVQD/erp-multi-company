@@ -21,20 +21,20 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '50');
 
-    const query: any = { 
-      tenantId, 
-      type: 'DEVIS' 
+    const query: any = {
+      tenantId,
+      type: 'DEVIS'
     };
-    
+
     if (customerId) query.customerId = customerId;
-    
+
     // First, get all quotes without select to ensure projetId is included
     let quotes = await (Document as any).find(query)
       .sort('-createdAt')
       .skip((page - 1) * limit)
       .limit(limit)
       .lean();
-    
+
     // Manually select only the fields we need, ensuring projetId is included
     quotes = quotes.map((q: any) => ({
       _id: q._id,
@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
           .map((id: any) => id.toString())
       ),
     ];
-    
+
     if (customerIds.length > 0) {
       const customers = await (Customer as any)
         .find({
@@ -68,9 +68,9 @@ export async function GET(request: NextRequest) {
         })
         .select('nom prenom raisonSociale')
         .lean();
-      
+
       const customerMap = new Map(customers.map((c: any) => [c._id.toString(), c]));
-      
+
       for (const quote of quotes) {
         if (quote.customerId) {
           const key = quote.customerId.toString();
@@ -126,7 +126,14 @@ export async function POST(request: NextRequest) {
     await connectDB();
 
     const tenantId = session.user.companyId?.toString() || '';
-    
+
+    // Check Subscription Limit
+    const { checkSubscriptionLimit } = await import('@/lib/subscription-check');
+    const limitCheck = await checkSubscriptionLimit(tenantId);
+    if (!limitCheck.allowed) {
+      return NextResponse.json({ error: limitCheck.error }, { status: 403 });
+    }
+
     // Generate numero
     const numero = await NumberingService.next(tenantId, 'devis');
 
@@ -142,6 +149,16 @@ export async function POST(request: NextRequest) {
     calculateDocumentTotals(quote);
 
     await (quote as any).save();
+
+    // Log Action
+    const { logAction } = await import('@/lib/logger');
+    await logAction(
+      session,
+      'CREATE_QUOTE',
+      'Sales',
+      `Created Quote ${quote.numero}`,
+      { quoteId: quote._id, totalTTC: quote.totalTTC }
+    );
 
     return NextResponse.json(quote, { status: 201 });
   } catch (error) {
@@ -180,11 +197,11 @@ function calculateDocumentTotals(doc: any) {
     // Add FODEC to base for TVA calculation (proportional to line)
     const lineFodec = fodecEnabled ? montantHT * (fodecTauxPct / 100) : 0;
     const lineBaseTVA = montantHT + lineFodec;
-    
+
     if (line.tvaPct) {
       const tvaAmount = lineBaseTVA * (line.tvaPct / 100);
       totalTVA += tvaAmount;
-      
+
       if (!taxGroups[line.taxCode || 'DEFAULT']) {
         taxGroups[line.taxCode || 'DEFAULT'] = 0;
       }
@@ -199,7 +216,7 @@ function calculateDocumentTotals(doc: any) {
     tauxPct: fodecTauxPct,
     montant: Math.round(fodec * 100) / 100,
   };
-  
+
   // Add timbre fiscal if it exists in the document
   const timbreFiscal = doc.timbreFiscal || 0;
   doc.totalTTC = doc.totalBaseHT + doc.totalTVA + doc.fodec.montant + timbreFiscal;

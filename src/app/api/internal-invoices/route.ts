@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
 
     const tenantIdHeader = request.headers.get('X-Tenant-Id');
     const tenantId = tenantIdHeader || session.user.companyId?.toString() || '';
-    
+
     if (!tenantId) {
       return NextResponse.json(
         { error: 'Tenant ID manquant' },
@@ -85,10 +85,10 @@ export async function GET(request: NextRequest) {
   } catch (error: any) {
     console.error('Erreur GET /internal-invoices:', error);
     console.error('Error stack:', error.stack);
-    
+
     // Return actual error message instead of generic "Erreur serveur"
     return NextResponse.json(
-      { 
+      {
         error: error.message || 'Erreur serveur',
         details: error.message || 'Une erreur inattendue s\'est produite lors de la récupération des factures internes'
       },
@@ -108,9 +108,16 @@ export async function POST(request: NextRequest) {
     await connectDB();
 
     const tenantId = session.user.companyId?.toString() || '';
-    
+
+    // Check Subscription Limit
+    const { checkSubscriptionLimit } = await import('@/lib/subscription-check');
+    const limitCheck = await checkSubscriptionLimit(tenantId);
+    if (!limitCheck.allowed) {
+      return NextResponse.json({ error: limitCheck.error }, { status: 403 });
+    }
+
     console.log('POST /api/internal-invoices: Received body.numero:', body.numero, 'Type:', typeof body.numero);
-    
+
     let numero =
       typeof body.numero === 'string' && body.numero.trim().length > 0
         ? body.numero.trim()
@@ -129,20 +136,20 @@ export async function POST(request: NextRequest) {
           { status: 409 }
         );
       }
-      
+
       // Update Counter if manual number is greater than current counter value
       try {
         const CounterModel = (await import('@/lib/models/Counter')).default;
-        
+
         // Extract numeric part from manual number
         const numericMatch = numero.match(/(\d+)$/);
         if (numericMatch) {
           const manualNumberValue = parseInt(numericMatch[1], 10);
-          
+
           // Get current counter value
           let counter = await (CounterModel as any).findOne({ tenantId, seqName: 'int_fac' });
           const currentCounterValue = counter ? counter.value : 0;
-          
+
           // If manual number is greater than current counter, update counter
           if (manualNumberValue > currentCounterValue) {
             console.log(`POST /api/internal-invoices: Updating counter from ${currentCounterValue} to ${manualNumberValue}`);
@@ -165,22 +172,22 @@ export async function POST(request: NextRequest) {
         try {
           const CounterModel = (await import('@/lib/models/Counter')).default;
           let counter = await (CounterModel as any).findOne({ tenantId, seqName: 'int_fac' });
-          
+
           // Get the last invoice to sync counter
           const lastInvoice = await (Document as any).findOne({
             tenantId,
             type: 'INT_FAC'
           })
-          .sort({ createdAt: -1 })
-          .lean();
-          
+            .sort({ createdAt: -1 })
+            .lean();
+
           if (lastInvoice && lastInvoice.numero) {
             // Extract numeric part from last invoice
             const numericMatch = lastInvoice.numero.match(/(\d+)$/);
             if (numericMatch) {
               const lastInvoiceNumber = parseInt(numericMatch[1], 10);
               const currentCounterValue = counter ? counter.value : 0;
-              
+
               // If last invoice number is greater than counter, sync counter
               if (lastInvoiceNumber > currentCounterValue) {
                 console.log(`POST /api/internal-invoices: Syncing counter from ${currentCounterValue} to ${lastInvoiceNumber}`);
@@ -196,7 +203,7 @@ export async function POST(request: NextRequest) {
           console.error('Error syncing counter with last invoice:', syncError);
           // Continue anyway, don't fail the request
         }
-        
+
         const { NumberingService } = await import('@/lib/services/NumberingService');
         numero = await NumberingService.next(tenantId, 'int_fac');
         console.log('POST /api/internal-invoices: Generated number:', numero);
@@ -207,8 +214,8 @@ export async function POST(request: NextRequest) {
           tenantId,
           type: 'INT_FAC'
         })
-        .sort({ createdAt: -1 })
-        .lean();
+          .sort({ createdAt: -1 })
+          .lean();
 
         if (lastInvoice && lastInvoice.numero) {
           // Extract numeric part
@@ -270,7 +277,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(populatedInvoice, { status: 201 });
   } catch (error: any) {
     console.error('Erreur POST /internal-invoices:', error);
-    
+
     // Check if it's a validation error
     if (error.name === 'ValidationError' && error.errors) {
       const validationErrors = Object.values(error.errors).map((err: any) => ({
@@ -278,9 +285,9 @@ export async function POST(request: NextRequest) {
         message: err.message,
         value: err.value
       }));
-      
+
       return NextResponse.json(
-        { 
+        {
           error: 'Erreur de validation',
           details: validationErrors[0]?.message || error.message,
           validationErrors
@@ -288,22 +295,22 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    
+
     // Check if it's a duplicate key error
     if (error.code === 11000) {
       const field = Object.keys(error.keyPattern || {})[0] || 'champ';
       return NextResponse.json(
-        { 
+        {
           error: `Ce ${field === 'numero' ? 'numéro' : field} existe déjà`,
           details: `Un document avec ce ${field === 'numero' ? 'numéro' : field} existe déjà`
         },
         { status: 409 }
       );
     }
-    
+
     // Generic error with actual message
     return NextResponse.json(
-      { 
+      {
         error: error.message || 'Erreur serveur',
         details: error.message || 'Une erreur inattendue s\'est produite'
       },
@@ -341,7 +348,7 @@ function calculateDocumentTotals(doc: any) {
     const montantHTAfterGlobalRemise = montantHT * (1 - (remiseGlobalePct / 100));
     const ligneFodec = fodecEnabled ? montantHTAfterGlobalRemise * (fodecTauxPct / 100) : 0;
     const ligneBaseTVA = montantHTAfterGlobalRemise + ligneFodec;
-    
+
     if (line.tvaPct) {
       totalTVA += ligneBaseTVA * (line.tvaPct / 100);
     }
@@ -349,11 +356,11 @@ function calculateDocumentTotals(doc: any) {
 
   doc.totalBaseHT = Math.round(totalBaseHT * 100) / 100;
   doc.totalTVA = Math.round(totalTVA * 100) / 100;
-  
+
   if (doc.fodec) {
     doc.fodec.montant = Math.round(fodec * 100) / 100;
   }
-  
+
   const timbreFiscal = doc.timbreFiscal || 0;
   doc.totalTTC = doc.totalBaseHT + fodec + doc.totalTVA + timbreFiscal;
   doc.netAPayer = doc.totalTTC;
@@ -381,8 +388,8 @@ async function createStockMovementsForInternalInvoice(
 
   const movementType = status === 'VALIDEE' ? 'SORTIE' : 'ENTREE';
   const source = status === 'VALIDEE' ? 'INT_FAC' : 'INT_FAC_BROUILLON';
-  const notes = status === 'VALIDEE' 
-    ? `Facture interne ${invoice.numero}` 
+  const notes = status === 'VALIDEE'
+    ? `Facture interne ${invoice.numero}`
     : `Facture interne brouillon ${invoice.numero}`;
 
   console.log('[Stock Movement] Creating', movementType, 'movements for invoice:', invoice.numero, 'Lines:', invoice.lignes.length);
@@ -399,7 +406,7 @@ async function createStockMovementsForInternalInvoice(
     try {
       // Convert productId to string for consistency
       const productIdStr = line.productId.toString();
-      
+
       // Find product using ObjectId first, then string
       let product = null;
       try {

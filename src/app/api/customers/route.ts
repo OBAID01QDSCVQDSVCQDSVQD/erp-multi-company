@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectMongo from '@/lib/mongodb';
 import Customer from '@/lib/models/Customer';
 
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+
 // GET /api/customers - Liste des clients avec filtres et pagination
 export async function GET(request: NextRequest) {
   try {
@@ -148,6 +151,17 @@ export async function POST(request: NextRequest) {
     });
 
     await (customer as any).save();
+
+    // Log action
+    const session = await getServerSession(authOptions);
+    const { logAction } = await import('@/lib/logger');
+    await logAction(
+      session,
+      'CREATE_CUSTOMER',
+      'Customer',
+      `Created customer ${customer.raisonSociale || customer.nom || 'Unknown'}`,
+      { customerId: customer._id }
+    );
 
     return NextResponse.json(customer, { status: 201 });
   } catch (error: any) {

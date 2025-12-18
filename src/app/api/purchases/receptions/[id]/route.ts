@@ -45,7 +45,7 @@ export async function GET(
     if (reception.montantTimbre === undefined) {
       reception.montantTimbre = 1.000;
     }
-    
+
     // Ensure totaux.fodec and totaux.timbre exist
     if (!reception.totaux) {
       reception.totaux = {};
@@ -147,7 +147,7 @@ export async function PUT(
       if (ligne.prixUnitaireHT && ligne.qteRecue > 0) {
         const lineHTBeforeDiscount = ligne.prixUnitaireHT * ligne.qteRecue;
         totalHTBeforeDiscount += lineHTBeforeDiscount;
-        
+
         // Apply line remise if exists
         let prixAvecRemise = ligne.prixUnitaireHT;
         const remisePct = ligne.remisePct || 0;
@@ -356,7 +356,7 @@ async function createStockMovementsForReception(receptionId: string, tenantId: s
 
     // Save all stock movements
     if (stockMovements.length > 0) {
-      await MouvementStock.insertMany(stockMovements);
+      await (MouvementStock as any).insertMany(stockMovements);
     }
   } catch (error) {
     console.error('Erreur lors de la création des mouvements de stock pour la réception:', error);
@@ -413,7 +413,7 @@ async function updateStockMovementsForReception(
 
     // Save all new stock movements
     if (stockMovements.length > 0) {
-      await MouvementStock.insertMany(stockMovements);
+      await (MouvementStock as any).insertMany(stockMovements);
     }
   } catch (error) {
     console.error('Erreur lors de la mise à jour des mouvements de stock pour la réception:', error);

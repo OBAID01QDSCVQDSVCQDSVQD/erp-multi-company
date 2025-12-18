@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
 
     const tenantId = request.headers.get('X-Tenant-Id') || session.user.companyId?.toString() || '';
     const { searchParams } = new URL(request.url);
-    
+
     const search = searchParams.get('search');
     const statut = searchParams.get('statut');
     const fournisseurId = searchParams.get('fournisseurId');
@@ -30,15 +30,15 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '50');
 
     const query: any = { societeId: tenantId };
-    
+
     if (statut) {
       query.statut = statut;
     }
-    
+
     if (fournisseurId) {
       query.fournisseurId = fournisseurId;
     }
-    
+
     if (dateFrom || dateTo) {
       query.dateDoc = {};
       if (dateFrom) {
@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
         query.dateDoc.$lte = toDate;
       }
     }
-    
+
     if (search) {
       query.$or = [
         { numero: { $regex: search, $options: 'i' } },
@@ -149,7 +149,7 @@ async function createStockMovementsForReception(receptionId: string, tenantId: s
 
     // Save all stock movements
     if (stockMovements.length > 0) {
-      await MouvementStock.insertMany(stockMovements);
+      await (MouvementStock as any).insertMany(stockMovements);
     }
   } catch (error) {
     console.error('Erreur lors de la création des mouvements de stock pour la réception:', error);
@@ -168,7 +168,14 @@ export async function POST(request: NextRequest) {
     await connectDB();
 
     const tenantId = request.headers.get('X-Tenant-Id') || session.user.companyId?.toString() || '';
-    
+
+    // Check Subscription Limit
+    const { checkSubscriptionLimit } = await import('@/lib/subscription-check');
+    const limitCheck = await checkSubscriptionLimit(tenantId);
+    if (!limitCheck.allowed) {
+      return NextResponse.json({ error: limitCheck.error }, { status: 403 });
+    }
+
     // Generate reception number
     const numero = await NumberingService.next(tenantId, 'br');
 
@@ -242,7 +249,7 @@ export async function POST(request: NextRequest) {
             if (!bodyLine && line.productId) {
               bodyLine = bodyLinesByProductId.get(line.productId.toString());
             }
-            
+
             // Preserve qteRecue from body if exists, otherwise use 0
             let qteRecue = 0;
             if (bodyLine?.qteRecue !== undefined && bodyLine.qteRecue !== null) {
@@ -250,26 +257,26 @@ export async function POST(request: NextRequest) {
               if (isNaN(qteRecue)) qteRecue = 0;
             }
 
-                // Calculate totalLigneHT with remise if applicable
-                let prixAvecRemise = line.prixUnitaireHT || bodyLine?.prixUnitaireHT || 0;
-                const remisePct = line.remisePct !== undefined ? line.remisePct : (bodyLine?.remisePct || 0);
-                if (remisePct > 0) {
-                  prixAvecRemise = prixAvecRemise * (1 - remisePct / 100);
-                }
-                const totalHT = prixAvecRemise * qteRecue;
-                
-                return {
-                  productId: line.productId || undefined,
-                  reference: line.reference || productInfo.reference || bodyLine?.reference || '',
-                  designation: line.designation || productInfo.designation || bodyLine?.designation || '',
-                  uom: line.unite || productInfo.uom || bodyLine?.uom || 'PCE',
-                  qteCommandee: line.quantite || 0,
-                  qteRecue: qteRecue,
-                  prixUnitaireHT: line.prixUnitaireHT || bodyLine?.prixUnitaireHT || 0,
-                  remisePct: remisePct,
-                  tvaPct: line.tvaPct || bodyLine?.tvaPct || 0,
-                  totalLigneHT: bodyLine?.totalLigneHT || totalHT,
-                };
+            // Calculate totalLigneHT with remise if applicable
+            let prixAvecRemise = line.prixUnitaireHT || bodyLine?.prixUnitaireHT || 0;
+            const remisePct = line.remisePct !== undefined ? line.remisePct : (bodyLine?.remisePct || 0);
+            if (remisePct > 0) {
+              prixAvecRemise = prixAvecRemise * (1 - remisePct / 100);
+            }
+            const totalHT = prixAvecRemise * qteRecue;
+
+            return {
+              productId: line.productId || undefined,
+              reference: line.reference || productInfo.reference || bodyLine?.reference || '',
+              designation: line.designation || productInfo.designation || bodyLine?.designation || '',
+              uom: line.unite || productInfo.uom || bodyLine?.uom || 'PCE',
+              qteCommandee: line.quantite || 0,
+              qteRecue: qteRecue,
+              prixUnitaireHT: line.prixUnitaireHT || bodyLine?.prixUnitaireHT || 0,
+              remisePct: remisePct,
+              tvaPct: line.tvaPct || bodyLine?.tvaPct || 0,
+              totalLigneHT: bodyLine?.totalLigneHT || totalHT,
+            };
           })
         );
       }
@@ -287,7 +294,7 @@ export async function POST(request: NextRequest) {
     for (const ligne of lignes) {
       // Ensure qteRecue is a number
       ligne.qteRecue = typeof ligne.qteRecue === 'string' ? parseFloat(ligne.qteRecue) || 0 : (ligne.qteRecue || 0);
-      
+
       if (isNaN(ligne.qteRecue) || ligne.qteRecue < 0) {
         return NextResponse.json(
           { error: 'La quantité reçue doit être un nombre positif ou zéro' },
@@ -342,6 +349,16 @@ export async function POST(request: NextRequest) {
     if (body.statut === 'VALIDE' || reception.statut === 'VALIDE') {
       await createStockMovementsForReception(reception._id.toString(), tenantId, session.user.email);
     }
+
+    // Log action
+    const { logAction } = await import('@/lib/logger');
+    await logAction(
+      session,
+      'CREATE_RECEPTION',
+      'Purchases',
+      `Created BR ${reception.numero}`,
+      { receptionId: reception._id, totalTTC: reception.totaux?.totalTTC }
+    );
 
     return NextResponse.json(reception, { status: 201 });
   } catch (error) {

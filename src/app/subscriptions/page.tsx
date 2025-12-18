@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
-import { 
+import {
   CheckCircleIcon,
   XMarkIcon,
   ArrowRightIcon,
@@ -43,6 +43,7 @@ interface UsageHistoryItem {
 
 export default function SubscriptionsPage() {
   const { data: session, status } = useSession();
+  const [plans, setPlans] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [usageHistory, setUsageHistory] = useState<UsageHistoryItem[]>([]);
@@ -50,17 +51,40 @@ export default function SubscriptionsPage() {
 
   useEffect(() => {
     if (status === 'authenticated' && session?.user) {
-      fetchSubscription();
-      fetchUsageHistory();
+      fetchData();
     } else if (status === 'unauthenticated') {
       setLoading(false);
       setLoadingHistory(false);
     }
   }, [session, status]);
 
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      await Promise.all([
+        fetchSubscription(),
+        fetchPlans(),
+        fetchUsageHistory()
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchPlans = async () => {
+    try {
+      const response = await fetch('/api/plans');
+      if (response.ok) {
+        const data = await response.json();
+        setPlans(data);
+      }
+    } catch (error) {
+      console.error('Error fetching plans:', error);
+    }
+  };
+
   const fetchSubscription = async () => {
     try {
-      setLoading(true);
       const response = await fetch('/api/subscriptions');
       if (!response.ok) {
         throw new Error('Erreur lors du chargement de l\'abonnement');
@@ -70,8 +94,6 @@ export default function SubscriptionsPage() {
     } catch (error: any) {
       console.error('Error fetching subscription:', error);
       toast.error('Erreur lors du chargement de l\'abonnement');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -92,25 +114,19 @@ export default function SubscriptionsPage() {
     }
   };
 
-  const getPlanName = (plan: string) => {
-    switch (plan) {
-      case 'free':
-        return 'Gratuit';
-      case 'starter':
-        return 'Starter';
-      case 'premium':
-        return 'Premium';
-      default:
-        return plan;
-    }
+  const getPlanName = (slug: string) => {
+    const plan = plans.find(p => p.slug === slug);
+    return plan ? plan.name : slug;
   };
+
+  const currentPlanObj = subscription ? plans.find(p => p.slug === subscription.plan) : null;
 
   const currentPlan = subscription ? {
     name: getPlanName(subscription.plan),
-    price: subscription.price.toString(),
-    currency: subscription.currency,
-    period: '/mois',
-    limit: subscription.documentsLimit === -1 ? 'Illimité' : `${subscription.documentsLimit} documents/an`,
+    price: currentPlanObj ? currentPlanObj.price.toString() : subscription.price.toString(),
+    currency: currentPlanObj ? currentPlanObj.currency : subscription.currency,
+    period: currentPlanObj && currentPlanObj.interval === 'year' ? '/an' : '/mois',
+    limit: subscription.documentsLimit === -1 ? 'Illimité' : `${subscription.documentsLimit} documents au total`,
     used: subscription.documentsUsed,
     remaining: subscription.documentsLimit === -1 ? -1 : subscription.documentsLimit - subscription.documentsUsed,
     renewalDate: subscription.renewalDate || '',
@@ -120,7 +136,7 @@ export default function SubscriptionsPage() {
     price: '0',
     currency: 'TND',
     period: '/mois',
-    limit: '100 documents/an',
+    limit: '100 documents au total',
     used: 0,
     remaining: 100,
     renewalDate: '',
@@ -165,16 +181,15 @@ export default function SubscriptionsPage() {
           </div>
         ) : (
           <div className="bg-white rounded-lg shadow overflow-hidden border-2 border-gray-300">
-            <div className={`text-white text-center py-3 text-sm font-semibold ${
-              currentPlan.name === 'Gratuit' 
-                ? 'bg-gradient-to-r from-gray-400 to-gray-600' 
+            <div className={`text-white text-center py-3 text-sm font-semibold ${currentPlan.name === 'Gratuit'
+                ? 'bg-gradient-to-r from-gray-400 to-gray-600'
                 : currentPlan.name === 'Starter'
-                ? 'bg-gradient-to-r from-blue-500 to-indigo-600'
-                : 'bg-gradient-to-r from-purple-500 to-pink-600'
-            }`}>
+                  ? 'bg-gradient-to-r from-blue-500 to-indigo-600'
+                  : 'bg-gradient-to-r from-purple-500 to-pink-600'
+              }`}>
               Plan actuel
             </div>
-            
+
             <div className="p-8">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
                 <div>
@@ -187,13 +202,12 @@ export default function SubscriptionsPage() {
                   <p className="text-sm text-gray-500 mt-2">{currentPlan.limit}</p>
                 </div>
                 <div className="mt-4 md:mt-0">
-                  <span className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium ${
-                    currentPlan.status === 'active' 
-                      ? 'bg-green-100 text-green-800' 
+                  <span className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium ${currentPlan.status === 'active'
+                      ? 'bg-green-100 text-green-800'
                       : currentPlan.status === 'cancelled'
-                      ? 'bg-red-100 text-red-800'
-                      : 'bg-gray-100 text-gray-800'
-                  }`}>
+                        ? 'bg-red-100 text-red-800'
+                        : 'bg-gray-100 text-gray-800'
+                    }`}>
                     {currentPlan.status === 'active' ? (
                       <>
                         <CheckCircleIcon className="h-5 w-5 mr-2" />
@@ -224,12 +238,11 @@ export default function SubscriptionsPage() {
                     </span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
-                    <div 
-                      className={`h-full rounded-full transition-all duration-300 ${
-                        usagePercentage >= 90 ? 'bg-red-500' :
-                        usagePercentage >= 75 ? 'bg-yellow-500' :
-                        'bg-green-500'
-                      }`}
+                    <div
+                      className={`h-full rounded-full transition-all duration-300 ${usagePercentage >= 90 ? 'bg-red-500' :
+                          usagePercentage >= 75 ? 'bg-yellow-500' :
+                            'bg-green-500'
+                        }`}
                       style={{ width: `${Math.min(usagePercentage, 100)}%` }}
                     ></div>
                   </div>
@@ -338,12 +351,11 @@ export default function SubscriptionsPage() {
                       </div>
                       <h3 className="text-sm font-medium text-gray-700 mb-2">{item.month}</h3>
                       <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
-                        <div 
-                          className={`h-2 rounded-full ${
-                            itemPercentage >= 90 ? 'bg-red-500' :
-                            itemPercentage >= 75 ? 'bg-yellow-500' :
-                            'bg-indigo-500'
-                          }`}
+                        <div
+                          className={`h-2 rounded-full ${itemPercentage >= 90 ? 'bg-red-500' :
+                              itemPercentage >= 75 ? 'bg-yellow-500' :
+                                'bg-indigo-500'
+                            }`}
                           style={{ width: `${Math.min(itemPercentage, 100)}%` }}
                         ></div>
                       </div>

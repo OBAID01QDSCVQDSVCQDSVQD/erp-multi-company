@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import DashboardLayout from '@/components/Layout/DashboardLayout';
+import AdminLayout from '@/components/Layout/AdminLayout';
 import {
   BuildingOfficeIcon,
   CheckCircleIcon,
@@ -83,12 +83,12 @@ export default function ManageSubscriptionsPage() {
 
       const data = await response.json();
       let subs = data.subscriptions || [];
-      
+
       // Filter pending requests if needed
       if (showPendingOnly) {
         subs = subs.filter((sub: Subscription) => sub.pendingPlanChange);
       }
-      
+
       setSubscriptions(subs);
       setStats(data.stats || null);
     } catch (error: any) {
@@ -107,7 +107,7 @@ export default function ManageSubscriptionsPage() {
   const handleApprovePlanChange = async (subscriptionId: string, approve: boolean) => {
     try {
       console.log('Approving/rejecting plan change:', { subscriptionId, approve });
-      
+
       const response = await fetch('/api/subscriptions/approve-plan-change', {
         method: 'POST',
         headers: {
@@ -281,7 +281,7 @@ export default function ManageSubscriptionsPage() {
 
   if (session?.user?.role !== 'admin') {
     return (
-      <DashboardLayout>
+      <AdminLayout>
         <div className="text-center py-12">
           <XCircleIcon className="mx-auto h-12 w-12 text-red-500" />
           <h3 className="mt-2 text-sm font-medium text-gray-900">Accès refusé</h3>
@@ -289,12 +289,12 @@ export default function ManageSubscriptionsPage() {
             Vous devez être administrateur pour accéder à cette page.
           </p>
         </div>
-      </DashboardLayout>
+      </AdminLayout>
     );
   }
 
   return (
-    <DashboardLayout>
+    <AdminLayout>
       <div className="space-y-6">
         {/* Header */}
         <div>
@@ -377,11 +377,10 @@ export default function ManageSubscriptionsPage() {
               </div>
               <button
                 onClick={() => setShowPendingOnly(!showPendingOnly)}
-                className={`px-4 py-2 text-sm font-medium rounded-lg ${
-                  showPendingOnly
-                    ? 'bg-yellow-600 text-white'
-                    : 'bg-white text-yellow-600 border border-yellow-600'
-                } hover:bg-yellow-600 hover:text-white transition-colors`}
+                className={`px-4 py-2 text-sm font-medium rounded-lg ${showPendingOnly
+                  ? 'bg-yellow-600 text-white'
+                  : 'bg-white text-yellow-600 border border-yellow-600'
+                  } hover:bg-yellow-600 hover:text-white transition-colors`}
               >
                 {showPendingOnly ? 'Afficher tous' : 'Afficher uniquement les demandes'}
               </button>
@@ -570,13 +569,12 @@ export default function ManageSubscriptionsPage() {
                         </div>
                         <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
                           <div
-                            className={`h-2 rounded-full ${
-                              getUsagePercentage(subscription.documentsUsed, subscription.documentsLimit) >= 90
-                                ? 'bg-red-500'
-                                : getUsagePercentage(subscription.documentsUsed, subscription.documentsLimit) >= 75
+                            className={`h-2 rounded-full ${getUsagePercentage(subscription.documentsUsed, subscription.documentsLimit) >= 90
+                              ? 'bg-red-500'
+                              : getUsagePercentage(subscription.documentsUsed, subscription.documentsLimit) >= 75
                                 ? 'bg-yellow-500'
                                 : 'bg-green-500'
-                            }`}
+                              }`}
                             style={{
                               width: `${getUsagePercentage(subscription.documentsUsed, subscription.documentsLimit)}%`,
                             }}
@@ -661,7 +659,7 @@ export default function ManageSubscriptionsPage() {
                               Changer plan
                             </button>
                           )}
-                          
+
                           {/* Status Actions */}
                           <div className="flex gap-2">
                             {subscription.status === 'active' ? (
@@ -698,7 +696,6 @@ export default function ManageSubscriptionsPage() {
           </div>
         </div>
       </div>
-    </DashboardLayout>
+    </AdminLayout>
   );
 }
-

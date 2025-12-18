@@ -13,7 +13,7 @@ export const dynamic = 'force-dynamic';
 // Generate project number
 async function generateProjectNumber(tenantId: string): Promise<string> {
   const year = new Date().getFullYear();
-  
+
   // Find the last project number for this year
   const lastProject = await (Project as any)
     .findOne({
@@ -25,7 +25,7 @@ async function generateProjectNumber(tenantId: string): Promise<string> {
     .lean();
 
   let nextNumber = 1;
-  
+
   if (lastProject?.projectNumber) {
     // Extract the number from the last project number (e.g., "PROJ-2025-001" -> 1)
     const numericMatches = lastProject.projectNumber.match(/\d+/g);
@@ -47,11 +47,11 @@ export async function GET(request: NextRequest) {
     }
 
     await connectDB();
-    
+
     // Get tenantId from header or session
     const tenantIdFromHeader = request.headers.get('X-Tenant-Id');
     const tenantId = tenantIdFromHeader || session.user.companyId?.toString() || '';
-    
+
     if (!tenantId) {
       return NextResponse.json(
         { error: 'Tenant ID manquant' },
@@ -107,18 +107,18 @@ export async function GET(request: NextRequest) {
     let projects, total;
     try {
       const queryBuilder = (Project as any).find(query);
-      
+
       // Populate customerId
       queryBuilder.populate({
         path: 'customerId',
         select: 'nom prenom raisonSociale',
         model: Customer,
       });
-      
+
       // Populate devisIds and blIds if they exist
       queryBuilder.populate('devisIds', 'numero totalTTC');
       queryBuilder.populate('blIds', 'numero totalTTC');
-      
+
       // Populate assignedEmployees.employeeId
       queryBuilder.populate({
         path: 'assignedEmployees.employeeId',
@@ -140,7 +140,7 @@ export async function GET(request: NextRequest) {
         stack: populateError.stack,
         name: populateError.name,
       });
-      
+
       // If populate fails, try with minimal populate
       try {
         [projects, total] = await Promise.all([
@@ -151,7 +151,7 @@ export async function GET(request: NextRequest) {
               select: 'nom prenom raisonSociale',
               model: Customer,
             })
-          (Project as any)
+            (Project as any)
             .find(query)
             .populate({
               path: 'customerId',
@@ -195,8 +195,8 @@ export async function GET(request: NextRequest) {
       code: error.code,
     });
     return NextResponse.json(
-      { 
-        error: 'Erreur serveur', 
+      {
+        error: 'Erreur serveur',
         details: error.message,
         ...(process.env.NODE_ENV === 'development' && { stack: error.stack })
       },
@@ -216,6 +216,14 @@ export async function POST(request: NextRequest) {
     await connectDB();
 
     const tenantId = session.user.companyId?.toString() || '';
+
+    // Check Subscription Limit
+    const { checkSubscriptionLimit } = await import('@/lib/subscription-check');
+    const limitCheck = await checkSubscriptionLimit(tenantId);
+    if (!limitCheck.allowed) {
+      return NextResponse.json({ error: limitCheck.error }, { status: 403 });
+    }
+
     const currentUserEmail = session.user.email as string | undefined;
 
     // Validation
