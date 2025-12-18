@@ -28,4 +28,4 @@ const AuditLogSchema = new mongoose.Schema({
 // TTL Index: Auto-delete logs after 90 days to save space (optional, usually good practice)
 AuditLogSchema.index({ createdAt: 1 }, { expireAfterSeconds: 60 * 60 * 24 * 90 });
 
-export default mongoose.models.AuditLog || mongoose.model('AuditLog', AuditLogSchema);
+export default (mongoose.models.AuditLog as any) || mongoose.model('AuditLog', AuditLogSchema);
