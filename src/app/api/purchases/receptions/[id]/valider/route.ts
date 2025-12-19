@@ -73,6 +73,7 @@ export async function POST(
         const mouvement = new MouvementStock({
           societeId: tenantId,
           productId: ligne.productId,
+          warehouseId: reception.warehouseId,
           type: 'ENTREE',
           qte: ligne.qteRecue,
           date: reception.dateDoc || new Date(),

@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
+import mongoose from 'mongoose';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import MouvementStock from '@/lib/models/MouvementStock';
+import Warehouse from '@/lib/models/Warehouse';
 
 export async function GET(
   request: NextRequest,
@@ -17,7 +19,7 @@ export async function GET(
     await connectDB();
 
     const tenantId = request.headers.get('X-Tenant-Id') || session.user.companyId?.toString() || '';
-    
+
     if (!tenantId) {
       return NextResponse.json(
         { error: 'Tenant ID manquant' },
@@ -25,16 +27,40 @@ export async function GET(
       );
     }
 
+    const searchParams = request.nextUrl.searchParams;
+    const warehouseId = searchParams.get('warehouseId');
     const { productId } = await params;
     const productIdStr = productId.toString();
+
+    const matchQuery: any = {
+      societeId: tenantId,
+      productId: productIdStr,
+    };
+
+    if (warehouseId) {
+      // Check if this is the default warehouse
+      const warehouse = await (Warehouse as any).findOne({
+        _id: warehouseId,
+        tenantId,
+      });
+
+      if (warehouse && warehouse.isDefault) {
+        // If it's the default warehouse, include movements with this ID OR with no ID (legacy data)
+        matchQuery.$or = [
+          { warehouseId: new mongoose.Types.ObjectId(warehouseId) },
+          { warehouseId: { $exists: false } },
+          { warehouseId: null }
+        ];
+      } else {
+        // Strict match for non-default warehouses
+        matchQuery.warehouseId = new mongoose.Types.ObjectId(warehouseId);
+      }
+    }
 
     // Calculate current stock for the product
     const stockAggregation = await (MouvementStock as any).aggregate([
       {
-        $match: {
-          societeId: tenantId,
-          productId: productIdStr,
-        },
+        $match: matchQuery,
       },
       {
         $group: {

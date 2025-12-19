@@ -68,7 +68,7 @@ export default function NewReceptionPage() {
   const { tenantId } = useTenantId();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  
+
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [selectedPurchaseOrderId, setSelectedPurchaseOrderId] = useState<string>('');
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -76,13 +76,18 @@ export default function NewReceptionPage() {
   const [showSupplierDropdown, setShowSupplierDropdown] = useState(false);
   const [selectedSupplierIndex, setSelectedSupplierIndex] = useState(-1);
   const [supplierDropdownPosition, setSupplierDropdownPosition] = useState<{ top: number; left: number; width: number } | null>(null);
-  
+
   // Product search states (modal-based)
   const [products, setProducts] = useState<Product[]>([]);
   const [productSearches, setProductSearches] = useState<{ [key: number]: string }>({});
   const [showProductModal, setShowProductModal] = useState<{ [key: number]: boolean }>({});
   const [currentProductLineIndex, setCurrentProductLineIndex] = useState<number | null>(null);
-  
+
+  // Warehouse state
+  const [warehouses, setWarehouses] = useState<any[]>([]);
+  const [selectedWarehouseId, setSelectedWarehouseId] = useState<string>('');
+  const [multiWarehouseEnabled, setMultiWarehouseEnabled] = useState(false);
+
   const [formData, setFormData] = useState({
     purchaseOrderId: '',
     fournisseurId: '',
@@ -95,7 +100,7 @@ export default function NewReceptionPage() {
     remiseGlobalePct: 0,
     notes: '',
   });
-  
+
   const [lines, setLines] = useState<ReceptionLine[]>([]);
   const isEditMode = !!editId;
 
@@ -104,6 +109,8 @@ export default function NewReceptionPage() {
       fetchPurchaseOrders();
       fetchSuppliers();
       fetchProducts();
+      fetchCompanySettings();
+      fetchWarehouses();
 
       if (editId) {
         loadExistingReception(editId);
@@ -145,6 +152,8 @@ export default function NewReceptionPage() {
         remiseGlobalePct: reception.remiseGlobalePct ?? 0,
         notes: reception.notes || '',
       }));
+
+      setSelectedWarehouseId(reception.warehouseId || '');
 
       setSupplierSearch(reception.fournisseurNom || '');
 
@@ -191,7 +200,7 @@ export default function NewReceptionPage() {
       if (response.ok) {
         const data = await response.json();
         // Filter only non-closed orders
-        const activeOrders = (data.items || []).filter((po: PurchaseOrder) => 
+        const activeOrders = (data.items || []).filter((po: PurchaseOrder) =>
           po.statut !== 'CLOTUREE' && po.statut !== 'ANNULEE'
         );
         setPurchaseOrders(activeOrders);
@@ -231,6 +240,45 @@ export default function NewReceptionPage() {
     }
   }
 
+  async function fetchWarehouses() {
+    if (!tenantId) return;
+    try {
+      const response = await fetch('/api/stock/warehouses', {
+        headers: { 'X-Tenant-Id': tenantId },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setWarehouses(data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching warehouses:', error);
+    }
+  }
+
+  async function fetchCompanySettings() {
+    if (!tenantId) return;
+    try {
+      const response = await fetch('/api/settings', {
+        headers: { 'X-Tenant-Id': tenantId },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setMultiWarehouseEnabled(data.stock?.multiEntrepots === true);
+      }
+    } catch (error) {
+      console.error('Error fetching settings:', error);
+    }
+  }
+
+  // Effect to set default warehouse
+  useEffect(() => {
+    if (warehouses.length > 0 && !selectedWarehouseId && !editId) {
+      const defaultWh = warehouses.find(w => w.isDefault);
+      if (defaultWh) setSelectedWarehouseId(defaultWh._id);
+      else if (warehouses.length > 0) setSelectedWarehouseId(warehouses[0]._id);
+    }
+  }, [warehouses, selectedWarehouseId, editId]);
+
   async function loadPurchaseOrderLines() {
     if (!tenantId || !selectedPurchaseOrderId) return;
     try {
@@ -246,7 +294,7 @@ export default function NewReceptionPage() {
           purchaseOrderId: selectedPurchaseOrderId,
         }));
         setSupplierSearch(po.fournisseurNom || '');
-        
+
         // Load lines from purchase order - copy all fields including remise and quantities
         const receptionLines: ReceptionLine[] = po.lignes.map((line) => {
           // Calculate totalLigneHT with remise if applicable
@@ -256,7 +304,7 @@ export default function NewReceptionPage() {
             prixAvecRemise = prixAvecRemise * (1 - remisePct / 100);
           }
           const totalHT = prixAvecRemise * (line.quantite || 0);
-          
+
           return {
             productId: line.productId,
             reference: line.reference || '',
@@ -271,7 +319,7 @@ export default function NewReceptionPage() {
           };
         });
         setLines(receptionLines);
-        
+
         // Initialize product searches for loaded lines
         const searches: { [key: number]: string } = {};
         receptionLines.forEach((line, idx) => {
@@ -297,7 +345,7 @@ export default function NewReceptionPage() {
   const calculateSupplierDropdownPosition = () => {
     const input = document.querySelector('input[data-supplier-input="true"]') as HTMLInputElement;
     if (!input) return;
-    
+
     const rect = input.getBoundingClientRect();
     setSupplierDropdownPosition({
       top: rect.bottom + window.scrollY + 4,
@@ -317,7 +365,7 @@ export default function NewReceptionPage() {
     if (product.tvaPct !== undefined && product.tvaPct !== null) {
       newLines[lineIndex].tvaPct = product.tvaPct;
     }
-    
+
     // Recalculate total
     if (newLines[lineIndex].prixUnitaireHT && newLines[lineIndex].qteRecue > 0) {
       let prixAvecRemise = newLines[lineIndex].prixUnitaireHT;
@@ -327,9 +375,9 @@ export default function NewReceptionPage() {
       }
       newLines[lineIndex].totalLigneHT = prixAvecRemise * newLines[lineIndex].qteRecue;
     }
-    
+
     setLines(newLines);
-    
+
     // Update search and dropdown state
     setProductSearches({ ...productSearches, [lineIndex]: product.nom });
     setShowProductModal({ ...showProductModal, [lineIndex]: false });
@@ -366,7 +414,7 @@ export default function NewReceptionPage() {
         setSupplierDropdownPosition(null);
       }
     };
-    
+
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       const supplierInput = document.querySelector('[data-supplier-input]');
@@ -378,7 +426,7 @@ export default function NewReceptionPage() {
         }
       }
     };
-    
+
     window.addEventListener('scroll', handleScroll, true);
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
@@ -403,7 +451,7 @@ export default function NewReceptionPage() {
   const handleSupplierKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setSelectedSupplierIndex(prev => 
+      setSelectedSupplierIndex(prev =>
         prev < filteredSuppliers.length - 1 ? prev + 1 : prev
       );
     } else if (e.key === 'ArrowUp') {
@@ -440,7 +488,7 @@ export default function NewReceptionPage() {
   function updateLine(index: number, field: keyof ReceptionLine, value: any) {
     const newLines = [...lines];
     newLines[index] = { ...newLines[index], [field]: value };
-    
+
     // Recalculate total if price, quantity, or remise changed
     if (field === 'qteRecue' || field === 'prixUnitaireHT' || field === 'remisePct' || field === 'tvaPct') {
       const line = newLines[index];
@@ -456,20 +504,20 @@ export default function NewReceptionPage() {
         line.totalLigneHT = 0;
       }
     }
-    
+
     setLines(newLines);
   }
 
   function calculateTotals() {
     let totalHTBeforeDiscount = 0;
     let totalHTAfterLineDiscount = 0;
-    
+
     // Calculate TotalHT before and after line remise
     lines.forEach((line) => {
       if (line.prixUnitaireHT && line.qteRecue > 0) {
         const lineHTBeforeDiscount = line.prixUnitaireHT * line.qteRecue;
         totalHTBeforeDiscount += lineHTBeforeDiscount;
-        
+
         // Apply line remise if exists
         let prixAvecRemise = line.prixUnitaireHT;
         const remisePct = line.remisePct || 0;
@@ -483,19 +531,19 @@ export default function NewReceptionPage() {
         totalHTAfterLineDiscount += line.totalLigneHT;
       }
     });
-    
+
     // Apply global remise
     const remiseGlobalePct = formData.remiseGlobalePct || 0;
     const totalHT = totalHTAfterLineDiscount * (1 - (remiseGlobalePct / 100));
-    
+
     // Calculate remise amounts
     const remiseFromLines = totalHTBeforeDiscount - totalHTAfterLineDiscount;
     const remiseGlobale = totalHTAfterLineDiscount - totalHT;
     const totalRemise = remiseFromLines + remiseGlobale;
-    
+
     // Calculate FODEC on Total HT AFTER all discounts
     const fodec = formData.fodecActif ? totalHT * (formData.tauxFodec / 100) : 0;
-    
+
     // Calculate TVA (base includes FODEC if active, after global remise)
     let totalTVA = 0;
     lines.forEach((line) => {
@@ -523,13 +571,13 @@ export default function NewReceptionPage() {
         totalTVA += ligneTVA;
       }
     });
-    
+
     // Calculate TIMBRE
     const timbre = formData.timbreActif ? formData.montantTimbre : 0;
-    
+
     // Calculate TotalTTC
     const totalTTC = totalHT + fodec + totalTVA + timbre;
-    
+
     return {
       totalHT,
       remiseFromLines,
@@ -544,34 +592,34 @@ export default function NewReceptionPage() {
 
   async function handleSave(saveAsValid: boolean = false) {
     if (!tenantId) return;
-    
+
     // Validate
     if (!formData.fournisseurId) {
       toast.error('Veuillez sélectionner un fournisseur');
       return;
     }
-    
+
     if (lines.length === 0) {
       toast.error('Veuillez ajouter au moins une ligne');
       return;
     }
-    
+
     const hasQteRecue = lines.some(line => line.qteRecue > 0);
     if (saveAsValid && !hasQteRecue) {
       toast.error('Au moins une quantité reçue doit être supérieure à 0');
       return;
     }
-    
+
     for (const line of lines) {
       if (line.qteRecue < 0) {
         toast.error('La quantité reçue ne peut pas être négative');
         return;
       }
     }
-    
+
     try {
       setSaving(true);
-      
+
       const url = isEditMode && editId
         ? `/api/purchases/receptions/${editId}`
         : '/api/purchases/receptions';
@@ -585,6 +633,7 @@ export default function NewReceptionPage() {
         },
         body: JSON.stringify({
           purchaseOrderId: formData.purchaseOrderId || undefined,
+          warehouseId: selectedWarehouseId || undefined,
           fournisseurId: formData.fournisseurId,
           fournisseurNom: formData.fournisseurNom,
           dateDoc: formData.dateDoc,
@@ -597,10 +646,10 @@ export default function NewReceptionPage() {
           lignes: lines,
         }),
       });
-      
+
       if (response.ok) {
         const reception = await response.json();
-        
+
         // If save as valid and we are in creation mode, valider
         if (saveAsValid && !isEditMode) {
           const validateResponse = await fetch(
@@ -610,7 +659,7 @@ export default function NewReceptionPage() {
               headers: { 'X-Tenant-Id': tenantId },
             }
           );
-          
+
           if (validateResponse.ok) {
             toast.success('Réception créée et validée avec succès');
             router.push(`/purchases/receptions/${reception._id}`);
@@ -625,15 +674,15 @@ export default function NewReceptionPage() {
               : 'Réception enregistrée en brouillon'
           );
         }
-        
+
         router.push(`/purchases/receptions/${reception._id}`);
       } else {
         const error = await response.json();
         toast.error(
           error.error ||
-            (isEditMode
-              ? 'Erreur lors de la mise à jour'
-              : 'Erreur lors de la création')
+          (isEditMode
+            ? 'Erreur lors de la mise à jour'
+            : 'Erreur lors de la création')
         );
       }
     } catch (error) {
@@ -733,9 +782,9 @@ export default function NewReceptionPage() {
                   disabled={!!formData.purchaseOrderId}
                 />
               </div>
-              
+
               {showSupplierDropdown && filteredSuppliers.length > 0 && supplierDropdownPosition && (
-                <div 
+                <div
                   data-supplier-dropdown="true"
                   className="fixed z-[9999] bg-white border border-gray-200 rounded-lg shadow-xl max-h-60 overflow-y-auto"
                   style={{
@@ -750,11 +799,10 @@ export default function NewReceptionPage() {
                       <div
                         key={supplier._id}
                         onClick={() => handleSelectSupplier(supplier)}
-                        className={`px-4 py-3 cursor-pointer transition-colors ${
-                          index === selectedSupplierIndex
-                            ? 'bg-blue-50 border-l-2 border-blue-500'
-                            : 'hover:bg-gray-50'
-                        }`}
+                        className={`px-4 py-3 cursor-pointer transition-colors ${index === selectedSupplierIndex
+                          ? 'bg-blue-50 border-l-2 border-blue-500'
+                          : 'hover:bg-gray-50'
+                          }`}
                       >
                         <div className="font-medium text-gray-900">{name}</div>
                       </div>
@@ -775,6 +823,25 @@ export default function NewReceptionPage() {
                 className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
               />
             </div>
+
+            {multiWarehouseEnabled && warehouses.length > 0 && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Entrepôt de réception
+                </label>
+                <select
+                  value={selectedWarehouseId}
+                  onChange={(e) => setSelectedWarehouseId(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  {warehouses.map((wh) => (
+                    <option key={wh._id} value={wh._id}>
+                      {wh.name} {wh.isDefault ? '(Défaut)' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
 
           {/* Notes */}
@@ -1057,7 +1124,7 @@ export default function NewReceptionPage() {
           {/* Totaux Section */}
           <div className="bg-white rounded-lg shadow p-4 sm:p-6 border-t">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Totaux</h3>
-            
+
             <div className="space-y-4">
               {/* Remise globale */}
               <div>
@@ -1075,7 +1142,7 @@ export default function NewReceptionPage() {
                   placeholder="0"
                 />
               </div>
-              
+
               {/* FODEC and TIMBRE */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 <div className="space-y-3">

@@ -71,6 +71,8 @@ const navigation = [
     name: '🏭 Stock', href: '#', icon: CubeIcon, hasSubmenu: true, permission: null, submenu: [
       { name: 'Inventaire', href: '/stock', icon: CubeIcon, permission: 'inventory' },
       { name: 'Produits / Articles', href: '/products', icon: ShoppingBagIcon, permission: 'products' },
+      { name: 'Entrepôts', href: '/stock/warehouses', icon: BuildingOfficeIcon, permission: 'inventory' },
+      { name: 'Transferts de stock', href: '/stock/transfers', icon: ArrowUturnLeftIcon, permission: 'stock_movements' },
       { name: 'Mouvements de stock', href: '/stock/movements', icon: TruckIcon, permission: 'stock_movements' },
       { name: 'Alertes stock minimum', href: '/stock/alerts', icon: ChartBarIcon, permission: 'stock_alerts' },
     ]
@@ -121,20 +123,47 @@ export default function Sidebar({ sidebarOpen: externalSidebarOpen, setSidebarOp
     return userPermissions.includes(permission);
   };
 
+  useEffect(() => {
+    if (tenantId) {
+      fetch('/api/settings', { headers: { 'X-Tenant-Id': tenantId } })
+        .then((res) => res.json())
+        .then((data) => setCompanySettings(data))
+        .catch((err) => console.error('Error fetching company settings:', err));
+    }
+  }, [tenantId]);
+
+  const hasMultiWarehouse = companySettings?.stock?.multiEntrepots === true;
+
   const getFilteredNavigation = () => {
     return navigation.filter((item) => {
       if (item.name === 'Accueil') return session?.user?.role !== 'admin' && !session?.user?.permissions?.includes('all');
       if (item.name === 'Tableau de bord') return session?.user?.role === 'admin' || session?.user?.permissions?.includes('all');
       if (item.name === 'Mon abonnement') return session?.user?.role === 'admin' || session?.user?.permissions?.includes('all');
       if (!hasPermission(item.permission)) return false;
+
+      // Filter submenu items
       if (item.hasSubmenu && item.submenu) {
-        const filteredSubmenu = item.submenu.filter((subItem: any) => hasPermission(subItem.permission));
+        let currentSubmenu = item.submenu;
+        // Special logic for Stock submenu to hide multi-warehouse links
+        if (item.name.includes('Stock') && !hasMultiWarehouse) {
+          currentSubmenu = currentSubmenu.filter(sub =>
+            sub.name !== 'Entrepôts' && sub.name !== 'Transferts de stock'
+          );
+        }
+
+        const filteredSubmenu = currentSubmenu.filter((subItem: any) => hasPermission(subItem.permission));
         return filteredSubmenu.length > 0;
       }
       return true;
     }).map((item) => {
+      // Map again to ensure submenu filtering persists in the returned object structure
       if (item.hasSubmenu && item.submenu) {
-        return { ...item, submenu: item.submenu.filter((subItem: any) => hasPermission(subItem.permission)) };
+        let subItems = item.submenu;
+        // Re-apply warehouse filter logic here to be safe if map runs on clone
+        if (item.name.includes('Stock') && !hasMultiWarehouse) {
+          subItems = subItems.filter((sub: any) => sub.name !== 'Entrepôts' && sub.name !== 'Transferts de stock');
+        }
+        return { ...item, submenu: subItems.filter((subItem: any) => hasPermission(subItem.permission)) };
       }
       return item;
     });

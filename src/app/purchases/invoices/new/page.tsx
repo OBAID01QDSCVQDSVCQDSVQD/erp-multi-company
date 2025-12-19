@@ -86,26 +86,31 @@ export default function NewPurchaseInvoicePage() {
   const { tenantId } = useTenantId();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  
+
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [supplierSearch, setSupplierSearch] = useState('');
   const [showSupplierDropdown, setShowSupplierDropdown] = useState(false);
   const [selectedSupplierIndex, setSelectedSupplierIndex] = useState(-1);
   const [supplierDropdownPosition, setSupplierDropdownPosition] = useState<{ top: number; left: number; width: number } | null>(null);
-  
+
   // Purchase Orders and Receptions
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [receptions, setReceptions] = useState<Reception[]>([]);
   const [selectedDocumentType, setSelectedDocumentType] = useState<'none' | 'ca' | 'br'>('none');
   const [selectedCAId, setSelectedCAId] = useState<string>('');
   const [selectedBRId, setSelectedBRId] = useState<string>('');
-  
+
+  // Warehouse state
+  const [warehouses, setWarehouses] = useState<any[]>([]);
+  const [selectedWarehouseId, setSelectedWarehouseId] = useState<string>('');
+  const [multiWarehouseEnabled, setMultiWarehouseEnabled] = useState(false);
+
   // Product search states
   const [products, setProducts] = useState<Product[]>([]);
   const [productSearches, setProductSearches] = useState<{ [key: number]: string }>({});
   const [showProductModal, setShowProductModal] = useState<{ [key: number]: boolean }>({});
   const [currentProductLineIndex, setCurrentProductLineIndex] = useState<number | null>(null);
-  
+
   const [formData, setFormData] = useState({
     numero: '',
     fournisseurId: '',
@@ -119,7 +124,7 @@ export default function NewPurchaseInvoicePage() {
     timbre: { enabled: true, montant: 1.000 },
     notes: '',
   });
-  
+
   const [lines, setLines] = useState<InvoiceLine[]>([]);
   const [images, setImages] = useState<ImageData[]>([]);
 
@@ -129,6 +134,8 @@ export default function NewPurchaseInvoicePage() {
       fetchProducts();
       fetchPurchaseOrders();
       fetchReceptions();
+      fetchCompanySettings();
+      fetchWarehouses();
     }
   }, [tenantId]);
 
@@ -188,7 +195,7 @@ export default function NewPurchaseInvoicePage() {
       if (response.ok) {
         const data = await response.json();
         // Filter only validated orders
-        const validatedOrders = (data.items || []).filter((po: PurchaseOrder) => 
+        const validatedOrders = (data.items || []).filter((po: PurchaseOrder) =>
           po.statut === 'VALIDEE' || po.statut === 'RECEPTION_PARTIELLE' || po.statut === 'CLOTUREE'
         );
         setPurchaseOrders(validatedOrders);
@@ -207,7 +214,7 @@ export default function NewPurchaseInvoicePage() {
       if (response.ok) {
         const data = await response.json();
         // Filter only validated receptions
-        const validatedReceptions = (data.items || []).filter((br: Reception) => 
+        const validatedReceptions = (data.items || []).filter((br: Reception) =>
           br.statut === 'VALIDE'
         );
         setReceptions(validatedReceptions);
@@ -217,6 +224,45 @@ export default function NewPurchaseInvoicePage() {
     }
   }
 
+  async function fetchWarehouses() {
+    if (!tenantId) return;
+    try {
+      const response = await fetch('/api/stock/warehouses', {
+        headers: { 'X-Tenant-Id': tenantId },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setWarehouses(data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching warehouses:', error);
+    }
+  }
+
+  async function fetchCompanySettings() {
+    if (!tenantId) return;
+    try {
+      const response = await fetch('/api/settings', {
+        headers: { 'X-Tenant-Id': tenantId },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setMultiWarehouseEnabled(data.stock?.multiEntrepots === true);
+      }
+    } catch (error) {
+      console.error('Error fetching settings:', error);
+    }
+  }
+
+  // Effect to set default warehouse
+  useEffect(() => {
+    if (warehouses.length > 0 && !selectedWarehouseId) {
+      const defaultWh = warehouses.find(w => w.isDefault);
+      if (defaultWh) setSelectedWarehouseId(defaultWh._id);
+      else if (warehouses.length > 0) setSelectedWarehouseId(warehouses[0]._id);
+    }
+  }, [warehouses, selectedWarehouseId]);
+
   async function loadPurchaseOrderData() {
     if (!tenantId || !selectedCAId) return;
     try {
@@ -225,7 +271,7 @@ export default function NewPurchaseInvoicePage() {
       });
       if (response.ok) {
         const po: PurchaseOrder = await response.json();
-        
+
         // Set supplier
         setFormData(prev => ({
           ...prev,
@@ -233,7 +279,7 @@ export default function NewPurchaseInvoicePage() {
           fournisseurNom: po.fournisseurNom || '',
         }));
         setSupplierSearch(po.fournisseurNom || '');
-        
+
         // Load lines
         const invoiceLines: InvoiceLine[] = po.lignes.map((line) => {
           let prixAvecRemise = line.prixUnitaireHT || 0;
@@ -242,7 +288,7 @@ export default function NewPurchaseInvoicePage() {
             prixAvecRemise = prixAvecRemise * (1 - remisePct / 100);
           }
           const totalHT = prixAvecRemise * (line.quantite || 0);
-          
+
           return {
             produitId: line.productId || undefined,
             designation: line.designation,
@@ -254,9 +300,9 @@ export default function NewPurchaseInvoicePage() {
             totalLigneHT: line.totalLigneHT || totalHT,
           };
         });
-        
+
         setLines(invoiceLines);
-        
+
         // Initialize product searches
         const searches: { [key: number]: string } = {};
         invoiceLines.forEach((line, idx) => {
@@ -265,7 +311,7 @@ export default function NewPurchaseInvoicePage() {
           }
         });
         setProductSearches(searches);
-        
+
         toast.success('Données de la commande d\'achat chargées');
       }
     } catch (error) {
@@ -282,7 +328,7 @@ export default function NewPurchaseInvoicePage() {
       });
       if (response.ok) {
         const br: Reception = await response.json();
-        
+
         // Set supplier
         setFormData(prev => ({
           ...prev,
@@ -290,7 +336,7 @@ export default function NewPurchaseInvoicePage() {
           fournisseurNom: br.fournisseurNom || '',
         }));
         setSupplierSearch(br.fournisseurNom || '');
-        
+
         // Load lines
         const invoiceLines: InvoiceLine[] = br.lignes.map((line) => {
           let prixAvecRemise = line.prixUnitaireHT || 0;
@@ -299,7 +345,7 @@ export default function NewPurchaseInvoicePage() {
             prixAvecRemise = prixAvecRemise * (1 - remisePct / 100);
           }
           const totalHT = prixAvecRemise * (line.qteRecue || 0);
-          
+
           return {
             produitId: line.productId || undefined,
             designation: line.designation || '',
@@ -311,9 +357,9 @@ export default function NewPurchaseInvoicePage() {
             totalLigneHT: line.totalLigneHT || totalHT,
           };
         });
-        
+
         setLines(invoiceLines);
-        
+
         // Initialize product searches
         const searches: { [key: number]: string } = {};
         invoiceLines.forEach((line, idx) => {
@@ -322,7 +368,7 @@ export default function NewPurchaseInvoicePage() {
           }
         });
         setProductSearches(searches);
-        
+
         toast.success('Données du bon de réception chargées');
       }
     } catch (error) {
@@ -341,7 +387,7 @@ export default function NewPurchaseInvoicePage() {
   const calculateSupplierDropdownPosition = () => {
     const input = document.querySelector('input[data-supplier-input="true"]') as HTMLInputElement;
     if (!input) return;
-    
+
     const rect = input.getBoundingClientRect();
     setSupplierDropdownPosition({
       top: rect.bottom + window.scrollY + 4,
@@ -363,7 +409,7 @@ export default function NewPurchaseInvoicePage() {
         setSupplierDropdownPosition(null);
       }
     };
-    
+
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       const supplierInput = document.querySelector('[data-supplier-input]');
@@ -375,7 +421,7 @@ export default function NewPurchaseInvoicePage() {
         }
       }
     };
-    
+
     window.addEventListener('scroll', handleScroll, true);
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
@@ -395,7 +441,7 @@ export default function NewPurchaseInvoicePage() {
     if (product.tvaPct !== undefined && product.tvaPct !== null) {
       newLines[lineIndex].tvaPct = product.tvaPct;
     }
-    
+
     // Recalculate total
     if (newLines[lineIndex].prixUnitaireHT && newLines[lineIndex].quantite > 0) {
       let prixAvecRemise = newLines[lineIndex].prixUnitaireHT;
@@ -405,7 +451,7 @@ export default function NewPurchaseInvoicePage() {
       }
       newLines[lineIndex].totalLigneHT = prixAvecRemise * newLines[lineIndex].quantite;
     }
-    
+
     setLines(newLines);
     setProductSearches({ ...productSearches, [lineIndex]: product.nom });
     setShowProductModal({ ...showProductModal, [lineIndex]: false });
@@ -442,7 +488,7 @@ export default function NewPurchaseInvoicePage() {
   const handleSupplierKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setSelectedSupplierIndex(prev => 
+      setSelectedSupplierIndex(prev =>
         prev < filteredSuppliers.length - 1 ? prev + 1 : prev
       );
     } else if (e.key === 'ArrowUp') {
@@ -485,7 +531,7 @@ export default function NewPurchaseInvoicePage() {
   function updateLine(index: number, field: keyof InvoiceLine, value: any) {
     const newLines = [...lines];
     newLines[index] = { ...newLines[index], [field]: value };
-    
+
     if (field === 'quantite' || field === 'prixUnitaireHT' || field === 'remisePct' || field === 'tvaPct') {
       const line = newLines[index];
       if (line.prixUnitaireHT && line.quantite > 0) {
@@ -499,7 +545,7 @@ export default function NewPurchaseInvoicePage() {
         line.totalLigneHT = 0;
       }
     }
-    
+
     setLines(newLines);
   }
 
@@ -508,14 +554,14 @@ export default function NewPurchaseInvoicePage() {
     let totalRemise = 0;
     let totalTVA = 0;
     let totalHTAvantRemise = 0;
-    
+
     lines.forEach((line) => {
       if (line.prixUnitaireHT && line.quantite > 0) {
         const prixUnitaire = line.prixUnitaireHT;
         const quantite = line.quantite;
         const htAvantRemise = prixUnitaire * quantite;
         totalHTAvantRemise += htAvantRemise;
-        
+
         const remisePct = line.remisePct || 0;
         let prixAvecRemise = prixUnitaire;
         if (remisePct > 0) {
@@ -523,7 +569,7 @@ export default function NewPurchaseInvoicePage() {
           const remiseLigne = htAvantRemise - (prixAvecRemise * quantite);
           totalRemise += remiseLigne;
         }
-        
+
         const ligneHT = prixAvecRemise * quantite;
         totalHT += ligneHT;
       } else if (line.totalLigneHT) {
@@ -539,9 +585,9 @@ export default function NewPurchaseInvoicePage() {
         totalHT += line.totalLigneHT;
       }
     });
-    
+
     const fodec = formData.fodec.enabled ? totalHT * (formData.fodec.tauxPct / 100) : 0;
-    
+
     lines.forEach((line) => {
       if (line.prixUnitaireHT && line.quantite > 0 && line.tvaPct) {
         let prixAvecRemise = line.prixUnitaireHT;
@@ -562,10 +608,10 @@ export default function NewPurchaseInvoicePage() {
         totalTVA += ligneTVA;
       }
     });
-    
+
     const timbre = formData.timbre.enabled ? formData.timbre.montant : 0;
     const totalTTC = totalHT + fodec + totalTVA + timbre;
-    
+
     return {
       totalHTAvantRemise,
       totalRemise,
@@ -581,22 +627,22 @@ export default function NewPurchaseInvoicePage() {
 
   async function handleSave() {
     if (!tenantId) return;
-    
+
     if (!formData.fournisseurId) {
       toast.error('Veuillez sélectionner un fournisseur');
       return;
     }
-    
+
     if (lines.length === 0) {
       toast.error('Veuillez ajouter au moins une ligne');
       return;
     }
-    
+
     setSaving(true);
     try {
       // Create payload without images in formData, then add images separately
       const { images: formDataImages, ...formDataWithoutImages } = formData as any;
-      
+
       // Ensure images is an array and format them correctly (same format as PUT route)
       console.log('handleSave: Current images state', images);
       const imagesToSend = Array.isArray(images) && images.length > 0 ? images.map((img: ImageData) => ({
@@ -610,27 +656,28 @@ export default function NewPurchaseInvoicePage() {
         height: img.height || undefined,
         format: img.format || undefined,
       })) : [];
-      
+
       console.log('handleSave: Formatted images to send', imagesToSend);
-      
+
       const payload: any = {
         ...formDataWithoutImages,
         numero: formData.numero || formDataWithoutImages.numero || '', // Ensure numero is included
+        warehouseId: selectedWarehouseId || undefined,
         lignes: lines,
         bonsReceptionIds: selectedBRId ? [selectedBRId] : [],
         images: imagesToSend,
       };
-      
-      console.log('handleSave: Full payload', { 
+
+      console.log('handleSave: Full payload', {
         numero: payload.numero,
         formDataNumero: formData.numero,
         formDataWithoutImagesNumero: formDataWithoutImages.numero,
         payloadKeys: Object.keys(payload),
         fullPayload: payload
       });
-      
+
       const payloadString = JSON.stringify(payload);
-      
+
       const response = await fetch('/api/purchases/invoices', {
         method: 'POST',
         headers: {
@@ -639,7 +686,7 @@ export default function NewPurchaseInvoicePage() {
         },
         body: payloadString,
       });
-      
+
       if (response.ok) {
         const invoice = await response.json();
         toast.success('Facture créée avec succès');
@@ -658,34 +705,35 @@ export default function NewPurchaseInvoicePage() {
 
   async function handleValidate() {
     if (!tenantId) return;
-    
+
     if (!formData.fournisseurId) {
       toast.error('Veuillez sélectionner un fournisseur');
       return;
     }
-    
+
     if (lines.length === 0) {
       toast.error('Veuillez ajouter au moins une ligne');
       return;
     }
-    
+
     setSaving(true);
     try {
       const validatePayload = {
         ...formData,
         numero: formData.numero || '', // Ensure numero is included
+        warehouseId: selectedWarehouseId || undefined,
         lignes: lines,
         statut: 'VALIDEE',
         bonsReceptionIds: selectedBRId ? [selectedBRId] : [],
       };
-      
-      console.log('handleValidate: Payload', { 
+
+      console.log('handleValidate: Payload', {
         numero: validatePayload.numero,
         formDataNumero: formData.numero,
         payloadKeys: Object.keys(validatePayload),
         fullPayload: validatePayload
       });
-      
+
       const response = await fetch('/api/purchases/invoices', {
         method: 'POST',
         headers: {
@@ -694,7 +742,7 @@ export default function NewPurchaseInvoicePage() {
         },
         body: JSON.stringify(validatePayload),
       });
-      
+
       if (response.ok) {
         const invoice = await response.json();
         toast.success('Facture validée avec succès');
@@ -762,7 +810,7 @@ export default function NewPurchaseInvoicePage() {
                     <option value="ca">Commande d'achat (CA)</option>
                     <option value="br">Bon de réception (BR)</option>
                   </select>
-                  
+
                   {selectedDocumentType === 'ca' && (
                     <select
                       value={selectedCAId}
@@ -777,7 +825,7 @@ export default function NewPurchaseInvoicePage() {
                       ))}
                     </select>
                   )}
-                  
+
                   {selectedDocumentType === 'br' && (
                     <select
                       value={selectedBRId}
@@ -795,7 +843,7 @@ export default function NewPurchaseInvoicePage() {
                 </div>
                 {(selectedDocumentType === 'ca' || selectedDocumentType === 'br') && (
                   <p className="mt-2 text-xs text-gray-500">
-                    {selectedDocumentType === 'ca' 
+                    {selectedDocumentType === 'ca'
                       ? 'Les données de la commande d\'achat seront chargées automatiquement'
                       : 'Les données du bon de réception seront chargées automatiquement'}
                   </p>
@@ -829,9 +877,8 @@ export default function NewPurchaseInvoicePage() {
                     onKeyDown={selectedDocumentType === 'none' ? handleSupplierKeyDown : undefined}
                     placeholder="Rechercher un fournisseur..."
                     readOnly={selectedDocumentType !== 'none'}
-                    className={`w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm ${
-                      selectedDocumentType !== 'none' ? 'bg-gray-50 cursor-not-allowed' : ''
-                    }`}
+                    className={`w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm ${selectedDocumentType !== 'none' ? 'bg-gray-50 cursor-not-allowed' : ''
+                      }`}
                   />
                   {showSupplierDropdown && supplierDropdownPosition && filteredSuppliers.length > 0 && (
                     <div
@@ -847,9 +894,8 @@ export default function NewPurchaseInvoicePage() {
                         <div
                           key={supplier._id}
                           onClick={() => handleSelectSupplier(supplier)}
-                          className={`px-4 py-2 cursor-pointer hover:bg-gray-50 ${
-                            index === selectedSupplierIndex ? 'bg-blue-50' : ''
-                          }`}
+                          className={`px-4 py-2 cursor-pointer hover:bg-gray-50 ${index === selectedSupplierIndex ? 'bg-blue-50' : ''
+                            }`}
                         >
                           <div className="text-sm font-medium text-gray-900">
                             {supplier.raisonSociale || `${supplier.nom || ''} ${supplier.prenom || ''}`.trim()}
@@ -872,6 +918,25 @@ export default function NewPurchaseInvoicePage() {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                 />
               </div>
+
+              {multiWarehouseEnabled && warehouses.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Entrepôt de réception
+                  </label>
+                  <select
+                    value={selectedWarehouseId}
+                    onChange={(e) => setSelectedWarehouseId(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  >
+                    {warehouses.map((wh) => (
+                      <option key={wh._id} value={wh._id}>
+                        {wh.name} {wh.isDefault ? '(Défaut)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">

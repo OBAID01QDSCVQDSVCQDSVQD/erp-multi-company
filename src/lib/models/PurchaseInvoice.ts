@@ -58,6 +58,7 @@ export interface IPurchaseInvoice extends Document {
   images?: IPurchaseInvoiceImage[]; // الصور المرفقة (Base64)
   paiements?: IPurchaseInvoicePaiement[];
   notes?: string;
+  warehouseId?: string;
   createdBy?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -135,11 +136,12 @@ const PurchaseInvoiceSchema = new Schema({
     default: 'BROUILLON',
     index: true,
   },
+  warehouseId: { type: String, index: true },
   lignes: {
     type: [PurchaseInvoiceLineSchema],
     required: true,
     validate: {
-      validator: function(v: IPurchaseInvoiceLine[]) {
+      validator: function (v: IPurchaseInvoiceLine[]) {
         return v && v.length > 0;
       },
       message: 'La facture doit contenir au moins une ligne',
@@ -171,9 +173,10 @@ PurchaseInvoiceSchema.index({ societeId: 1, numero: 1 }, { unique: true });
 PurchaseInvoiceSchema.index({ societeId: 1, dateFacture: -1 });
 PurchaseInvoiceSchema.index({ societeId: 1, fournisseurId: 1 });
 PurchaseInvoiceSchema.index({ societeId: 1, statut: 1 });
+PurchaseInvoiceSchema.index({ societeId: 1, warehouseId: 1 });
 
 // Pre-save hook: recalculate totals
-PurchaseInvoiceSchema.pre('save', function(next) {
+PurchaseInvoiceSchema.pre('save', function (next) {
   if (this.lignes && this.lignes.length > 0) {
     let totalHT = 0;
     let totalRemise = 0;
@@ -196,7 +199,7 @@ PurchaseInvoiceSchema.pre('save', function(next) {
           const remiseLigne = htAvantRemiseLigne - (prixAvecRemise * quantite);
           totalRemise += remiseLigne;
         }
-        
+
         const ligneHT = prixAvecRemise * quantite;
         ligne.totalLigneHT = ligneHT;
         totalHT += ligneHT;
@@ -223,7 +226,7 @@ PurchaseInvoiceSchema.pre('save', function(next) {
           prixAvecRemise = prixAvecRemise * (1 - remisePct / 100);
         }
         const ligneHT = prixAvecRemise * ligne.quantite;
-        
+
         // Calculate FODEC for this line if enabled
         const ligneFodec = fodecEnabled ? ligneHT * (tauxFodec / 100) : 0;
         const ligneBaseTVA = ligneHT + ligneFodec;

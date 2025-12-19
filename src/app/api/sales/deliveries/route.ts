@@ -140,11 +140,102 @@ export async function POST(request: NextRequest) {
     // Generate numero
     const numero = await NumberingService.next(tenantId, 'bl');
 
+    // === WAREHOUSE RESOLUTION ===
+    // If warehouseId is provided in body, use it. Otherwise, find default.
+    let warehouseId = body.warehouseId;
+    if (!warehouseId) {
+      const Warehouse = (await import('@/lib/models/Warehouse')).default;
+      // Find default warehouse
+      const defaultWh = await (Warehouse as any).findOne({ tenantId, isDefault: true }).lean();
+      if (defaultWh) {
+        warehouseId = defaultWh._id;
+      } else {
+        // Fallback: Find ANY warehouse if no default is set
+        const anyWh = await (Warehouse as any).findOne({ tenantId }).lean();
+        if (anyWh) warehouseId = anyWh._id;
+      }
+    }
+
+    // Ensure we have a valid warehouseId string (if found) or keep null/undefined
+    const warehouseIdStr = warehouseId ? warehouseId.toString() : undefined;
+
+    console.log(`[STOCK] Using Warehouse ID: ${warehouseIdStr}`);
+
+    // === CHECK STOCK AVAILABILITY ===
+    // 1. Fetch company settings to see if negative stock is allowed
+    const CompanySettings = (await import('@/lib/models/CompanySettings')).default;
+    const settings = await (CompanySettings as any).findOne({ tenantId }).lean();
+
+    // Debug logging
+    console.log('[STOCK CHECK] Settings retrieved:', JSON.stringify(settings?.stock));
+
+    // Default is allowed if not specified OR if explictly set to 'autorise'
+    // Stricter check: Only allow if NOT 'interdit'
+    const stockSettingValue = settings?.stock?.stockNegatif;
+    const isNegativeStockAllowed = stockSettingValue !== 'interdit';
+
+    console.log(`[STOCK CHECK] Is negative stock allowed? ${isNegativeStockAllowed} (Value in DB: "${stockSettingValue}")`);
+
+    if (!isNegativeStockAllowed) {
+      console.log('[STOCK CHECK] Verifying stock levels for items...');
+
+      // 2. If forbidden, check stock for each item
+      for (const line of body.lignes || []) {
+        if (!line.productId || !line.quantite || line.quantite <= 0) continue;
+
+        const Product = (await import('@/lib/models/Product')).default;
+        const product = await (Product as any).findOne({
+          _id: line.productId,
+          tenantId
+        }).lean();
+
+        // Only check for stockable products
+        if (product && product.estStocke !== false) {
+          // 3. Calculate current stock level IN THE TARGET WAREHOUSE
+          const MouvementStock = (await import('@/lib/models/MouvementStock')).default;
+
+          const query: any = {
+            societeId: tenantId,
+            productId: line.productId.toString()
+          };
+
+          // Filter by warehouse if we have one
+          if (warehouseIdStr) {
+            query.warehouseId = new mongoose.Types.ObjectId(warehouseIdStr);
+          }
+
+          const movements = await (MouvementStock as any).find(query).lean();
+
+          let currentStock = 0;
+          for (const mov of movements) {
+            if (mov.type === 'ENTREE') currentStock += mov.qte;
+            else if (mov.type === 'SORTIE') currentStock -= mov.qte;
+          }
+
+          console.log(`[STOCK CHECK] Product: ${product.nom} | Available (Wh:${warehouseIdStr || 'ALL'}): ${currentStock} | Requested: ${line.quantite}`);
+
+          if (currentStock < line.quantite) {
+            const errorMsg = `Stock insuffisant pour le produit "${product.nom}" dans l'entrepôt sélectionné. Disponible: ${currentStock}, Demandé: ${line.quantite}.`;
+            console.log(`[STOCK CHECK] BLOCKED: ${errorMsg}`);
+            return NextResponse.json({
+              error: errorMsg
+            }, { status: 400 });
+          }
+        } else {
+          console.log(`[STOCK CHECK] Product ${line.productId} is not stockable or not found.`);
+        }
+      }
+    } else {
+      console.log('[STOCK CHECK] Skipped check because negative stock is allowed.');
+    }
+    // === END CHECK STOCK AVAILABILITY ===
+
     const delivery = new Document({
       ...body,
       tenantId,
       type: 'BL',
       numero,
+      warehouseId: warehouseIdStr, // Save the warehouse ID on the document
       createdBy: session.user.email
     });
 
@@ -170,7 +261,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create stock movements for all products
-    await createStockMovementsForDelivery(delivery, tenantId, session.user.email, projectId);
+    await createStockMovementsForDelivery(delivery, tenantId, session.user.email, projectId, warehouseIdStr);
 
     // Log action
     const { logAction } = await import('@/lib/logger');
@@ -232,7 +323,8 @@ async function createStockMovementsForDelivery(
   delivery: any,
   tenantId: string,
   createdBy: string,
-  projectId?: string | null
+  projectId?: string | null,
+  warehouseId?: string
 ): Promise<void> {
   if (!delivery.lignes || delivery.lignes.length === 0) {
     return;
@@ -240,6 +332,9 @@ async function createStockMovementsForDelivery(
 
   const dateDoc = delivery.dateDoc || new Date();
   const deliveryId = delivery._id.toString();
+
+  // Use DB transaction if possible, but for now simple batch
+  const warehouseObjectId = warehouseId ? new mongoose.Types.ObjectId(warehouseId) : undefined;
 
   for (const line of delivery.lignes) {
     // Skip if no productId or quantity is 0
@@ -290,9 +385,9 @@ async function createStockMovementsForDelivery(
         // Update existing movement
         existingMovement.qte = line.quantite;
         existingMovement.date = dateDoc;
-        if (projectId) {
-          existingMovement.projectId = new mongoose.Types.ObjectId(projectId);
-        }
+        if (projectId) existingMovement.projectId = new mongoose.Types.ObjectId(projectId);
+        if (warehouseObjectId) existingMovement.warehouseId = warehouseObjectId; // Update warehouse
+
         await (existingMovement as any).save();
       } else {
         // Create new stock movement
@@ -300,6 +395,7 @@ async function createStockMovementsForDelivery(
           societeId: tenantId,
           productId: productIdStr,
           projectId: projectId ? new mongoose.Types.ObjectId(projectId) : undefined,
+          warehouseId: warehouseObjectId, // Use Resolved Warehouse ID
           type: 'SORTIE',
           qte: line.quantite,
           date: dateDoc,

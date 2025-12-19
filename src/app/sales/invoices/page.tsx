@@ -80,12 +80,12 @@ export default function InvoicesPage() {
   const [taxRates, setTaxRates] = useState<Array<{ code: string; tauxPct: number }>>([]);
   const [tvaSettings, setTvaSettings] = useState<any>(null);
   const [modesReglement, setModesReglement] = useState<string[]>([]);
-  
+
   // Autocomplete state
   const [customerSearch, setCustomerSearch] = useState('');
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
   const [selectedCustomerIndex, setSelectedCustomerIndex] = useState(-1);
-  
+
   // Product autocomplete state per line
   const [productSearches, setProductSearches] = useState<{ [key: number]: string }>({});
   const [showProductModal, setShowProductModal] = useState<{ [key: number]: boolean }>({});
@@ -96,10 +96,15 @@ export default function InvoicesPage() {
   const [isFromBL, setIsFromBL] = useState(false); // Track if invoice is created from BL
   const [pendingSummary, setPendingSummary] = useState<{ totalCount: number; totalPendingAmount: number } | null>(null);
   const [loadingPendingSummary, setLoadingPendingSummary] = useState(false);
-  
+
+  // Warehouse state
+  const [warehouses, setWarehouses] = useState<any[]>([]);
+  const [selectedWarehouseId, setSelectedWarehouseId] = useState<string>('');
+  const [multiWarehouseEnabled, setMultiWarehouseEnabled] = useState(false);
+
   // Form state
   const [formData, setFormData] = useState(() => createDefaultFormData());
-  
+
   const [lines, setLines] = useState<Array<{
     productId: string;
     codeAchat?: string;
@@ -119,32 +124,32 @@ export default function InvoicesPage() {
   const fetchInvoices = useCallback(async (retryCount: number = 0) => {
     try {
       if (!tenantId) return;
-      
+
       if (retryCount === 0) {
         setLoading(true);
       }
-      
+
       const response = await fetch(`/api/sales/invoices?t=${Date.now()}`, {
         headers: { 'X-Tenant-Id': tenantId },
         cache: 'no-store', // Prevent caching
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         const invoicesList = data.items || [];
-        
+
         // Process invoices - customerId might already be populated as an object
         const invoicesWithCustomers = invoicesList.map((invoice: any) => {
           let customerName = '';
           let customerIdValue = invoice.customerId;
-          
+
           if (invoice.customerId) {
             // Check if customerId is already populated (object) or just an ID (string)
             if (typeof invoice.customerId === 'object' && invoice.customerId !== null) {
               // Already populated from API
-              customerName = invoice.customerId.raisonSociale || 
-                           `${invoice.customerId.nom || ''} ${invoice.customerId.prenom || ''}`.trim() || 
-                           '';
+              customerName = invoice.customerId.raisonSociale ||
+                `${invoice.customerId.nom || ''} ${invoice.customerId.prenom || ''}`.trim() ||
+                '';
               // Extract the ID from the populated object
               customerIdValue = invoice.customerId._id || invoice.customerId;
             } else if (typeof invoice.customerId === 'string') {
@@ -152,14 +157,14 @@ export default function InvoicesPage() {
               customerIdValue = invoice.customerId;
             }
           }
-          
+
           return {
             ...invoice,
             customerId: customerIdValue,
             customerName: customerName || invoice.customerName || ''
           };
         });
-        
+
         setInvoices(invoicesWithCustomers);
         setLoading(false);
       } else if (response.status === 500 && retryCount < 3) {
@@ -230,19 +235,30 @@ export default function InvoicesPage() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Refresh stocks when warehouse changes
+  useEffect(() => {
+    if (multiWarehouseEnabled && selectedWarehouseId) {
+      lines.forEach(line => {
+        if (line.productId) {
+          fetchProductStock(line.productId);
+        }
+      });
+    }
+  }, [selectedWarehouseId, multiWarehouseEnabled]);
+
   // Filter customers based on search
   const filteredCustomers = customers.filter((customer) => {
     const searchLower = customerSearch.toLowerCase().trim();
     if (!searchLower) return true;
-    
+
     const name = (customer.raisonSociale || `${customer.nom || ''} ${customer.prenom || ''}`.trim()).toLowerCase();
     const code = (customer.code || '').toLowerCase();
-    
+
     // If single letter, use startsWith
     if (searchLower.length === 1) {
       return name.startsWith(searchLower) || code.startsWith(searchLower);
     }
-    
+
     // If more than one letter, use contains
     return name.includes(searchLower) || code.includes(searchLower);
   });
@@ -258,10 +274,10 @@ export default function InvoicesPage() {
   // Handle keyboard navigation
   const handleCustomerKeyDown = (e: React.KeyboardEvent) => {
     if (!showCustomerDropdown) return;
-    
+
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setSelectedCustomerIndex(prev => 
+      setSelectedCustomerIndex(prev =>
         prev < filteredCustomers.length - 1 ? prev + 1 : prev
       );
     } else if (e.key === 'ArrowUp') {
@@ -408,7 +424,7 @@ export default function InvoicesPage() {
     setCustomerSearch('');
     setShowCustomerDropdown(false);
     setSelectedCustomerIndex(-1);
-    
+
     // Ensure TVA settings are loaded before opening modal
     let currentTvaSettings = tvaSettings;
     if (!currentTvaSettings) {
@@ -427,7 +443,7 @@ export default function InvoicesPage() {
         console.error('Error fetching TVA settings:', err);
       }
     }
-    
+
     const defaultForm = createDefaultFormData();
     const nextNumero = computeNextInvoiceNumberFromExisting();
     const resolvedForm = {
@@ -464,7 +480,12 @@ export default function InvoicesPage() {
   const fetchProductStock = async (productId: string) => {
     if (!tenantId || !productId) return;
     try {
-      const response = await fetch(`/api/stock/product/${productId}`, {
+      let url = `/api/stock/product/${productId}`;
+      if (multiWarehouseEnabled && selectedWarehouseId) {
+        url += `?warehouseId=${selectedWarehouseId}`;
+      }
+
+      const response = await fetch(url, {
         headers: { 'X-Tenant-Id': tenantId },
       });
       if (response.ok) {
@@ -490,7 +511,7 @@ export default function InvoicesPage() {
     newLines[lineIndex].prixUnitaireHT = product.prixVenteHT || 0;
     newLines[lineIndex].taxCode = product.taxCode || '';
     newLines[lineIndex].uomCode = product.uomVenteCode || '';
-    
+
     // Use tvaPct from product if available
     if (product.tvaPct !== undefined && product.tvaPct !== null) {
       newLines[lineIndex].tvaPct = product.tvaPct;
@@ -500,10 +521,10 @@ export default function InvoicesPage() {
     } else {
       newLines[lineIndex].tvaPct = 0;
     }
-    
+
     newLines[lineIndex].estStocke = product.estStocke !== false;
     setLines(newLines);
-    
+
     // Fetch stock for the selected product only if it's an article (estStocke !== false) and NOT from BL
     if (!isFromBL && product.estStocke !== false) {
       fetchProductStock(product._id);
@@ -515,7 +536,7 @@ export default function InvoicesPage() {
         return updated;
       });
     }
-    
+
     // Update search state
     setProductSearches({ ...productSearches, [lineIndex]: product.nom });
     setShowProductModal({ ...showProductModal, [lineIndex]: false });
@@ -610,14 +631,77 @@ export default function InvoicesPage() {
     }
   };
 
+  // ... (existing codes)
+
+  const fetchWarehouses = async () => {
+    try {
+      if (!tenantId) return;
+      const response = await fetch('/api/stock/warehouses', {
+        headers: { 'X-Tenant-Id': tenantId }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setWarehouses(data || []);
+        // Set default warehouse logic is handled when opening modal or user selection
+      }
+    } catch (err) {
+      console.error('Error fetching warehouses:', err);
+    }
+  };
+
+  const fetchCompanySettings = async () => {
+    try {
+      if (!tenantId) return;
+      const response = await fetch('/api/settings', {
+        headers: { 'X-Tenant-Id': tenantId }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setTvaSettings(data.tva);
+        // Check if multi-warehouse is enabled
+        setMultiWarehouseEnabled(data.stock?.multiEntrepots === true);
+      }
+    } catch (err) {
+      console.error('Error fetching settings:', err);
+    }
+  };
+
+  // ...
+
   useEffect(() => {
     if (showModal && tenantId) {
       setLoadingData(true);
-      Promise.all([fetchCustomers(), fetchProducts(), fetchTaxRates(), fetchTvaSettings(), fetchModesReglement()]).finally(() => {
+      const promises = [
+        fetchCustomers(),
+        fetchProducts(),
+        fetchTaxRates(),
+        fetchCompanySettings(), // Unified settings fetch
+        fetchModesReglement()
+      ];
+
+      // If we already know multi-warehouse is enabled (e.g. from previous fetch), fetch warehouses too
+      // But best to fetch properly inside the promise chain after knowing settings
+
+      Promise.all(promises).then(async () => {
+        // After basic settings, if multi-warehouse is potentially enabled (or check response), fetch warehouses
+        // Since we set state async, we might need a separate effect or chaining. 
+        // For simplicity, let's fetch warehouses in parallel if we suspect it, or rely on the effect below.
+        await fetchWarehouses();
+      }).finally(() => {
         setLoadingData(false);
       });
     }
   }, [showModal, tenantId]);
+
+  // Effect to set default warehouse when opening modal
+  useEffect(() => {
+    if (showModal && warehouses.length > 0 && !selectedWarehouseId) {
+      const defaultWh = warehouses.find(w => w.isDefault);
+      if (defaultWh) setSelectedWarehouseId(defaultWh._id);
+      else if (warehouses.length > 0) setSelectedWarehouseId(warehouses[0]._id);
+    }
+  }, [showModal, warehouses, selectedWarehouseId]);
+
 
   // Update product searches when products are loaded to use product names instead of designation
   // This runs after products are loaded to improve product search display
@@ -625,7 +709,7 @@ export default function InvoicesPage() {
     if (editingInvoiceId && products.length > 0 && lines.length > 0 && !loadingData) {
       const searches: { [key: number]: string } = { ...productSearches };
       let updated = false;
-      
+
       lines.forEach((line: any, idx: number) => {
         if (line.productId) {
           // Try to find product by ID and update search with product name
@@ -636,7 +720,7 @@ export default function InvoicesPage() {
           }
         }
       });
-      
+
       if (updated) {
         setProductSearches(searches);
       }
@@ -673,7 +757,7 @@ export default function InvoicesPage() {
   const updateLine = (index: number, field: string, value: any) => {
     const newLines = [...lines];
     newLines[index] = { ...newLines[index], [field]: value };
-    
+
     // Auto-calculate line total if product selected
     if (field === 'productId' && value) {
       const product = products.find(p => p._id === value);
@@ -684,7 +768,7 @@ export default function InvoicesPage() {
         newLines[index].prixUnitaireHT = product.prixVenteHT || 0;
         newLines[index].taxCode = product.taxCode || '';
         newLines[index].uomCode = product.uomVenteCode || '';
-        
+
         // Use tvaPct from product if available, otherwise search for it
         if (product.tvaPct !== undefined && product.tvaPct !== null) {
           newLines[index].tvaPct = product.tvaPct;
@@ -696,12 +780,12 @@ export default function InvoicesPage() {
         }
       }
     }
-    
+
     // Recalculate total line (HT only for now, TVA calculated separately)
     if (field === 'quantite' || field === 'prixUnitaireHT') {
       newLines[index].totalLine = newLines[index].quantite * newLines[index].prixUnitaireHT;
     }
-    
+
     // Update tax code when tvaPct changes (if manually edited)
     if (field === 'tvaPct' && Array.isArray(taxRates) && taxRates.length > 0) {
       // Keep taxCode as reference, but allow manual TVA override
@@ -711,7 +795,7 @@ export default function InvoicesPage() {
         newLines[index].taxCode = matchingRate.code;
       }
     }
-    
+
     setLines(newLines);
   };
 
@@ -724,27 +808,27 @@ export default function InvoicesPage() {
   const calculateTotals = () => {
     let totalHTBeforeDiscount = 0;
     let totalHTAfterLineDiscount = 0;
-    
+
     lines.forEach(line => {
       const lineHTBeforeDiscount = (line.quantite || 0) * (line.prixUnitaireHT || 0);
       totalHTBeforeDiscount += lineHTBeforeDiscount;
       const lineHT = lineHTBeforeDiscount * (1 - ((line.remisePct || 0) / 100));
       totalHTAfterLineDiscount += lineHT;
     });
-    
+
     // Apply global remise
     const remiseGlobalePct = formData.remiseGlobalePct || 0;
     const totalHT = totalHTAfterLineDiscount * (1 - (remiseGlobalePct / 100));
-    
+
     // Calculate remise amounts
     const remiseFromLines = totalHTBeforeDiscount - totalHTAfterLineDiscount;
     const remiseGlobale = totalHTAfterLineDiscount - totalHT;
     const totalRemise = remiseFromLines + remiseGlobale;
-    
+
     // Calculate FODEC on Total HT AFTER discount (totalHT is already after all discounts)
     // FODEC = totalHT * (tauxPct / 100)
     const fodec = formData.fodec?.enabled ? totalHT * ((formData.fodec.tauxPct || 1) / 100) : 0;
-    
+
     // Calculate TVA per line (based on HT after line discount, before global remise, plus FODEC)
     const totalTVA = lines.reduce((sum, line) => {
       const lineHTBeforeDiscount = (line.quantite || 0) * (line.prixUnitaireHT || 0);
@@ -757,25 +841,25 @@ export default function InvoicesPage() {
       const lineTVA = lineBaseTVA * (line.tvaPct || 0) / 100;
       return sum + lineTVA;
     }, 0);
-    
+
     // Timbre fiscal
-    const timbreAmount = (formData.timbreActif && tvaSettings?.timbreFiscal?.actif) 
-      ? (tvaSettings?.timbreFiscal?.montantFixe || 1) 
+    const timbreAmount = (formData.timbreActif && tvaSettings?.timbreFiscal?.actif)
+      ? (tvaSettings?.timbreFiscal?.montantFixe || 1)
       : 0;
-    
+
     const totalTTC = totalHT + fodec + totalTVA + timbreAmount;
-    
-    return { 
+
+    return {
       totalHTBeforeDiscount: totalHTBeforeDiscount,
-      totalHT, 
+      totalHT,
       totalHTAfterLineDiscount,
-      totalRemise, 
+      totalRemise,
       remiseLignes: remiseFromLines, // Added remiseLignes
-      remiseGlobale, 
+      remiseGlobale,
       fodec,
-      totalTVA, 
-      timbreAmount, 
-      totalTTC 
+      totalTVA,
+      timbreAmount,
+      totalTTC
     };
   };
 
@@ -792,7 +876,7 @@ export default function InvoicesPage() {
       if (response.ok) {
         const data = await response.json();
         const documents = data.items || [];
-        
+
         // If sourceType is BL, filter out BLs that have already been converted to invoices
         let availableDocuments = documents;
         if (sourceType === 'BL') {
@@ -804,7 +888,7 @@ export default function InvoicesPage() {
             if (invoicesResponse.ok) {
               const invoicesData = await invoicesResponse.json();
               const invoices = invoicesData.items || [];
-              
+
               // Extract BL IDs that have been converted (from linkedDocuments)
               const convertedBLIds = new Set<string>();
               invoices.forEach((invoice: any) => {
@@ -814,7 +898,7 @@ export default function InvoicesPage() {
                   });
                 }
               });
-              
+
               // Filter out BLs that have been converted
               availableDocuments = documents.filter((doc: any) => {
                 const docId = doc._id?.toString();
@@ -826,7 +910,7 @@ export default function InvoicesPage() {
             // Continue with all documents if check fails
           }
         }
-        
+
         // Fetch customer names for each document
         const documentsWithCustomers = await Promise.all(
           availableDocuments.map(async (doc: any) => {
@@ -849,7 +933,7 @@ export default function InvoicesPage() {
             return doc;
           })
         );
-        
+
         setSourceDocuments(documentsWithCustomers);
       }
     } catch (err) {
@@ -871,7 +955,7 @@ export default function InvoicesPage() {
   const handleConvert = async (sourceId: string) => {
     try {
       if (!tenantId || !convertSourceType) return;
-      
+
       const response = await fetch('/api/sales/invoices/convert', {
         method: 'POST',
         headers: {
@@ -888,13 +972,13 @@ export default function InvoicesPage() {
       if (response.ok) {
         const invoice = await response.json();
         toast.success('Facture créée avec succès. Vous pouvez maintenant la modifier.');
-        
+
         // Close convert modal
         setShowConvertModal(false);
         setConvertSourceType(null);
         setSourceDocuments([]);
         setConvertSearchQuery('');
-        
+
         // Ensure products and customers are loaded before opening edit modal
         if (products.length === 0 || customers.length === 0) {
           await Promise.all([
@@ -902,19 +986,19 @@ export default function InvoicesPage() {
             customers.length === 0 ? fetchCustomers() : Promise.resolve()
           ]);
         }
-        
+
         // Fetch the created invoice to populate the edit form
         const invoiceResponse = await fetch(`/api/sales/invoices/${invoice._id}`, {
           headers: { 'X-Tenant-Id': tenantId }
         });
-        
+
         if (invoiceResponse.ok) {
           const fullInvoice = await invoiceResponse.json();
-          
+
           // Check if invoice is created from BL by checking linkedDocuments
           const hasBL = fullInvoice.linkedDocuments && fullInvoice.linkedDocuments.length > 0;
           setIsFromBL(hasBL || false);
-          
+
           // Populate form with invoice data
           setFormData({
             customerId: fullInvoice.customerId || '',
@@ -936,7 +1020,7 @@ export default function InvoicesPage() {
           });
           setInvoiceNumberPreview(fullInvoice.numero || null);
           setInvoiceNumberLoading(false);
-          
+
           // Set customer search based on selected customer
           if (fullInvoice.customerId) {
             const selectedCustomer = customers.find(c => c._id === fullInvoice.customerId);
@@ -946,7 +1030,7 @@ export default function InvoicesPage() {
           } else {
             setCustomerSearch('');
           }
-          
+
           // Populate lines
           if (fullInvoice.lignes && fullInvoice.lignes.length > 0) {
             const mappedLines = fullInvoice.lignes.map((line: any) => ({
@@ -964,7 +1048,7 @@ export default function InvoicesPage() {
               estStocke: line.estStocke !== false
             }));
             setLines(mappedLines);
-            
+
             // Fetch stock for all products in lines only if NOT from BL
             if (!hasBL) {
               mappedLines.forEach((line: any) => {
@@ -973,7 +1057,7 @@ export default function InvoicesPage() {
                 }
               });
             }
-            
+
             // Populate product searches immediately using designation from API
             const searches: { [key: number]: string } = {};
             mappedLines.forEach((line: any, idx: number) => {
@@ -983,12 +1067,12 @@ export default function InvoicesPage() {
             });
             setProductSearches(searches);
           }
-          
+
           // Set editing state and open modal
           setEditingInvoiceId(fullInvoice._id);
           setShowModal(true);
         }
-        
+
         // Refresh invoices list
         fetchInvoices(0);
       } else {
@@ -1004,7 +1088,7 @@ export default function InvoicesPage() {
   // Save invoice
   const [saving, setSaving] = useState(false);
 
-  const handleCreateInvoice = async () => {
+  const handleCreateInvoice = async (skipStockValidation = false) => {
     if (!formData.customerId) {
       toast.error('Veuillez sélectionner un client');
       return;
@@ -1017,7 +1101,7 @@ export default function InvoicesPage() {
 
     try {
       if (!tenantId) return;
-      
+
       const lignesData = lines
         .filter(line => line.designation && line.designation.trim() !== '')
         .map(line => ({
@@ -1032,48 +1116,58 @@ export default function InvoicesPage() {
           taxCode: line.taxCode,
           tvaPct: line.tvaPct || 0
         }));
-      
+
       if (lignesData.length === 0) {
         toast.error('Veuillez remplir au moins une ligne de produit valide');
         return;
       }
 
-      const url = editingInvoiceId 
-        ? `/api/sales/invoices/${editingInvoiceId}` 
+      setSaving(true);
+
+      const url = editingInvoiceId
+        ? `/api/sales/invoices/${editingInvoiceId}`
         : '/api/sales/invoices';
-      
+
       const method = editingInvoiceId ? 'PATCH' : 'POST';
+
+      const bodyPayload = {
+        customerId: formData.customerId,
+        warehouseId: selectedWarehouseId || undefined,
+        dateDoc: formData.dateDoc,
+        dateEcheance: formData.dateEcheance || undefined,
+        referenceExterne: formData.referenceExterne,
+        devise: formData.devise,
+        tauxChange: formData.tauxChange || 1,
+        modePaiement: formData.modePaiement || undefined,
+        conditionsPaiement: formData.conditionsPaiement || undefined,
+        notes: formData.notes,
+        numero: formData.numero?.trim() || undefined,
+        lignes: lignesData,
+        timbreFiscal: totals.timbreAmount || 0,
+        remiseGlobalePct: formData.remiseGlobalePct || 0,
+        fodec: formData.fodec?.enabled ? {
+          enabled: true,
+          tauxPct: formData.fodec.tauxPct || 1,
+          montant: totals.fodec || 0
+        } : { enabled: false, tauxPct: 1, montant: 0 },
+        skipStockValidation: skipStockValidation // Flag for deferred delivery
+      };
 
       const response = await fetch(url, {
         method,
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
-          'X-Tenant-Id': tenantId 
+          'X-Tenant-Id': tenantId
         },
-        body: JSON.stringify({
-          customerId: formData.customerId,
-          dateDoc: formData.dateDoc,
-          dateEcheance: formData.dateEcheance || undefined,
-          referenceExterne: formData.referenceExterne,
-          devise: formData.devise,
-          tauxChange: formData.tauxChange || 1,
-          modePaiement: formData.modePaiement || undefined,
-          conditionsPaiement: formData.conditionsPaiement || undefined,
-          notes: formData.notes,
-          numero: formData.numero?.trim() || undefined,
-          lignes: lignesData,
-          timbreFiscal: totals.timbreAmount || 0,
-          remiseGlobalePct: formData.remiseGlobalePct || 0,
-          fodec: formData.fodec?.enabled ? {
-            enabled: true,
-            tauxPct: formData.fodec.tauxPct || 1,
-            montant: totals.fodec || 0
-          } : { enabled: false, tauxPct: 1, montant: 0 }
-        })
+        body: JSON.stringify(bodyPayload)
       });
 
       if (response.ok) {
-        toast.success(editingInvoiceId ? 'Facture modifiée avec succès' : 'Facture créée avec succès');
+        toast.success(
+          skipStockValidation
+            ? 'Facture créée (Livraison ultérieure)'
+            : (editingInvoiceId ? 'Facture modifiée avec succès' : 'Facture créée avec succès')
+        );
         setShowModal(false);
         setLines([]);
         setEditingInvoiceId(null);
@@ -1088,13 +1182,33 @@ export default function InvoicesPage() {
         fetchInvoices(0);
       } else {
         const error = await response.json();
-        toast.error(error.error || 'Erreur');
+
+        // Handle Insufficient Stock (409)
+        if (response.status === 409 && error.code === 'INSUFFICIENT_STOCK') {
+          const confirmDeferred = window.confirm(
+            `⚠️ STOCK INSUFFISANT ⚠️\n\n` +
+            `Le produit "${error.productName}" est en rupture (Dispo: ${error.available}, Demandé: ${error.requested}).\n\n` +
+            `Voulez-vous quand même créer la facture en "LIVRAISON ULTÉRIEURE" ?\n` +
+            `(Le stock ne sera PAS débité maintenant)`
+          );
+
+          if (confirmDeferred) {
+            // Retry with bypass flag
+            await handleCreateInvoice(true);
+            return;
+          }
+        } else {
+          toast.error(error.error || error.message || 'Erreur lors de la sauvegarde');
+        }
       }
     } catch (err) {
       console.error('Error saving invoice:', err);
-      toast.error('Erreur');
+      toast.error('Erreur inattendue');
     } finally {
-      setSaving(false);
+      // Only stop loading if we are NOT retrying recursively
+      if (!skipStockValidation) {
+        setSaving(false);
+      }
     }
   };
 
@@ -1105,7 +1219,7 @@ export default function InvoicesPage() {
       const response = await fetch(`/api/sales/invoices/${invoice._id}`, {
         headers: { 'X-Tenant-Id': tenantId }
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         toast.success(`Facture ${invoice.numero} chargée avec succès`);
@@ -1128,36 +1242,36 @@ export default function InvoicesPage() {
       const response = await fetch(`/api/sales/invoices/${invoice._id}`, {
         headers: { 'X-Tenant-Id': tenantId }
       });
-      
+
       if (response.ok) {
         const fullInvoice = await response.json();
-        
+
         // Check if invoice is created from BL by checking linkedDocuments
         const hasBL = fullInvoice.linkedDocuments && fullInvoice.linkedDocuments.length > 0;
         setIsFromBL(hasBL || false);
-        
+
         // Populate form with invoice data
         setFormData({
-            customerId: fullInvoice.customerId || '',
-            dateDoc: fullInvoice.dateDoc?.split('T')[0] || new Date().toISOString().split('T')[0],
-            referenceExterne: fullInvoice.referenceExterne || '',
-            devise: fullInvoice.devise || 'TND',
-            tauxChange: fullInvoice.tauxChange || 1,
-            modePaiement: fullInvoice.modePaiement || '',
-            dateEcheance: fullInvoice.dateEcheance?.split('T')[0] || '',
-            conditionsPaiement: fullInvoice.conditionsPaiement || '',
-            notes: fullInvoice.notes || '',
-            numero: fullInvoice.numero || '',
-            timbreActif: (fullInvoice.timbreFiscal || 0) > 0,
-            remiseGlobalePct: 0, // Will be calculated from existing remise if needed
-            fodec: fullInvoice.fodec ? {
-              enabled: fullInvoice.fodec.enabled || false,
-              tauxPct: fullInvoice.fodec.tauxPct || 1
-            } : { enabled: false, tauxPct: 1 }
-          });
+          customerId: fullInvoice.customerId || '',
+          dateDoc: fullInvoice.dateDoc?.split('T')[0] || new Date().toISOString().split('T')[0],
+          referenceExterne: fullInvoice.referenceExterne || '',
+          devise: fullInvoice.devise || 'TND',
+          tauxChange: fullInvoice.tauxChange || 1,
+          modePaiement: fullInvoice.modePaiement || '',
+          dateEcheance: fullInvoice.dateEcheance?.split('T')[0] || '',
+          conditionsPaiement: fullInvoice.conditionsPaiement || '',
+          notes: fullInvoice.notes || '',
+          numero: fullInvoice.numero || '',
+          timbreActif: (fullInvoice.timbreFiscal || 0) > 0,
+          remiseGlobalePct: 0, // Will be calculated from existing remise if needed
+          fodec: fullInvoice.fodec ? {
+            enabled: fullInvoice.fodec.enabled || false,
+            tauxPct: fullInvoice.fodec.tauxPct || 1
+          } : { enabled: false, tauxPct: 1 }
+        });
         setInvoiceNumberPreview(fullInvoice.numero || null);
         setInvoiceNumberLoading(false);
-        
+
         // Set customer search based on selected customer
         if (fullInvoice.customerId) {
           const selectedCustomer = customers.find(c => c._id === fullInvoice.customerId);
@@ -1167,7 +1281,7 @@ export default function InvoicesPage() {
         } else {
           setCustomerSearch('');
         }
-        
+
         // Populate lines
         if (fullInvoice.lignes && fullInvoice.lignes.length > 0) {
           const mappedLines = fullInvoice.lignes.map((line: any) => ({
@@ -1185,7 +1299,7 @@ export default function InvoicesPage() {
             estStocke: line.estStocke !== false
           }));
           setLines(mappedLines);
-          
+
           // Fetch stock for all products in lines only if NOT from BL
           if (!hasBL) {
             mappedLines.forEach((line: any) => {
@@ -1194,7 +1308,7 @@ export default function InvoicesPage() {
               }
             });
           }
-          
+
           // Populate product searches immediately using designation from API
           // This ensures products are visible even before products list is loaded
           const searches: { [key: number]: string } = {};
@@ -1205,10 +1319,10 @@ export default function InvoicesPage() {
           });
           setProductSearches(searches);
         }
-        
+
         // Set editing state
         setEditingInvoiceId(fullInvoice._id);
-        
+
         // Open modal
         setShowModal(true);
       } else {
@@ -1245,12 +1359,12 @@ export default function InvoicesPage() {
       }
 
       const blob = await response.blob();
-      
+
       // Verify blob is not empty and is a PDF
       if (blob.size === 0) {
         throw new Error('Le fichier PDF est vide');
       }
-      
+
       // Check if blob type is PDF
       if (!blob.type.includes('pdf') && blob.size > 0) {
         // Try to read as text to see if it's an error message
@@ -1262,20 +1376,20 @@ export default function InvoicesPage() {
           throw new Error('Le serveur n\'a pas retourné un PDF valide');
         }
       }
-      
+
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = `Facture-${invoice.numero}.pdf`;
       document.body.appendChild(a);
       a.click();
-      
+
       // Clean up after a short delay to ensure download starts
       setTimeout(() => {
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
       }, 100);
-      
+
       toast.success('PDF téléchargé avec succès');
     } catch (error: any) {
       console.error('Error downloading PDF:', error);
@@ -1291,7 +1405,7 @@ export default function InvoicesPage() {
 
     try {
       if (!tenantId) return;
-      
+
       const response = await fetch(`/api/sales/invoices/${invoiceId}`, {
         method: 'DELETE',
         headers: { 'X-Tenant-Id': tenantId }
@@ -1328,20 +1442,20 @@ export default function InvoicesPage() {
             </h1>
           </div>
           <div className="flex gap-2 flex-wrap">
-            <button 
+            <button
               onClick={() => handleOpenConvertModal('DEVIS')}
               className="flex items-center gap-2 border border-blue-600 text-blue-600 px-3 sm:px-4 py-2 rounded-lg hover:bg-blue-50 text-sm sm:text-base"
             >
               <span>Depuis Devis</span>
             </button>
-            <button 
+            <button
               onClick={() => handleOpenConvertModal('BL')}
               className="flex items-center gap-2 border border-green-600 text-green-600 px-3 sm:px-4 py-2 rounded-lg hover:bg-green-50 text-sm sm:text-base"
             >
               <span>Depuis BL</span>
             </button>
-            <button 
-              onClick={handleOpenNewInvoiceModal} 
+            <button
+              onClick={handleOpenNewInvoiceModal}
               className="flex items-center gap-2 bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-blue-700 text-sm sm:text-base w-full sm:w-auto justify-center"
             >
               <PlusIcon className="w-5 h-5" /> <span>Nouvelle facture</span>
@@ -1427,7 +1541,7 @@ export default function InvoicesPage() {
             <DocumentTextIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Aucune facture trouvée</h3>
             <p className="text-gray-600 mb-6">Créez votre première facture en quelques clics</p>
-            <button 
+            <button
               onClick={() => setShowModal(true)}
               className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 mx-auto"
             >
@@ -1442,72 +1556,72 @@ export default function InvoicesPage() {
                 <table className="w-full">
                   <thead className="bg-gray-50 border-b">
                     <tr>
-                  <th className="px-3 py-4 text-left text-sm font-semibold text-gray-700">Numéro</th>
-                  <th className="px-3 py-4 text-left text-sm font-semibold text-gray-700">Date</th>
-                  <th className="px-3 py-4 text-left text-sm font-semibold text-gray-700">Client</th>
-                  <th className="px-3 py-4 text-right text-sm font-semibold text-gray-700">Total HT</th>
-                  <th className="px-3 py-4 text-right text-sm font-semibold text-gray-700">Total TVA</th>
-                  <th className="px-3 py-4 text-right text-sm font-semibold text-gray-700">Total TTC</th>
-                  <th className="px-2 py-4 text-left text-sm font-semibold text-gray-700">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {filtered.map((invoice) => (
-                  <tr key={invoice._id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-3 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">{invoice.numero}</td>
-                    <td className="px-3 py-4 text-sm text-gray-600 whitespace-nowrap">
-                      {new Date(invoice.dateDoc).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
-                    </td>
-                    <td className="px-3 py-4 text-sm text-gray-600">
-                      {invoice.customerName || '-'}
-                    </td>
-                    <td className="px-3 py-4 text-sm text-gray-600 text-right whitespace-nowrap">
-                      {invoice.totalBaseHT?.toFixed(3)} {invoice.devise || 'TND'}
-                    </td>
-                    <td className="px-3 py-4 text-sm text-gray-600 text-right whitespace-nowrap">
-                      {invoice.totalTVA?.toFixed(3)} {invoice.devise || 'TND'}
-                    </td>
-                    <td className="px-3 py-4 text-sm font-semibold text-gray-900 text-right whitespace-nowrap">
-                      {invoice.totalTTC?.toFixed(3)} {invoice.devise || 'TND'}
-                    </td>
-                    <td className="px-2 py-4">
-                      <div className="flex gap-0.5">
-                        <button 
-                          onClick={() => {
-                            handleView(invoice);
-                          }}
-                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Voir"
-                        >
-                          <EyeIcon className="w-3.5 h-3.5" />
-                        </button>
-                        <button 
-                          onClick={() => {
-                            handleEdit(invoice);
-                          }}
-                          className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                          title="Modifier"
-                        >
-                          <PencilIcon className="w-3.5 h-3.5" />
-                        </button>
-                        <button 
-                          onClick={() => handleDownloadPDF(invoice)}
-                          className="p-1.5 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
-                          title="Télécharger PDF"
-                        >
-                          <ArrowDownTrayIcon className="w-3.5 h-3.5" />
-                        </button>
-                        <button 
-                          onClick={() => handleDelete(invoice._id)}
-                          className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Supprimer"
-                        >
-                          <TrashIcon className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      <th className="px-3 py-4 text-left text-sm font-semibold text-gray-700">Numéro</th>
+                      <th className="px-3 py-4 text-left text-sm font-semibold text-gray-700">Date</th>
+                      <th className="px-3 py-4 text-left text-sm font-semibold text-gray-700">Client</th>
+                      <th className="px-3 py-4 text-right text-sm font-semibold text-gray-700">Total HT</th>
+                      <th className="px-3 py-4 text-right text-sm font-semibold text-gray-700">Total TVA</th>
+                      <th className="px-3 py-4 text-right text-sm font-semibold text-gray-700">Total TTC</th>
+                      <th className="px-2 py-4 text-left text-sm font-semibold text-gray-700">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {filtered.map((invoice) => (
+                      <tr key={invoice._id} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-3 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">{invoice.numero}</td>
+                        <td className="px-3 py-4 text-sm text-gray-600 whitespace-nowrap">
+                          {new Date(invoice.dateDoc).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                        </td>
+                        <td className="px-3 py-4 text-sm text-gray-600">
+                          {invoice.customerName || '-'}
+                        </td>
+                        <td className="px-3 py-4 text-sm text-gray-600 text-right whitespace-nowrap">
+                          {invoice.totalBaseHT?.toFixed(3)} {invoice.devise || 'TND'}
+                        </td>
+                        <td className="px-3 py-4 text-sm text-gray-600 text-right whitespace-nowrap">
+                          {invoice.totalTVA?.toFixed(3)} {invoice.devise || 'TND'}
+                        </td>
+                        <td className="px-3 py-4 text-sm font-semibold text-gray-900 text-right whitespace-nowrap">
+                          {invoice.totalTTC?.toFixed(3)} {invoice.devise || 'TND'}
+                        </td>
+                        <td className="px-2 py-4">
+                          <div className="flex gap-0.5">
+                            <button
+                              onClick={() => {
+                                handleView(invoice);
+                              }}
+                              className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              title="Voir"
+                            >
+                              <EyeIcon className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                handleEdit(invoice);
+                              }}
+                              className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                              title="Modifier"
+                            >
+                              <PencilIcon className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleDownloadPDF(invoice)}
+                              className="p-1.5 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                              title="Télécharger PDF"
+                            >
+                              <ArrowDownTrayIcon className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(invoice._id)}
+                              className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Supprimer"
+                            >
+                              <TrashIcon className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
@@ -1525,14 +1639,14 @@ export default function InvoicesPage() {
                       </p>
                     </div>
                     <div className="flex gap-1">
-                      <button 
+                      <button
                         onClick={() => handleView(invoice)}
                         className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
                         title="Voir"
                       >
                         <EyeIcon className="w-4 h-4" />
                       </button>
-                      <button 
+                      <button
                         onClick={() => handleEdit(invoice)}
                         className="p-2 text-green-600 hover:bg-green-50 rounded-lg"
                         title="Modifier"
@@ -1560,14 +1674,14 @@ export default function InvoicesPage() {
                     </div>
                   </div>
                   <div className="flex gap-2 pt-2">
-                    <button 
+                    <button
                       onClick={() => handleDownloadPDF(invoice)}
                       className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm border rounded-lg hover:bg-gray-50"
                     >
                       <ArrowDownTrayIcon className="w-4 h-4" />
                       PDF
                     </button>
-                    <button 
+                    <button
                       onClick={() => handleDelete(invoice._id)}
                       className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm text-red-600 border border-red-300 rounded-lg hover:bg-red-50"
                     >
@@ -1594,7 +1708,7 @@ export default function InvoicesPage() {
                     {editingInvoiceId ? 'Modifiez votre facture' : 'Créez une facture élégante et précise en quelques clics'}
                   </p>
                 </div>
-                <button 
+                <button
                   onClick={() => setShowModal(false)}
                   className="text-gray-400 hover:text-gray-600 text-2xl"
                 >
@@ -1669,7 +1783,7 @@ export default function InvoicesPage() {
                             className="w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                           />
                         </div>
-                        
+
                         {/* Dropdown */}
                         {showCustomerDropdown && (
                           <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl max-h-[280px] overflow-hidden">
@@ -1685,7 +1799,7 @@ export default function InvoicesPage() {
                                 </button>
                               ))}
                             </div>
-                            
+
                             {/* Customer list */}
                             <div className="overflow-y-auto max-h-[240px]">
                               {filteredCustomers.length > 0 ? (
@@ -1695,16 +1809,15 @@ export default function InvoicesPage() {
                                     customer.code,
                                     customer.matriculeFiscale
                                   ].filter(Boolean).join(' - ');
-                                  
+
                                   return (
                                     <div
                                       key={customer._id}
                                       onClick={() => handleSelectCustomer(customer)}
-                                      className={`px-4 py-3 cursor-pointer transition-colors ${
-                                        index === selectedCustomerIndex
-                                          ? 'bg-blue-50 border-l-2 border-blue-500'
-                                          : 'hover:bg-gray-50'
-                                      }`}
+                                      className={`px-4 py-3 cursor-pointer transition-colors ${index === selectedCustomerIndex
+                                        ? 'bg-blue-50 border-l-2 border-blue-500'
+                                        : 'hover:bg-gray-50'
+                                        }`}
                                     >
                                       <div className="font-medium text-gray-900">{displayName}</div>
                                       {secondaryInfo && (
@@ -1728,18 +1841,37 @@ export default function InvoicesPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Date
                     </label>
-                    <input 
+                    <input
                       type="date"
                       value={formData.dateDoc}
                       onChange={(e) => setFormData({ ...formData, dateDoc: e.target.value })}
                       className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
+
+                  {multiWarehouseEnabled && warehouses.length > 0 && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Entrepôt
+                      </label>
+                      <select
+                        value={selectedWarehouseId}
+                        onChange={(e) => setSelectedWarehouseId(e.target.value)}
+                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                      >
+                        {warehouses.map((wh) => (
+                          <option key={wh._id} value={wh._id}>
+                            {wh.name} {wh.isDefault ? '(Défaut)' : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Référence externe
                     </label>
-                    <input 
+                    <input
                       type="text"
                       value={formData.referenceExterne}
                       onChange={(e) => setFormData({ ...formData, referenceExterne: e.target.value })}
@@ -1784,7 +1916,7 @@ export default function InvoicesPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Date échéance
                     </label>
-                    <input 
+                    <input
                       type="date"
                       value={formData.dateEcheance}
                       onChange={(e) => setFormData({ ...formData, dateEcheance: e.target.value })}
@@ -1795,7 +1927,7 @@ export default function InvoicesPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Conditions de paiement
                     </label>
-                    <input 
+                    <input
                       type="text"
                       value={formData.conditionsPaiement}
                       onChange={(e) => setFormData({ ...formData, conditionsPaiement: e.target.value })}
@@ -1809,7 +1941,7 @@ export default function InvoicesPage() {
                 <div className="mb-8">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-semibold text-gray-900">Lignes</h3>
-                    <button 
+                    <button
                       onClick={addLine}
                       className="text-sm text-blue-600 hover:text-blue-700 font-medium"
                     >
@@ -1892,8 +2024,8 @@ export default function InvoicesPage() {
                               </td>
                               <td className="px-4 py-3">
                                 <div className="flex flex-col">
-                                  <input 
-                                    type="text" 
+                                  <input
+                                    type="text"
                                     value={line.quantite || ''}
                                     onChange={(e) => {
                                       const val = e.target.value;
@@ -1901,32 +2033,31 @@ export default function InvoicesPage() {
                                       updatedLines[index] = { ...updatedLines[index], quantite: parseFloat(val) || 0 };
                                       setLines(updatedLines);
                                     }}
-                                    className={`w-20 px-2 py-1 border rounded text-sm ${
-                                      !isFromBL && line.estStocke !== false && line.productId && productStocks[line.productId] !== undefined && 
+                                    className={`w-20 px-2 py-1 border rounded text-sm ${!isFromBL && line.estStocke !== false && line.productId && productStocks[line.productId] !== undefined &&
                                       (line.quantite || 0) > productStocks[line.productId]
-                                        ? 'border-red-500' : ''
-                                    }`}
+                                      ? 'border-red-500' : ''
+                                      }`}
                                     placeholder="0"
                                   />
-                                  {!isFromBL && line.estStocke !== false && line.productId && productStocks[line.productId] !== undefined && 
-                                   (line.quantite || 0) > productStocks[line.productId] && (
-                                    <span className="text-xs text-red-600 mt-1">
-                                      Stock disponible: {productStocks[line.productId]}
-                                    </span>
-                                  )}
+                                  {!isFromBL && line.estStocke !== false && line.productId && productStocks[line.productId] !== undefined &&
+                                    (line.quantite || 0) > productStocks[line.productId] && (
+                                      <span className="text-xs text-red-600 mt-1">
+                                        Stock disponible: {productStocks[line.productId]}
+                                      </span>
+                                    )}
                                 </div>
                               </td>
                               <td className="px-4 py-3">
-                                <input 
-                                  type="text" 
+                                <input
+                                  type="text"
                                   value={line.uomCode || ''}
                                   readOnly
                                   className="w-20 px-2 py-1 border rounded text-sm bg-gray-50"
                                 />
                               </td>
                               <td className="px-4 py-3">
-                                <input 
-                                  type="text" 
+                                <input
+                                  type="text"
                                   value={line.prixUnitaireHT || ''}
                                   onChange={(e) => {
                                     const val = e.target.value;
@@ -1939,8 +2070,8 @@ export default function InvoicesPage() {
                                 />
                               </td>
                               <td className="px-4 py-3">
-                                <input 
-                                  type="number" 
+                                <input
+                                  type="number"
                                   min="0"
                                   max="100"
                                   step="0.01"
@@ -1957,8 +2088,8 @@ export default function InvoicesPage() {
                                 <div className="text-xs text-gray-500 mt-1">%</div>
                               </td>
                               <td className="px-4 py-3">
-                                <input 
-                                  type="text" 
+                                <input
+                                  type="text"
                                   value={line.tvaPct ?? ''}
                                   onChange={(e) => {
                                     const val = e.target.value;
@@ -1981,7 +2112,7 @@ export default function InvoicesPage() {
                                 {(((line.quantite || 0) * (line.prixUnitaireHT || 0) * (1 - ((line.remisePct || 0) / 100))) * (1 + (line.tvaPct || 0) / 100)).toFixed(3)} {formData.devise}
                               </td>
                               <td className="px-4 py-3">
-                                <button 
+                                <button
                                   onClick={() => removeLine(index)}
                                   className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                   title="Supprimer"
@@ -2044,13 +2175,13 @@ export default function InvoicesPage() {
                           <input
                             type="checkbox"
                             checked={formData.fodec?.enabled || false}
-                            onChange={(e) => setFormData({ 
-                              ...formData, 
-                              fodec: { 
-                                ...formData.fodec, 
+                            onChange={(e) => setFormData({
+                              ...formData,
+                              fodec: {
+                                ...formData.fodec,
                                 enabled: e.target.checked,
                                 tauxPct: formData.fodec?.tauxPct || 1
-                              } 
+                              }
                             })}
                             className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                           />
@@ -2060,12 +2191,12 @@ export default function InvoicesPage() {
                             <input
                               type="number"
                               value={formData.fodec.tauxPct || 1}
-                              onChange={(e) => setFormData({ 
-                                ...formData, 
-                                fodec: { 
-                                  ...formData.fodec, 
-                                  tauxPct: parseFloat(e.target.value) || 1 
-                                } 
+                              onChange={(e) => setFormData({
+                                ...formData,
+                                fodec: {
+                                  ...formData.fodec,
+                                  tauxPct: parseFloat(e.target.value) || 1
+                                }
                               })}
                               min="0"
                               max="100"
@@ -2115,7 +2246,7 @@ export default function InvoicesPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Mode de paiement
                     </label>
-                    <select 
+                    <select
                       value={formData.modePaiement}
                       onChange={(e) => setFormData({ ...formData, modePaiement: e.target.value })}
                       className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
@@ -2132,7 +2263,7 @@ export default function InvoicesPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Notes
                   </label>
-                  <textarea 
+                  <textarea
                     rows={3}
                     value={formData.notes}
                     onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
@@ -2142,18 +2273,18 @@ export default function InvoicesPage() {
                 </div>
               </div>
               <div className="p-4 sm:p-6 border-t flex flex-col sm:flex-row justify-end gap-3 relative">
-                <button 
+                <button
                   onClick={() => setShowModal(false)}
                   className="w-full sm:w-auto px-4 py-2 border rounded-lg hover:bg-gray-50 text-sm sm:text-base"
                 >
                   Annuler
                 </button>
-                <button 
-                  onClick={saving ? undefined : handleCreateInvoice}
+                <button
+                  onClick={saving ? undefined : () => handleCreateInvoice(false)}
                   disabled={saving}
                   className={`w-full sm:w-auto px-4 py-2 rounded-lg text-sm sm:text-base flex items-center justify-center gap-2 transition
-                    ${saving 
-                      ? 'bg-blue-500 text-white cursor-wait opacity-80' 
+                    ${saving
+                      ? 'bg-blue-500 text-white cursor-wait opacity-80'
                       : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
                 >
                   {saving && (
@@ -2185,7 +2316,7 @@ export default function InvoicesPage() {
                     Sélectionnez un {convertSourceType === 'BL' ? 'bon de livraison' : 'devis'} à convertir en facture
                   </p>
                 </div>
-                <button 
+                <button
                   onClick={() => {
                     setShowConvertModal(false);
                     setConvertSourceType(null);
@@ -2197,7 +2328,7 @@ export default function InvoicesPage() {
                   ×
                 </button>
               </div>
-              
+
               {/* Search Bar */}
               <div className="px-6 pt-4 pb-2 border-b">
                 <div className="relative">

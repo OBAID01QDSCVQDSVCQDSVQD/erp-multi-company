@@ -21,7 +21,7 @@ const PERMISSIONS: Permission[] = [
   { id: 'sales_invoices', label: 'Factures clients', description: 'Créer et gérer les factures clients' },
   { id: 'customer_payments', label: 'Paiements clients', description: 'Enregistrer les paiements clients' },
   { id: 'customer_balances', label: 'Soldes clients', description: 'Consulter les soldes clients' },
-  
+
   // Achats
   { id: 'suppliers', label: 'Fournisseurs', description: 'Gérer les fournisseurs et leurs informations' },
   { id: 'purchase_orders', label: 'Commandes d\'achat', description: 'Créer et gérer les commandes d\'achat' },
@@ -29,20 +29,21 @@ const PERMISSIONS: Permission[] = [
   { id: 'purchase_invoices', label: 'Factures fournisseurs', description: 'Gérer les factures fournisseurs' },
   { id: 'supplier_payments', label: 'Paiements fournisseurs', description: 'Enregistrer les paiements fournisseurs' },
   { id: 'supplier_balances', label: 'Soldes fournisseurs', description: 'Consulter les soldes fournisseurs' },
-  
+
   // Stock
   { id: 'products', label: 'Produits', description: 'Gérer les produits et le catalogue' },
   { id: 'inventory', label: 'Inventaire', description: 'Gérer l\'inventaire et le stock' },
   { id: 'stock_movements', label: 'Mouvements de stock', description: 'Consulter les mouvements de stock' },
+  { id: 'stock_transfers', label: 'Transferts de stock', description: 'Gérer les transferts de stock entre entrepôts' },
   { id: 'stock_alerts', label: 'Alertes stock', description: 'Consulter les alertes de stock minimum' },
-  
+
   // Ressources humaines (RH)
   { id: 'employees', label: 'Employés', description: 'Gérer les employés et leurs informations' },
   { id: 'attendance', label: 'Présence / Pointage', description: 'Gérer la présence et le pointage des employés' },
   { id: 'salaries', label: 'Salaires', description: 'Gérer les salaires et fiches de paie' },
   { id: 'work_days', label: 'Jours de travail', description: 'Gérer les jours de travail et congés' },
   { id: 'work_hours', label: 'Heures de travail', description: 'Gérer les heures de travail et heures supplémentaires' },
-  
+
   // Autres
   { id: 'expenses', label: 'Dépenses', description: 'Gérer les dépenses' },
   { id: 'reports', label: 'Rapports', description: 'Consulter les rapports et statistiques' },
@@ -55,7 +56,7 @@ export default function EditUserPage() {
   const router = useRouter();
   const params = useParams();
   const userId = params.id as string;
-  
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
@@ -341,11 +342,10 @@ export default function EditUserPage() {
                           {PERMISSIONS.filter(p => ['customers', 'quotes', 'sales_orders', 'deliveries', 'sales_invoices', 'customer_payments', 'customer_balances'].includes(p.id)).map((permission) => (
                             <label
                               key={permission.id}
-                              className={`relative flex items-start p-3 border rounded-lg cursor-pointer transition-colors ${
-                                formData.permissions.includes(permission.id) || formData.permissions.includes('all')
-                                  ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20'
-                                  : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
-                              }`}
+                              className={`relative flex items-start p-3 border rounded-lg cursor-pointer transition-colors ${formData.permissions.includes(permission.id) || formData.permissions.includes('all')
+                                ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20'
+                                : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+                                }`}
                             >
                               <input
                                 type="checkbox"
@@ -353,11 +353,10 @@ export default function EditUserPage() {
                                 onChange={() => handlePermissionToggle(permission.id)}
                                 className="sr-only"
                               />
-                              <div className={`flex-shrink-0 h-5 w-5 border-2 rounded flex items-center justify-center mr-3 ${
-                                formData.permissions.includes(permission.id) || formData.permissions.includes('all')
-                                  ? 'border-indigo-500 bg-indigo-500'
-                                  : 'border-gray-300 dark:border-gray-600'
-                              }`}>
+                              <div className={`flex-shrink-0 h-5 w-5 border-2 rounded flex items-center justify-center mr-3 ${formData.permissions.includes(permission.id) || formData.permissions.includes('all')
+                                ? 'border-indigo-500 bg-indigo-500'
+                                : 'border-gray-300 dark:border-gray-600'
+                                }`}>
                                 {(formData.permissions.includes(permission.id) || formData.permissions.includes('all')) && (
                                   <CheckIcon className="h-4 w-4 text-white" />
                                 )}
@@ -382,11 +381,10 @@ export default function EditUserPage() {
                           {PERMISSIONS.filter(p => ['suppliers', 'purchase_orders', 'receipts', 'purchase_invoices', 'supplier_payments', 'supplier_balances'].includes(p.id)).map((permission) => (
                             <label
                               key={permission.id}
-                              className={`relative flex items-start p-3 border rounded-lg cursor-pointer transition-colors ${
-                                formData.permissions.includes(permission.id) || formData.permissions.includes('all')
-                                  ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20'
-                                  : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
-                              }`}
+                              className={`relative flex items-start p-3 border rounded-lg cursor-pointer transition-colors ${formData.permissions.includes(permission.id) || formData.permissions.includes('all')
+                                ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20'
+                                : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+                                }`}
                             >
                               <input
                                 type="checkbox"
@@ -394,11 +392,10 @@ export default function EditUserPage() {
                                 onChange={() => handlePermissionToggle(permission.id)}
                                 className="sr-only"
                               />
-                              <div className={`flex-shrink-0 h-5 w-5 border-2 rounded flex items-center justify-center mr-3 ${
-                                formData.permissions.includes(permission.id) || formData.permissions.includes('all')
-                                  ? 'border-indigo-500 bg-indigo-500'
-                                  : 'border-gray-300 dark:border-gray-600'
-                              }`}>
+                              <div className={`flex-shrink-0 h-5 w-5 border-2 rounded flex items-center justify-center mr-3 ${formData.permissions.includes(permission.id) || formData.permissions.includes('all')
+                                ? 'border-indigo-500 bg-indigo-500'
+                                : 'border-gray-300 dark:border-gray-600'
+                                }`}>
                                 {(formData.permissions.includes(permission.id) || formData.permissions.includes('all')) && (
                                   <CheckIcon className="h-4 w-4 text-white" />
                                 )}
@@ -420,14 +417,13 @@ export default function EditUserPage() {
                       <div>
                         <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">🏭 Stock</h4>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          {PERMISSIONS.filter(p => ['products', 'inventory', 'stock_movements', 'stock_alerts'].includes(p.id)).map((permission) => (
+                          {PERMISSIONS.filter(p => ['products', 'inventory', 'stock_movements', 'stock_transfers', 'stock_alerts'].includes(p.id)).map((permission) => (
                             <label
                               key={permission.id}
-                              className={`relative flex items-start p-3 border rounded-lg cursor-pointer transition-colors ${
-                                formData.permissions.includes(permission.id) || formData.permissions.includes('all')
-                                  ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20'
-                                  : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
-                              }`}
+                              className={`relative flex items-start p-3 border rounded-lg cursor-pointer transition-colors ${formData.permissions.includes(permission.id) || formData.permissions.includes('all')
+                                ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20'
+                                : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+                                }`}
                             >
                               <input
                                 type="checkbox"
@@ -435,11 +431,10 @@ export default function EditUserPage() {
                                 onChange={() => handlePermissionToggle(permission.id)}
                                 className="sr-only"
                               />
-                              <div className={`flex-shrink-0 h-5 w-5 border-2 rounded flex items-center justify-center mr-3 ${
-                                formData.permissions.includes(permission.id) || formData.permissions.includes('all')
-                                  ? 'border-indigo-500 bg-indigo-500'
-                                  : 'border-gray-300 dark:border-gray-600'
-                              }`}>
+                              <div className={`flex-shrink-0 h-5 w-5 border-2 rounded flex items-center justify-center mr-3 ${formData.permissions.includes(permission.id) || formData.permissions.includes('all')
+                                ? 'border-indigo-500 bg-indigo-500'
+                                : 'border-gray-300 dark:border-gray-600'
+                                }`}>
                                 {(formData.permissions.includes(permission.id) || formData.permissions.includes('all')) && (
                                   <CheckIcon className="h-4 w-4 text-white" />
                                 )}
@@ -464,11 +459,10 @@ export default function EditUserPage() {
                           {PERMISSIONS.filter(p => ['employees', 'attendance', 'salaries', 'work_days', 'work_hours'].includes(p.id)).map((permission) => (
                             <label
                               key={permission.id}
-                              className={`relative flex items-start p-3 border rounded-lg cursor-pointer transition-colors ${
-                                formData.permissions.includes(permission.id) || formData.permissions.includes('all')
-                                  ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20'
-                                  : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
-                              }`}
+                              className={`relative flex items-start p-3 border rounded-lg cursor-pointer transition-colors ${formData.permissions.includes(permission.id) || formData.permissions.includes('all')
+                                ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20'
+                                : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+                                }`}
                             >
                               <input
                                 type="checkbox"
@@ -476,11 +470,10 @@ export default function EditUserPage() {
                                 onChange={() => handlePermissionToggle(permission.id)}
                                 className="sr-only"
                               />
-                              <div className={`flex-shrink-0 h-5 w-5 border-2 rounded flex items-center justify-center mr-3 ${
-                                formData.permissions.includes(permission.id) || formData.permissions.includes('all')
-                                  ? 'border-indigo-500 bg-indigo-500'
-                                  : 'border-gray-300 dark:border-gray-600'
-                              }`}>
+                              <div className={`flex-shrink-0 h-5 w-5 border-2 rounded flex items-center justify-center mr-3 ${formData.permissions.includes(permission.id) || formData.permissions.includes('all')
+                                ? 'border-indigo-500 bg-indigo-500'
+                                : 'border-gray-300 dark:border-gray-600'
+                                }`}>
                                 {(formData.permissions.includes(permission.id) || formData.permissions.includes('all')) && (
                                   <CheckIcon className="h-4 w-4 text-white" />
                                 )}
@@ -505,11 +498,10 @@ export default function EditUserPage() {
                           {PERMISSIONS.filter(p => ['expenses', 'reports', 'accounting', 'settings', 'users'].includes(p.id)).map((permission) => (
                             <label
                               key={permission.id}
-                              className={`relative flex items-start p-3 border rounded-lg cursor-pointer transition-colors ${
-                                formData.permissions.includes(permission.id) || formData.permissions.includes('all')
-                                  ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20'
-                                  : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
-                              }`}
+                              className={`relative flex items-start p-3 border rounded-lg cursor-pointer transition-colors ${formData.permissions.includes(permission.id) || formData.permissions.includes('all')
+                                ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20'
+                                : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+                                }`}
                             >
                               <input
                                 type="checkbox"
@@ -517,11 +509,10 @@ export default function EditUserPage() {
                                 onChange={() => handlePermissionToggle(permission.id)}
                                 className="sr-only"
                               />
-                              <div className={`flex-shrink-0 h-5 w-5 border-2 rounded flex items-center justify-center mr-3 ${
-                                formData.permissions.includes(permission.id) || formData.permissions.includes('all')
-                                  ? 'border-indigo-500 bg-indigo-500'
-                                  : 'border-gray-300 dark:border-gray-600'
-                              }`}>
+                              <div className={`flex-shrink-0 h-5 w-5 border-2 rounded flex items-center justify-center mr-3 ${formData.permissions.includes(permission.id) || formData.permissions.includes('all')
+                                ? 'border-indigo-500 bg-indigo-500'
+                                : 'border-gray-300 dark:border-gray-600'
+                                }`}>
                                 {(formData.permissions.includes(permission.id) || formData.permissions.includes('all')) && (
                                   <CheckIcon className="h-4 w-4 text-white" />
                                 )}

@@ -23,6 +23,7 @@ interface StockMovement {
   createdBy?: string;
   createdAt: string;
   updatedAt: string;
+  warehouseName?: string;
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -58,7 +59,7 @@ export default function StockMovementsPage() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [limit] = useState(10);
-  
+
   // Filters
   const [q, setQ] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('');
@@ -80,17 +81,17 @@ export default function StockMovementsPage() {
       const params = new URLSearchParams();
       params.append('page', page.toString());
       params.append('limit', limit.toString());
-      
+
       if (q) params.append('q', q);
       if (typeFilter) params.append('type', typeFilter);
       if (sourceFilter) params.append('source', sourceFilter);
       if (dateFrom) params.append('dateFrom', dateFrom);
       if (dateTo) params.append('dateTo', dateTo);
-      
+
       const response = await fetch(`/api/stock/movements?${params.toString()}`, {
         headers: { 'X-Tenant-Id': tenantId },
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         setMovements(data.movements || []);
@@ -116,13 +117,13 @@ export default function StockMovementsPage() {
     const params = new URLSearchParams();
     params.append('page', '1');
     params.append('limit', '10000'); // Large limit to get all
-    
+
     if (q) params.append('q', q);
     if (typeFilter) params.append('type', typeFilter);
     if (sourceFilter) params.append('source', sourceFilter);
     if (dateFrom) params.append('dateFrom', dateFrom);
     if (dateTo) params.append('dateTo', dateTo);
-    
+
     fetch(`/api/stock/movements?${params.toString()}`, {
       headers: { 'X-Tenant-Id': tenantId || '' },
     })
@@ -142,7 +143,7 @@ export default function StockMovementsPage() {
             `"${m.notes || ''}"`,
           ].join(','))
         ].join('\n');
-        
+
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
         const url = URL.createObjectURL(blob);
@@ -180,7 +181,7 @@ export default function StockMovementsPage() {
 
   const handleViewSource = (source: string, sourceId?: string) => {
     if (!sourceId) return;
-    
+
     if (source === 'BR') {
       router.push(`/purchases/receptions/${sourceId}`);
     } else if (source === 'BL') {
@@ -243,11 +244,10 @@ export default function StockMovementsPage() {
             </button>
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className={`px-4 py-2 rounded-lg text-sm sm:text-base flex items-center gap-2 ${
-                showFilters
-                  ? 'bg-blue-600 text-white hover:bg-blue-700'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
+              className={`px-4 py-2 rounded-lg text-sm sm:text-base flex items-center gap-2 ${showFilters
+                ? 'bg-blue-600 text-white hover:bg-blue-700'
+                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
             >
               <FunnelIcon className="w-4 h-4" />
               <span className="hidden sm:inline">Filtres</span>
@@ -394,6 +394,7 @@ export default function StockMovementsPage() {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SKU</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Source</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dépôt</th>
                       <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Quantité</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unité</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Référence</th>
@@ -421,12 +422,14 @@ export default function StockMovementsPage() {
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-900">{SOURCE_LABELS[movement.source] || movement.source}</div>
                         </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">{movement.warehouseName || '-'}</div>
+                        </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right">
-                          <div className={`text-sm font-semibold ${
-                            movement.type === 'ENTREE' ? 'text-green-600' : 
-                            movement.type === 'SORTIE' ? 'text-red-600' : 
-                            'text-blue-600'
-                          }`}>
+                          <div className={`text-sm font-semibold ${movement.type === 'ENTREE' ? 'text-green-600' :
+                            movement.type === 'SORTIE' ? 'text-red-600' :
+                              'text-blue-600'
+                            }`}>
                             {movement.type === 'SORTIE' ? '-' : movement.type === 'ENTREE' ? '+' : ''}
                             {Math.abs(movement.qte).toFixed(2)}
                           </div>
@@ -478,12 +481,15 @@ export default function StockMovementsPage() {
                         <div className="text-sm text-gray-900">{SOURCE_LABELS[movement.source] || movement.source}</div>
                       </div>
                       <div>
+                        <div className="text-xs text-gray-500">Dépôt</div>
+                        <div className="text-sm text-gray-900">{movement.warehouseName || '-'}</div>
+                      </div>
+                      <div>
                         <div className="text-xs text-gray-500">Quantité</div>
-                        <div className={`text-sm font-semibold ${
-                          movement.type === 'ENTREE' ? 'text-green-600' : 
-                          movement.type === 'SORTIE' ? 'text-red-600' : 
-                          'text-blue-600'
-                        }`}>
+                        <div className={`text-sm font-semibold ${movement.type === 'ENTREE' ? 'text-green-600' :
+                          movement.type === 'SORTIE' ? 'text-red-600' :
+                            'text-blue-600'
+                          }`}>
                           {movement.type === 'SORTIE' ? '-' : movement.type === 'ENTREE' ? '+' : ''}
                           {Math.abs(movement.qte).toFixed(2)} {movement.productUom}
                         </div>

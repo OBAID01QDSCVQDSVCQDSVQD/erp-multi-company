@@ -1,27 +1,72 @@
-import mongoose, { Document, Schema } from 'mongoose';
+import mongoose from 'mongoose';
 
-export interface IWarehouse extends Document {
-  tenantId: string;
-  code: string;
-  libelle: string;
-  adresse?: string;
-  leadTimeJours: number;
-  actif: boolean;
-  createdAt: Date;
-  updatedAt: Date;
+// Force delete model in dev to pick up schema changes
+if (process.env.NODE_ENV !== 'production') {
+  delete mongoose.models.Warehouse;
 }
 
-const WarehouseSchema = new Schema<IWarehouse>({
-  tenantId: { type: String, required: true, index: true },
-  code: { type: String, required: true, uppercase: true, trim: true },
-  libelle: { type: String, required: true, trim: true },
-  adresse: { type: String },
-  leadTimeJours: { type: Number, default: 1 },
-  actif: { type: Boolean, default: true },
-}, { timestamps: true });
+const WarehouseSchema = new mongoose.Schema({
+  tenantId: {
+    type: String,
+    required: true,
+    index: true,
+  },
+  name: {
+    type: String,
+    required: [true, 'Le nom de l\'entrepôt est requis'],
+    trim: true,
+  },
+  code: {
+    type: String,
+    trim: true,
+    uppercase: true,
+  },
+  type: {
+    type: String,
+    enum: ['DEPOT', 'SHOWROOM', 'CAMION', 'OTHER'],
+    default: 'DEPOT',
+  },
+  address: {
+    street: String,
+    city: String,
+    state: String,
+    zipCode: String,
+    country: { type: String, default: 'Tunisie' },
+  },
+  manager: {
+    name: String,
+    phone: String,
+    email: String,
+  },
+  leadTimeJours: {
+    type: Number,
+    default: 1
+  },
+  isDefault: {
+    type: Boolean,
+    default: false,
+  },
+  isActive: {
+    type: Boolean,
+    default: true,
+  },
+}, {
+  timestamps: true,
+});
 
-WarehouseSchema.index({ tenantId: 1, code: 1 }, { unique: true });
+// Compound index to ensure unique warehouse names per tenant
+WarehouseSchema.index({ tenantId: 1, name: 1 }, { unique: true });
 
-export default mongoose.models.Warehouse || mongoose.model<IWarehouse>('Warehouse', WarehouseSchema);
+// Ensure only one default warehouse per tenant
+WarehouseSchema.pre('save', async function (next) {
+  if (this.isDefault) {
+    const Warehouse = mongoose.models.Warehouse || mongoose.model('Warehouse', WarehouseSchema);
+    await Warehouse.updateMany(
+      { tenantId: this.tenantId, _id: { $ne: this._id } },
+      { $set: { isDefault: false } }
+    );
+  }
+  next();
+});
 
-
+export default (mongoose.models.Warehouse as any) || mongoose.model('Warehouse', WarehouseSchema);

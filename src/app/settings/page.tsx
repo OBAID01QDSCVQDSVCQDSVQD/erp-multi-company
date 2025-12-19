@@ -3,15 +3,17 @@
 import { useState } from 'react';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
 import { useTenantId } from '@/hooks/useTenantId';
-import { 
-  BuildingOfficeIcon, 
-  ShoppingCartIcon, 
-  DocumentTextIcon, 
-  CreditCardIcon, 
-  CubeIcon, 
-  ShieldCheckIcon, 
+import {
+  BuildingOfficeIcon,
+  ShoppingCartIcon,
+  DocumentTextIcon,
+  CreditCardIcon,
+  CubeIcon,
+  ShieldCheckIcon,
   CogIcon,
-  CalculatorIcon
+  CalculatorIcon,
+  ServerStackIcon,
+  ScaleIcon
 } from '@heroicons/react/24/outline';
 
 // Composants des onglets
@@ -25,16 +27,30 @@ import SystemeTab from '@/components/settings/SystemeTab';
 import TVATab from '@/components/settings/TVATab';
 import UnitsTab from '@/components/settings/UnitsTab';
 
-const tabs = [
-  { id: 'societe', name: 'Société', icon: BuildingOfficeIcon },
-  { id: 'ventes-achats', name: 'Ventes & Achats', icon: ShoppingCartIcon },
-  { id: 'tva', name: 'TVA', icon: CalculatorIcon },
-  { id: 'numerotation', name: 'Numérotation', icon: DocumentTextIcon },
-  { id: 'depenses', name: 'Dépenses', icon: CreditCardIcon },
-  { id: 'stock', name: 'Stock', icon: CubeIcon },
-  { id: 'securite', name: 'Sécurité', icon: ShieldCheckIcon },
-  { id: 'systeme', name: 'Système', icon: CogIcon },
-  { id: 'units', name: 'Unités', icon: CogIcon },
+const settingsGroups = [
+  {
+    title: 'Général',
+    items: [
+      { id: 'societe', name: 'Société', icon: BuildingOfficeIcon, component: SocieteTab },
+      { id: 'securite', name: 'Sécurité', icon: ShieldCheckIcon, component: SecuriteTab },
+      { id: 'systeme', name: 'Système', icon: ServerStackIcon, component: SystemeTab },
+    ]
+  },
+  {
+    title: 'Finance & Facturation',
+    items: [
+      { id: 'ventes-achats', name: 'Ventes & Achats', icon: ShoppingCartIcon, component: VentesAchatsTab },
+      { id: 'tva', name: 'TVA & Taxes', icon: CalculatorIcon, component: TVATab },
+      { id: 'numerotation', name: 'Numérotation', icon: DocumentTextIcon, component: NumerotationTab },
+    ]
+  },
+  {
+    title: 'Opérations',
+    items: [
+      { id: 'stock', name: 'Stock', icon: CubeIcon, component: StockTab },
+      { id: 'units', name: 'Unités de mesure', icon: ScaleIcon, component: UnitsTab },
+    ]
+  }
 ];
 
 export default function SettingsPage() {
@@ -51,68 +67,76 @@ export default function SettingsPage() {
     );
   }
 
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case 'societe':
-        return <SocieteTab tenantId={tenantId} />;
-      case 'ventes-achats':
-        return <VentesAchatsTab tenantId={tenantId} />;
-      case 'tva':
-        return <TVATab tenantId={tenantId} />;
-      case 'units':
-        return <UnitsTab tenantId={tenantId} />;
-      case 'numerotation':
-        return <NumerotationTab tenantId={tenantId} />;
-      case 'depenses':
-        return <DepensesTab tenantId={tenantId} />;
-      case 'stock':
-        return <StockTab tenantId={tenantId} />;
-      case 'securite':
-        return <SecuriteTab tenantId={tenantId} />;
-      case 'systeme':
-        return <SystemeTab tenantId={tenantId} />;
-      default:
-        return <SocieteTab tenantId={tenantId} />;
+  // Helper to find the active component
+  const getActiveComponent = () => {
+    for (const group of settingsGroups) {
+      const found = group.items.find(item => item.id === activeTab);
+      if (found) return found.component;
     }
+    return SocieteTab;
   };
+
+  const ActiveComponent = getActiveComponent();
 
   return (
     <DashboardLayout>
-      <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
-        {/* Header */}
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Paramètres</h1>
-          <p className="mt-1 text-xs sm:text-sm text-gray-500">
-            Gérez les paramètres de votre entreprise
+      <div className="p-4 sm:p-8 max-w-7xl mx-auto">
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-gray-900">Paramètres</h1>
+          <p className="mt-1 text-sm text-gray-500">
+            Gérez les préférences et la configuration de votre entreprise.
           </p>
         </div>
 
-        {/* Navigation des onglets */}
-        <div className="border-b border-gray-200 overflow-x-auto -mx-4 sm:mx-0">
-          <nav className="-mb-px flex space-x-4 sm:space-x-8 px-4 sm:px-0 min-w-max sm:min-w-0">
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`py-2 px-2 sm:px-1 border-b-2 font-medium text-xs sm:text-sm flex items-center space-x-1 sm:space-x-2 whitespace-nowrap ${
-                    activeTab === tab.id
-                      ? 'border-indigo-500 text-indigo-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
-                  <span>{tab.name}</span>
-                </button>
-              );
-            })}
-          </nav>
-        </div>
+        <div className="lg:grid lg:grid-cols-12 lg:gap-x-8">
+          {/* Sidebar Navigation */}
+          <aside className="lg:col-span-3 mb-6 lg:mb-0">
+            <nav className="space-y-8 sticky top-6">
+              {settingsGroups.map((group) => (
+                <div key={group.title}>
+                  <h3 className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                    {group.title}
+                  </h3>
+                  <div className="space-y-1">
+                    {group.items.map((item) => {
+                      const isActive = activeTab === item.id;
+                      const Icon = item.icon;
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => setActiveTab(item.id)}
+                          className={`
+                            group flex items-center w-full px-3 py-2 text-sm font-medium rounded-md transition-all duration-200
+                            ${isActive
+                              ? 'bg-indigo-50 text-indigo-700 shadow-sm border-l-4 border-indigo-600'
+                              : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900 border-l-4 border-transparent'
+                            }
+                          `}
+                        >
+                          <Icon
+                            className={`
+                              flex-shrink-0 -ml-1 mr-3 h-5 w-5 transition-colors
+                              ${isActive ? 'text-indigo-600' : 'text-gray-400 group-hover:text-gray-500'}
+                            `}
+                          />
+                          <span className="truncate">{item.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </nav>
+          </aside>
 
-        {/* Contenu des onglets */}
-        <div className="mt-4 sm:mt-6">
-          {renderTabContent()}
+          {/* Main Content Area */}
+          <main className="lg:col-span-9">
+            <div className="bg-white shadow rounded-xl border border-gray-100 min-h-[500px]">
+              <div className="p-6">
+                <ActiveComponent tenantId={tenantId} />
+              </div>
+            </div>
+          </main>
         </div>
       </div>
     </DashboardLayout>

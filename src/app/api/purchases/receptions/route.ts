@@ -134,6 +134,7 @@ async function createStockMovementsForReception(receptionId: string, tenantId: s
           const mouvement = new MouvementStock({
             societeId: tenantId,
             productId: ligne.productId.toString(),
+            warehouseId: reception.warehouseId,
             type: 'ENTREE',
             qte: ligne.qteRecue,
             date: reception.dateDoc || new Date(),
@@ -308,6 +309,7 @@ export async function POST(request: NextRequest) {
       numero,
       dateDoc: body.dateDoc ? new Date(body.dateDoc) : new Date(),
       purchaseOrderId: body.purchaseOrderId || undefined,
+      warehouseId: body.warehouseId || undefined,
       fournisseurId,
       fournisseurNom,
       statut: 'BROUILLON',

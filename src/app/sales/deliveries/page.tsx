@@ -26,6 +26,7 @@ interface Delivery {
   timbreFiscal?: number;
   totalTTC: number;
   devise?: string;
+  warehouseId?: string;
 }
 
 interface Customer {
@@ -63,19 +64,19 @@ export default function DeliveriesPage() {
   const [taxRates, setTaxRates] = useState<Array<{ code: string; tauxPct: number }>>([]);
   const [tvaSettings, setTvaSettings] = useState<any>(null);
   const [modesReglement, setModesReglement] = useState<string[]>([]);
-  
+
   // Autocomplete state
   const [customerSearch, setCustomerSearch] = useState('');
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
   const [selectedCustomerIndex, setSelectedCustomerIndex] = useState(-1);
-  
+
   // Product autocomplete state per line
   const [productSearches, setProductSearches] = useState<{ [key: number]: string }>({});
   const [showProductModal, setShowProductModal] = useState<{ [key: number]: boolean }>({});
   const [currentProductLineIndex, setCurrentProductLineIndex] = useState<number | null>(null);
   const [productStocks, setProductStocks] = useState<{ [productId: string]: number }>({});
   const [saving, setSaving] = useState(false);
-  
+
   // Calculate default delivery date (today)
   const getDefaultDeliveryDate = () => {
     return new Date().toISOString().split('T')[0];
@@ -94,7 +95,7 @@ export default function DeliveriesPage() {
     moyenTransport: '',
     notes: ''
   });
-  
+
   const [lines, setLines] = useState<Array<{
     productId: string;
     codeAchat?: string;
@@ -108,6 +109,44 @@ export default function DeliveriesPage() {
     remisePct?: number;
     totalLine: number;
   }>>([]);
+
+  // Warehouse state
+  const [warehouses, setWarehouses] = useState<any[]>([]);
+  const [selectedWarehouseId, setSelectedWarehouseId] = useState<string>('');
+  const [multiWarehouseEnabled, setMultiWarehouseEnabled] = useState(false);
+
+  // Fetch warehouses
+  const fetchWarehouses = async () => {
+    try {
+      if (!tenantId) return;
+      const response = await fetch('/api/stock/warehouses', {
+        headers: { 'X-Tenant-Id': tenantId }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setWarehouses(data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching warehouses:', err);
+    }
+  };
+
+  // Fetch company settings to check for multi-warehouse
+  const fetchCompanySettings = async () => {
+    try {
+      if (!tenantId) return;
+      const response = await fetch('/api/settings', {
+        headers: { 'X-Tenant-Id': tenantId }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setTvaSettings(data.tva); // Also set TVASettings here as it's the same endpoint
+        setMultiWarehouseEnabled(data.stock?.multiEntrepots === true);
+      }
+    } catch (err) {
+      console.error('Error fetching settings:', err);
+    }
+  };
 
   useEffect(() => {
     if (tenantId) fetchDeliveries();
@@ -131,15 +170,15 @@ export default function DeliveriesPage() {
   const filteredCustomers = customers.filter((customer) => {
     const searchLower = customerSearch.toLowerCase().trim();
     if (!searchLower) return true;
-    
+
     const name = (customer.raisonSociale || `${customer.nom || ''} ${customer.prenom || ''}`.trim()).toLowerCase();
     const code = (customer.code || '').toLowerCase();
-    
+
     // If single letter, use startsWith
     if (searchLower.length === 1) {
       return name.startsWith(searchLower) || code.startsWith(searchLower);
     }
-    
+
     // If more than one letter, use contains
     return name.includes(searchLower) || code.includes(searchLower);
   });
@@ -155,10 +194,10 @@ export default function DeliveriesPage() {
   // Handle keyboard navigation
   const handleCustomerKeyDown = (e: React.KeyboardEvent) => {
     if (!showCustomerDropdown) return;
-    
+
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setSelectedCustomerIndex(prev => 
+      setSelectedCustomerIndex(prev =>
         prev < filteredCustomers.length - 1 ? prev + 1 : prev
       );
     } else if (e.key === 'ArrowUp') {
@@ -189,7 +228,12 @@ export default function DeliveriesPage() {
   const fetchProductStock = async (productId: string) => {
     if (!tenantId || !productId) return;
     try {
-      const response = await fetch(`/api/stock/product/${productId}`, {
+      let url = `/api/stock/product/${productId}`;
+      if (multiWarehouseEnabled && selectedWarehouseId) {
+        url += `?warehouseId=${selectedWarehouseId}`;
+      }
+
+      const response = await fetch(url, {
         headers: { 'X-Tenant-Id': tenantId },
       });
       if (response.ok) {
@@ -215,7 +259,7 @@ export default function DeliveriesPage() {
     newLines[lineIndex].prixUnitaireHT = product.prixVenteHT || 0;
     newLines[lineIndex].taxCode = product.taxCode || '';
     newLines[lineIndex].uomCode = product.uomVenteCode || '';
-    
+
     // Use tvaPct from product if available
     if (product.tvaPct !== undefined && product.tvaPct !== null) {
       newLines[lineIndex].tvaPct = product.tvaPct;
@@ -225,12 +269,12 @@ export default function DeliveriesPage() {
     } else {
       newLines[lineIndex].tvaPct = 0;
     }
-    
+
     setLines(newLines);
-    
+
     // Fetch stock for the selected product
     fetchProductStock(product._id);
-    
+
     // Update search state
     setProductSearches({ ...productSearches, [lineIndex]: product.nom });
     setShowProductModal({ ...showProductModal, [lineIndex]: false });
@@ -332,11 +376,41 @@ export default function DeliveriesPage() {
   useEffect(() => {
     if (showModal && tenantId) {
       setLoadingData(true);
-      Promise.all([fetchCustomers(), fetchProducts(), fetchTaxRates(), fetchTvaSettings(), fetchModesReglement()]).finally(() => {
+      const promises = [
+        fetchCustomers(),
+        fetchProducts(),
+        fetchTaxRates(),
+        fetchCompanySettings(),
+        fetchModesReglement()
+      ];
+
+      Promise.all(promises).then(async () => {
+        await fetchWarehouses();
+      }).finally(() => {
         setLoadingData(false);
       });
     }
   }, [showModal, tenantId]);
+
+  // Effect to set default warehouse when opening modal
+  useEffect(() => {
+    if (showModal && warehouses.length > 0 && !selectedWarehouseId) {
+      const defaultWh = warehouses.find(w => w.isDefault);
+      if (defaultWh) setSelectedWarehouseId(defaultWh._id);
+      else if (warehouses.length > 0) setSelectedWarehouseId(warehouses[0]._id);
+    }
+  }, [showModal, warehouses, selectedWarehouseId]);
+
+  // Refresh stocks when warehouse changes
+  useEffect(() => {
+    if (showModal && multiWarehouseEnabled && selectedWarehouseId) {
+      lines.forEach(line => {
+        if (line.productId) {
+          fetchProductStock(line.productId);
+        }
+      });
+    }
+  }, [selectedWarehouseId, multiWarehouseEnabled, showModal]);
 
   // Update product searches when products are loaded to use product names instead of designation
   // This runs after products are loaded to improve product search display
@@ -344,7 +418,7 @@ export default function DeliveriesPage() {
     if (editingDeliveryId && products.length > 0 && lines.length > 0 && !loadingData) {
       const searches: { [key: number]: string } = { ...productSearches };
       let updated = false;
-      
+
       lines.forEach((line: any, idx: number) => {
         if (line.productId) {
           // Try to find product by ID and update search with product name
@@ -355,7 +429,7 @@ export default function DeliveriesPage() {
           }
         }
       });
-      
+
       if (updated) {
         setProductSearches(searches);
       }
@@ -385,7 +459,7 @@ export default function DeliveriesPage() {
   const updateLine = (index: number, field: string, value: any) => {
     const newLines = [...lines];
     newLines[index] = { ...newLines[index], [field]: value };
-    
+
     // Auto-calculate line total if product selected
     if (field === 'productId' && value) {
       const product = products.find(p => p._id === value);
@@ -397,7 +471,7 @@ export default function DeliveriesPage() {
         newLines[index].prixUnitaireHT = product.prixVenteHT || 0;
         newLines[index].taxCode = product.taxCode || '';
         newLines[index].uomCode = product.uomVenteCode || '';
-        
+
         // Use tvaPct from product if available, otherwise search for it
         if (product.tvaPct !== undefined && product.tvaPct !== null) {
           newLines[index].tvaPct = product.tvaPct;
@@ -409,12 +483,12 @@ export default function DeliveriesPage() {
         }
       }
     }
-    
+
     // Recalculate total line (HT only for now, TVA calculated separately)
     if (field === 'quantite' || field === 'prixUnitaireHT') {
       newLines[index].totalLine = newLines[index].quantite * newLines[index].prixUnitaireHT;
     }
-    
+
     // Update tax code when tvaPct changes (if manually edited)
     if (field === 'tvaPct' && Array.isArray(taxRates) && taxRates.length > 0) {
       // Keep taxCode as reference, but allow manual TVA override
@@ -424,7 +498,7 @@ export default function DeliveriesPage() {
         newLines[index].taxCode = matchingRate.code;
       }
     }
-    
+
     setLines(newLines);
   };
 
@@ -477,16 +551,16 @@ export default function DeliveriesPage() {
   const calculateTotals = () => {
     let totalHTBeforeDiscount = 0;
     let totalHT = 0;
-    
+
     lines.forEach(line => {
       const lineHTBeforeDiscount = (line.quantite || 0) * (line.prixUnitaireHT || 0);
       totalHTBeforeDiscount += lineHTBeforeDiscount;
       const lineHT = lineHTBeforeDiscount * (1 - ((line.remisePct || 0) / 100));
       totalHT += lineHT;
     });
-    
+
     const totalRemise = totalHTBeforeDiscount - totalHT;
-    
+
     // Calculate TVA per line
     const totalTVA = lines.reduce((sum, line) => {
       const lineHTBeforeDiscount = (line.quantite || 0) * (line.prixUnitaireHT || 0);
@@ -494,12 +568,12 @@ export default function DeliveriesPage() {
       const lineTVA = lineHT * (line.tvaPct || 0) / 100;
       return sum + lineTVA;
     }, 0);
-    
+
     // Timbre fiscal (usually not used for delivery notes)
     const timbreAmount = 0;
-    
+
     const totalTTC = totalHT + totalTVA + timbreAmount;
-    
+
     return { totalHT, totalRemise, totalTVA, timbreAmount, totalTTC };
   };
 
@@ -520,7 +594,7 @@ export default function DeliveriesPage() {
     try {
       if (!tenantId) return;
       setSaving(true);
-      
+
       const lignesData = lines
         .filter(line => line.designation && line.designation.trim() !== '')
         .map(line => ({
@@ -535,26 +609,27 @@ export default function DeliveriesPage() {
           taxCode: line.taxCode,
           tvaPct: line.tvaPct || 0
         }));
-      
+
       if (lignesData.length === 0) {
         toast.error('Veuillez remplir au moins une ligne de produit valide');
         return;
       }
 
-      const url = editingDeliveryId 
-        ? `/api/sales/deliveries/${editingDeliveryId}` 
+      const url = editingDeliveryId
+        ? `/api/sales/deliveries/${editingDeliveryId}`
         : '/api/sales/deliveries';
-      
+
       const method = editingDeliveryId ? 'PATCH' : 'POST';
 
       const response = await fetch(url, {
         method,
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
-          'X-Tenant-Id': tenantId 
+          'X-Tenant-Id': tenantId
         },
         body: JSON.stringify({
           customerId: formData.customerId,
+          warehouseId: selectedWarehouseId || undefined,
           dateDoc: formData.dateDoc,
           dateLivraisonPrevue: formData.dateLivraisonPrevue || undefined,
           dateLivraisonReelle: formData.dateLivraisonReelle || undefined,
@@ -610,14 +685,14 @@ export default function DeliveriesPage() {
     try {
       console.log('🔍 Viewing delivery:', delivery._id);
       console.log('📋 Delivery details:', delivery);
-      
+
       // Fetch full delivery details
       const response = await fetch(`/api/sales/deliveries/${delivery._id}`, {
         headers: { 'X-Tenant-Id': tenantId }
       });
-      
+
       console.log('📡 Response status:', response.status);
-      
+
       if (response.ok) {
         const data = await response.json();
         console.log('✅ Full delivery data:', data);
@@ -637,17 +712,17 @@ export default function DeliveriesPage() {
   // Handle edit delivery
   const handleEdit = async (delivery: Delivery) => {
     console.log('✏️ Editing delivery:', delivery._id);
-    
+
     // Fetch full delivery details
     try {
       const response = await fetch(`/api/sales/deliveries/${delivery._id}`, {
         headers: { 'X-Tenant-Id': tenantId }
       });
-      
+
       if (response.ok) {
         const fullDelivery = await response.json();
         console.log('📋 Full delivery data:', fullDelivery);
-        
+
         // Populate form with delivery data
         setFormData({
           customerId: fullDelivery.customerId || '',
@@ -661,7 +736,10 @@ export default function DeliveriesPage() {
           moyenTransport: fullDelivery.moyenTransport || '',
           notes: fullDelivery.notes || ''
         });
-        
+
+        // Set selected warehouse
+        setSelectedWarehouseId(fullDelivery.warehouseId || '');
+
         // Set customer search based on selected customer
         if (fullDelivery.customerId) {
           const selectedCustomer = customers.find(c => c._id === fullDelivery.customerId);
@@ -671,7 +749,7 @@ export default function DeliveriesPage() {
         } else {
           setCustomerSearch('');
         }
-        
+
         // Populate lines
         if (fullDelivery.lignes && fullDelivery.lignes.length > 0) {
           const mappedLines = fullDelivery.lignes.map((line: any) => ({
@@ -688,14 +766,14 @@ export default function DeliveriesPage() {
             totalLine: 0
           }));
           setLines(mappedLines);
-          
+
           // Fetch stock for all products in lines
           mappedLines.forEach((line: any) => {
             if (line.productId) {
               fetchProductStock(line.productId);
             }
           });
-          
+
           // Populate product searches immediately using designation from API
           // This ensures products are visible even before products list is loaded
           const searches: { [key: number]: string } = {};
@@ -706,10 +784,10 @@ export default function DeliveriesPage() {
           });
           setProductSearches(searches);
         }
-        
+
         // Set editing state
         setEditingDeliveryId(fullDelivery._id);
-        
+
         // Open modal
         setShowModal(true);
       } else {
@@ -741,7 +819,7 @@ export default function DeliveriesPage() {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-      
+
       toast.success('PDF téléchargé avec succès');
     } catch (error) {
       console.error('Error downloading PDF:', error);
@@ -757,7 +835,7 @@ export default function DeliveriesPage() {
 
     try {
       if (!tenantId) return;
-      
+
       const response = await fetch(`/api/sales/deliveries/${deliveryId}`, {
         method: 'DELETE',
         headers: { 'X-Tenant-Id': tenantId }
@@ -797,8 +875,11 @@ export default function DeliveriesPage() {
             <button className="hidden sm:flex items-center gap-2 border px-3 py-2 rounded-lg hover:bg-gray-50">
               <ArrowDownTrayIcon className="w-4 h-4" /> <span className="hidden lg:inline">Exporter</span>
             </button>
-            <button 
-              onClick={() => setShowModal(true)} 
+            <button
+              onClick={() => {
+                setSelectedWarehouseId('');
+                setShowModal(true);
+              }}
               className="flex items-center gap-2 bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-blue-700 text-sm sm:text-base w-full sm:w-auto justify-center"
             >
               <PlusIcon className="w-5 h-5" /> <span>Nouveau bon de livraison</span>
@@ -829,8 +910,11 @@ export default function DeliveriesPage() {
             <DocumentTextIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Aucun bon de livraison trouvé</h3>
             <p className="text-gray-600 mb-6">Créez votre premier bon de livraison en quelques clics</p>
-            <button 
-              onClick={() => setShowModal(true)}
+            <button
+              onClick={() => {
+                setSelectedWarehouseId('');
+                setShowModal(true);
+              }}
               className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 mx-auto"
             >
               <PlusIcon className="w-5 h-5" /> Nouveau bon de livraison
@@ -844,74 +928,74 @@ export default function DeliveriesPage() {
                 <table className="w-full">
                   <thead className="bg-gray-50 border-b">
                     <tr>
-                  <th className="px-3 py-4 text-left text-sm font-semibold text-gray-700">Numéro</th>
-                  <th className="px-3 py-4 text-left text-sm font-semibold text-gray-700">Date</th>
-                  <th className="px-3 py-4 text-left text-sm font-semibold text-gray-700">Client</th>
-                  <th className="px-3 py-4 text-right text-sm font-semibold text-gray-700">Total HT</th>
-                  <th className="px-3 py-4 text-right text-sm font-semibold text-gray-700">Total TVA</th>
-                  <th className="px-3 py-4 text-right text-sm font-semibold text-gray-700">Total TTC</th>
-                  <th className="px-2 py-4 text-left text-sm font-semibold text-gray-700">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {filtered.map((delivery) => (
-                  <tr key={delivery._id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-3 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">{delivery.numero}</td>
-                    <td className="px-3 py-4 text-sm text-gray-600 whitespace-nowrap">
-                      {new Date(delivery.dateDoc).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
-                    </td>
-                    <td className="px-3 py-4 text-sm text-gray-600">
-                      {delivery.customerName || '-'}
-                    </td>
-                    <td className="px-3 py-4 text-sm text-gray-600 text-right whitespace-nowrap">
-                      {delivery.totalBaseHT?.toFixed(3)} {delivery.devise || 'TND'}
-                    </td>
-                    <td className="px-3 py-4 text-sm text-gray-600 text-right whitespace-nowrap">
-                      {delivery.totalTVA?.toFixed(3)} {delivery.devise || 'TND'}
-                    </td>
-                    <td className="px-3 py-4 text-sm font-semibold text-gray-900 text-right whitespace-nowrap">
-                      {delivery.totalTTC?.toFixed(3)} {delivery.devise || 'TND'}
-                    </td>
-                    <td className="px-2 py-4">
-                      <div className="flex gap-0.5">
-                        <button 
-                          onClick={() => {
-                            console.log('🔵 BUTTON CLICKED - Delivery ID:', delivery._id);
-                            handleView(delivery);
-                          }}
-                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Voir"
-                        >
-                          <EyeIcon className="w-3.5 h-3.5" />
-                        </button>
-                        <button 
-                          onClick={() => {
-                            console.log('🟢 MODIFY BUTTON CLICKED - Delivery:', delivery);
-                            handleEdit(delivery);
-                          }}
-                          className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                          title="Modifier"
-                        >
-                          <PencilIcon className="w-3.5 h-3.5" />
-                        </button>
-                        <button 
-                          onClick={() => handleDownloadPDF(delivery)}
-                          className="p-1.5 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
-                          title="Télécharger PDF"
-                        >
-                          <ArrowDownTrayIcon className="w-3.5 h-3.5" />
-                        </button>
-                        <button 
-                          onClick={() => handleDelete(delivery._id)}
-                          className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Supprimer"
-                        >
-                          <TrashIcon className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      <th className="px-3 py-4 text-left text-sm font-semibold text-gray-700">Numéro</th>
+                      <th className="px-3 py-4 text-left text-sm font-semibold text-gray-700">Date</th>
+                      <th className="px-3 py-4 text-left text-sm font-semibold text-gray-700">Client</th>
+                      <th className="px-3 py-4 text-right text-sm font-semibold text-gray-700">Total HT</th>
+                      <th className="px-3 py-4 text-right text-sm font-semibold text-gray-700">Total TVA</th>
+                      <th className="px-3 py-4 text-right text-sm font-semibold text-gray-700">Total TTC</th>
+                      <th className="px-2 py-4 text-left text-sm font-semibold text-gray-700">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {filtered.map((delivery) => (
+                      <tr key={delivery._id} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-3 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">{delivery.numero}</td>
+                        <td className="px-3 py-4 text-sm text-gray-600 whitespace-nowrap">
+                          {new Date(delivery.dateDoc).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                        </td>
+                        <td className="px-3 py-4 text-sm text-gray-600">
+                          {delivery.customerName || '-'}
+                        </td>
+                        <td className="px-3 py-4 text-sm text-gray-600 text-right whitespace-nowrap">
+                          {delivery.totalBaseHT?.toFixed(3)} {delivery.devise || 'TND'}
+                        </td>
+                        <td className="px-3 py-4 text-sm text-gray-600 text-right whitespace-nowrap">
+                          {delivery.totalTVA?.toFixed(3)} {delivery.devise || 'TND'}
+                        </td>
+                        <td className="px-3 py-4 text-sm font-semibold text-gray-900 text-right whitespace-nowrap">
+                          {delivery.totalTTC?.toFixed(3)} {delivery.devise || 'TND'}
+                        </td>
+                        <td className="px-2 py-4">
+                          <div className="flex gap-0.5">
+                            <button
+                              onClick={() => {
+                                console.log('🔵 BUTTON CLICKED - Delivery ID:', delivery._id);
+                                handleView(delivery);
+                              }}
+                              className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              title="Voir"
+                            >
+                              <EyeIcon className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                console.log('🟢 MODIFY BUTTON CLICKED - Delivery:', delivery);
+                                handleEdit(delivery);
+                              }}
+                              className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                              title="Modifier"
+                            >
+                              <PencilIcon className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleDownloadPDF(delivery)}
+                              className="p-1.5 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                              title="Télécharger PDF"
+                            >
+                              <ArrowDownTrayIcon className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(delivery._id)}
+                              className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Supprimer"
+                            >
+                              <TrashIcon className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
@@ -929,14 +1013,14 @@ export default function DeliveriesPage() {
                       </p>
                     </div>
                     <div className="flex gap-1">
-                      <button 
+                      <button
                         onClick={() => handleView(delivery)}
                         className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
                         title="Voir"
                       >
                         <EyeIcon className="w-4 h-4" />
                       </button>
-                      <button 
+                      <button
                         onClick={() => handleEdit(delivery)}
                         className="p-2 text-green-600 hover:bg-green-50 rounded-lg"
                         title="Modifier"
@@ -964,14 +1048,14 @@ export default function DeliveriesPage() {
                     </div>
                   </div>
                   <div className="flex gap-2 pt-2">
-                    <button 
+                    <button
                       onClick={() => handleDownloadPDF(delivery)}
                       className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm border rounded-lg hover:bg-gray-50"
                     >
                       <ArrowDownTrayIcon className="w-4 h-4" />
                       PDF
                     </button>
-                    <button 
+                    <button
                       onClick={() => handleDelete(delivery._id)}
                       className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm text-red-600 border border-red-300 rounded-lg hover:bg-red-50"
                     >
@@ -998,7 +1082,7 @@ export default function DeliveriesPage() {
                     {editingDeliveryId ? 'Modifiez votre bon de livraison' : 'Créez un bon de livraison élégant et précis en quelques clics'}
                   </p>
                 </div>
-                <button 
+                <button
                   onClick={() => setShowModal(false)}
                   className="text-gray-400 hover:text-gray-600 text-2xl"
                 >
@@ -1035,7 +1119,7 @@ export default function DeliveriesPage() {
                             className="w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                           />
                         </div>
-                        
+
                         {/* Dropdown */}
                         {showCustomerDropdown && (
                           <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl max-h-[280px] overflow-hidden">
@@ -1051,7 +1135,7 @@ export default function DeliveriesPage() {
                                 </button>
                               ))}
                             </div>
-                            
+
                             {/* Customer list */}
                             <div className="overflow-y-auto max-h-[240px]">
                               {filteredCustomers.length > 0 ? (
@@ -1061,16 +1145,15 @@ export default function DeliveriesPage() {
                                     customer.code,
                                     customer.matriculeFiscale
                                   ].filter(Boolean).join(' - ');
-                                  
+
                                   return (
                                     <div
                                       key={customer._id}
                                       onClick={() => handleSelectCustomer(customer)}
-                                      className={`px-4 py-3 cursor-pointer transition-colors ${
-                                        index === selectedCustomerIndex
-                                          ? 'bg-blue-50 border-l-2 border-blue-500'
-                                          : 'hover:bg-gray-50'
-                                      }`}
+                                      className={`px-4 py-3 cursor-pointer transition-colors ${index === selectedCustomerIndex
+                                        ? 'bg-blue-50 border-l-2 border-blue-500'
+                                        : 'hover:bg-gray-50'
+                                        }`}
                                     >
                                       <div className="font-medium text-gray-900">{displayName}</div>
                                       {secondaryInfo && (
@@ -1094,18 +1177,37 @@ export default function DeliveriesPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Date
                     </label>
-                    <input 
+                    <input
                       type="date"
                       value={formData.dateDoc}
                       onChange={(e) => setFormData({ ...formData, dateDoc: e.target.value })}
                       className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
+
+                  {multiWarehouseEnabled && warehouses.length > 0 && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Entrepôt
+                      </label>
+                      <select
+                        value={selectedWarehouseId}
+                        onChange={(e) => setSelectedWarehouseId(e.target.value)}
+                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                      >
+                        {warehouses.map((wh) => (
+                          <option key={wh._id} value={wh._id}>
+                            {wh.name} {wh.isDefault ? '(Défaut)' : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Référence externe
                     </label>
-                    <input 
+                    <input
                       type="text"
                       value={formData.referenceExterne}
                       onChange={(e) => setFormData({ ...formData, referenceExterne: e.target.value })}
@@ -1131,7 +1233,7 @@ export default function DeliveriesPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Date livraison prévue
                     </label>
-                    <input 
+                    <input
                       type="date"
                       value={formData.dateLivraisonPrevue}
                       onChange={(e) => setFormData({ ...formData, dateLivraisonPrevue: e.target.value })}
@@ -1142,7 +1244,7 @@ export default function DeliveriesPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Date livraison réelle
                     </label>
-                    <input 
+                    <input
                       type="date"
                       value={formData.dateLivraisonReelle}
                       onChange={(e) => setFormData({ ...formData, dateLivraisonReelle: e.target.value })}
@@ -1153,7 +1255,7 @@ export default function DeliveriesPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Lieu de livraison
                     </label>
-                    <input 
+                    <input
                       type="text"
                       value={formData.lieuLivraison}
                       onChange={(e) => setFormData({ ...formData, lieuLivraison: e.target.value })}
@@ -1165,7 +1267,7 @@ export default function DeliveriesPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Moyen de transport
                     </label>
-                    <input 
+                    <input
                       type="text"
                       value={formData.moyenTransport}
                       onChange={(e) => setFormData({ ...formData, moyenTransport: e.target.value })}
@@ -1179,7 +1281,7 @@ export default function DeliveriesPage() {
                 <div className="mb-8">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-semibold text-gray-900">Lignes</h3>
-                    <button 
+                    <button
                       onClick={addLine}
                       className="text-sm text-blue-600 hover:text-blue-700 font-medium"
                     >
@@ -1261,8 +1363,8 @@ export default function DeliveriesPage() {
                               </td>
                               <td className="px-4 py-3">
                                 <div className="flex flex-col">
-                                  <input 
-                                    type="text" 
+                                  <input
+                                    type="text"
                                     value={line.quantite || ''}
                                     onChange={(e) => {
                                       const val = e.target.value;
@@ -1270,32 +1372,31 @@ export default function DeliveriesPage() {
                                       updatedLines[index] = { ...updatedLines[index], quantite: parseFloat(val) || 0 };
                                       setLines(updatedLines);
                                     }}
-                                    className={`w-20 px-2 py-1 border rounded text-sm ${
-                                      line.productId && productStocks[line.productId] !== undefined && 
+                                    className={`w-20 px-2 py-1 border rounded text-sm ${line.productId && productStocks[line.productId] !== undefined &&
                                       (line.quantite || 0) > productStocks[line.productId]
-                                        ? 'border-red-500' : ''
-                                    }`}
+                                      ? 'border-red-500' : ''
+                                      }`}
                                     placeholder="0"
                                   />
-                                  {line.productId && productStocks[line.productId] !== undefined && 
-                                   (line.quantite || 0) > productStocks[line.productId] && (
-                                    <span className="text-xs text-red-600 mt-1">
-                                      Stock disponible: {productStocks[line.productId]}
-                                    </span>
-                                  )}
+                                  {line.productId && productStocks[line.productId] !== undefined &&
+                                    (line.quantite || 0) > productStocks[line.productId] && (
+                                      <span className="text-xs text-red-600 mt-1">
+                                        Stock disponible: {productStocks[line.productId]}
+                                      </span>
+                                    )}
                                 </div>
                               </td>
                               <td className="px-4 py-3">
-                                <input 
-                                  type="text" 
+                                <input
+                                  type="text"
                                   value={line.uomCode || ''}
                                   readOnly
                                   className="w-20 px-2 py-1 border rounded text-sm bg-gray-50"
                                 />
                               </td>
                               <td className="px-4 py-3">
-                                <input 
-                                  type="text" 
+                                <input
+                                  type="text"
                                   value={line.prixUnitaireHT || ''}
                                   onChange={(e) => {
                                     const val = e.target.value;
@@ -1308,8 +1409,8 @@ export default function DeliveriesPage() {
                                 />
                               </td>
                               <td className="px-4 py-3">
-                                <input 
-                                  type="text" 
+                                <input
+                                  type="text"
                                   value={line.tvaPct ?? ''}
                                   onChange={(e) => {
                                     const val = e.target.value;
@@ -1332,7 +1433,7 @@ export default function DeliveriesPage() {
                                 {(((line.quantite || 0) * (line.prixUnitaireHT || 0) * (1 - ((line.remisePct || 0) / 100))) * (1 + (line.tvaPct || 0) / 100)).toFixed(3)} {formData.devise}
                               </td>
                               <td className="px-4 py-3">
-                                <button 
+                                <button
                                   onClick={() => removeLine(index)}
                                   className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                   title="Supprimer"
@@ -1380,7 +1481,7 @@ export default function DeliveriesPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Mode de paiement
                     </label>
-                    <select 
+                    <select
                       value={formData.modePaiement}
                       onChange={(e) => setFormData({ ...formData, modePaiement: e.target.value })}
                       className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
@@ -1397,7 +1498,7 @@ export default function DeliveriesPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Notes
                   </label>
-                  <textarea 
+                  <textarea
                     rows={3}
                     value={formData.notes}
                     onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
@@ -1407,18 +1508,18 @@ export default function DeliveriesPage() {
                 </div>
               </div>
               <div className="p-4 sm:p-6 border-t flex flex-col sm:flex-row justify-end gap-3 relative">
-                <button 
+                <button
                   onClick={() => setShowModal(false)}
                   className="w-full sm:w-auto px-4 py-2 border rounded-lg hover:bg-gray-50 text-sm sm:text-base"
                 >
                   Annuler
                 </button>
-                <button 
+                <button
                   onClick={saving ? undefined : handleCreateDelivery}
                   disabled={saving}
                   className={`w-full sm:w-auto px-4 py-2 rounded-lg text-sm sm:text-base flex items-center justify-center gap-2 transition
-                    ${saving 
-                      ? 'bg-blue-500 text-white cursor-wait opacity-80' 
+                    ${saving
+                      ? 'bg-blue-500 text-white cursor-wait opacity-80'
                       : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
                 >
                   {saving && (

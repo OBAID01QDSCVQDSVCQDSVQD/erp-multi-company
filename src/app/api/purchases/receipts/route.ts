@@ -54,17 +54,37 @@ export async function POST(request: NextRequest) {
     const tenantId = session.user.companyId?.toString() || '';
     const numero = await NumberingService.next(tenantId, 'br');
 
+    // === WAREHOUSE RESOLUTION ===
+    let warehouseId = body.warehouseId;
+    if (!warehouseId) {
+      const Warehouse = (await import('@/lib/models/Warehouse')).default;
+      // Find default warehouse
+      const defaultWh = await (Warehouse as any).findOne({ tenantId, isDefault: true }).lean();
+      if (defaultWh) {
+        warehouseId = defaultWh._id;
+      } else {
+        // Fallback: Find ANY warehouse
+        const anyWh = await (Warehouse as any).findOne({ tenantId }).lean();
+        if (anyWh) warehouseId = anyWh._id;
+      }
+    }
+    const warehouseIdStr = warehouseId ? warehouseId.toString() : undefined;
+
     const receipt = new Document({
       ...body,
       tenantId,
       type: 'BR',
       numero,
-      statut: 'brouillon',
+      statut: 'VALIDEE', // Auto-validate for now to trigger stock
+      warehouseId: warehouseIdStr,
       createdBy: session.user.email
     });
 
     calculateDocumentTotals(receipt);
     await (receipt as any).save();
+
+    // Create stock movements (ENTREE)
+    await createStockMovementsForReceipt(receipt, tenantId, session.user.email, warehouseIdStr);
 
     return NextResponse.json(receipt, { status: 201 });
   } catch (error) {
@@ -94,4 +114,48 @@ function calculateDocumentTotals(doc: any) {
   doc.totalTVA = Math.round(totalTVA * 100) / 100;
   doc.totalTTC = doc.totalBaseHT + doc.totalTVA;
   doc.netAPayer = doc.totalTTC;
+}
+
+async function createStockMovementsForReceipt(
+  receipt: any,
+  tenantId: string,
+  createdBy: string,
+  warehouseId?: string
+): Promise<void> {
+  if (!receipt.lignes || receipt.lignes.length === 0) return;
+
+  const MouvementStock = (await import('@/lib/models/MouvementStock')).default;
+  const Product = (await import('@/lib/models/Product')).default;
+  const mongoose = (await import('mongoose')).default;
+
+  const dateDoc = receipt.dateDoc || new Date();
+  const receiptId = receipt._id.toString();
+  const warehouseObjectId = warehouseId ? new mongoose.Types.ObjectId(warehouseId) : undefined;
+
+  for (const line of receipt.lignes) {
+    if (!line.productId || !line.quantite || line.quantite <= 0) continue;
+
+    // Check if product is stockable
+    try {
+      const product = await (Product as any).findOne({ _id: line.productId, tenantId }).lean();
+      if (!product || product.estStocke === false) continue;
+
+      // Create ENTREE movement
+      await (MouvementStock as any).create({
+        societeId: tenantId,
+        productId: line.productId,
+        warehouseId: warehouseObjectId,
+        type: 'ENTREE',
+        qte: line.quantite,
+        date: dateDoc,
+        source: 'BR',
+        sourceId: receiptId,
+        notes: `Bon de réception ${receipt.numero}`,
+        createdBy
+      });
+
+    } catch (e) {
+      console.error(`Error creating stock movement for receipt line ${line.productId}`, e);
+    }
+  }
 }

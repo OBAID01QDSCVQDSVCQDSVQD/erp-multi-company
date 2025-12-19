@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
 
     const tenantId = request.headers.get('X-Tenant-Id') || session.user.companyId?.toString() || '';
     const { searchParams } = new URL(request.url);
-    
+
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '50');
     const type = searchParams.get('type'); // 'ENTREE' | 'SORTIE' | 'INVENTAIRE'
@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
         const id = p._id;
         return id instanceof mongoose.Types.ObjectId ? id.toString() : id;
       });
-      
+
       if (productIds.length > 0) {
         filter.productId = { $in: productIds };
       } else {
@@ -135,7 +135,7 @@ export async function GET(request: NextRequest) {
       }
       filter.productId.$in = intersection;
     }
-    
+
 
     // Get total count
     const total = await (MouvementStock as any).countDocuments(filter);
@@ -144,22 +144,24 @@ export async function GET(request: NextRequest) {
     // Note: productId is stored as string in MouvementStock, so we need to manually populate
     const movements = await (MouvementStock as any)
       .find(filter)
-      .sort({ date: -1, createdAt: -1 })
+      .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit)
       .lean();
 
     // Get unique product IDs
     const productIds = Array.from(new Set(movements.map((m: any) => m.productId).filter(Boolean)));
-    
+
     // Fetch products
     const products = await (Product as any).find({
-      _id: { $in: productIds.map((id: string) => {
-        // Convert string to ObjectId if valid
-        return mongoose.Types.ObjectId.isValid(id) ? new mongoose.Types.ObjectId(id) : id;
-      }) },
+      _id: {
+        $in: productIds.map((id: string) => {
+          // Convert string to ObjectId if valid
+          return mongoose.Types.ObjectId.isValid(id) ? new mongoose.Types.ObjectId(id) : id;
+        })
+      },
     }).select('_id nom sku uomStockCode uomVenteCode referenceClient estStocke').lean();
-    
+
     // Create product map
     const productMap = new Map();
     products.forEach((p: any) => {
@@ -196,9 +198,11 @@ export async function GET(request: NextRequest) {
 
     // Fetch documents (BL, BR, FAC sales, INT_FAC, INT_FAC_BROUILLON, RETOUR)
     const documents = documentSourceIds.length > 0 ? await (Document as any).find({
-      _id: { $in: documentSourceIds.map((id: string) => {
-        return mongoose.Types.ObjectId.isValid(id) ? new mongoose.Types.ObjectId(id) : id;
-      }) },
+      _id: {
+        $in: documentSourceIds.map((id: string) => {
+          return mongoose.Types.ObjectId.isValid(id) ? new mongoose.Types.ObjectId(id) : id;
+        })
+      },
       tenantId,
       // Inclure AVOIR حتى نتمكن من إظهار اسم العميل في référence
       type: { $in: ['BL', 'FAC', 'INT_FAC', 'RETOUR', 'AVOIR'] },
@@ -212,9 +216,11 @@ export async function GET(request: NextRequest) {
 
     // Fetch receptions (BR)
     const receptions = receptionSourceIds.length > 0 ? await (Reception as any).find({
-      _id: { $in: receptionSourceIds.map((id: string) => {
-        return mongoose.Types.ObjectId.isValid(id) ? new mongoose.Types.ObjectId(id) : id;
-      }) },
+      _id: {
+        $in: receptionSourceIds.map((id: string) => {
+          return mongoose.Types.ObjectId.isValid(id) ? new mongoose.Types.ObjectId(id) : id;
+        })
+      },
       societeId: tenantId,
     }).select('_id fournisseurId').lean() : [];
 
@@ -225,9 +231,11 @@ export async function GET(request: NextRequest) {
 
     // Fetch purchase invoices (FAC purchase)
     const purchaseInvoices = purchaseInvoiceSourceIds.length > 0 ? await (PurchaseInvoice as any).find({
-      _id: { $in: purchaseInvoiceSourceIds.map((id: string) => {
-        return mongoose.Types.ObjectId.isValid(id) ? new mongoose.Types.ObjectId(id) : id;
-      }) },
+      _id: {
+        $in: purchaseInvoiceSourceIds.map((id: string) => {
+          return mongoose.Types.ObjectId.isValid(id) ? new mongoose.Types.ObjectId(id) : id;
+        })
+      },
       societeId: tenantId,
     }).select('_id fournisseurId').lean() : [];
 
@@ -253,9 +261,11 @@ export async function GET(request: NextRequest) {
 
     // Fetch customers
     const customers = customerIds.length > 0 ? await (Customer as any).find({
-      _id: { $in: customerIds.map((id: string) => {
-        return mongoose.Types.ObjectId.isValid(id) ? new mongoose.Types.ObjectId(id) : id;
-      }) },
+      _id: {
+        $in: customerIds.map((id: string) => {
+          return mongoose.Types.ObjectId.isValid(id) ? new mongoose.Types.ObjectId(id) : id;
+        })
+      },
       tenantId,
     }).select('_id raisonSociale nom prenom').lean() : [];
 
@@ -268,9 +278,11 @@ export async function GET(request: NextRequest) {
 
     // Fetch suppliers
     const suppliers = supplierIds.length > 0 ? await (Supplier as any).find({
-      _id: { $in: supplierIds.map((id: string) => {
-        return mongoose.Types.ObjectId.isValid(id) ? new mongoose.Types.ObjectId(id) : id;
-      }) },
+      _id: {
+        $in: supplierIds.map((id: string) => {
+          return mongoose.Types.ObjectId.isValid(id) ? new mongoose.Types.ObjectId(id) : id;
+        })
+      },
       tenantId,
     }).select('_id raisonSociale nom prenom').lean() : [];
 
@@ -281,87 +293,122 @@ export async function GET(request: NextRequest) {
       supplierMap.set(id, name);
     });
 
+    // Fetch warehouses
+    const Warehouse = (await import('@/lib/models/Warehouse')).default;
+    const warehouseIds = Array.from(new Set(movements.map((m: any) => m.warehouseId).filter(Boolean)));
+    const warehouses = warehouseIds.length > 0 ? await (Warehouse as any).find({
+      _id: { $in: warehouseIds.map((id: string) => mongoose.Types.ObjectId.isValid(id) ? new mongoose.Types.ObjectId(id) : id) },
+      tenantId,
+    }).select('_id name').lean() : [];
+
+    const warehouseMap = new Map();
+    warehouses.forEach((w: any) => {
+      const id = w._id instanceof mongoose.Types.ObjectId ? w._id.toString() : w._id;
+      warehouseMap.set(id, w.name);
+    });
+
+    // Fetch users for CreatedBy mapping
+    const User = (await import('@/lib/models/User')).default;
+    const userEmails = Array.from(new Set(movements.map((m: any) => m.createdBy).filter(Boolean)));
+    const users = userEmails.length > 0 ? await (User as any).find({
+      email: { $in: userEmails },
+    }).select('email name').lean() : [];
+
+    const userMap = new Map();
+    users.forEach((u: any) => {
+      userMap.set(u.email, u.name);
+    });
+
     // Format movements
     const formattedMovements = movements
       .map((movement: any) => {
-      const product = productMap.get(movement.productId);
+        const product = productMap.get(movement.productId);
         if (product && product.estStocke === false) {
           return null; // Skip services
         }
-      const document = movement.sourceId ? documentMap.get(movement.sourceId) : null;
-      
-      // Determine reference name based on type and source
-      let referenceName = movement.sourceId || '-';
-      if (document) {
-        // For internal invoices (INT_FAC or INT_FAC_BROUILLON), show customer name
-        if ((movement.source === 'INT_FAC' || movement.source === 'INT_FAC_BROUILLON') && document.isDocument && document.type === 'INT_FAC') {
-          if (document.customerId) {
-            const customerIdStr = document.customerId instanceof mongoose.Types.ObjectId 
-              ? document.customerId.toString() 
-              : document.customerId?.toString() || document.customerId;
-            referenceName = customerMap.get(customerIdStr) || document.numero || movement.sourceId || '-';
-          } else {
-            referenceName = document.numero || movement.sourceId || '-';
+        const document = movement.sourceId ? documentMap.get(movement.sourceId) : null;
+
+        // Determine reference name based on type and source
+        let referenceName = movement.sourceId || '-';
+        let notes = movement.notes;
+
+        if (movement.source === 'TRANSFERT') {
+          const userName = movement.createdBy ? (userMap.get(movement.createdBy) || movement.createdBy) : 'Système';
+          referenceName = userName;
+          notes = product?.nom || movement.notes;
+        }
+
+        if (document) {
+          // For internal invoices (INT_FAC or INT_FAC_BROUILLON), show customer name
+          if ((movement.source === 'INT_FAC' || movement.source === 'INT_FAC_BROUILLON') && document.isDocument && document.type === 'INT_FAC') {
+            if (document.customerId) {
+              const customerIdStr = document.customerId instanceof mongoose.Types.ObjectId
+                ? document.customerId.toString()
+                : document.customerId?.toString() || document.customerId;
+              referenceName = customerMap.get(customerIdStr) || document.numero || movement.sourceId || '-';
+            } else {
+              referenceName = document.numero || movement.sourceId || '-';
+            }
+          }
+          // For Sortie (BL or FAC sales invoice), show customer name
+          else if (movement.type === 'SORTIE') {
+            if (movement.source === 'BL' && document.isDocument && document.type === 'BL' && document.customerId) {
+              const customerIdStr = document.customerId instanceof mongoose.Types.ObjectId
+                ? document.customerId.toString()
+                : document.customerId?.toString() || document.customerId;
+              referenceName = customerMap.get(customerIdStr) || movement.sourceId || '-';
+            } else if (movement.source === 'FAC' && document.isDocument && document.type === 'FAC' && document.customerId) {
+              const customerIdStr = document.customerId instanceof mongoose.Types.ObjectId
+                ? document.customerId.toString()
+                : document.customerId?.toString() || document.customerId;
+              referenceName = customerMap.get(customerIdStr) || movement.sourceId || '-';
+            }
+          }
+          // For Entree (BR, RETOUR, or FAC purchase invoice), show supplier/customer name
+          else if (movement.type === 'ENTREE') {
+            // RETOUR - show customer name (product returned from customer)
+            if (movement.source === 'RETOUR' && document.isDocument && document.type === 'RETOUR' && document.customerId) {
+              const customerIdStr = document.customerId instanceof mongoose.Types.ObjectId
+                ? document.customerId.toString()
+                : document.customerId?.toString() || document.customerId;
+              referenceName = customerMap.get(customerIdStr) || movement.sourceId || '-';
+              // AVOIR (source FAC mais doc type AVOIR) - afficher nom client
+            } else if (movement.source === 'FAC' && document.isDocument && document.type === 'AVOIR' && document.customerId) {
+              const customerIdStr = document.customerId instanceof mongoose.Types.ObjectId
+                ? document.customerId.toString()
+                : document.customerId?.toString() || document.customerId;
+              referenceName = customerMap.get(customerIdStr) || movement.sourceId || '-';
+            } else if (movement.source === 'BR' && document.isReception && document.fournisseurId) {
+              const supplierIdStr = document.fournisseurId instanceof mongoose.Types.ObjectId
+                ? document.fournisseurId.toString()
+                : document.fournisseurId?.toString() || document.fournisseurId;
+              referenceName = supplierMap.get(supplierIdStr) || movement.sourceId || '-';
+            } else if (movement.source === 'FAC' && document.isPurchaseInvoice && document.fournisseurId) {
+              const supplierIdStr = document.fournisseurId instanceof mongoose.Types.ObjectId
+                ? document.fournisseurId.toString()
+                : document.fournisseurId?.toString() || document.fournisseurId;
+              referenceName = supplierMap.get(supplierIdStr) || movement.sourceId || '-';
+            }
           }
         }
-        // For Sortie (BL or FAC sales invoice), show customer name
-        else if (movement.type === 'SORTIE') {
-          if (movement.source === 'BL' && document.isDocument && document.type === 'BL' && document.customerId) {
-            const customerIdStr = document.customerId instanceof mongoose.Types.ObjectId 
-              ? document.customerId.toString() 
-              : document.customerId?.toString() || document.customerId;
-            referenceName = customerMap.get(customerIdStr) || movement.sourceId || '-';
-          } else if (movement.source === 'FAC' && document.isDocument && document.type === 'FAC' && document.customerId) {
-            const customerIdStr = document.customerId instanceof mongoose.Types.ObjectId 
-              ? document.customerId.toString() 
-              : document.customerId?.toString() || document.customerId;
-            referenceName = customerMap.get(customerIdStr) || movement.sourceId || '-';
-          }
-        } 
-        // For Entree (BR, RETOUR, or FAC purchase invoice), show supplier/customer name
-        else if (movement.type === 'ENTREE') {
-          // RETOUR - show customer name (product returned from customer)
-          if (movement.source === 'RETOUR' && document.isDocument && document.type === 'RETOUR' && document.customerId) {
-            const customerIdStr = document.customerId instanceof mongoose.Types.ObjectId 
-              ? document.customerId.toString() 
-              : document.customerId?.toString() || document.customerId;
-            referenceName = customerMap.get(customerIdStr) || movement.sourceId || '-';
-          // AVOIR (source FAC mais doc type AVOIR) - afficher nom client
-          } else if (movement.source === 'FAC' && document.isDocument && document.type === 'AVOIR' && document.customerId) {
-            const customerIdStr = document.customerId instanceof mongoose.Types.ObjectId 
-              ? document.customerId.toString() 
-              : document.customerId?.toString() || document.customerId;
-            referenceName = customerMap.get(customerIdStr) || movement.sourceId || '-';
-          } else if (movement.source === 'BR' && document.isReception && document.fournisseurId) {
-            const supplierIdStr = document.fournisseurId instanceof mongoose.Types.ObjectId 
-              ? document.fournisseurId.toString() 
-              : document.fournisseurId?.toString() || document.fournisseurId;
-            referenceName = supplierMap.get(supplierIdStr) || movement.sourceId || '-';
-          } else if (movement.source === 'FAC' && document.isPurchaseInvoice && document.fournisseurId) {
-            const supplierIdStr = document.fournisseurId instanceof mongoose.Types.ObjectId 
-              ? document.fournisseurId.toString() 
-              : document.fournisseurId?.toString() || document.fournisseurId;
-            referenceName = supplierMap.get(supplierIdStr) || movement.sourceId || '-';
-          }
-        }
-      }
 
         return {
-        _id: movement._id.toString(),
-        productId: movement.productId,
-        productName: product?.nom || 'Produit supprimé',
-        productSku: product?.sku || '-',
-        productUom: product?.uomStockCode || product?.uomVenteCode || 'PCE',
-        type: movement.type,
-        qte: movement.qte,
-        date: movement.date,
-        source: movement.source,
-        sourceId: movement.sourceId,
-        referenceName,
-        notes: movement.notes,
-        createdBy: movement.createdBy,
-        createdAt: movement.createdAt,
-        updatedAt: movement.updatedAt,
+          _id: movement._id.toString(),
+          productId: movement.productId,
+          productName: product?.nom || 'Produit supprimé',
+          productSku: product?.sku || '-',
+          productUom: product?.uomStockCode || product?.uomVenteCode || 'PCE',
+          type: movement.type,
+          qte: movement.qte,
+          date: movement.date,
+          source: movement.source,
+          sourceId: movement.sourceId,
+          referenceName,
+          notes,
+          createdBy: movement.createdBy,
+          createdAt: movement.createdAt,
+          updatedAt: movement.updatedAt,
+          warehouseName: movement.warehouseId ? warehouseMap.get(movement.warehouseId.toString()) : '-',
         };
       })
       .filter((movement): movement is Record<string, any> => movement !== null);

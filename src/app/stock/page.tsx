@@ -30,9 +30,49 @@ export default function StockPage() {
   const [q, setQ] = useState('');
   const [lowStockFilter, setLowStockFilter] = useState(false);
 
+  // Multi-warehouse
+  const [warehouses, setWarehouses] = useState<any[]>([]);
+  const [selectedWarehouseId, setSelectedWarehouseId] = useState<string>('');
+  const [multiWarehouseEnabled, setMultiWarehouseEnabled] = useState(false);
+
+  useEffect(() => {
+    if (tenantId) {
+      fetchSettings();
+      fetchWarehouses();
+    }
+  }, [tenantId]);
+
   useEffect(() => {
     if (tenantId) fetchStock();
-  }, [tenantId, lowStockFilter]);
+  }, [tenantId, lowStockFilter, selectedWarehouseId]);
+
+  async function fetchSettings() {
+    try {
+      const response = await fetch('/api/settings', {
+        headers: { 'X-Tenant-Id': tenantId || '' },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setMultiWarehouseEnabled(data.stock?.multiEntrepots ?? false);
+      }
+    } catch (error) {
+      console.error('Error fetching settings:', error);
+    }
+  }
+
+  async function fetchWarehouses() {
+    try {
+      const response = await fetch('/api/stock/warehouses', {
+        headers: { 'X-Tenant-Id': tenantId || '' },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setWarehouses(data);
+      }
+    } catch (error) {
+      console.error('Error fetching warehouses:', error);
+    }
+  }
 
   async function fetchStock() {
     if (!tenantId) return;
@@ -41,11 +81,12 @@ export default function StockPage() {
       const params = new URLSearchParams();
       if (q) params.append('q', q);
       if (lowStockFilter) params.append('lowStock', 'true');
-      
+      if (selectedWarehouseId) params.append('warehouseId', selectedWarehouseId);
+
       const response = await fetch(`/api/stock?${params.toString()}`, {
         headers: { 'X-Tenant-Id': tenantId },
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         setStockItems(data.items || []);
@@ -142,6 +183,22 @@ export default function StockPage() {
 
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+          {multiWarehouseEnabled && warehouses.length > 0 && (
+            <div className="w-full sm:w-64">
+              <select
+                value={selectedWarehouseId}
+                onChange={(e) => setSelectedWarehouseId(e.target.value)}
+                className="w-full px-4 py-2 border rounded-lg text-sm sm:text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">Tous les entrepôts</option>
+                {warehouses.map((wh) => (
+                  <option key={wh._id} value={wh._id}>
+                    {wh.name} {wh.isDefault ? '(Défaut)' : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <div className="relative flex-1">
             <MagnifyingGlassIcon className="h-5 w-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
             <input

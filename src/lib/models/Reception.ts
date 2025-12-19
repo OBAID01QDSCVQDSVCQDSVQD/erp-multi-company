@@ -37,6 +37,7 @@ export interface IReception extends Document {
   montantTimbre?: number;
   remiseGlobalePct?: number;
   notes?: string;
+  warehouseId?: string;
   createdBy?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -101,7 +102,7 @@ const ReceptionSchema = new Schema({
     type: [ReceptionLineSchema],
     required: true,
     validate: {
-      validator: function(v: IReceptionLine[]) {
+      validator: function (v: IReceptionLine[]) {
         return v && v.length > 0;
       },
       message: 'Au moins une ligne est requise',
@@ -145,6 +146,10 @@ const ReceptionSchema = new Schema({
   notes: {
     type: String,
   },
+  warehouseId: {
+    type: String,
+    index: true,
+  },
   createdBy: {
     type: String,
   },
@@ -153,7 +158,7 @@ const ReceptionSchema = new Schema({
 });
 
 // Pre-save hook: ensure FODEC and TIMBRE fields exist
-ReceptionSchema.pre('save', function(next) {
+ReceptionSchema.pre('save', function (next) {
   // Ensure FODEC and TIMBRE fields exist with default values (FODEC inactive by default, TIMBRE active)
   if (this.fodecActif === undefined) {
     this.fodecActif = false;
@@ -170,7 +175,7 @@ ReceptionSchema.pre('save', function(next) {
   if (this.remiseGlobalePct === undefined) {
     this.remiseGlobalePct = 0;
   }
-  
+
   // Ensure totaux structure exists
   if (!this.totaux) {
     this.totaux = { totalHT: 0, fodec: 0, totalTVA: 0, timbre: 0, totalTTC: 0 };
@@ -181,12 +186,12 @@ ReceptionSchema.pre('save', function(next) {
   if (this.totaux.timbre === undefined) {
     this.totaux.timbre = 0;
   }
-  
+
   next();
 });
 
 // Validation: ensure qteRecue >= 0
-ReceptionSchema.pre('save', function(next) {
+ReceptionSchema.pre('save', function (next) {
   if (this.lignes) {
     for (const ligne of this.lignes) {
       if (ligne.qteRecue < 0) {
@@ -198,7 +203,7 @@ ReceptionSchema.pre('save', function(next) {
 });
 
 // Pre-save hook: recalculate totals with FODEC and TIMBRE
-ReceptionSchema.pre('save', function(next) {
+ReceptionSchema.pre('save', function (next) {
   if (this.lignes && this.lignes.length > 0) {
     let totalHTBeforeDiscount = 0;
     let totalHTAfterLineDiscount = 0;
@@ -209,7 +214,7 @@ ReceptionSchema.pre('save', function(next) {
       if (ligne.prixUnitaireHT && ligne.qteRecue > 0) {
         const lineHTBeforeDiscount = ligne.prixUnitaireHT * ligne.qteRecue;
         totalHTBeforeDiscount += lineHTBeforeDiscount;
-        
+
         // Apply line remise if exists
         let prixAvecRemise = ligne.prixUnitaireHT;
         const remisePct = ligne.remisePct || 0;

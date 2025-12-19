@@ -40,19 +40,22 @@ export default function NewReturnPage() {
   const [selectedBL, setSelectedBL] = useState<BL | null>(null);
   const [blSearch, setBlSearch] = useState('');
   const [showBlDropdown, setShowBlDropdown] = useState(false);
-  
+
+  const [warehouses, setWarehouses] = useState<any[]>([]);
+  const [selectedWarehouseId, setSelectedWarehouseId] = useState('');
+
   const [formData, setFormData] = useState({
     dateDoc: new Date().toISOString().split('T')[0],
     notes: '',
   });
-  
+
   const [returnLines, setReturnLines] = useState<Array<{
     productId: string;
     designation: string;
     quantite: number;
     quantiteMax: number;
-    quantiteOriginale: number; // Original quantity from BL
-    qtyLivree: number; // Delivered quantity (may be less if there were previous returns)
+    quantiteOriginale: number;
+    qtyLivree: number;
     prixUnitaireHT: number;
     uomCode?: string;
     tvaPct: number;
@@ -61,8 +64,26 @@ export default function NewReturnPage() {
   useEffect(() => {
     if (tenantId) {
       fetchBLs();
+      fetchWarehouses();
     }
   }, [tenantId]);
+
+  const fetchWarehouses = async () => {
+    try {
+      const response = await fetch('/api/stock/warehouses', {
+        headers: { 'X-Tenant-Id': tenantId || '' },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setWarehouses(data);
+        // Default to Main Warehouse if exists
+        const main = data.find((w: any) => w.isDefault) || data[0];
+        if (main) setSelectedWarehouseId(main._id);
+      }
+    } catch (error) {
+      console.error('Error fetching warehouses:', error);
+    }
+  };
 
   const fetchBLs = async () => {
     try {
@@ -87,7 +108,7 @@ export default function NewReturnPage() {
     setSelectedBL(bl);
     setBlSearch(bl.numero);
     setShowBlDropdown(false);
-    
+
     // Fetch full BL details including lignes
     try {
       const response = await fetch(`/api/sales/deliveries/${bl._id}`, {
@@ -96,7 +117,7 @@ export default function NewReturnPage() {
       if (response.ok) {
         const fullBL = await response.json();
         setSelectedBL(fullBL);
-        
+
         // Initialize return lines from BL lines
         if (fullBL.lignes && Array.isArray(fullBL.lignes) && fullBL.lignes.length > 0) {
           const lines = fullBL.lignes.map((line: any) => {
@@ -104,14 +125,14 @@ export default function NewReturnPage() {
             // qtyLivree represents the actual delivered quantity (after any previous returns)
             // quantite is the original quantity in the BL
             const quantiteOriginale = line.quantite || 0;
-            const qtyLivree = line.qtyLivree !== undefined && line.qtyLivree !== null 
-              ? line.qtyLivree 
+            const qtyLivree = line.qtyLivree !== undefined && line.qtyLivree !== null
+              ? line.qtyLivree
               : quantiteOriginale;
-            
+
             // The maximum returnable quantity is the delivered quantity (qtyLivree)
             // If qtyLivree is 0 or not set, use the original quantity
             const quantiteMax = qtyLivree > 0 ? qtyLivree : quantiteOriginale;
-            
+
             return {
               productId: line.productId || '',
               designation: line.designation,
@@ -151,15 +172,20 @@ export default function NewReturnPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!selectedBL) {
       toast.error('Veuillez sélectionner un BL');
       return;
     }
-    
+
     const validLines = returnLines.filter(line => line.quantite > 0);
     if (validLines.length === 0) {
       toast.error('Veuillez ajouter au moins une ligne avec une quantité retournée');
+      return;
+    }
+
+    if (!selectedWarehouseId) {
+      toast.error('Veuillez sélectionner un entrepôt de retour');
       return;
     }
 
@@ -169,6 +195,7 @@ export default function NewReturnPage() {
       const returnDoc = {
         blId: selectedBL._id,
         customerId: selectedBL.customerId?._id || selectedBL.customerId,
+        warehouseId: selectedWarehouseId,
         dateDoc: formData.dateDoc,
         notes: formData.notes,
         lignes: validLines.map(line => ({
@@ -235,7 +262,7 @@ export default function NewReturnPage() {
           {/* BL Selection */}
           <div className="bg-white rounded-lg shadow p-6 space-y-4">
             <h2 className="text-lg font-semibold text-gray-900">Sélectionner le BL</h2>
-            
+
             <div className="relative">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Bon de livraison *
@@ -265,7 +292,7 @@ export default function NewReturnPage() {
                     <XMarkIcon className="w-5 h-5" />
                   </button>
                 )}
-                
+
                 {showBlDropdown && filteredBLs.length > 0 && (
                   <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto">
                     {filteredBLs.map((bl) => (
@@ -289,7 +316,7 @@ export default function NewReturnPage() {
             {selectedBL && (
               <div className="bg-gray-50 p-4 rounded-lg">
                 <p className="text-sm text-gray-600">
-                  <span className="font-medium">BL:</span> {selectedBL.numero} | 
+                  <span className="font-medium">BL:</span> {selectedBL.numero} |
                   <span className="font-medium ml-2">Date:</span> {new Date(selectedBL.dateDoc).toLocaleDateString('fr-FR')} |
                   <span className="font-medium ml-2">Client:</span> {getCustomerName(selectedBL.customerId)}
                 </p>
@@ -363,7 +390,22 @@ export default function NewReturnPage() {
           {selectedBL && returnLines.some(line => line.quantite > 0) && (
             <div className="bg-white rounded-lg shadow p-6 space-y-4">
               <h2 className="text-lg font-semibold text-gray-900">Détails du retour</h2>
-              
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Entrepôt de réception (Stock) *</label>
+                <select
+                  value={selectedWarehouseId}
+                  onChange={(e) => setSelectedWarehouseId(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                  required
+                >
+                  <option value="">Sélectionner un entrepôt...</option>
+                  {warehouses.map(w => (
+                    <option key={w._id} value={w._id}>{w.name}</option>
+                  ))}
+                </select>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Date du retour *

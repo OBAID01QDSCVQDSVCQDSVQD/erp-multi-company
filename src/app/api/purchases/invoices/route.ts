@@ -7,6 +7,7 @@ import { NumberingService } from '@/lib/services/NumberingService';
 import Supplier from '@/lib/models/Supplier';
 import MouvementStock from '@/lib/models/MouvementStock';
 import mongoose from 'mongoose';
+import Warehouse from '@/lib/models/Warehouse';
 
 export async function GET(request: NextRequest) {
   try {
@@ -134,6 +135,30 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Resolve Warehouse
+    let warehouseId = body.warehouseId;
+    console.log('POST /api/purchases/invoices: Received warehouseId:', warehouseId);
+
+    if (!warehouseId) {
+      // Try to find default warehouse
+      const defaultWarehouse = await (Warehouse as any).findOne({
+        tenantId: tenantId,
+        isDefault: true,
+      });
+
+      if (defaultWarehouse) {
+        warehouseId = defaultWarehouse._id.toString();
+      } else {
+        // Fallback to any warehouse
+        const anyWarehouse = await (Warehouse as any).findOne({
+          tenantId: tenantId,
+        });
+        if (anyWarehouse) {
+          warehouseId = anyWarehouse._id.toString();
+        }
+      }
+    }
+
     // Prepare lines
     const lignes = (body.lignes || []).map((line: any) => ({
       produitId: line.produitId || undefined,
@@ -170,6 +195,7 @@ export async function POST(request: NextRequest) {
       tauxChange: body.tauxChange || 1,
       conditionsPaiement: body.conditionsPaiement || undefined,
       statut: body.statut || 'BROUILLON',
+      warehouseId,
       lignes,
       fodec,
       timbre,
@@ -382,6 +408,7 @@ async function createStockMovementsForPurchaseInvoice(invoiceId: string, tenantI
           const mouvement = new MouvementStock({
             societeId: tenantId,
             productId: ligne.produitId.toString(),
+            warehouseId: invoice.warehouseId,
             type: 'ENTREE',
             qte: ligne.quantite,
             date: invoice.dateFacture || new Date(),

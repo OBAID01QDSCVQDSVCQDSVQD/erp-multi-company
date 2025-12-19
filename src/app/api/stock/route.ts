@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import MouvementStock from '@/lib/models/MouvementStock';
 import Product from '@/lib/models/Product';
+import Warehouse from '@/lib/models/Warehouse';
 import mongoose from 'mongoose';
 
 export async function GET(request: NextRequest) {
@@ -16,29 +17,30 @@ export async function GET(request: NextRequest) {
     await connectDB();
 
     const tenantId = request.headers.get('X-Tenant-Id') || session.user.companyId?.toString() || '';
-    
+
     if (!tenantId) {
       return NextResponse.json(
         { error: 'Tenant ID manquant' },
         { status: 400 }
       );
     }
-    
+
     const { searchParams } = new URL(request.url);
     const q = searchParams.get('q') || '';
     const categorie = searchParams.get('categorie');
     const lowStock = searchParams.get('lowStock') === 'true';
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '50');
+    const warehouseId = searchParams.get('warehouseId');
 
     // Build product filter - Get only stocked products (estStocke = true)
     // Exclude services (estStocke = false) and archived products
-    const productFilter: any = { 
+    const productFilter: any = {
       tenantId,
       estStocke: true, // Only show products that are stocked (not services)
       archive: { $ne: true }, // Exclude archived products
     };
-    
+
     if (q) {
       productFilter.$or = [
         { nom: { $regex: q, $options: 'i' } },
@@ -52,7 +54,7 @@ export async function GET(request: NextRequest) {
 
     // Get all products (not just stocked ones - we want to show all products with their stock levels)
     const products = await (Product as any).find(productFilter).lean();
-    
+
     if (products.length === 0) {
       return NextResponse.json({
         items: [],
@@ -64,14 +66,37 @@ export async function GET(request: NextRequest) {
 
     const productIds = products.map((p: any) => p._id.toString());
 
+    // Build match query for aggregation
+    const matchQuery: any = {
+      societeId: tenantId,
+      productId: { $in: productIds },
+    };
+
+    if (warehouseId) {
+      // Check if this is the default warehouse
+      const warehouse = await (Warehouse as any).findOne({
+        _id: warehouseId,
+        tenantId,
+      });
+
+      if (warehouse && warehouse.isDefault) {
+        // If it's the default warehouse, include movements with this ID OR with no ID (legacy data)
+        matchQuery.$or = [
+          { warehouseId: new mongoose.Types.ObjectId(warehouseId) },
+          { warehouseId: { $exists: false } },
+          { warehouseId: null }
+        ];
+      } else {
+        // Strict match for non-default warehouses
+        matchQuery.warehouseId = new mongoose.Types.ObjectId(warehouseId);
+      }
+    }
+
     // Calculate current stock for each product
     // Note: productId in MouvementStock is stored as String
     const stockAggregation = await (MouvementStock as any).aggregate([
       {
-        $match: {
-          societeId: tenantId,
-          productId: { $in: productIds },
-        },
+        $match: matchQuery,
       },
       {
         $group: {

@@ -19,11 +19,11 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const q = searchParams.get('q');
 
-    const query: any = { 
-      tenantId, 
-      type: 'RETOUR' 
+    const query: any = {
+      tenantId,
+      type: 'RETOUR'
     };
-    
+
     let returns = await (Document as any).find(query)
       .sort('-createdAt')
       .lean();
@@ -32,21 +32,21 @@ export async function GET(request: NextRequest) {
     const Customer = (await import('@/lib/models/Customer')).default;
     const customerIds = [...new Set(returns.map((r: any) => r.customerId).filter(Boolean))];
     const blIds = [...new Set(returns.map((r: any) => r.blId).filter(Boolean))];
-    
+
     // Fetch customers
     if (customerIds.length > 0) {
       const customers = await (Customer as any).find({
         _id: { $in: customerIds.map((id: any) => typeof id === 'string' ? new mongoose.Types.ObjectId(id) : id) },
         tenantId,
       }).select('nom prenom raisonSociale').lean();
-      
+
       const customerMap = new Map(customers.map((c: any) => [c._id.toString(), c]));
-      
+
       for (const returnDoc of returns) {
         if (returnDoc.customerId) {
           const customer = customerMap.get(
-            typeof returnDoc.customerId === 'string' 
-              ? returnDoc.customerId 
+            typeof returnDoc.customerId === 'string'
+              ? returnDoc.customerId
               : returnDoc.customerId.toString()
           );
           if (customer) {
@@ -63,14 +63,14 @@ export async function GET(request: NextRequest) {
         tenantId,
         type: 'BL',
       }).select('numero').lean();
-      
+
       const blMap = new Map(bls.map((bl: any) => [bl._id.toString(), bl.numero]));
-      
+
       for (const returnDoc of returns) {
         if (returnDoc.blId) {
           const blNumero = blMap.get(
-            typeof returnDoc.blId === 'string' 
-              ? returnDoc.blId 
+            typeof returnDoc.blId === 'string'
+              ? returnDoc.blId
               : returnDoc.blId.toString()
           );
           if (blNumero) {
@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
     await connectDB();
 
     const tenantId = session.user.companyId?.toString() || '';
-    
+
     // Generate numero
     const numero = await NumberingService.next(tenantId, 'retour');
 
@@ -135,6 +135,7 @@ export async function POST(request: NextRequest) {
       statut: 'VALIDEE', // Returns are automatically validated
       blId: body.blId ? new mongoose.Types.ObjectId(body.blId) : undefined,
       customerId: body.customerId ? new mongoose.Types.ObjectId(body.customerId) : undefined,
+      warehouseId: body.warehouseId ? new mongoose.Types.ObjectId(body.warehouseId) : undefined,
     });
 
     // Calculate totals
@@ -187,7 +188,7 @@ function calculateDocumentTotals(doc: any) {
 
   doc.totalBaseHT = Math.round(totalBaseHT * 100) / 100;
   doc.totalTVA = Math.round(totalTVA * 100) / 100;
-  
+
   // Add timbre fiscal if it exists in the document
   const timbreFiscal = doc.timbreFiscal || 0;
   doc.totalTTC = doc.totalBaseHT + doc.totalTVA + timbreFiscal;
@@ -202,16 +203,16 @@ async function updateBLForReturn(returnDoc: any, blId: string, tenantId: string,
       tenantId,
       type: 'BL',
     });
-    
+
     if (!bl) {
       throw new Error(`Bon de livraison ${blId} non trouvé`);
     }
 
     // Update quantities in BL lines
     const updatedLines = bl.lignes.map((blLine: any, index: number) => {
-      const returnLine = returnDoc.lignes.find((retLine: any) => 
-        retLine.productId && 
-        blLine.productId && 
+      const returnLine = returnDoc.lignes.find((retLine: any) =>
+        retLine.productId &&
+        blLine.productId &&
         retLine.productId.toString() === blLine.productId.toString()
       );
 
@@ -240,14 +241,14 @@ async function updateBLForReturn(returnDoc: any, blId: string, tenantId: string,
           qtyLivree: newQtyLivree,
         };
       }
-      
+
       // Return line as plain object if not modified
       return blLine.toObject ? blLine.toObject() : (typeof blLine === 'object' ? { ...blLine } : blLine);
     });
 
     // Add note about the return
     const returnDate = new Date(returnDoc.dateDoc).toLocaleDateString('fr-FR');
-    const returnLinesSummary = returnDoc.lignes.map((l: any) => 
+    const returnLinesSummary = returnDoc.lignes.map((l: any) =>
       `${l.quantite} ${l.uomCode || ''} ${l.designation}`
     ).join(', ');
 
@@ -294,7 +295,7 @@ async function updateBLForReturn(returnDoc: any, blId: string, tenantId: string,
     if (!updatedBL) {
       throw new Error(`Failed to update BL ${bl.numero}`);
     }
-    
+
     // Note: We don't update BL stock movements (SORTIE) - they remain with original quantity
     // The RETOUR will create an ENTREE movement to add the returned quantity back to stock
     // This way: Stock = Original Stock - BL (SORTIE) + RETOUR (ENTREE) = Correct final stock
@@ -369,7 +370,7 @@ async function returnProductsToStock(returnDoc: any, tenantId: string, createdBy
 
       try {
         const productIdStr = line.productId.toString();
-        
+
         // Check if product exists and is stocked
         const product = await (Product as any).findOne({
           _id: productIdStr,
@@ -397,11 +398,12 @@ async function returnProductsToStock(returnDoc: any, tenantId: string, createdBy
           // Update existing movement
           existingMovement.qte = line.quantite;
           existingMovement.date = returnDoc.dateDoc || new Date();
+          if (returnDoc.warehouseId) existingMovement.warehouseId = returnDoc.warehouseId;
           existingMovement.notes = `Retour ${returnDoc.numero} - ${line.designation}`;
           await (existingMovement as any).save();
         } else {
           // Create stock movement (ENTREE - entry into stock)
-          // هذه الحركة تضيف الكمية المرجوعة للمخزون
+          // cette mouvement ajoute la qté au stock specifique
           const mouvement = new MouvementStock({
             societeId: tenantId,
             productId: productIdStr,
@@ -410,6 +412,7 @@ async function returnProductsToStock(returnDoc: any, tenantId: string, createdBy
             date: returnDoc.dateDoc || new Date(),
             source: 'RETOUR',
             sourceId: returnDoc._id.toString(),
+            warehouseId: returnDoc.warehouseId,
             notes: `Retour ${returnDoc.numero} - ${line.designation}`,
             createdBy,
           });

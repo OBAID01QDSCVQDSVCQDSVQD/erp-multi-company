@@ -1,8 +1,10 @@
+
 import mongoose, { Document, Schema } from 'mongoose';
 
 export interface IMouvementStock extends Document {
   societeId: string;
   productId: string;
+  warehouseId?: mongoose.Types.ObjectId; // Link to Warehouse
   projectId?: mongoose.Types.ObjectId; // Link to Project
   type: 'ENTREE' | 'SORTIE' | 'INVENTAIRE';
   qte: number;
@@ -15,7 +17,14 @@ export interface IMouvementStock extends Document {
   updatedAt: Date;
 }
 
-const MouvementStockSchema = new (Schema as any)({
+// Force delete model in dev to pick up schema changes
+if (process.env.NODE_ENV !== 'production') {
+  if (mongoose.models.MouvementStock) {
+    delete mongoose.models.MouvementStock;
+  }
+}
+
+const MouvementStockSchema = new Schema({
   societeId: {
     type: String,
     required: true,
@@ -25,6 +34,11 @@ const MouvementStockSchema = new (Schema as any)({
     type: String,
     required: true,
     ref: 'Product',
+    index: true,
+  },
+  warehouseId: {
+    type: Schema.Types.ObjectId,
+    ref: 'Warehouse',
     index: true,
   },
   projectId: {
@@ -65,16 +79,10 @@ const MouvementStockSchema = new (Schema as any)({
 });
 
 // Indexes for efficient stock queries
+MouvementStockSchema.index({ societeId: 1, productId: 1, warehouseId: 1 });
 MouvementStockSchema.index({ societeId: 1, productId: 1, date: -1 });
 MouvementStockSchema.index({ societeId: 1, source: 1, sourceId: 1 });
 MouvementStockSchema.index({ societeId: 1, projectId: 1 });
 MouvementStockSchema.index({ date: -1 });
 
-// Clear the model from cache to ensure enum updates are applied
-if (mongoose.models.MouvementStock) {
-  delete mongoose.models.MouvementStock;
-}
-
-const MouvementStock = mongoose.model<IMouvementStock>('MouvementStock', MouvementStockSchema) as any;
-
-export default MouvementStock;
+export default (mongoose.models.MouvementStock as any) || mongoose.model<IMouvementStock>('MouvementStock', MouvementStockSchema);

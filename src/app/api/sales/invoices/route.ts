@@ -124,46 +124,32 @@ export async function POST(request: NextRequest) {
         type: 'FAC',
         numero,
       });
+
       if (exists) {
-        return NextResponse.json(
-          { error: 'Ce numéro de facture existe déjà. Merci de choisir un autre numéro.' },
-          { status: 409 }
-        );
-      }
-    } else {
-      // Generate invoice number based on last invoice number + 1
-      // Find the last invoice (FAC) for this tenant
-      const lastInvoice = await (Document as any).findOne({
-        tenantId,
-        type: 'FAC'
-      })
-        .sort({ createdAt: -1 })
-        .lean();
-
-      if (lastInvoice && lastInvoice.numero) {
-        // Extract numeric part from last invoice number
-        const lastNumero = lastInvoice.numero;
-        // Try to extract the numeric part (handle formats like "FAC-001", "001", "1", etc.)
-        const numericMatch = lastNumero.match(/(\d+)$/);
-
-        if (numericMatch) {
-          const lastNumber = parseInt(numericMatch[1], 10);
-          const nextNumber = lastNumber + 1;
-
-          // Preserve the prefix if it exists (e.g., "FAC-" from "FAC-001")
-          const prefix = lastNumero.substring(0, lastNumero.length - numericMatch[1].length);
-          // Preserve padding if it exists (e.g., "001" -> "002")
-          const padding = numericMatch[1].length;
-          numero = prefix + nextNumber.toString().padStart(padding, '0');
-        } else {
-          // If no numeric part found, use NumberingService as fallback
-          numero = await NumberingService.next(tenantId, 'fac');
-        }
-      } else {
-        // No invoices exist yet, use NumberingService to generate first number
+        // If the number exists, instead of failing, we intelligently generate the NEXT valid number.
+        // This handles race conditions where two users create an invoice at the same time,
+        // or if the frontend sent an outdated 'next number'.
+        console.log(`[Invoice] Number ${numero} already exists. Auto-generating next number...`);
         numero = await NumberingService.next(tenantId, 'fac');
       }
+    } else {
+      // No number provided, generate one
+      numero = await NumberingService.next(tenantId, 'fac');
     }
+
+    // === WAREHOUSE RESOLUTION ===
+    let warehouseId = body.warehouseId;
+    if (!warehouseId) {
+      const Warehouse = (await import('@/lib/models/Warehouse')).default;
+      const defaultWh = await (Warehouse as any).findOne({ tenantId, isDefault: true }).lean();
+      if (defaultWh) {
+        warehouseId = defaultWh._id;
+      } else {
+        const anyWh = await (Warehouse as any).findOne({ tenantId }).lean();
+        if (anyWh) warehouseId = anyWh._id;
+      }
+    }
+    const warehouseIdStr = warehouseId ? warehouseId.toString() : undefined;
 
     const invoice = new Document({
       ...body,
@@ -171,6 +157,7 @@ export async function POST(request: NextRequest) {
       type: 'FAC',
       numero,
       statut: 'BROUILLON',
+      warehouseId: warehouseIdStr,
       createdBy: session.user.email
     });
 
@@ -199,12 +186,68 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (!isFromBL) {
-      // Only create stock movements if invoice is NOT from BL
-      // If from BL, stock was already reduced when BL was created
-      await createStockMovementsForInvoice(invoice, tenantId, session.user.email);
+    // === STOCK VALIDATION LOGIC ===
+    let shouldCreateStockMovements = !isFromBL;
+    const skipStockValidation = body.skipStockValidation === true;
+
+    if (shouldCreateStockMovements && !skipStockValidation) {
+      // 1. Fetch company settings
+      const CompanySettings = (await import('@/lib/models/CompanySettings')).default;
+      const settings = await (CompanySettings as any).findOne({ tenantId }).lean();
+      const isNegativeStockAllowed = settings?.stock?.stockNegatif !== 'interdit';
+
+      if (!isNegativeStockAllowed) {
+        // 2. Check stock levels
+        for (const line of body.lignes || []) {
+          if (!line.productId || !line.quantite || line.quantite <= 0) continue;
+
+          const Product = (await import('@/lib/models/Product')).default;
+          const product = await (Product as any).findOne({ _id: line.productId, tenantId }).lean();
+
+          if (product && product.estStocke !== false) {
+            const MouvementStock = (await import('@/lib/models/MouvementStock')).default;
+
+            // Query specific warehouse
+            const query: any = {
+              societeId: tenantId,
+              productId: line.productId.toString()
+            };
+            if (warehouseIdStr) {
+              query.warehouseId = new mongoose.Types.ObjectId(warehouseIdStr);
+            }
+
+            const movements = await (MouvementStock as any).find(query).lean();
+
+            let currentStock = 0;
+            for (const mov of movements) {
+              if (mov.type === 'ENTREE') currentStock += mov.qte;
+              else if (mov.type === 'SORTIE') currentStock -= mov.qte;
+            }
+
+            if (currentStock < line.quantite) {
+              return NextResponse.json({
+                code: 'INSUFFICIENT_STOCK',
+                message: `Stock insuffisant pour le produit "${product.nom}". Disponible: ${currentStock}, Demandé: ${line.quantite}.`,
+                productName: product.nom,
+                available: currentStock,
+                requested: line.quantite
+              }, { status: 409 });
+            }
+          }
+        }
+      }
+    } else if (skipStockValidation) {
+      // If user explicitly chose to skip validation (Deferred Delivery), 
+      // we must NOT move stock.
+      shouldCreateStockMovements = false;
+      console.log(`[Create Invoice] Stock movements skipped due to deferred delivery (skipStockValidation=true)`);
+    }
+    // === END STOCK VALIDATION ===
+
+    if (shouldCreateStockMovements) {
+      await createStockMovementsForInvoice(invoice, tenantId, session.user.email, warehouseIdStr);
     } else {
-      console.log(`[Create Invoice] Skipping stock movements for invoice ${invoice._id} - created from BL`);
+      console.log(`[Create Invoice] Skipping stock movements for invoice ${invoice._id} - created from BL or Deferred Delivery`);
     }
 
     return NextResponse.json(invoice, { status: 201 });
@@ -273,7 +316,8 @@ function calculateDocumentTotals(doc: any) {
 async function createStockMovementsForInvoice(
   invoice: any,
   tenantId: string,
-  createdBy: string
+  createdBy: string,
+  warehouseId?: string
 ): Promise<void> {
   if (!invoice.lignes || invoice.lignes.length === 0) {
     return;
@@ -281,6 +325,7 @@ async function createStockMovementsForInvoice(
 
   const dateDoc = invoice.dateDoc || new Date();
   const invoiceId = invoice._id.toString();
+  const warehouseObjectId = warehouseId ? new mongoose.Types.ObjectId(warehouseId) : undefined;
 
   for (const line of invoice.lignes) {
     // Skip if no productId or quantity is 0
@@ -332,12 +377,14 @@ async function createStockMovementsForInvoice(
         // Update existing movement
         existingMovement.qte = line.quantite;
         existingMovement.date = dateDoc;
+        if (warehouseObjectId) existingMovement.warehouseId = warehouseObjectId;
         await (existingMovement as any).save();
       } else {
         // Create new stock movement
         const mouvement = new MouvementStock({
           societeId: tenantId,
           productId: productIdStr,
+          warehouseId: warehouseObjectId,
           type: 'SORTIE',
           qte: line.quantite,
           date: dateDoc,
