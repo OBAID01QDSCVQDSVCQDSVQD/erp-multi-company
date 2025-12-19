@@ -148,7 +148,7 @@ export default function ExpensesPage() {
     try {
       setLoading(true);
       const queryParams = new URLSearchParams();
-      
+
       if (filters.periode) queryParams.append('periode', filters.periode);
       if (filters.categorieId) queryParams.append('categorieId', filters.categorieId);
       if (filters.statut) queryParams.append('statut', filters.statut);
@@ -168,12 +168,12 @@ export default function ExpensesPage() {
           pagination: data.pagination,
           total: data.pagination?.total || 0
         });
-        
+
         // Log first expense to see structure
         if (data.expenses && data.expenses.length > 0) {
           console.log('First expense structure:', data.expenses[0]);
         }
-        
+
         // Update state first
         setExpenses(data.expenses || []);
         if (data.pagination) {
@@ -185,7 +185,7 @@ export default function ExpensesPage() {
         }
         // Clear error on success
         setError('');
-        
+
         // Keep loading for a brief moment to ensure smooth transition
         await new Promise(resolve => setTimeout(resolve, 100));
       } else {
@@ -282,7 +282,7 @@ export default function ExpensesPage() {
     setEditingCategory(null);
     setSuggestionData(suggestion); // Passer les données de suggestion
     setShowCategoryModal(true);
-    
+
     // Afficher un message de confirmation
     setAppliedSuggestion(suggestion.nom);
     setTimeout(() => setAppliedSuggestion(null), 3000);
@@ -313,8 +313,8 @@ export default function ExpensesPage() {
     console.log('Changing status for expense:', expenseId, 'to:', newStatus);
     try {
       // Mettre à jour l'état local immédiatement pour un feedback visuel rapide
-      setExpenses(prevExpenses => 
-        prevExpenses.map(exp => 
+      setExpenses(prevExpenses =>
+        prevExpenses.map(exp =>
           exp._id === expenseId ? { ...exp, statut: newStatus } : exp
         )
       );
@@ -357,21 +357,21 @@ export default function ExpensesPage() {
           {/* Header skeleton */}
           <div className="sm:flex sm:items-center sm:justify-between">
             <div>
-              <div className="h-8 w-48 bg-gray-200 rounded animate-pulse mb-2"></div>
-              <div className="h-4 w-64 bg-gray-200 rounded animate-pulse"></div>
+              <div className="h-8 w-48 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mb-2"></div>
+              <div className="h-4 w-64 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
             </div>
             <div className="mt-4 sm:mt-0 flex space-x-3">
-              <div className="h-10 w-24 bg-gray-200 rounded animate-pulse"></div>
-              <div className="h-10 w-32 bg-gray-200 rounded animate-pulse"></div>
-              <div className="h-10 w-40 bg-gray-200 rounded animate-pulse"></div>
+              <div className="h-10 w-24 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+              <div className="h-10 w-32 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+              <div className="h-10 w-40 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
             </div>
           </div>
-          
+
           {/* Loading spinner */}
           <div className="flex items-center justify-center h-96">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-              <p className="text-sm text-gray-500">Chargement des dépenses...</p>
+              <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600 dark:border-indigo-500 mx-auto mb-4"></div>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Chargement des dépenses...</p>
             </div>
           </div>
         </div>
@@ -387,14 +387,14 @@ export default function ExpensesPage() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => router.back()}
-              className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-colors"
+              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
               title="Retour à la page précédente"
             >
               <ArrowLeftIcon className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">💸 Dépenses</h1>
-              <p className="mt-1 text-sm text-gray-500">
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">💸 Dépenses</h1>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 Gérez les dépenses de votre entreprise
               </p>
             </div>
@@ -402,28 +402,28 @@ export default function ExpensesPage() {
           <div className="mt-4 sm:mt-0 space-x-3">
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+              className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
             >
               <FunnelIcon className="h-5 w-5 mr-2" />
               Filtres
             </button>
             <Link
               href="/expenses/categories-manage"
-              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+              className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
             >
               <CogIcon className="h-5 w-5 mr-2" />
               Gérer les catégories
             </Link>
             <button
               onClick={() => setShowDemo(!showDemo)}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+              className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
             >
               <EyeIcon className="h-5 w-5 mr-2" />
               {showDemo ? 'Masquer' : 'Voir'} Catégories
             </button>
             <Link
               href="/expenses/new"
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600"
             >
               <PlusIcon className="h-5 w-5 mr-2" />
               Nouvelle dépense
@@ -433,10 +433,10 @@ export default function ExpensesPage() {
 
         {/* Filtres */}
         {showFilters && (
-          <div className="bg-white p-4 rounded-lg shadow">
+          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow border dark:border-gray-700">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Période
                 </label>
                 <input
@@ -444,17 +444,17 @@ export default function ExpensesPage() {
                   placeholder="YYYY-MM-DD,YYYY-MM-DD"
                   value={filters.periode}
                   onChange={(e) => handleFilterChange('periode', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Catégorie
                 </label>
                 <select
                   value={filters.categorieId}
                   onChange={(e) => handleFilterChange('categorieId', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 >
                   <option value="">Toutes les catégories</option>
                   {categories.map((category) => (
@@ -462,19 +462,19 @@ export default function ExpensesPage() {
                       {category.icone} {category.nom} {category._source === 'global' ? '(Globale)' : ''}
                     </option>
                   ))}
-                  <option value="create" className="text-indigo-600 font-medium">
+                  <option value="create" className="text-indigo-600 dark:text-indigo-400 font-medium">
                     ➕ Créer une catégorie…
                   </option>
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Statut
                 </label>
                 <select
                   value={filters.statut}
                   onChange={(e) => handleFilterChange('statut', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 >
                   <option value="">Tous les statuts</option>
                   <option value="brouillon">Brouillon</option>
@@ -487,7 +487,7 @@ export default function ExpensesPage() {
               <div className="flex items-end">
                 <button
                   onClick={clearFilters}
-                  className="w-full px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200"
+                  className="w-full px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600"
                 >
                   Effacer les filtres
                 </button>
@@ -498,17 +498,17 @@ export default function ExpensesPage() {
 
         {/* Demo Catégories */}
         {showDemo && (
-          <div className="bg-white p-6 rounded-lg shadow">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow border dark:border-gray-700">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h2 className="text-2xl font-bold text-gray-900">🎯 Catégories</h2>
-                <p className="mt-1 text-sm text-gray-500">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">🎯 Catégories</h2>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                   Découvrez les catégories de dépenses disponibles. Cliquez sur une catégorie pour l'utiliser dans le formulaire de création.
                 </p>
               </div>
               <button
                 onClick={() => setShowDemo(false)}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
               >
                 <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -518,25 +518,23 @@ export default function ExpensesPage() {
 
             {/* Onglets */}
             <div className="mb-6">
-              <div className="border-b border-gray-200">
+              <div className="border-b border-gray-200 dark:border-gray-700">
                 <nav className="-mb-px flex space-x-8">
                   <button
                     onClick={() => setDemoTab('registered')}
-                    className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                      demoTab === 'registered'
-                        ? 'border-indigo-500 text-indigo-600'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                    }`}
+                    className={`py-2 px-1 border-b-2 font-medium text-sm ${demoTab === 'registered'
+                      ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400'
+                      : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+                      }`}
                   >
                     📋 Catégories Enregistrées ({categories.length})
                   </button>
                   <button
                     onClick={() => setDemoTab('suggestions')}
-                    className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                      demoTab === 'suggestions'
-                        ? 'border-indigo-500 text-indigo-600'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                    }`}
+                    className={`py-2 px-1 border-b-2 font-medium text-sm ${demoTab === 'suggestions'
+                      ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400'
+                      : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+                      }`}
                   >
                     💡 Suggestions Prédéfinies ({categorySuggestions.length})
                   </button>
@@ -546,7 +544,7 @@ export default function ExpensesPage() {
 
             {/* Barre de recherche */}
             <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Rechercher une catégorie
               </label>
               <input
@@ -554,7 +552,7 @@ export default function ExpensesPage() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Tapez 'transport', 'restaurant', 'informatique'..."
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               />
             </div>
 
@@ -563,7 +561,7 @@ export default function ExpensesPage() {
               {demoTab === 'registered' ? (
                 // Catégories enregistrées
                 categories
-                  .filter(category => 
+                  .filter(category =>
                     category.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
                     category.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
                     (category.description && category.description.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -578,35 +576,35 @@ export default function ExpensesPage() {
                         icone: category.icone || '💸',
                         description: category.description || ''
                       })}
-                      className="p-4 border border-gray-200 rounded-lg hover:border-indigo-300 hover:shadow-md cursor-pointer transition-all duration-200 hover:bg-indigo-50 group"
+                      className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-indigo-300 dark:hover:border-indigo-500 hover:shadow-md cursor-pointer transition-all duration-200 hover:bg-indigo-50 dark:hover:bg-gray-700 group"
                     >
                       <div className="flex items-start space-x-3">
                         <span className="text-2xl">{category.icone || '💸'}</span>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between mb-1">
-                            <h4 className="font-medium text-gray-900 text-sm truncate">
+                            <h4 className="font-medium text-gray-900 dark:text-white text-sm truncate">
                               {category.nom}
                             </h4>
-                            <span className="text-gray-400 group-hover:text-indigo-500 transition-colors">
+                            <span className="text-gray-400 group-hover:text-indigo-500 dark:group-hover:text-indigo-400 transition-colors">
                               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                               </svg>
                             </span>
                           </div>
                           <div className="flex items-center space-x-2 mb-2">
-                            <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                            <span className="text-xs bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300 px-2 py-1 rounded">
                               {category.code}
                             </span>
-                            <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                            <span className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-1 rounded">
                               {category.typeGlobal}
                             </span>
                             {category._source === 'global' && (
-                              <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">
+                              <span className="text-xs bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-300 px-2 py-1 rounded">
                                 Globale
                               </span>
                             )}
                           </div>
-                          <p className="text-xs text-gray-500 line-clamp-2">
+                          <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">
                             {category.description || 'Aucune description'}
                           </p>
                         </div>
@@ -616,89 +614,89 @@ export default function ExpensesPage() {
               ) : (
                 // Suggestions prédéfinies
                 filteredSuggestions.map((suggestion, index) => (
-                <div
-                  key={index}
-                  onClick={() => applySuggestion(suggestion)}
-                  className="p-4 border border-gray-200 rounded-lg hover:border-indigo-300 hover:shadow-md cursor-pointer transition-all duration-200 hover:bg-indigo-50 group"
-                >
-                  <div className="flex items-start space-x-3">
-                    <span className="text-2xl">{suggestion.icone}</span>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-1">
-                        <h4 className="font-medium text-gray-900 text-sm truncate">
-                          {suggestion.nom}
-                        </h4>
-                        <span className="text-gray-400 group-hover:text-indigo-500 transition-colors">
-                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                          </svg>
-                        </span>
+                  <div
+                    key={index}
+                    onClick={() => applySuggestion(suggestion)}
+                    className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-indigo-300 dark:hover:border-indigo-500 hover:shadow-md cursor-pointer transition-all duration-200 hover:bg-indigo-50 dark:hover:bg-gray-700 group"
+                  >
+                    <div className="flex items-start space-x-3">
+                      <span className="text-2xl">{suggestion.icone}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-1">
+                          <h4 className="font-medium text-gray-900 dark:text-white text-sm truncate">
+                            {suggestion.nom}
+                          </h4>
+                          <span className="text-gray-400 group-hover:text-indigo-500 dark:group-hover:text-indigo-400 transition-colors">
+                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                          </span>
+                        </div>
+                        <div className="flex items-center space-x-2 mb-2">
+                          <span className="text-xs bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300 px-2 py-1 rounded">
+                            {suggestion.code}
+                          </span>
+                          <span className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-1 rounded">
+                            {suggestion.typeGlobal}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">
+                          {suggestion.description}
+                        </p>
                       </div>
-                      <div className="flex items-center space-x-2 mb-2">
-                        <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                          {suggestion.code}
-                        </span>
-                        <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
-                          {suggestion.typeGlobal}
-                        </span>
-                      </div>
-                      <p className="text-xs text-gray-500 line-clamp-2">
-                        {suggestion.description}
-                      </p>
                     </div>
                   </div>
-                </div>
                 ))
               )}
             </div>
 
             {/* Message si aucune catégorie trouvée */}
-            {((demoTab === 'registered' && categories.filter(category => 
+            {((demoTab === 'registered' && categories.filter(category =>
               category.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
               category.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
               (category.description && category.description.toLowerCase().includes(searchTerm.toLowerCase()))
-            ).length === 0) || 
-            (demoTab === 'suggestions' && filteredSuggestions.length === 0)) && (
-              <div className="text-center py-8">
-                <div className="text-4xl mb-4">
-                  {demoTab === 'registered' ? '📝' : '💡'}
+            ).length === 0) ||
+              (demoTab === 'suggestions' && filteredSuggestions.length === 0)) && (
+                <div className="text-center py-8">
+                  <div className="text-4xl mb-4">
+                    {demoTab === 'registered' ? '📝' : '💡'}
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                    {searchTerm
+                      ? 'Aucune catégorie trouvée'
+                      : demoTab === 'registered'
+                        ? 'Aucune catégorie enregistrée'
+                        : 'Aucune suggestion trouvée'
+                    }
+                  </h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                    {searchTerm
+                      ? 'Essayez avec d\'autres mots-clés ou effacez la recherche'
+                      : demoTab === 'registered'
+                        ? 'Commencez par créer votre première catégorie de dépenses'
+                        : 'Aucune suggestion ne correspond à votre recherche'
+                    }
+                  </p>
+                  {!searchTerm && demoTab === 'registered' && (
+                    <button
+                      onClick={handleCreateCategory}
+                      className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600"
+                    >
+                      <PlusIcon className="h-5 w-5 mr-2" />
+                      Créer une catégorie
+                    </button>
+                  )}
                 </div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  {searchTerm 
-                    ? 'Aucune catégorie trouvée' 
-                    : demoTab === 'registered' 
-                      ? 'Aucune catégorie enregistrée'
-                      : 'Aucune suggestion trouvée'
-                  }
-                </h3>
-                <p className="text-sm text-gray-500 mb-4">
-                  {searchTerm 
-                    ? 'Essayez avec d\'autres mots-clés ou effacez la recherche'
-                    : demoTab === 'registered'
-                      ? 'Commencez par créer votre première catégorie de dépenses'
-                      : 'Aucune suggestion ne correspond à votre recherche'
-                  }
-                </p>
-                {!searchTerm && demoTab === 'registered' && (
-                  <button
-                    onClick={handleCreateCategory}
-                    className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
-                  >
-                    <PlusIcon className="h-5 w-5 mr-2" />
-                    Créer une catégorie
-                  </button>
-                )}
-              </div>
-            )}
+              )}
 
             {/* Message de confirmation */}
             {appliedSuggestion && (
-              <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-md">
+              <div className="mt-4 p-3 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-md">
                 <div className="flex items-center">
                   <svg className="h-5 w-5 text-green-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                  <span className="text-sm text-green-800">
+                  <span className="text-sm text-green-800 dark:text-green-300">
                     ✅ Catégorie "{appliedSuggestion}" appliquée avec succès ! La fenêtre de création s'ouvre...
                   </span>
                 </div>
@@ -706,20 +704,20 @@ export default function ExpensesPage() {
             )}
 
             {/* Statistiques */}
-            <div className="mt-6 pt-4 border-t border-gray-200">
-              <div className="flex items-center justify-between text-sm text-gray-500">
+            <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
                 <span>
                   {demoTab === 'registered' ? (
                     <>
-                      {categories.filter(category => 
+                      {categories.filter(category =>
                         category.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
                         category.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
                         (category.description && category.description.toLowerCase().includes(searchTerm.toLowerCase()))
-                      ).length} catégorie{categories.filter(category => 
+                      ).length} catégorie{categories.filter(category =>
                         category.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
                         category.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
                         (category.description && category.description.toLowerCase().includes(searchTerm.toLowerCase()))
-                      ).length !== 1 ? 's' : ''} trouvée{categories.filter(category => 
+                      ).length !== 1 ? 's' : ''} trouvée{categories.filter(category =>
                         category.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
                         category.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
                         (category.description && category.description.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -740,18 +738,19 @@ export default function ExpensesPage() {
         )}
 
         {/* Success message */}
+        {/* Success message */}
         {successMessage && (
-          <div className="bg-green-50 border border-green-200 rounded-md p-4 mb-4">
+          <div className="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-md p-4 mb-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center">
                 <svg className="h-5 w-5 text-green-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-                <p className="text-sm text-green-800">{successMessage}</p>
+                <p className="text-sm text-green-800 dark:text-green-300">{successMessage}</p>
               </div>
               <button
                 onClick={() => setSuccessMessage(null)}
-                className="text-green-400 hover:text-green-600 ml-2"
+                className="text-green-400 hover:text-green-600 dark:hover:text-green-300 ml-2"
               >
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -763,17 +762,17 @@ export default function ExpensesPage() {
 
         {/* Error message - Hidden by default, only shown if explicitly needed */}
         {false && error && (
-          <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-4">
+          <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-md p-4 mb-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center">
                 <svg className="h-5 w-5 text-red-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <p className="text-sm text-red-600">{error}</p>
+                <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
               </div>
               <button
                 onClick={() => setError('')}
-                className="text-red-400 hover:text-red-600 ml-2"
+                className="text-red-400 hover:text-red-600 dark:hover:text-red-300 ml-2"
               >
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -785,16 +784,16 @@ export default function ExpensesPage() {
 
         {/* Expenses Table */}
         {expenses.length === 0 && !loading ? (
-          <div className="text-center py-12">
+          <div className="text-center py-12 bg-gray-50 dark:bg-gray-800 rounded-lg border dark:border-gray-700">
             <div className="text-6xl mb-4">💸</div>
-            <h3 className="mt-2 text-sm font-medium text-gray-900">Aucune dépense</h3>
-            <p className="mt-1 text-sm text-gray-500">
+            <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">Aucune dépense</h3>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
               Commencez par créer votre première dépense.
             </p>
             <div className="mt-6">
               <Link
                 href="/expenses/new"
-                className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+                className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600"
               >
                 <PlusIcon className="h-5 w-5 mr-2" />
                 Nouvelle dépense
@@ -803,70 +802,69 @@ export default function ExpensesPage() {
           </div>
         ) : (
           <>
-            <div className="bg-white shadow overflow-hidden sm:rounded-md">
+            <div className="bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-md border dark:border-gray-700">
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead className="bg-gray-50 dark:bg-gray-700">
                     <tr>
-                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Date
                       </th>
-                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Numéro
                       </th>
-                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider hidden sm:table-cell">
                         Catégorie
                       </th>
-                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Projet
                       </th>
-                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Utilisateur
                       </th>
-                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Total TTC
                       </th>
-                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Statut
                       </th>
-                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Actions
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                     {expenses.map((expense) => (
-                      <tr key={expense._id} className="hover:bg-gray-50">
-                        <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900">
+                      <tr key={expense._id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                        <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">
                           {formatDate(expense.date)}
                         </td>
-                        <td className="px-2 py-2 whitespace-nowrap text-xs font-medium text-gray-900">
+                        <td className="px-2 py-2 whitespace-nowrap text-xs font-medium text-gray-900 dark:text-white">
                           {expense.numero}
                         </td>
-                        <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-500 hidden sm:table-cell">
+                        <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400 hidden sm:table-cell">
                           {expense.categorieId.icone || '💸'} {expense.categorieId.nom}
                         </td>
-                        <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-500">
+                        <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
                           {expense.projetId?.name || '-'}
                         </td>
-                        <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-500">
+                        <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
                           {expense.createdBy
                             ? `${expense.createdBy.firstName || ''} ${expense.createdBy.lastName || ''}`.trim() || '-'
                             : '-'}
                         </td>
-                        <td className="px-2 py-2 whitespace-nowrap text-xs font-medium text-gray-900" style={{ whiteSpace: 'nowrap' }}>
+                        <td className="px-2 py-2 whitespace-nowrap text-xs font-medium text-gray-900 dark:text-white" style={{ whiteSpace: 'nowrap' }}>
                           {formatPrice(expense.totalTTC || expense.montant || 0, expense.devise || 'TND')}
                         </td>
                         <td className="px-2 py-2 whitespace-nowrap">
                           <select
                             value={expense.statut}
                             onChange={(e) => handleStatusChange(expense._id, e.target.value)}
-                            className={`text-xs font-semibold rounded-full px-1.5 py-0.5 border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                              expense.statut === 'paye' ? 'bg-green-100 text-green-800' :
-                              expense.statut === 'valide' ? 'bg-blue-100 text-blue-800' :
-                              expense.statut === 'en_attente' ? 'bg-yellow-100 text-yellow-800' :
-                              'bg-gray-100 text-gray-800'
-                            }`}
+                            className={`text-xs font-semibold rounded-full px-1.5 py-0.5 border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500 ${expense.statut === 'paye' ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300' :
+                              expense.statut === 'valide' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300' :
+                                expense.statut === 'en_attente' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300' :
+                                  'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                              }`}
                           >
                             <option value="brouillon">Brouillon</option>
                             <option value="en_attente">En attente</option>
@@ -877,15 +875,15 @@ export default function ExpensesPage() {
                         </td>
                         <td className="px-2 py-2 whitespace-nowrap text-xs">
                           <div className="flex space-x-1">
-                            <button 
+                            <button
                               onClick={() => handleViewExpense(expense._id)}
-                              className="text-indigo-600 hover:text-indigo-900 font-medium"
+                              className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 font-medium"
                             >
                               Voir
                             </button>
-                            <button 
+                            <button
                               onClick={() => handleEditExpense(expense._id)}
-                              className="text-gray-600 hover:text-gray-900 font-medium"
+                              className="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-300 font-medium"
                             >
                               Modifier
                             </button>
@@ -900,26 +898,26 @@ export default function ExpensesPage() {
 
             {/* Pagination */}
             {pagination.pages > 1 && (
-              <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6 rounded-md shadow">
+              <div className="bg-white dark:bg-gray-800 px-4 py-3 flex items-center justify-between border-t border-gray-200 dark:border-gray-700 sm:px-6 rounded-b-md shadow-b border-x dark:border-x-gray-700">
                 <div className="flex-1 flex justify-between sm:hidden">
                   <button
                     onClick={() => handlePageChange(pagination.page - 1)}
                     disabled={pagination.page === 1}
-                    className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Précédent
                   </button>
                   <button
                     onClick={() => handlePageChange(pagination.page + 1)}
                     disabled={pagination.page === pagination.pages}
-                    className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Suivant
                   </button>
                 </div>
                 <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
                   <div>
-                    <p className="text-sm text-gray-700">
+                    <p className="text-sm text-gray-700 dark:text-gray-300">
                       Affichage de <span className="font-medium">{(pagination.page - 1) * pagination.limit + 1}</span> à{' '}
                       <span className="font-medium">
                         {Math.min(pagination.page * pagination.limit, pagination.total)}
@@ -932,7 +930,7 @@ export default function ExpensesPage() {
                       <button
                         onClick={() => handlePageChange(pagination.page - 1)}
                         disabled={pagination.page === 1}
-                        className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <span className="sr-only">Précédent</span>
                         <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -951,11 +949,10 @@ export default function ExpensesPage() {
                             <button
                               key={pageNum}
                               onClick={() => handlePageChange(pageNum)}
-                              className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                                pageNum === pagination.page
-                                  ? 'z-10 bg-indigo-50 border-indigo-500 text-indigo-600'
-                                  : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
-                              }`}
+                              className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${pageNum === pagination.page
+                                ? 'z-10 bg-indigo-50 dark:bg-indigo-900 border-indigo-500 dark:border-indigo-400 text-indigo-600 dark:text-indigo-300'
+                                : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
+                                }`}
                             >
                               {pageNum}
                             </button>
@@ -967,7 +964,7 @@ export default function ExpensesPage() {
                           return (
                             <span
                               key={pageNum}
-                              className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700"
+                              className="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300"
                             >
                               ...
                             </span>
@@ -978,7 +975,7 @@ export default function ExpensesPage() {
                       <button
                         onClick={() => handlePageChange(pagination.page + 1)}
                         disabled={pagination.page === pagination.pages}
-                        className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <span className="sr-only">Suivant</span>
                         <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">

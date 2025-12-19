@@ -34,14 +34,14 @@ const typeGlobalOptions = [
   { value: 'exceptionnel', label: 'Exceptionnel' },
 ];
 
-function ExpenseCategoryModal({ 
-  isOpen, 
-  onClose, 
-  onSuccess, 
+function ExpenseCategoryModal({
+  isOpen,
+  onClose,
+  onSuccess,
   onError,
-  editingCategory, 
+  editingCategory,
   suggestionData,
-  tenantId 
+  tenantId
 }: ExpenseCategoryModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -127,12 +127,12 @@ function ExpenseCategoryModal({
         return;
       }
 
-      const url = editingCategory 
+      const url = editingCategory
         ? `/api/expense-categories/${editingCategory._id}`
         : '/api/expense-categories';
-      
+
       const method = editingCategory ? 'PATCH' : 'POST';
-      
+
       const apiData = {
         nom: data.nom,
         code: data.code,
@@ -140,7 +140,7 @@ function ExpenseCategoryModal({
         icone: data.icone,
         description: data.description,
       };
-      
+
       const response = await fetch(url, {
         method,
         headers: {
@@ -177,58 +177,58 @@ function ExpenseCategoryModal({
           <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
         </div>
 
-        <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+        <div className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
           <form onSubmit={handleSubmit(onSubmit)}>
-            <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+            <div className="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
               <div className="w-full">
-                <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
+                <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white mb-4">
                   {editingCategory ? 'Modifier la catégorie' : 'Nouvelle catégorie'}
                 </h3>
 
                 {error && (
-                  <div className="mb-4 bg-red-50 border border-red-200 rounded-md p-3">
-                    <p className="text-sm text-red-600">{error}</p>
+                  <div className="mb-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-md p-3">
+                    <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
                   </div>
                 )}
 
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Nom *
                     </label>
                     <input
                       {...register('nom')}
                       type="text"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                       placeholder="Ex: Transport & Déplacements"
                     />
                     {errors.nom && (
-                      <p className="mt-1 text-sm text-red-600">{errors.nom.message}</p>
+                      <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.nom.message}</p>
                     )}
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Code *
                     </label>
                     <input
                       {...register('code')}
                       type="text"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                       placeholder="Ex: DEP_TRANSPORT"
                     />
                     {errors.code && (
-                      <p className="mt-1 text-sm text-red-600">{errors.code.message}</p>
+                      <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.code.message}</p>
                     )}
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Type global *
                     </label>
                     <select
                       {...register('typeGlobal')}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     >
                       {typeGlobalOptions.map((option) => (
                         <option key={option.value} value={option.value}>
@@ -237,30 +237,30 @@ function ExpenseCategoryModal({
                       ))}
                     </select>
                     {errors.typeGlobal && (
-                      <p className="mt-1 text-sm text-red-600">{errors.typeGlobal.message}</p>
+                      <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.typeGlobal.message}</p>
                     )}
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Icône
                     </label>
                     <input
                       {...register('icone')}
                       type="text"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                       placeholder="Ex: 🚗"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Description
                     </label>
                     <textarea
                       {...register('description')}
                       rows={3}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                       placeholder="Description de la catégorie"
                     />
                   </div>
@@ -268,18 +268,18 @@ function ExpenseCategoryModal({
               </div>
             </div>
 
-            <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+            <div className="bg-gray-50 dark:bg-gray-700 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse border-t dark:border-gray-600">
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50"
+                className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50"
               >
                 {loading ? 'Enregistrement...' : (editingCategory ? 'Modifier' : 'Créer')}
               </button>
               <button
                 type="button"
                 onClick={onClose}
-                className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-500 shadow-sm px-4 py-2 bg-white dark:bg-gray-600 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
               >
                 Annuler
               </button>

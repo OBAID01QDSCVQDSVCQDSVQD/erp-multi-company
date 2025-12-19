@@ -52,7 +52,7 @@ export default function InvoicesPage() {
     referenceExterne: '',
     devise: 'TND',
     tauxChange: 1,
-    modePaiement: 'Espèces',
+    modePaiement: 'Chèque',
     dateEcheance: '',
     conditionsPaiement: '',
     notes: '',

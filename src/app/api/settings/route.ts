@@ -9,13 +9,13 @@ import Counter from '@/lib/models/Counter';
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }
 
     const tenantId = request.headers.get('X-Tenant-Id') || session.user.companyId;
-    
+
     if (!tenantId) {
       return NextResponse.json({ error: 'Tenant ID manquant' }, { status: 400 });
     }
@@ -30,14 +30,24 @@ export async function GET(request: NextRequest) {
       settings = await createDefaultSettings(tenantId);
     } else {
       let needsUpdate = false;
-      
+
       // Ensure fodec exists in existing settings
       if (settings.tva && !settings.tva.fodec) {
         settings.tva.fodec = { actif: false, tauxPct: 1 };
         (settings as any).markModified('tva');
         needsUpdate = true;
       }
-      
+
+      // Ensure fac exists in existing settings (repairing previous bug)
+      if (!settings.numerotation || !settings.numerotation.fac) {
+        if (!settings.numerotation) {
+          settings.numerotation = {} as any;
+        }
+        settings.numerotation.fac = 'FAC-{{YYYY}}-{{SEQ:5}}';
+        (settings as any).markModified('numerotation');
+        needsUpdate = true;
+      }
+
       // Ensure int_fac exists in existing settings
       if (!settings.numerotation || !settings.numerotation.int_fac) {
         if (!settings.numerotation) {
@@ -47,7 +57,7 @@ export async function GET(request: NextRequest) {
         (settings as any).markModified('numerotation');
         needsUpdate = true;
       }
-      
+
       // Ensure int_fac startingNumber exists
       if (!settings.numerotation.startingNumbers) {
         settings.numerotation.startingNumbers = {} as any;
@@ -59,7 +69,7 @@ export async function GET(request: NextRequest) {
         (settings as any).markModified('numerotation');
         needsUpdate = true;
       }
-      
+
       // Ensure retour exists in existing settings
       if (!settings.numerotation || !settings.numerotation.retour) {
         if (!settings.numerotation) {
@@ -69,7 +79,7 @@ export async function GET(request: NextRequest) {
         (settings as any).markModified('numerotation');
         needsUpdate = true;
       }
-      
+
       // Ensure retour startingNumber exists
       if (!settings.numerotation.startingNumbers) {
         settings.numerotation.startingNumbers = {} as any;
@@ -81,7 +91,7 @@ export async function GET(request: NextRequest) {
         (settings as any).markModified('numerotation');
         needsUpdate = true;
       }
-      
+
       if (needsUpdate) {
         await (settings as any).save();
       }
@@ -89,7 +99,7 @@ export async function GET(request: NextRequest) {
 
     // Convert to plain object to ensure all nested properties are included
     const settingsObj = settings.toObject ? settings.toObject() : settings;
-    
+
     return NextResponse.json(settingsObj);
 
   } catch (error) {
@@ -105,19 +115,19 @@ export async function GET(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }
 
     const tenantId = request.headers.get('X-Tenant-Id') || session.user.companyId;
-    
+
     if (!tenantId) {
       return NextResponse.json({ error: 'Tenant ID manquant' }, { status: 400 });
     }
 
     const body = await request.json();
-    
+
     await connectDB();
 
     // Mettre à jour les paramètres
@@ -180,7 +190,7 @@ async function createDefaultSettings(tenantId: string) {
     numerotation: {
       devis: 'DEV-{{YYYY}}-{{SEQ:5}}',
       bl: 'BL-{{YY}}{{MM}}-{{SEQ:4}}',
-      facture: 'FAC-{{YYYY}}-{{SEQ:5}}',
+      fac: 'FAC-{{YYYY}}-{{SEQ:5}}',
       avoir: 'AVR-{{YYYY}}-{{SEQ:5}}',
       int_fac: '{{SEQ:4}}',
       retour: 'RET-{{YYYY}}-{{SEQ:4}}',

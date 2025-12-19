@@ -57,6 +57,7 @@ export default function QuotesPage() {
   const [taxRates, setTaxRates] = useState<Array<{ code: string; tauxPct: number }>>([]);
   const [tvaSettings, setTvaSettings] = useState<any>(null);
   const [modesReglement, setModesReglement] = useState<string[]>([]);
+  const [previewNumber, setPreviewNumber] = useState<string>('');
 
   // Autocomplete state
   const [customerSearch, setCustomerSearch] = useState('');
@@ -81,7 +82,7 @@ export default function QuotesPage() {
     dateDoc: new Date().toISOString().split('T')[0],
     referenceExterne: '',
     devise: 'TND',
-    modePaiement: 'Espèces',
+    modePaiement: 'Chèque',
     validite: getDefaultValidite(),
     notes: '',
     remiseGlobalePct: 0,
@@ -735,7 +736,7 @@ export default function QuotesPage() {
       dateDoc: new Date().toISOString().split('T')[0],
       referenceExterne: '',
       devise: 'TND',
-      modePaiement: 'Espèces',
+      modePaiement: 'Chèque',
       validite: getDefaultValidite(),
       notes: '',
       remiseGlobalePct: 0,
@@ -747,6 +748,20 @@ export default function QuotesPage() {
       } : { enabled: false, tauxPct: 1 }
     };
     setFormData(resolvedForm);
+
+    // Fetch preview number
+    try {
+      const response = await fetch('/api/settings/numbering/preview?type=devis', {
+        headers: { 'X-Tenant-Id': tenantId || '' }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setPreviewNumber(data.preview);
+      }
+    } catch (err) {
+      console.error('Error fetching preview number:', err);
+    }
+
     setShowModal(true);
   };
 
@@ -1020,7 +1035,7 @@ export default function QuotesPage() {
               <div className="p-4 sm:p-6 border-b dark:border-gray-700 flex items-center justify-between">
                 <div>
                   <h2 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white">
-                    {editingQuoteId ? '✏️ Modifier devis' : '🧾 Nouveau devis'}
+                    {editingQuoteId ? '✏️ Modifier devis' : `🧾 Nouveau devis ${previewNumber ? previewNumber : ''}`}
                   </h2>
                   <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                     {editingQuoteId ? 'Modifiez votre devis' : 'Créez un devis élégant et précis en quelques clics'}
@@ -1337,25 +1352,25 @@ export default function QuotesPage() {
                 </div>
 
                 {/* Totals */}
-                <div className="bg-gray-50 rounded-lg p-6 border-2 border-gray-200">
+                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-6 border-2 border-gray-200 dark:border-gray-600">
                   <div className="flex justify-end">
                     <div className="w-80 space-y-3">
                       <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Sous-total HT</span>
-                        <span className="font-medium">{totals.totalHTBeforeDiscount.toFixed(3)} {formData.devise}</span>
+                        <span className="text-gray-600 dark:text-gray-400">Sous-total HT</span>
+                        <span className="font-medium text-gray-900 dark:text-white">{totals.totalHTBeforeDiscount.toFixed(3)} {formData.devise}</span>
                       </div>
                       <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Remise lignes</span>
+                        <span className="text-gray-600 dark:text-gray-400">Remise lignes</span>
                         {totals.remiseLignes > 0 ? (
-                          <span className="font-medium text-red-600">-{totals.remiseLignes.toFixed(3)} {formData.devise}</span>
+                          <span className="font-medium text-red-600 dark:text-red-400">-{totals.remiseLignes.toFixed(3)} {formData.devise}</span>
                         ) : (
-                          <span className="font-medium text-gray-400">0.000 {formData.devise}</span>
+                          <span className="font-medium text-gray-400 dark:text-gray-500">0.000 {formData.devise}</span>
                         )}
                       </div>
                       {/* Remise globale input */}
-                      <div className="flex justify-between text-sm items-center border-t pt-2">
+                      <div className="flex justify-between text-sm items-center border-t dark:border-gray-600 pt-2">
                         <div className="flex items-center gap-2">
-                          <span className="text-gray-600">Remise globale</span>
+                          <span className="text-gray-600 dark:text-gray-400">Remise globale</span>
                           <input
                             type="number"
                             min="0"
@@ -1366,26 +1381,26 @@ export default function QuotesPage() {
                               const value = parseFloat(e.target.value) || 0;
                               setFormData({ ...formData, remiseGlobalePct: Math.min(100, Math.max(0, value)) });
                             }}
-                            className="w-20 px-2 py-1 border rounded text-sm"
+                            className="w-20 px-2 py-1 border rounded text-sm bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-blue-500 focus:border-blue-500"
                             placeholder="0"
                           />
-                          <span className="text-gray-600">%</span>
+                          <span className="text-gray-600 dark:text-gray-400">%</span>
                         </div>
                         {totals.remiseGlobale > 0 && (
-                          <span className="font-medium text-red-600">-{totals.remiseGlobale.toFixed(3)} {formData.devise}</span>
+                          <span className="font-medium text-red-600 dark:text-red-400">-{totals.remiseGlobale.toFixed(3)} {formData.devise}</span>
                         )}
                         {totals.remiseGlobale === 0 && (
-                          <span className="font-medium text-gray-400">0.000 {formData.devise}</span>
+                          <span className="font-medium text-gray-400 dark:text-gray-500">0.000 {formData.devise}</span>
                         )}
                       </div>
                       <div className="flex justify-between text-sm font-semibold">
-                        <span className="text-gray-700">Total HT</span>
-                        <span className="font-bold text-gray-900">{totals.totalHT.toFixed(3)} {formData.devise}</span>
+                        <span className="text-gray-700 dark:text-gray-300">Total HT</span>
+                        <span className="font-bold text-gray-900 dark:text-white">{totals.totalHT.toFixed(3)} {formData.devise}</span>
                       </div>
                       {/* FODEC */}
                       <div className="flex justify-between text-sm items-center">
                         <div className="flex items-center gap-2">
-                          <span className="text-gray-600">FODEC</span>
+                          <span className="text-gray-600 dark:text-gray-400">FODEC</span>
                           <input
                             type="checkbox"
                             checked={formData.fodec?.enabled || false}
@@ -1397,7 +1412,7 @@ export default function QuotesPage() {
                                 tauxPct: formData.fodec?.tauxPct || 1
                               }
                             })}
-                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
                           />
                         </div>
                         {formData.fodec?.enabled && (
@@ -1416,38 +1431,38 @@ export default function QuotesPage() {
                                   tauxPct: parseFloat(e.target.value) || 1
                                 }
                               })}
-                              className="w-16 px-2 py-1 border rounded text-sm"
+                              className="w-16 px-2 py-1 border rounded text-sm bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-blue-500 focus:border-blue-500"
                               placeholder="1"
                             />
-                            <span className="text-gray-600">%</span>
-                            <span className="font-medium ml-2">{totals.fodec.toFixed(3)} {formData.devise}</span>
+                            <span className="text-gray-600 dark:text-gray-400">%</span>
+                            <span className="font-medium text-gray-900 dark:text-white ml-2">{totals.fodec.toFixed(3)} {formData.devise}</span>
                           </div>
                         )}
                         {!formData.fodec?.enabled && (
-                          <span className="font-medium text-gray-400">0.000 {formData.devise}</span>
+                          <span className="font-medium text-gray-400 dark:text-gray-500">0.000 {formData.devise}</span>
                         )}
                       </div>
                       <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">TVA</span>
-                        <span className="font-medium">{totals.totalTVA.toFixed(3)} {formData.devise}</span>
+                        <span className="text-gray-600 dark:text-gray-400">TVA</span>
+                        <span className="font-medium text-gray-900 dark:text-white">{totals.totalTVA.toFixed(3)} {formData.devise}</span>
                       </div>
                       {tvaSettings?.timbreFiscal?.actif && (
                         <div className="flex justify-between text-sm items-center">
                           <div className="flex items-center gap-2">
-                            <span className="text-gray-600">Timbre fiscal</span>
+                            <span className="text-gray-600 dark:text-gray-400">Timbre fiscal</span>
                             <input
                               type="checkbox"
                               checked={formData.timbreActif}
                               onChange={(e) => setFormData({ ...formData, timbreActif: e.target.checked })}
-                              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
                             />
                           </div>
-                          <span className="font-medium">{totals.timbreAmount.toFixed(3)} {formData.devise}</span>
+                          <span className="font-medium text-gray-900 dark:text-white">{totals.timbreAmount.toFixed(3)} {formData.devise}</span>
                         </div>
                       )}
-                      <div className="border-t pt-3 flex justify-between text-lg font-bold">
-                        <span>Total TTC</span>
-                        <span className="text-blue-600">{totals.totalTTC.toFixed(3)} {formData.devise}</span>
+                      <div className="border-t dark:border-gray-600 pt-3 flex justify-between text-lg font-bold">
+                        <span className="text-gray-900 dark:text-white">Total TTC</span>
+                        <span className="text-blue-600 dark:text-blue-400">{totals.totalTTC.toFixed(3)} {formData.devise}</span>
                       </div>
                     </div>
                   </div>
@@ -1462,7 +1477,7 @@ export default function QuotesPage() {
                     <select
                       value={formData.modePaiement}
                       onChange={(e) => setFormData({ ...formData, modePaiement: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                     >
                       <option value="">Sélectionner...</option>
                       {modesReglement.map((mode, index) => (
@@ -1471,20 +1486,20 @@ export default function QuotesPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Validité
                     </label>
                     <input
                       type="date"
                       value={formData.validite}
                       onChange={(e) => setFormData({ ...formData, validite: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                     />
                   </div>
                 </div>
 
                 <div className="mt-6">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Notes
                   </label>
                   <textarea
@@ -1492,14 +1507,14 @@ export default function QuotesPage() {
                     value={formData.notes}
                     onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                     placeholder="Notes additionnelles pour le client..."
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                   />
                 </div>
               </div>
               <div className="p-4 sm:p-6 border-t flex flex-col sm:flex-row justify-end gap-3">
                 <button
                   onClick={() => setShowModal(false)}
-                  className="w-full sm:w-auto px-4 py-2 border rounded-lg hover:bg-gray-50 text-sm sm:text-base"
+                  className="w-full sm:w-auto px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm sm:text-base transition-colors"
                 >
                   Annuler
                 </button>
