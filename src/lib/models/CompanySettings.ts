@@ -13,6 +13,7 @@ export interface ISociete {
   langue: string;
   fuseau: string;
   logoUrl?: string;
+  cachetUrl?: string;
   theme?: {
     primary?: string;
     secondary?: string;
@@ -116,6 +117,7 @@ export interface IStock {
     maxParDefaut: number;
     leadTimeJoursParDefaut: number;
     moqParDefaut: number;
+    stepMouvement?: number;
   };
   // Traçabilité
   lotsActifs: boolean;
@@ -146,6 +148,10 @@ export interface IStock {
 export interface ISecurite {
   motDePasseComplexe?: boolean;
   deuxFA?: boolean;
+  reinitialisationMdp?: {
+    actif: boolean;
+    expirationMinutes: number;
+  };
 }
 
 export interface ISysteme {
@@ -201,6 +207,7 @@ const SocieteSchema = new Schema({
   langue: { type: String, required: true, default: 'fr' },
   fuseau: { type: String, required: true, default: 'Africa/Tunis' },
   logoUrl: { type: String },
+  cachetUrl: { type: String },
   theme: {
     primary: { type: String },
     secondary: { type: String },
@@ -263,9 +270,9 @@ const VentesSchema = new Schema({
 }, { _id: false });
 
 const AchatsSchema = new Schema({
-  modesReglement: { 
-    type: [String], 
-    default: ['Espèces', 'Virement', 'Chèque', 'Carte'] 
+  modesReglement: {
+    type: [String],
+    default: ['Espèces', 'Virement', 'Chèque', 'Carte']
   },
 }, { _id: false });
 
@@ -280,8 +287,8 @@ const StockSchema = new Schema({
   multiEntrepots: { type: Boolean, default: true },
   binsActifs: { type: Boolean, default: false },
   transfertLeadTimeJours: { type: Number, default: 1 },
-  stockNegatif: { type: String, enum: ['autorise','avertir','interdit'], default: 'interdit' },
-  methodeValorisation: { type: String, enum: ['fifo','lifo','cmp'], default: 'cmp' },
+  stockNegatif: { type: String, enum: ['autorise', 'avertir', 'interdit'], default: 'interdit' },
+  methodeValorisation: { type: String, enum: ['fifo', 'lifo', 'cmp'], default: 'cmp' },
   decimalesQuantite: { type: Number, default: 3 },
   decimalesPrix: { type: Number, default: 3 },
   deviseCout: { type: String, default: 'TND' },
@@ -295,7 +302,7 @@ const StockSchema = new Schema({
   },
   stepMouvement: { type: Number, default: 0.001 },
   reappro: {
-    strategie: { type: String, enum: ['minmax','eoq','jit'], default: 'minmax' },
+    strategie: { type: String, enum: ['minmax', 'eoq', 'jit'], default: 'minmax' },
     minParDefaut: { type: Number, default: 0 },
     maxParDefaut: { type: Number, default: 0 },
     leadTimeJoursParDefaut: { type: Number, default: 3 },
@@ -307,7 +314,7 @@ const StockSchema = new Schema({
   qualiteReception: { actif: { type: Boolean, default: false }, plan: { type: String, default: 'AQL-ISO2859' } },
   inventaire: {
     cycliqueActif: { type: Boolean, default: true },
-    frequence: { type: String, enum: ['hebdo','mensuel','trimestriel'], default: 'mensuel' },
+    frequence: { type: String, enum: ['hebdo', 'mensuel', 'trimestriel'], default: 'mensuel' },
     methodeABC: { type: Boolean, default: true },
   },
   alertes: {
@@ -319,13 +326,17 @@ const StockSchema = new Schema({
     cptStock: { type: String },
     cptVariation: { type: String },
     cptCOGS: { type: String },
-    reconnaissanceCout: { type: String, enum: ['livraison','facturation'], default: 'livraison' },
+    reconnaissanceCout: { type: String, enum: ['livraison', 'facturation'], default: 'livraison' },
   },
 }, { _id: false });
 
 const SecuriteSchema = new Schema({
   motDePasseComplexe: { type: Boolean, default: true },
   deuxFA: { type: Boolean, default: false },
+  reinitialisationMdp: {
+    actif: { type: Boolean, default: true },
+    expirationMinutes: { type: Number, default: 60 },
+  },
 }, { _id: false });
 
 const SystemeSchema = new Schema({
@@ -336,10 +347,10 @@ const SystemeSchema = new Schema({
 const TVASchema = new Schema({
   tauxParDefautPct: { type: Number, default: 19 },
   regimeParDefautCode: { type: String, default: 'TN19' },
-  arrondi: { 
-    type: String, 
-    enum: ['ligne', 'document'], 
-    default: 'ligne' 
+  arrondi: {
+    type: String,
+    enum: ['ligne', 'document'],
+    default: 'ligne'
   },
   prixIncluentTVA: { type: Boolean, default: false },
   timbreFiscal: {
@@ -353,10 +364,10 @@ const TVASchema = new Schema({
   retenueSource: {
     actif: { type: Boolean, default: false },
     tauxPct: { type: Number, default: 0 },
-    appliquerSur: { 
-      type: String, 
-      enum: ['services', 'tous'], 
-      default: 'services' 
+    appliquerSur: {
+      type: String,
+      enum: ['services', 'tous'],
+      default: 'services'
     },
   },
 }, { _id: false });

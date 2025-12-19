@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
-import { PlusIcon, DocumentTextIcon, MagnifyingGlassIcon, EyeIcon, PencilIcon, ArrowDownTrayIcon, TrashIcon, ArrowRightIcon, ExclamationTriangleIcon, XMarkIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, DocumentTextIcon, MagnifyingGlassIcon, EyeIcon, PencilIcon, ArrowDownTrayIcon, TrashIcon, ArrowRightIcon, ExclamationTriangleIcon, XMarkIcon, ArrowLeftIcon, CheckIcon } from '@heroicons/react/24/outline';
 import { useTenantId } from '@/hooks/useTenantId';
 import toast from 'react-hot-toast';
 import ProductSearchModal from '@/components/common/ProductSearchModal';
@@ -90,6 +90,9 @@ export default function InternalInvoicesPage() {
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const [showPrintModal, setShowPrintModal] = useState(false);
+  const [invoiceToPrint, setInvoiceToPrint] = useState<Invoice | null>(null);
+  const [includeStamp, setIncludeStamp] = useState(true);
   const [editingInvoiceId, setEditingInvoiceId] = useState<string | null>(null);
   const [showConvertModal, setShowConvertModal] = useState(false);
   const [convertSourceType, setConvertSourceType] = useState<'BL' | 'DEVIS' | null>(null);
@@ -1532,9 +1535,25 @@ export default function InternalInvoicesPage() {
   };
 
   // Handle download PDF
-  const handleDownloadPDF = async (invoice: Invoice) => {
+  const handleDownloadPDF = (invoice: Invoice) => {
+    setInvoiceToPrint(invoice);
+    setIncludeStamp(true); // Default to true
+    setShowPrintModal(true);
+  };
+
+  const confirmDownloadPDF = async () => {
+    if (!invoiceToPrint) return;
+
+    // Close modal immediately
+    setShowPrintModal(false);
+
     try {
-      const response = await fetch(`/api/internal-invoices/${invoice._id}/pdf`, {
+      if (!tenantId) return;
+
+      toast.loading('Génération du PDF...', { id: 'pdf-toast' });
+
+      // Pass the withStamp parameter based on checkbox state
+      const response = await fetch(`/api/internal-invoices/${invoiceToPrint._id}/pdf?withStamp=${includeStamp}`, {
         headers: { 'X-Tenant-Id': tenantId },
       });
 
@@ -1584,7 +1603,7 @@ export default function InternalInvoicesPage() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `Facture-${invoice.numero}.pdf`;
+      a.download = `Facture-${invoiceToPrint.numero}.pdf`;
       document.body.appendChild(a);
       a.click();
 
@@ -1594,10 +1613,11 @@ export default function InternalInvoicesPage() {
         document.body.removeChild(a);
       }, 100);
 
-      toast.success('PDF téléchargé avec succès');
+      toast.success('PDF téléchargé avec succès', { id: 'pdf-toast' });
+      setInvoiceToPrint(null);
     } catch (error: any) {
       console.error('Error downloading PDF:', error);
-      toast.error(error.message || 'Erreur lors du téléchargement du PDF');
+      toast.error(error.message || 'Erreur lors du téléchargement du PDF', { id: 'pdf-toast' });
     }
   };
 
@@ -3230,6 +3250,52 @@ export default function InternalInvoicesPage() {
           tenantId={tenantId || ''}
           title="Rechercher un produit"
         />
+      )}
+      {/* Print Options Modal */}
+      {showPrintModal && invoiceToPrint && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+            <div className="p-6">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
+                Options d'impression
+              </h3>
+              <p className="text-gray-600 dark:text-gray-300 mb-6">
+                Voulez-vous inclure le cachet de l'entreprise sur le document ?
+              </p>
+
+              <div className="flex items-center gap-3 p-4 border border-gray-200 dark:border-gray-700 rounded-lg mb-6 bg-gray-50 dark:bg-gray-700/50 cursor-pointer" onClick={() => setIncludeStamp(!includeStamp)}>
+                <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${includeStamp ? 'bg-blue-600 border-blue-600' : 'border-gray-400 bg-white dark:bg-gray-700'}`}>
+                  {includeStamp && <CheckIcon className="w-3.5 h-3.5 text-white" />}
+                </div>
+                <input
+                  type="checkbox"
+                  checked={includeStamp}
+                  onChange={(e) => setIncludeStamp(e.target.checked)}
+                  className="hidden"
+                />
+                <label className="text-sm font-medium text-gray-900 dark:text-white cursor-pointer select-none">
+                  Inclure le cachet / signature
+                </label>
+              </div>
+
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setShowPrintModal(false)}
+                  className="px-4 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors font-medium"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={confirmDownloadPDF}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center gap-2"
+                >
+                  <ArrowDownTrayIcon className="w-4 h-4" />
+                  Télécharger PDF
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </DashboardLayout>
   );

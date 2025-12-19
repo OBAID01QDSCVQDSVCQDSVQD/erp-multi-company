@@ -20,6 +20,7 @@ const societeSchema = z.object({
   langue: z.string().min(1, 'La langue est requise'),
   fuseau: z.string().min(1, 'Le fuseau horaire est requis'),
   logoUrl: z.string().optional(),
+  cachetUrl: z.string().optional(),
   theme: z.object({
     primary: z.string().optional(),
     secondary: z.string().optional(),
@@ -55,7 +56,9 @@ export default function SocieteTab({ tenantId }: SocieteTabProps) {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [logoPreview, setLogoPreview] = useState<string>('');
+  const [cachetPreview, setCachetPreview] = useState<string>('');
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [uploadingCachet, setUploadingCachet] = useState(false);
   const [currentCompanyData, setCurrentCompanyData] = useState<any>(null);
 
   const {
@@ -73,6 +76,7 @@ export default function SocieteTab({ tenantId }: SocieteTabProps) {
   });
 
   const logoUrl = watch('logoUrl');
+  const cachetUrl = watch('cachetUrl');
 
   useEffect(() => {
     console.log('=== SocieteTab useEffect triggered ===');
@@ -91,7 +95,12 @@ export default function SocieteTab({ tenantId }: SocieteTabProps) {
     } else {
       setLogoPreview('');
     }
-  }, [logoUrl]);
+    if (cachetUrl) {
+      setCachetPreview(cachetUrl);
+    } else {
+      setCachetPreview('');
+    }
+  }, [logoUrl, cachetUrl]);
 
   const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -132,6 +141,115 @@ export default function SocieteTab({ tenantId }: SocieteTabProps) {
     }
   };
 
+  const handleCachetUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Check file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Veuillez sélectionner une image');
+      return;
+    }
+
+    // Check file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('La taille du fichier ne doit pas dépasser 5MB');
+      return;
+    }
+
+    try {
+      setUploadingCachet(true);
+
+      // Convert image to base64
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result as string;
+        setValue('cachetUrl', base64String);
+        setCachetPreview(base64String);
+        setUploadingCachet(false);
+        toast.success('Cachet téléchargé avec succès');
+      };
+      reader.onerror = () => {
+        toast.error('Erreur lors de la lecture du fichier');
+        setUploadingCachet(false);
+      };
+      reader.readAsDataURL(file);
+    } catch (error) {
+      toast.error('Erreur lors du téléchargement du cachet');
+      setUploadingCachet(false);
+    }
+  };
+
+  const removeWhiteBackground = () => {
+    if (!cachetPreview) return;
+
+    const img = new window.Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx.drawImage(img, 0, 0);
+
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        // If pixel is close to white, make it transparent
+        if (r > 200 && g > 200 && b > 200) {
+          data[i + 3] = 0; // Alpha to 0
+        }
+      }
+
+      ctx.putImageData(imageData, 0, 0);
+      const newBase64 = canvas.toDataURL('image/png');
+      setCachetPreview(newBase64);
+      setValue('cachetUrl', newBase64);
+      toast.success('Fond blanc supprimé avec succès');
+    };
+    img.src = cachetPreview;
+  };
+
+  const removeWhiteBackgroundLogo = () => {
+    if (!logoPreview) return;
+
+    const img = new window.Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx.drawImage(img, 0, 0);
+
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        // If pixel is close to white, make it transparent
+        if (r > 200 && g > 200 && b > 200) {
+          data[i + 3] = 0; // Alpha to 0
+        }
+      }
+
+      ctx.putImageData(imageData, 0, 0);
+      const newBase64 = canvas.toDataURL('image/png');
+      setLogoPreview(newBase64);
+      setValue('logoUrl', newBase64);
+      toast.success('Fond blanc du logo supprimé avec succès');
+    };
+    img.src = logoPreview;
+  };
+
   const fetchSettings = async (showLoader = true) => {
     try {
       if (showLoader) {
@@ -170,6 +288,7 @@ export default function SocieteTab({ tenantId }: SocieteTabProps) {
           langue: societe.langue || 'fr',
           fuseau: societe.fuseau || 'Africa/Tunis',
           logoUrl: societe.logoUrl || '',
+          cachetUrl: societe.cachetUrl || '',
           theme: societe.theme || {},
           enTete: {
             slogan: societe.enTete?.slogan || '',
@@ -248,6 +367,12 @@ export default function SocieteTab({ tenantId }: SocieteTabProps) {
         } else {
           setLogoPreview('');
         }
+
+        if (societe.cachetUrl) {
+          setCachetPreview(societe.cachetUrl);
+        } else {
+          setCachetPreview('');
+        }
       } else {
         console.error('Failed to fetch company data. Status:', response.status);
         const errorData = await response.json().catch(() => ({}));
@@ -288,6 +413,7 @@ export default function SocieteTab({ tenantId }: SocieteTabProps) {
           langue: data.langue,
           fuseau: data.fuseau,
           logoUrl: data.logoUrl || '',
+          cachetUrl: data.cachetUrl || '',
           theme: data.theme || {},
           enTete: {
             slogan: data.enTete?.slogan || '',
@@ -553,11 +679,79 @@ export default function SocieteTab({ tenantId }: SocieteTabProps) {
                   className="object-contain border border-gray-300 dark:border-gray-600 rounded-lg p-2 bg-white dark:bg-gray-700"
                   unoptimized={logoPreview.startsWith('data:')}
                 />
+
+                <button
+                  type="button"
+                  onClick={removeWhiteBackgroundLogo}
+                  className="mt-2 text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 underline block"
+                >
+                  Rendre le fond transparent (Supprimer le blanc)
+                </button>
               </div>
             )}
 
             <p className="mt-2 text-sm text-gray-500">
               Formats acceptés: JPG, PNG, GIF. Taille max: 5MB
+            </p>
+          </div>
+
+          {/* Cachet Upload */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Cachet, Tampon ou Signature de l'entreprise
+            </label>
+
+            {/* Upload Button */}
+            <div className="flex items-center gap-4 mb-3">
+              <label className="flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 cursor-pointer disabled:opacity-50">
+                {uploadingCachet ? 'Téléchargement...' : 'Choisir un fichier'}
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleCachetUpload}
+                  disabled={uploadingCachet}
+                  className="hidden"
+                />
+              </label>
+
+              {cachetPreview && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setValue('cachetUrl', '');
+                    setCachetPreview('');
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-red-600 bg-white dark:bg-gray-700 border border-red-600 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                >
+                  Supprimer
+                </button>
+              )}
+            </div>
+
+            {/* Cachet Preview */}
+            {cachetPreview && (
+              <div className="mb-3">
+                <Image
+                  src={cachetPreview}
+                  alt="Cachet preview"
+                  width={128}
+                  height={128}
+                  className="object-contain border border-gray-300 dark:border-gray-600 rounded-lg p-2 bg-white dark:bg-gray-700"
+                  unoptimized={cachetPreview.startsWith('data:')}
+                />
+
+                <button
+                  type="button"
+                  onClick={removeWhiteBackground}
+                  className="mt-2 text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 underline block"
+                >
+                  Rendre le fond transparent (Supprimer le blanc)
+                </button>
+              </div>
+            )}
+
+            <p className="mt-2 text-sm text-gray-500">
+              Format recommandé : PNG transparent.
             </p>
           </div>
 

@@ -4,52 +4,52 @@ import autoTable from 'jspdf-autotable';
 // Helper function to convert number to words in French
 function numberToWordsFr(num: number): string {
   if (num === 0) return 'zéro';
-  
+
   const units = ['', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept', 'huit', 'neuf', 'dix',
-                 'onze', 'douze', 'treize', 'quatorze', 'quinze', 'seize', 'dix-sept', 'dix-huit', 'dix-neuf'];
+    'onze', 'douze', 'treize', 'quatorze', 'quinze', 'seize', 'dix-sept', 'dix-huit', 'dix-neuf'];
   const tens = ['', '', 'vingt', 'trente', 'quarante', 'cinquante', 'soixante', 'soixante', 'quatre-vingt', 'quatre-vingt'];
-  
+
   if (num < 20) return units[num];
-  
+
   if (num < 100) {
     const ten = Math.floor(num / 10);
     const unit = num % 10;
-    
+
     if (ten === 7 || ten === 9) {
       const base = ten === 7 ? 60 : 80;
       return tens[ten] + (unit > 0 ? '-' + units[10 + unit] : '');
     }
-    
+
     return tens[ten] + (unit > 0 ? '-' + units[unit] : (ten === 8 ? 's' : ''));
   }
-  
+
   if (num < 1000) {
     const hundred = Math.floor(num / 100);
     const remainder = num % 100;
-    
+
     if (hundred === 1) {
       return remainder > 0 ? 'cent ' + numberToWordsFr(remainder) : 'cent';
     }
-    
+
     return units[hundred] + ' cent' + (remainder > 0 ? ' ' + numberToWordsFr(remainder) : 's');
   }
-  
+
   if (num < 1000000) {
     const thousand = Math.floor(num / 1000);
     const remainder = num % 1000;
-    
+
     const thousandStr = thousand > 1 ? numberToWordsFr(thousand) + ' ' : '';
     return thousandStr + 'mille' + (remainder > 0 ? ' ' + numberToWordsFr(remainder) : '');
   }
-  
+
   if (num < 1000000000) {
     const million = Math.floor(num / 1000000);
     const remainder = num % 1000000;
-    
+
     const millionStr = million > 1 ? numberToWordsFr(million) + ' ' : '';
     return millionStr + 'million' + (million > 1 ? 's' : '') + (remainder > 0 ? ' ' + numberToWordsFr(remainder) : '');
   }
-  
+
   return num.toString(); // Fallback for very large numbers
 }
 
@@ -57,16 +57,16 @@ function numberToWordsFr(num: number): string {
 function amountToWordsFr(amount: number, currency: string = 'Dinars'): string {
   const wholePart = Math.floor(amount);
   const decimalPart = Math.round((amount - wholePart) * 1000);
-  
+
   let result = '';
-  
+
   if (wholePart > 0) {
     result += numberToWordsFr(wholePart) + ' ' + currency;
     if (wholePart > 1 && currency.toLowerCase() !== 'dinars') {
       result += 's';
     }
   }
-  
+
   if (decimalPart > 0) {
     if (wholePart > 0) {
       result += ' et ';
@@ -76,7 +76,7 @@ function amountToWordsFr(amount: number, currency: string = 'Dinars'): string {
       result += 's';
     }
   }
-  
+
   return result || 'zéro ' + currency;
 }
 
@@ -139,6 +139,7 @@ interface CompanyInfo {
     pays: string;
   };
   logoUrl?: string;
+  cachetUrl?: string;
   enTete?: {
     slogan?: string;
     telephone?: string;
@@ -169,7 +170,7 @@ function drawLogo(doc: jsPDF, base64: string | undefined, x: number = 15, y: num
 
     let w = maxW;
     let h = w / ratio;
-    
+
     if (h > maxH) {
       h = maxH;
       w = h * ratio;
@@ -178,11 +179,35 @@ function drawLogo(doc: jsPDF, base64: string | undefined, x: number = 15, y: num
     // Determine format from base64
     const format = base64.split(',')[0].split('/')[1].split(';')[0].toUpperCase();
     doc.addImage(base64, format, x, y, w, h);
-    
+
     return y + h;
   } catch (error) {
     console.error('Error adding logo:', error);
     return y + maxH;
+  }
+}
+
+function drawStamp(doc: jsPDF, base64: string | undefined, x: number, y: number, w: number = 40, h: number = 40): void {
+  if (!base64) return;
+
+  try {
+    const props = doc.getImageProperties(base64);
+    const ratio = props.width / props.height;
+
+    // Adjust dimensions to maintain aspect ratio within bounds
+    let finalW = w;
+    let finalH = finalW / ratio;
+
+    if (finalH > h) {
+      finalH = h;
+      finalW = finalH * ratio;
+    }
+
+    // Determine format
+    const format = base64.split(',')[0].split('/')[1].split(';')[0].toUpperCase();
+    doc.addImage(base64, format, x, y, finalW, finalH);
+  } catch (error) {
+    console.error('Error adding stamp:', error);
   }
 }
 
@@ -204,7 +229,7 @@ function drawHeader(doc: jsPDF, companyInfo: CompanyInfo): number {
   if (companyInfo.adresse.rue) {
     doc.text(companyInfo.adresse.rue, rightX, topY + 5);
   }
-  
+
   if (companyInfo.enTete?.telephone || companyInfo.enTete?.email) {
     doc.text(
       [
@@ -229,14 +254,14 @@ function drawHeader(doc: jsPDF, companyInfo: CompanyInfo): number {
 
 function drawDevisTitle(doc: jsPDF, documentType?: string): number {
   const startY = 10 + 32 + 8; // Position après le header + espace
-  
+
   // Titre dynamique en gras, grand et bleu
   const title = documentType || 'DEVIS';
   doc.setFontSize(16).setFont('helvetica', 'bold');
   doc.setTextColor(47, 95, 255);
   doc.text(title, 10, startY);
   doc.setTextColor(0, 0, 0);
-  
+
   return startY + 8;
 }
 
@@ -253,7 +278,7 @@ function drawInfoBlocks(doc: jsPDF, quoteData: QuoteData, companyInfo: CompanyIn
   const isDeliveryNote = docType.includes('livraison') || docType.includes('bon de livraison');
   const isPurchaseOrder = docType.includes('commande') && (docType.includes('achat') || docType.includes('réception') || docType.includes('reception'));
   const isQuote = !isDeliveryNote && !isPurchaseOrder && !isInvoice && !isCreditNote;
-  
+
   // Set document number label based on type
   let docNumberLabel = 'Numéro de devis';
   if (isInvoice) {
@@ -265,7 +290,7 @@ function drawInfoBlocks(doc: jsPDF, quoteData: QuoteData, companyInfo: CompanyIn
   } else if (isPurchaseOrder) {
     docNumberLabel = 'Numéro de commande';
   }
-  
+
   doc.setFontSize(9).setFont('helvetica', 'normal');
   doc.text(docNumberLabel, col1X, startY + 4);
   doc.setTextColor(47, 95, 255);
@@ -273,7 +298,7 @@ function drawInfoBlocks(doc: jsPDF, quoteData: QuoteData, companyInfo: CompanyIn
   doc.text(quoteData.numero, col1X, startY + 10);
   doc.setTextColor(0, 0, 0);
   doc.setFont('helvetica', 'normal');
-  
+
   // Show different fields based on document type
   if (isInvoice) {
     // For invoices, show dateEcheance (due date)
@@ -318,7 +343,7 @@ function drawInfoBlocks(doc: jsPDF, quoteData: QuoteData, companyInfo: CompanyIn
   } else if (isQuote) {
     // For quotes, show validité
     doc.text('Validité', col1X, startY + 17);
-    const validite = quoteData.dateValidite 
+    const validite = quoteData.dateValidite
       ? new Date(quoteData.dateValidite).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
       : 'N/A';
     doc.text(validite, col1X, startY + 23);
@@ -334,11 +359,11 @@ function drawInfoBlocks(doc: jsPDF, quoteData: QuoteData, companyInfo: CompanyIn
   // Delivery notes and quotes are for clients, purchase orders are for suppliers
   const partyLabel = isPurchaseOrder ? 'Fournisseur' : 'Client';
   doc.setFillColor(238, 244, 255);
-  
+
   // Calculate dynamic height based on content
   let textY = startY + 12;
   let dynamicHeight = 6; // Start with label height
-  
+
   // Calculate height needed for address (with wrapping)
   let addressLines = 0;
   if (quoteData.customerAddress) {
@@ -350,25 +375,25 @@ function drawInfoBlocks(doc: jsPDF, quoteData: QuoteData, companyInfo: CompanyIn
   } else {
     dynamicHeight += 5; // Just name height
   }
-  
+
   // Add phone height if exists
   if (quoteData.customerPhone) {
     dynamicHeight += 5;
   }
-  
+
   // Ensure minimum height
   dynamicHeight = Math.max(dynamicHeight, h);
-  
+
   // Draw the box with dynamic height
   doc.roundedRect(clientX, startY, 80, dynamicHeight, 3, 3, 'F');
-  
+
   // Draw text content
   doc.setFontSize(9).setFont('helvetica', 'bold');
   doc.text(partyLabel, clientX + 4, startY + 6);
   doc.setFont('helvetica', 'normal');
   doc.text(quoteData.customerName || '—', clientX + 4, textY);
   textY += 5;
-  
+
   // Address with wrapping
   if (quoteData.customerAddress) {
     const addressText = `Adresse: ${quoteData.customerAddress}`;
@@ -379,7 +404,7 @@ function drawInfoBlocks(doc: jsPDF, quoteData: QuoteData, companyInfo: CompanyIn
     });
     textY += splitAddress.length * 4;
   }
-  
+
   // Phone
   if (quoteData.customerPhone) {
     doc.text(`Tél: ${quoteData.customerPhone}`, clientX + 4, textY);
@@ -397,11 +422,11 @@ interface TextSegment {
 // Helper function لتحويل HTML إلى مقاطع نصية مع الحفاظ على تنسيق bold
 function parseHtmlWithFormatting(html: string): TextSegment[] {
   if (!html) return [];
-  
+
   const segments: TextSegment[] = [];
   let currentText = '';
   let inBold = false;
-  
+
   // أولاً: تحويل علامات HTML الخاصة إلى أسطر جديدة
   // معالجة النقاط (bullet points) قبل أي معالجة أخرى
   let processedHtml = html
@@ -417,12 +442,12 @@ function parseHtmlWithFormatting(html: string): TextSegment[] {
     // تحويل <div> و </div> إلى سطر جديد
     .replace(/<div[^>]*>/gi, '\n')
     .replace(/<\/div>/gi, '\n');
-  
+
   // استخراج النص مع الحفاظ على تنسيق bold من <strong> و <b>
   const tagRegex = /<(strong|b)([^>]*)>|<\/(strong|b)>|([^<]+)/gi;
   let match;
   let lastIndex = 0;
-  
+
   while ((match = tagRegex.exec(processedHtml)) !== null) {
     // معالجة النص قبل المطابقة
     if (match.index > lastIndex) {
@@ -437,7 +462,7 @@ function parseHtmlWithFormatting(html: string): TextSegment[] {
         currentText = cleanedBeforeText;
       }
     }
-    
+
     // معالجة المطابقة
     if (match[1] === 'strong' || match[1] === 'b') {
       // فتح <strong> أو <b>
@@ -460,10 +485,10 @@ function parseHtmlWithFormatting(html: string): TextSegment[] {
         currentText += cleanedText;
       }
     }
-    
+
     lastIndex = match.index + match[0].length;
   }
-  
+
   // معالجة النص المتبقي
   if (lastIndex < processedHtml.length) {
     const remainingText = processedHtml.substring(lastIndex);
@@ -472,12 +497,12 @@ function parseHtmlWithFormatting(html: string): TextSegment[] {
       currentText += cleanedText;
     }
   }
-  
+
   // إضافة المقطع الأخير إن وجد
   if (currentText) {
     segments.push({ text: currentText, bold: inBold });
   }
-  
+
   // تحويل HTML entities في المقاطع
   return segments
     .map(segment => ({
@@ -607,12 +632,12 @@ function drawLinesTable(doc: jsPDF, quoteData: QuoteData, startY: number, maxY: 
   return (doc as any).lastAutoTable.finalY + 6;
 }
 
-function drawTotals(doc: jsPDF, quoteData: QuoteData, startY: number, maxHeightBeforeFooter: number): void {
+function drawTotals(doc: jsPDF, quoteData: QuoteData, startY: number, maxHeightBeforeFooter: number): number {
   const x = 125;
   const w = 75;
   const lineH = 6;
   const currencySymbol = quoteData.devise === 'TND' ? ' DT' : ` ${quoteData.devise}`;
-  
+
   // تحديد نوع المستند
   const docType = quoteData.documentType?.toLowerCase() || '';
   const isDeliveryNote = docType.includes('livraison') || docType.includes('bon de livraison');
@@ -645,7 +670,7 @@ function drawTotals(doc: jsPDF, quoteData: QuoteData, startY: number, maxHeightB
     if (label === 'Timbre fiscal' && isDeliveryNote) return false;
     return true;
   });
-  
+
   const totalBoxH = 6 + (validRows.length * lineH) + 6 + 7;
 
   // وضع صندوق الإجماليات فوق التذييل
@@ -659,7 +684,7 @@ function drawTotals(doc: jsPDF, quoteData: QuoteData, startY: number, maxHeightB
 
   doc.setFontSize(9);
   let y = actualStartY + 6;
-  
+
   rows.forEach(([label, val]) => {
     // تخطي إذا كان undefined/null
     if (!val && val !== 0) return;
@@ -668,14 +693,14 @@ function drawTotals(doc: jsPDF, quoteData: QuoteData, startY: number, maxHeightB
 
     doc.setFont('helvetica', 'normal');
     doc.text(label, x + 4, y);
-    
+
     // لون خاص للخصم (أحمر إذا كان سالباً)
     if ((label === 'Total Remise' || label === 'Remise lignes' || label.startsWith('Remise globale')) && val && val < 0) {
       doc.setTextColor(255, 0, 0);
     } else {
       doc.setTextColor(0, 0, 0);
     }
-    
+
     doc.setFont('helvetica', 'bold');
     doc.text(`${Math.abs(val || 0).toFixed(3)}${currencySymbol}`, x + w - 4, y, { align: 'right' });
     doc.setTextColor(0, 0, 0);
@@ -692,7 +717,7 @@ function drawTotals(doc: jsPDF, quoteData: QuoteData, startY: number, maxHeightB
   doc.text('Total TTC', x + 4, y + 7);
   doc.text(`${quoteData.totalTTC.toFixed(3)}${currencySymbol}`, x + w - 4, y + 7, { align: 'right' });
   doc.setTextColor(0, 0, 0);
-  
+
   // Arrêté à la somme de (خارج الصندوق، أسفله)
   // التأكد من عدم تجاوز منطقة التذييل
   const boxBottomY = actualStartY + totalBoxH;
@@ -700,11 +725,11 @@ function drawTotals(doc: jsPDF, quoteData: QuoteData, startY: number, maxHeightB
   const amountInWords = amountToWordsFr(quoteData.totalTTC, currencyName);
   const maxWidth = 190; // عرض الصفحة الكامل ناقص الهوامش (200 - 10)
   const splitText = doc.splitTextToSize(`Arrêté à la somme de : ${amountInWords}`, maxWidth);
-  
+
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
   doc.setTextColor(102, 102, 102);
-  
+
   // التأكد من أن Arrêté لا يتجاوز منطقة التذييل
   const arrêtéStartY = boxBottomY + 5;
   if (arrêtéStartY + (splitText.length * 4) < maxHeightBeforeFooter - 10) {
@@ -721,6 +746,8 @@ function drawTotals(doc: jsPDF, quoteData: QuoteData, startY: number, maxHeightB
     doc.text(`Mode de paiement : ${quoteData.modePaiement}`, 10, modePaiementY);
   }
   doc.setTextColor(0, 0, 0);
+
+  return Math.max(boxBottomY, modePaiementY + 5);
 }
 
 function drawFooter(doc: jsPDF, companyInfo: CompanyInfo, footerY: number, pageNumber?: number, totalPages?: number): void {
@@ -728,11 +755,11 @@ function drawFooter(doc: jsPDF, companyInfo: CompanyInfo, footerY: number, pageN
   // footerY = 280 هو الموضع الثابت للتذييل
   const pageHeight = 297; // ارتفاع صفحة A4
   const safeFooterY = Math.min(footerY, pageHeight - 15); // التأكد من عدم تجاوز الصفحة
-  
+
   // رسم خط أفقي في موضع ثابت
   doc.setDrawColor(220, 220, 220);
   doc.line(10, safeFooterY, 200, safeFooterY);
-  
+
   const yPos = safeFooterY + 6;
   doc.setFontSize(9).setTextColor(0, 0, 0);
 
@@ -780,7 +807,7 @@ function drawFooter(doc: jsPDF, companyInfo: CompanyInfo, footerY: number, pageN
     const centerX = 105; // مركز صفحة A4 (210mm / 2)
     doc.text(footerText, centerX, yPos, { align: 'center' });
   }
-  
+
   // إضافة رقم الصفحة إذا تم توفيره - تحسين الترقيم
   if (pageNumber !== undefined && totalPages !== undefined) {
     doc.setFontSize(9);
@@ -804,20 +831,20 @@ export function generateDevisPdf(quoteData: QuoteData, companyInfo: CompanyInfo)
   let y = drawHeader(doc, companyInfo);
   y = drawDevisTitle(doc, quoteData.documentType);
   y = drawInfoBlocks(doc, quoteData, companyInfo, y);
-  
+
   // رسم الجدول مع تحديد الحد الأقصى للمحتوى
   const tableEndY = drawLinesTable(doc, quoteData, y, maxContentY);
-  
+
   // الحصول على موضع الجدول الفعلي بعد الرسم
   const finalPageCount = doc.getNumberOfPages();
   doc.setPage(finalPageCount);
   const currentPageY = (doc as any).lastAutoTable?.finalY || tableEndY;
-  
+
   // حساب ارتفاع صندوق الإجماليات
   const currencyName = quoteData.devise === 'TND' ? 'Dinars tunisiens' : quoteData.devise;
   const amountInWords = amountToWordsFr(quoteData.totalTTC, currencyName);
   const splitText = doc.splitTextToSize(`Arrêté à la somme de : ${amountInWords}`, 190);
-  
+
   // حساب عدد الصفوف الفعلية في صندوق الإجماليات
   const rows: Array<[string, number | undefined]> = [
     ['Sous-total HT', quoteData.totalBaseHT],
@@ -829,7 +856,7 @@ export function generateDevisPdf(quoteData: QuoteData, companyInfo: CompanyInfo)
     ['Total TVA', quoteData.totalTVA],
     ...(quoteData.documentType?.toLowerCase().includes('livraison') ? [] : [['Timbre fiscal', quoteData.timbreFiscal] as [string, number | undefined]]),
   ];
-  
+
   const validRows = rows.filter(([label, val]) => {
     if (!val && val !== 0) return false;
     if ((label === 'Total Remise' || label === 'Remise lignes' || label.startsWith('Remise globale')) && val === 0) return false;
@@ -838,29 +865,39 @@ export function generateDevisPdf(quoteData: QuoteData, companyInfo: CompanyInfo)
     if (label === 'Timbre fiscal' && quoteData.documentType?.toLowerCase().includes('livraison')) return false;
     return true;
   });
-  
+
   const totalBoxH = 6 + (validRows.length * 6) + 6 + 7;
   const arrêtéHeight = splitText.length * 4 + 5;
   const modePaiementHeight = quoteData.modePaiement ? 7 : 0;
   const totalNeededHeight = totalBoxH + arrêtéHeight + modePaiementHeight + 5;
-  
+
   // التأكد من أن الجدول لم يتجاوز الحد الأقصى
   const safeCurrentPageY = Math.min(currentPageY, maxContentY);
   const availableSpace = maxContentY - safeCurrentPageY;
-  
+
   // رسم الإجماليات
   if (availableSpace >= totalNeededHeight) {
     // توجد مساحة كافية على الصفحة الأخيرة
-    drawTotals(doc, quoteData, safeCurrentPageY + 5, maxContentY);
+    const finalY = drawTotals(doc, quoteData, safeCurrentPageY + 5, maxContentY);
+    // Draw Stamp if available
+    if (companyInfo.cachetUrl) {
+      // Position stamp to the right of "Arrêté à la somme de" or below totals
+      // We'll place it at bottom right of the totals section
+      drawStamp(doc, companyInfo.cachetUrl, 150, finalY - 30, 40, 40);
+    }
   } else {
     // لا توجد مساحة كافية، إضافة صفحة جديدة
     doc.addPage();
-    drawTotals(doc, quoteData, topMargin, maxContentY);
+    const finalY = drawTotals(doc, quoteData, topMargin, maxContentY);
+    // Draw Stamp
+    if (companyInfo.cachetUrl) {
+      drawStamp(doc, companyInfo.cachetUrl, 150, finalY - 30, 40, 40);
+    }
   }
-  
+
   // تحديث عدد الصفحات النهائي
   const totalPages = doc.getNumberOfPages();
-  
+
   // رسم التذييل على جميع الصفحات
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i);
@@ -872,74 +909,74 @@ export function generateDevisPdf(quoteData: QuoteData, companyInfo: CompanyInfo)
     try {
       const finalPageCount = doc.getNumberOfPages();
       const watermarkText = quoteData.statut === 'BROUILLON' ? 'BROUILLON' : 'ANNULEE';
-      
+
       console.log('[PDF Watermark] Adding watermark:', watermarkText, 'statut:', quoteData.statut, 'on', finalPageCount, 'pages');
-      
+
       // Add watermark on all pages
       for (let i = 1; i <= finalPageCount; i++) {
-      doc.setPage(i);
-      
-      // Save current graphics state
-      const currentTextColor = doc.getTextColor();
-      const currentFont = doc.getFont();
-      const currentFontSize = doc.getFontSize();
-      
-      // Get page dimensions (in mm for A4)
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const pageHeight = doc.internal.pageSize.getHeight();
-      
-      // Set watermark properties: bold, large, 30% opacity
-      doc.setFontSize(72); // Large font size
-      doc.setFont('helvetica', 'bold');
-      
-      // Set text color with 30% opacity (RGB with alpha)
-      // jsPDF doesn't support alpha directly, so we use a light gray color
-      // 30% opacity = 70% transparency = light gray (approximately RGB(180, 180, 180))
-      doc.setTextColor(180, 180, 180);
-      
-      // Calculate text dimensions to center it
-      const textWidth = doc.getTextWidth(watermarkText);
-      
-      // Center the watermark on the page
-      const centerX = pageWidth / 2;
-      const centerY = pageHeight / 2;
-      
-      // Simple approach: draw text directly in center (without rotation for now)
-      // This ensures the watermark appears even if rotation fails
-      try {
-        doc.text(watermarkText, centerX, centerY, {
-          align: 'center',
-          baseline: 'middle'
-        });
-      } catch (textError) {
-        console.error('[PDF Watermark] Error drawing text:', textError);
-        // Continue even if text drawing fails
-      }
-      
-      // Restore original graphics state
-      // getTextColor() returns a string like "rgb(0,0,0)" or array [r,g,b]
-      if (typeof currentTextColor === 'string') {
-        // Parse RGB string like "rgb(0,0,0)" or "#000000"
-        const rgbMatch = currentTextColor.match(/\d+/g);
-        if (rgbMatch && rgbMatch.length >= 3) {
-          doc.setTextColor(parseInt(rgbMatch[0]), parseInt(rgbMatch[1]), parseInt(rgbMatch[2]));
+        doc.setPage(i);
+
+        // Save current graphics state
+        const currentTextColor = doc.getTextColor();
+        const currentFont = doc.getFont();
+        const currentFontSize = doc.getFontSize();
+
+        // Get page dimensions (in mm for A4)
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+
+        // Set watermark properties: bold, large, 30% opacity
+        doc.setFontSize(72); // Large font size
+        doc.setFont('helvetica', 'bold');
+
+        // Set text color with 30% opacity (RGB with alpha)
+        // jsPDF doesn't support alpha directly, so we use a light gray color
+        // 30% opacity = 70% transparency = light gray (approximately RGB(180, 180, 180))
+        doc.setTextColor(180, 180, 180);
+
+        // Calculate text dimensions to center it
+        const textWidth = doc.getTextWidth(watermarkText);
+
+        // Center the watermark on the page
+        const centerX = pageWidth / 2;
+        const centerY = pageHeight / 2;
+
+        // Simple approach: draw text directly in center (without rotation for now)
+        // This ensures the watermark appears even if rotation fails
+        try {
+          doc.text(watermarkText, centerX, centerY, {
+            align: 'center',
+            baseline: 'middle'
+          });
+        } catch (textError) {
+          console.error('[PDF Watermark] Error drawing text:', textError);
+          // Continue even if text drawing fails
+        }
+
+        // Restore original graphics state
+        // getTextColor() returns a string like "rgb(0,0,0)" or array [r,g,b]
+        if (typeof currentTextColor === 'string') {
+          // Parse RGB string like "rgb(0,0,0)" or "#000000"
+          const rgbMatch = currentTextColor.match(/\d+/g);
+          if (rgbMatch && rgbMatch.length >= 3) {
+            doc.setTextColor(parseInt(rgbMatch[0]), parseInt(rgbMatch[1]), parseInt(rgbMatch[2]));
+          } else {
+            doc.setTextColor(0, 0, 0); // Default to black
+          }
+        } else if (Array.isArray(currentTextColor)) {
+          const colorArray = currentTextColor as number[];
+          if (colorArray.length >= 3) {
+            doc.setTextColor(colorArray[0], colorArray[1], colorArray[2]);
+          } else {
+            doc.setTextColor(0, 0, 0); // Default to black
+          }
         } else {
           doc.setTextColor(0, 0, 0); // Default to black
         }
-      } else if (Array.isArray(currentTextColor)) {
-        const colorArray = currentTextColor as number[];
-        if (colorArray.length >= 3) {
-          doc.setTextColor(colorArray[0], colorArray[1], colorArray[2]);
-        } else {
-          doc.setTextColor(0, 0, 0); // Default to black
-        }
-      } else {
-        doc.setTextColor(0, 0, 0); // Default to black
+        doc.setFont(currentFont.fontName, currentFont.fontStyle);
+        doc.setFontSize(currentFontSize);
       }
-      doc.setFont(currentFont.fontName, currentFont.fontStyle);
-      doc.setFontSize(currentFontSize);
-      }
-      
+
       console.log('[PDF Watermark] Watermark added successfully');
     } catch (watermarkError: any) {
       console.error('[PDF Watermark] Error adding watermark:', watermarkError);

@@ -129,20 +129,20 @@ export default function VentesAchatsTab({ tenantId }: VentesAchatsTabProps) {
   return (
     <div className="space-y-6">
       {/* Section Ventes */}
-      <div className="bg-white p-6 rounded-lg shadow">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow border dark:border-gray-700">
+        <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
           Paramètres de ventes
         </h3>
-        
+
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 TVA par défaut (%)
               </label>
               <select
                 {...register('tvaParDefautPct', { valueAsNumber: true })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
               >
                 {taxRates.map((rate) => (
                   <option key={rate.code} value={rate.tauxPct}>
@@ -151,37 +151,37 @@ export default function VentesAchatsTab({ tenantId }: VentesAchatsTabProps) {
                 ))}
               </select>
               {errors.tvaParDefautPct && (
-                <p className="mt-1 text-sm text-red-600">{errors.tvaParDefautPct.message}</p>
+                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.tvaParDefautPct.message}</p>
               )}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Conditions de paiement par défaut
               </label>
               <input
                 type="text"
                 {...register('conditionsPaiementDefaut')}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                 placeholder="30 jours"
               />
               {errors.conditionsPaiementDefaut && (
-                <p className="mt-1 text-sm text-red-600">{errors.conditionsPaiementDefaut.message}</p>
+                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.conditionsPaiementDefaut.message}</p>
               )}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Unité par défaut
               </label>
               <input
                 type="text"
                 {...register('uniteParDefaut')}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                 placeholder="pièce"
               />
               {errors.uniteParDefaut && (
-                <p className="mt-1 text-sm text-red-600">{errors.uniteParDefaut.message}</p>
+                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.uniteParDefaut.message}</p>
               )}
             </div>
           </div>
@@ -189,28 +189,28 @@ export default function VentesAchatsTab({ tenantId }: VentesAchatsTabProps) {
       </div>
 
       {/* Section Achats */}
-      <div className="bg-white p-6 rounded-lg shadow">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow border dark:border-gray-700">
+        <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
           Modes de règlement
         </h3>
-        
+
         <div className="space-y-4">
           {/* Modes existants */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Modes de règlement disponibles
             </label>
             <div className="flex flex-wrap gap-2">
               {modesReglement.map((mode, index) => (
                 <span
                   key={index}
-                  className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800"
+                  className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800"
                 >
                   {mode}
                   <button
                     type="button"
                     onClick={() => removeModeReglement(index)}
-                    className="ml-2 inline-flex items-center justify-center w-4 h-4 rounded-full text-indigo-400 hover:bg-indigo-200 hover:text-indigo-500"
+                    className="ml-2 inline-flex items-center justify-center w-4 h-4 rounded-full text-indigo-400 dark:text-indigo-300 hover:bg-indigo-200 dark:hover:bg-indigo-800 hover:text-indigo-500 dark:hover:text-indigo-200"
                   >
                     <XMarkIcon className="w-3 h-3" />
                   </button>
@@ -218,13 +218,13 @@ export default function VentesAchatsTab({ tenantId }: VentesAchatsTabProps) {
               ))}
             </div>
             {errors.modesReglement && (
-              <p className="mt-1 text-sm text-red-600">{errors.modesReglement.message}</p>
+              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.modesReglement.message}</p>
             )}
           </div>
 
           {/* Ajouter un nouveau mode */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Ajouter un mode de règlement
             </label>
             <div className="flex space-x-2">
@@ -233,13 +233,13 @@ export default function VentesAchatsTab({ tenantId }: VentesAchatsTabProps) {
                 value={newModeReglement}
                 onChange={(e) => setNewModeReglement(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addModeReglement())}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                 placeholder="Nouveau mode de règlement"
               />
               <button
                 type="button"
                 onClick={addModeReglement}
-                className="px-3 py-2 text-sm font-medium text-indigo-600 bg-indigo-100 border border-indigo-300 rounded-md hover:bg-indigo-200"
+                className="px-3 py-2 text-sm font-medium text-indigo-600 dark:text-indigo-300 bg-indigo-100 dark:bg-indigo-900/30 border border-indigo-300 dark:border-indigo-700 rounded-md hover:bg-indigo-200 dark:hover:bg-indigo-900"
               >
                 <PlusIcon className="h-4 w-4" />
               </button>
@@ -253,7 +253,7 @@ export default function VentesAchatsTab({ tenantId }: VentesAchatsTabProps) {
         <button
           onClick={handleSubmit(onSubmit)}
           disabled={saving}
-          className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 disabled:opacity-50"
+          className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-500 border border-transparent rounded-md disabled:opacity-50 transition-colors"
         >
           {saving ? 'Sauvegarde...' : 'Sauvegarder'}
         </button>

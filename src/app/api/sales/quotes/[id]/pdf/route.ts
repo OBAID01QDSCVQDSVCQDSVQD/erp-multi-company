@@ -14,13 +14,13 @@ export async function GET(
 ) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }
 
     const tenantId = request.headers.get('X-Tenant-Id') || session.user.companyId;
-    
+
     if (!tenantId) {
       return NextResponse.json({ error: 'Tenant ID manquant' }, { status: 400 });
     }
@@ -43,6 +43,17 @@ export async function GET(
     const settings = await (CompanySettings as any).findOne({ tenantId });
     if (!settings) {
       return NextResponse.json({ error: 'Paramètres de société non trouvés' }, { status: 404 });
+    }
+
+    // Check query params for stamp option
+    const { searchParams } = new URL(request.url);
+    const withStamp = searchParams.get('withStamp') !== 'false'; // Default to true if not specified, or handle as user pref
+
+    // If user explicitly requests NO stamp, remove it from the settings object passed to generator
+    if (!withStamp) {
+      if (settings.societe) {
+        settings.societe.cachetUrl = undefined;
+      }
     }
 
     // Fetch customer details (directly from DB, no HTTP call)
@@ -111,13 +122,13 @@ export async function GET(
       const lineHT = lineHTBeforeDiscount * (1 - ((line.remisePct || 0) / 100));
       return sum + (lineHTBeforeDiscount - lineHT);
     }, 0);
-    
+
     const totalHTAfterLineDiscount = quote.lignes.reduce((sum: number, line: any) => {
       const lineHTBeforeDiscount = (line.quantite || 0) * (line.prixUnitaireHT || 0);
       const lineHT = lineHTBeforeDiscount * (1 - ((line.remisePct || 0) / 100));
       return sum + lineHT;
     }, 0);
-    
+
     const remiseGlobalePct = quote.remiseGlobalePct || 0;
     const remiseGlobale = totalHTAfterLineDiscount - (totalHTAfterLineDiscount * (1 - (remiseGlobalePct / 100)));
 

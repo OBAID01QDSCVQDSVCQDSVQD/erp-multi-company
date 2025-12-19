@@ -14,13 +14,13 @@ export async function GET(
 ) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }
 
     const tenantId = request.headers.get('X-Tenant-Id') || session.user.companyId;
-    
+
     if (!tenantId) {
       return NextResponse.json({ error: 'Tenant ID manquant' }, { status: 400 });
     }
@@ -45,6 +45,17 @@ export async function GET(
       return NextResponse.json({ error: 'Paramètres de société non trouvés' }, { status: 404 });
     }
 
+    // Check query params for stamp option
+    const { searchParams } = new URL(request.url);
+    const withStamp = searchParams.get('withStamp') !== 'false';
+
+    // If user explicitly requests NO stamp, remove it from the settings object passed to generator
+    if (!withStamp) {
+      if (settings.societe) {
+        settings.societe.cachetUrl = undefined;
+      }
+    }
+
     // Fetch customer details directly from database
     let customerName = '';
     let customerAddress = '';
@@ -59,7 +70,7 @@ export async function GET(
           _id: invoice.customerId.toString(),
           tenantId
         }).lean();
-        
+
         if (customer) {
           customerName = customer.raisonSociale || `${customer.nom || ''} ${customer.prenom || ''}`.trim() || 'N/A';
           if (customer.adresseFacturation) {
