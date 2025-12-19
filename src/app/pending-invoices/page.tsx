@@ -70,8 +70,8 @@ export default function PendingInvoicesPage() {
           let customerName = 'N/A';
           if (inv.customerId) {
             if (typeof inv.customerId === 'object' && inv.customerId !== null) {
-              customerName = inv.customerId.raisonSociale || 
-                `${inv.customerId.nom || ''} ${inv.customerId.prenom || ''}`.trim() || 
+              customerName = inv.customerId.raisonSociale ||
+                `${inv.customerId.nom || ''} ${inv.customerId.prenom || ''}`.trim() ||
                 'N/A';
             }
           }
@@ -140,7 +140,7 @@ export default function PendingInvoicesPage() {
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <p className="mt-4 text-gray-600">Chargement...</p>
+            <p className="mt-4 text-gray-600 dark:text-gray-400">Chargement...</p>
           </div>
         </div>
       </DashboardLayout>
@@ -155,17 +155,17 @@ export default function PendingInvoicesPage() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => router.back()}
-              className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-colors"
+              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
               title="Retour à la page précédente"
             >
               <ArrowLeftIcon className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-3">
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
                 <ExclamationTriangleIcon className="w-8 h-8 text-orange-500" />
                 Factures en attente de paiement
               </h1>
-              <p className="text-gray-600 mt-2">
+              <p className="text-gray-600 dark:text-gray-400 mt-2">
                 Liste des factures (internes et officielles) non payées ou partiellement payées
               </p>
             </div>
@@ -175,33 +175,33 @@ export default function PendingInvoicesPage() {
         {/* Summary Cards */}
         {summary && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-white border rounded-lg p-6 shadow-sm">
+            <div className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg p-6 shadow-sm">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">Total factures en attente</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-1">{summary.totalCount}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Total factures en attente</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{summary.totalCount}</p>
                 </div>
                 <DocumentTextIcon className="w-12 h-12 text-orange-500 opacity-20" />
               </div>
             </div>
-            <div className="bg-white border rounded-lg p-6 shadow-sm">
+            <div className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg p-6 shadow-sm">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">Factures internes</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-1">{summary.totalInternalCount}</p>
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Factures internes</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{summary.totalInternalCount}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                     {formatPrice(summary.totalInternalPending)}
                   </p>
                 </div>
                 <DocumentTextIcon className="w-12 h-12 text-blue-500 opacity-20" />
               </div>
             </div>
-            <div className="bg-white border rounded-lg p-6 shadow-sm">
+            <div className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg p-6 shadow-sm">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">Factures officielles</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-1">{summary.totalOfficialCount}</p>
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Factures officielles</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{summary.totalOfficialCount}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                     {formatPrice(summary.totalOfficialPending)}
                   </p>
                 </div>
@@ -213,13 +213,13 @@ export default function PendingInvoicesPage() {
 
         {/* Total Pending Amount Banner */}
         {summary && summary.totalPendingAmount > 0 && (
-          <div className="bg-gradient-to-r from-orange-50 to-amber-50 border-l-4 border-orange-500 rounded-lg p-6">
+          <div className="bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/20 border-l-4 border-orange-500 rounded-lg p-6">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                   Montant total en attente
                 </h3>
-                <p className="text-3xl font-bold text-orange-600 mt-2">
+                <p className="text-3xl font-bold text-orange-600 dark:text-orange-400 mt-2">
                   {formatPrice(summary.totalPendingAmount)}
                 </p>
               </div>
@@ -230,91 +230,90 @@ export default function PendingInvoicesPage() {
 
         {/* Invoices List */}
         {invoices.length === 0 ? (
-          <div className="text-center py-20 bg-gray-50 rounded-2xl">
-            <DocumentTextIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+          <div className="text-center py-20 bg-gray-50 dark:bg-gray-800 rounded-2xl">
+            <DocumentTextIcon className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
               Aucune facture en attente
             </h3>
-            <p className="text-gray-600">
+            <p className="text-gray-600 dark:text-gray-400">
               Toutes les factures sont payées intégralement
             </p>
           </div>
         ) : (
-          <div className="bg-white border rounded-xl overflow-hidden shadow-sm">
+          <div className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-xl overflow-hidden shadow-sm">
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50 border-b">
+                <thead className="bg-gray-50 dark:bg-gray-700 border-b dark:border-gray-600">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">
                       Type
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">
                       Numéro
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">
                       Date
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">
                       Client
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">
                       Projet
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">
                       Total TTC
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">
                       Payé
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">
                       Restant
                     </th>
-                    <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider">
                       Action
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
+                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                   {invoices.map((invoice) => (
-                    <tr key={invoice._id} className="hover:bg-gray-50 transition-colors">
+                    <tr key={invoice._id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                       <td className="px-4 py-4 whitespace-nowrap">
                         <span
-                          className={`px-2 py-1 text-xs font-medium rounded-full ${
-                            invoice.type === 'internal'
-                              ? 'bg-blue-100 text-blue-800'
-                              : 'bg-green-100 text-green-800'
-                          }`}
+                          className={`px-2 py-1 text-xs font-medium rounded-full ${invoice.type === 'internal'
+                              ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+                              : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                            }`}
                         >
                           {invoice.typeLabel}
                         </span>
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap">
-                        <span className="font-medium text-gray-900">{invoice.numero}</span>
+                        <span className="font-medium text-gray-900 dark:text-white">{invoice.numero}</span>
                       </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
                         {formatDate(invoice.dateDoc)}
                       </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
                         {invoice.customerName || 'N/A'}
                       </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
                         {invoice.projetName || '-'}
                       </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-right text-sm font-medium text-gray-900">
+                      <td className="px-4 py-4 whitespace-nowrap text-right text-sm font-medium text-gray-900 dark:text-white">
                         {formatPrice(invoice.totalTTC, invoice.devise)}
                       </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-right text-sm text-gray-600">
+                      <td className="px-4 py-4 whitespace-nowrap text-right text-sm text-gray-600 dark:text-gray-300">
                         {formatPrice(invoice.totalPaid, invoice.devise)}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-right">
-                        <span className="text-sm font-semibold text-orange-600">
+                        <span className="text-sm font-semibold text-orange-600 dark:text-orange-400">
                           {formatPrice(invoice.remainingBalance, invoice.devise)}
                         </span>
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-center">
                         <Link
                           href={getInvoiceUrl(invoice)}
-                          className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-900 font-medium text-sm"
+                          className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 font-medium text-sm"
                         >
                           Voir
                           <ArrowRightIcon className="w-4 h-4" />

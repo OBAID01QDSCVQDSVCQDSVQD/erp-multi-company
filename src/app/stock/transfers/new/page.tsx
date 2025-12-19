@@ -149,19 +149,19 @@ export default function NewStockTransferPage() {
         <DashboardLayout>
             <div className="p-6 max-w-4xl mx-auto space-y-6">
                 <div className="flex items-center gap-4">
-                    <button onClick={() => router.back()} className="p-2 hover:bg-gray-100 rounded-full">
+                    <button onClick={() => router.back()} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full text-gray-600 dark:text-gray-300">
                         <ArrowLeftIcon className="w-6 h-6" />
                     </button>
-                    <h1 className="text-2xl font-bold">Nouveau Transfert</h1>
+                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Nouveau Transfert</h1>
                 </div>
 
-                <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6 space-y-6">
+                <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 space-y-6 border dark:border-gray-700">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700">Entrepôt Source (Départ)</label>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Entrepôt Source (Départ)</label>
                             <select
                                 required
-                                className="mt-1 block w-full border rounded-md px-3 py-2"
+                                className="mt-1 block w-full border rounded-md px-3 py-2 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-blue-500 focus:border-blue-500"
                                 value={formData.sourceWarehouseId}
                                 onChange={e => setFormData({ ...formData, sourceWarehouseId: e.target.value })}
                             >
@@ -172,10 +172,10 @@ export default function NewStockTransferPage() {
                             </select>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700">Entrepôt Destination (Arrivée)</label>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Entrepôt Destination (Arrivée)</label>
                             <select
                                 required
-                                className="mt-1 block w-full border rounded-md px-3 py-2"
+                                className="mt-1 block w-full border rounded-md px-3 py-2 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-blue-500 focus:border-blue-500"
                                 value={formData.destinationWarehouseId}
                                 onChange={e => setFormData({ ...formData, destinationWarehouseId: e.target.value })}
                             >
@@ -186,40 +186,40 @@ export default function NewStockTransferPage() {
                             </select>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700">Date</label>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Date</label>
                             <input
                                 type="date"
                                 required
-                                className="mt-1 block w-full border rounded-md px-3 py-2"
+                                className="mt-1 block w-full border rounded-md px-3 py-2 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-blue-500 focus:border-blue-500"
                                 value={formData.date}
                                 onChange={e => setFormData({ ...formData, date: e.target.value })}
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700">Notes</label>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Notes</label>
                             <input
                                 type="text"
-                                className="mt-1 block w-full border rounded-md px-3 py-2"
+                                className="mt-1 block w-full border rounded-md px-3 py-2 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-blue-500 focus:border-blue-500"
                                 value={formData.notes}
                                 onChange={e => setFormData({ ...formData, notes: e.target.value })}
                             />
                         </div>
                     </div>
 
-                    <div className="border-t pt-4">
-                        <h3 className="text-lg font-medium mb-4">Produits à transférer</h3>
+                    <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+                        <h3 className="text-lg font-medium mb-4 text-gray-900 dark:text-white">Produits à transférer</h3>
                         <div className="space-y-4">
                             {lines.map((line, index) => (
-                                <div key={index} className="flex gap-4 items-end bg-gray-50 p-4 rounded-lg">
+                                <div key={index} className="flex gap-4 items-end bg-gray-50 dark:bg-gray-700/30 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
                                     <div className="flex-1">
-                                        <label className="block text-xs text-gray-500 mb-1">Produit</label>
+                                        <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Produit</label>
                                         <div
                                             className="relative cursor-pointer"
                                             onClick={() => openProductModal(index)}
                                         >
-                                            <div className="block w-full border bg-white rounded-md px-3 py-2 min-h-[38px] flex items-center">
+                                            <div className="block w-full border bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 min-h-[38px] flex items-center">
                                                 {line.productId ? (
-                                                    <span className="text-gray-900">{getProductDisplay(line.productId)}</span>
+                                                    <span className="text-gray-900 dark:text-white">{getProductDisplay(line.productId)}</span>
                                                 ) : (
                                                     <span className="text-gray-400">Cliquer pour choisir un produit...</span>
                                                 )}
@@ -228,13 +228,13 @@ export default function NewStockTransferPage() {
                                         </div>
                                     </div>
                                     <div className="w-32">
-                                        <label className="block text-xs text-gray-500 mb-1">Quantité</label>
+                                        <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Quantité</label>
                                         <input
                                             type="number"
                                             min="0.001"
                                             step="0.001"
                                             required
-                                            className="block w-full border rounded-md px-3 py-2"
+                                            className="block w-full border rounded-md px-3 py-2 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-blue-500 focus:border-blue-500"
                                             value={line.quantity}
                                             onChange={e => updateLine(index, 'quantity', parseFloat(e.target.value))}
                                         />
@@ -242,7 +242,7 @@ export default function NewStockTransferPage() {
                                     <button
                                         type="button"
                                         onClick={() => removeLine(index)}
-                                        className="p-2 text-red-600 hover:bg-red-50 rounded"
+                                        className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-colors"
                                         title="Supprimer la ligne"
                                     >
                                         <TrashIcon className="w-5 h-5" />
@@ -253,24 +253,24 @@ export default function NewStockTransferPage() {
                         <button
                             type="button"
                             onClick={addLine}
-                            className="mt-4 flex items-center gap-2 text-blue-600 hover:text-blue-700 text-sm font-medium"
+                            className="mt-4 flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm font-medium transition-colors"
                         >
                             <PlusIcon className="w-4 h-4" /> Ajouter une ligne
                         </button>
                     </div>
 
-                    <div className="flex justify-end gap-3 pt-4 border-t">
+                    <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
                         <button
                             type="button"
                             onClick={() => router.back()}
-                            className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+                            className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                         >
                             Annuler
                         </button>
                         <button
                             type="submit"
                             disabled={saving}
-                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
                         >
                             {saving ? 'Enregistrement...' : 'Créer le transfert'}
                         </button>

@@ -22,20 +22,20 @@ export default function ProductsPage() {
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [categoryForm, setCategoryForm] = useState({ code: '', nom: '', description: '' });
   const [autoGenerateCode, setAutoGenerateCode] = useState(true);
-  const [units, setUnits] = useState<{ code:string; libelle:string; categorie:string }[]>([]);
-  const [taxRates, setTaxRates] = useState<{ code:string; libelle:string; tauxPct:number }[]>([]);
-  const [categories, setCategories] = useState<{ code:string; nom:string; description?:string }[]>([]);
-  const [activeTab, setActiveTab] = useState<'products'|'categories'>('products');
+  const [units, setUnits] = useState<{ code: string; libelle: string; categorie: string }[]>([]);
+  const [taxRates, setTaxRates] = useState<{ code: string; libelle: string; tauxPct: number }[]>([]);
+  const [categories, setCategories] = useState<{ code: string; nom: string; description?: string }[]>([]);
+  const [activeTab, setActiveTab] = useState<'products' | 'categories'>('products');
   const [editingCategoryCode, setEditingCategoryCode] = useState<string | null>(null);
   const [viewingCategory, setViewingCategory] = useState<boolean>(false);
   const productDescRef = useRef<HTMLDivElement>(null);
   const categoryDescRef = useRef<HTMLDivElement>(null);
-  const [form, setForm] = useState<{ 
-    nom:string; sku:string; barcode?:string; categorieCode?:string; description?:string; referenceClient?: string;
-    prixVenteHT?:number; prixAchatRef?:number; taxCode?:string; uomVenteCode?:string; 
-    typeProduit:'service'|'stocke'; min?:number; max?:number; leadTimeJours?:number; 
-    actif:boolean; tagsText?:string;
-  }>({ nom:'', sku:'', barcode: '', categorieCode: undefined, description:'', referenceClient:'', prixVenteHT: undefined, prixAchatRef: undefined, taxCode: undefined, uomVenteCode: undefined, typeProduit:'service', min: undefined, max: undefined, leadTimeJours: undefined, actif:true, tagsText:'' });
+  const [form, setForm] = useState<{
+    nom: string; sku: string; barcode?: string; categorieCode?: string; description?: string; referenceClient?: string;
+    prixVenteHT?: number; prixAchatRef?: number; taxCode?: string; uomVenteCode?: string;
+    typeProduit: 'service' | 'stocke'; min?: number; max?: number; leadTimeJours?: number;
+    actif: boolean; tagsText?: string;
+  }>({ nom: '', sku: '', barcode: '', categorieCode: undefined, description: '', referenceClient: '', prixVenteHT: undefined, prixAchatRef: undefined, taxCode: undefined, uomVenteCode: undefined, typeProduit: 'service', min: undefined, max: undefined, leadTimeJours: undefined, actif: true, tagsText: '' });
 
   useEffect(() => { fetchProducts(); }, [tenantId]);
   useEffect(() => { if (tenantId) loadRefs(); }, [tenantId]);
@@ -84,8 +84,8 @@ export default function ProductsPage() {
   };
 
   const getTypeColor = (type: string) => {
-    return type === 'product' 
-      ? 'bg-blue-100 text-blue-800' 
+    return type === 'product'
+      ? 'bg-blue-100 text-blue-800'
       : 'bg-purple-100 text-purple-800';
   };
 
@@ -103,14 +103,53 @@ export default function ProductsPage() {
   if (loading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-indigo-600"></div>
+        <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+          {/* Header Skeleton */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse" />
+              <div>
+                <div className="h-6 w-48 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+                <div className="h-4 w-64 bg-gray-200 dark:bg-gray-700 rounded mt-2 animate-pulse" />
+              </div>
+            </div>
+            <div className="w-full sm:w-64">
+              <div className="h-10 w-full bg-gray-200 dark:bg-gray-700 rounded-md animate-pulse" />
+            </div>
+          </div>
+
+          {/* Tabs Skeleton */}
+          <div className="border-b dark:border-gray-700 flex space-x-6">
+            <div className="h-10 w-24 bg-gray-200 dark:bg-gray-700 rounded-t animate-pulse" />
+            <div className="h-10 w-24 bg-gray-200 dark:bg-gray-700 rounded-t animate-pulse" />
+          </div>
+
+          {/* Table Skeleton */}
+          <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden border dark:border-gray-700">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+              <div className="h-6 w-32 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+              <div className="h-8 w-32 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+            </div>
+            <div className="p-6">
+              <div className="space-y-4">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="flex gap-4">
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/6 animate-pulse" />
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/6 animate-pulse" />
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4 animate-pulse" />
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/6 animate-pulse" />
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/6 animate-pulse" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       </DashboardLayout>
     );
   }
 
-  function handleEditCategory(c: {code:string; nom:string; description?:string}) {
+  function handleEditCategory(c: { code: string; nom: string; description?: string }) {
     setEditingCategoryCode(c.code);
     setViewingCategory(false);
     setCategoryForm({ code: c.code, nom: c.nom, description: c.description || '' });
@@ -124,7 +163,7 @@ export default function ProductsPage() {
     }, 0);
   }
 
-  function handleViewCategory(c: {code:string; nom:string; description?:string}) {
+  function handleViewCategory(c: { code: string; nom: string; description?: string }) {
     setEditingCategoryCode(c.code);
     setViewingCategory(true);
     setCategoryForm({ code: c.code, nom: c.nom, description: c.description || '' });
@@ -142,19 +181,19 @@ export default function ProductsPage() {
       toast.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
       toast.textContent = 'Catégorie supprimée';
       document.body.appendChild(toast);
-      setTimeout(()=>toast.remove(), 2500);
+      setTimeout(() => toast.remove(), 2500);
     } else {
       const toast = document.createElement('div');
       toast.className = 'fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
       toast.textContent = 'Erreur lors de la suppression';
       document.body.appendChild(toast);
-      setTimeout(()=>toast.remove(), 3500);
+      setTimeout(() => toast.remove(), 3500);
     }
   }
 
   async function addProduct() {
     if (!tenantId) return;
-    setForm({ nom:'', sku:'', barcode: '', categorieCode: undefined, description:'', referenceClient:'', prixVenteHT: undefined, taxCode: undefined, uomVenteCode: undefined, typeProduit:'service', min: undefined, max: undefined, leadTimeJours: undefined, actif:true, tagsText:'' });
+    setForm({ nom: '', sku: '', barcode: '', categorieCode: undefined, description: '', referenceClient: '', prixVenteHT: undefined, taxCode: undefined, uomVenteCode: undefined, typeProduit: 'service', min: undefined, max: undefined, leadTimeJours: undefined, actif: true, tagsText: '' });
     setEditingSku(null);
     setViewing(false);
     setShowModal(true);
@@ -175,15 +214,15 @@ export default function ProductsPage() {
       ]);
       if (u.ok) {
         const data = await u.json();
-        setUnits((data.data||[]).map((x:any)=>({ code:x.code, libelle:x.libelle, categorie:x.categorie })));
+        setUnits((data.data || []).map((x: any) => ({ code: x.code, libelle: x.libelle, categorie: x.categorie })));
       }
       if (t.ok) {
         const data = await t.json();
-        setTaxRates((data.data||[]).map((x:any)=>({ code:x.code, libelle:x.libelle, tauxPct:x.tauxPct })));
+        setTaxRates((data.data || []).map((x: any) => ({ code: x.code, libelle: x.libelle, tauxPct: x.tauxPct })));
       }
       if (c.ok) {
         const data = await c.json();
-        setCategories((data.data||[]).map((x:any)=>({ code:x.code, nom:x.nom, description:x.description })));
+        setCategories((data.data || []).map((x: any) => ({ code: x.code, nom: x.nom, description: x.description })));
       }
     } catch (e) {
       console.error('refs load failed', e);
@@ -197,8 +236,8 @@ export default function ProductsPage() {
       setSaving(true);
       // Find tvaPct from selected taxCode
       const selectedTax = taxRates.find(r => r.code === form.taxCode);
-      
-      const payload:any = {
+
+      const payload: any = {
         nom: form.nom,
         sku: form.sku || undefined,
         barcode: form.barcode || undefined,
@@ -215,11 +254,11 @@ export default function ProductsPage() {
         max: form.typeProduit === 'stocke' ? (form.max ?? undefined) : undefined,
         leadTimeJours: form.typeProduit === 'stocke' ? (form.leadTimeJours ?? undefined) : undefined,
         actif: form.actif,
-        tags: (form.tagsText || '').split(',').map(t=>t.trim()).filter(Boolean),
+        tags: (form.tagsText || '').split(',').map(t => t.trim()).filter(Boolean),
       };
       const url = editingSku ? `/api/products/${editingSku}` : '/api/products';
       const method = editingSku ? 'PATCH' : 'POST';
-      const res = await fetch(url, { method, headers:{ 'Content-Type':'application/json', 'X-Tenant-Id': tenantId }, body: JSON.stringify(payload) });
+      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json', 'X-Tenant-Id': tenantId }, body: JSON.stringify(payload) });
       if (res.ok) {
         setShowModal(false);
         setEditingSku(null);
@@ -235,12 +274,12 @@ export default function ProductsPage() {
 
   function regenerateSku() {
     const year = new Date().getFullYear();
-    const seq = String(Math.floor(10000 + Math.random()*90000));
+    const seq = String(Math.floor(10000 + Math.random() * 90000));
     setForm(prev => ({ ...prev, sku: `P-${year}${seq}` }));
   }
 
   const selectedTv = taxRates.find(r => r.code === form.taxCode);
-  const prixTTC = form.prixVenteHT !== undefined && selectedTv ? Math.round((form.prixVenteHT * (1 + selectedTv.tauxPct/100)) * 1000)/1000 : undefined;
+  const prixTTC = form.prixVenteHT !== undefined && selectedTv ? Math.round((form.prixVenteHT * (1 + selectedTv.tauxPct / 100)) * 1000) / 1000 : undefined;
 
   async function onChangeCategorie(e: React.ChangeEvent<HTMLSelectElement>) {
     const value = e.target.value;
@@ -373,7 +412,7 @@ export default function ProductsPage() {
         const categoriesRes = await fetch('/api/product-categories', { headers: { 'X-Tenant-Id': tenantId } });
         if (categoriesRes.ok) {
           const data = await categoriesRes.json();
-          setCategories((data.data||[]).map((x:any)=>({ code:x.code, nom:x.nom, description:x.description })));
+          setCategories((data.data || []).map((x: any) => ({ code: x.code, nom: x.nom, description: x.description })));
         }
         showToast('Catégorie créée avec succès', 'success');
       } else {
@@ -385,12 +424,12 @@ export default function ProductsPage() {
     }
   }
 
-  function showToast(message: string, type: 'success'|'error' = 'success') {
+  function showToast(message: string, type: 'success' | 'error' = 'success') {
     const toast = document.createElement('div');
-    toast.className = `fixed top-4 right-4 ${type==='success' ? 'bg-green-500' : 'bg-red-500'} text-white px-6 py-3 rounded-lg shadow-lg z-50`;
+    toast.className = `fixed top-4 right-4 ${type === 'success' ? 'bg-green-500' : 'bg-red-500'} text-white px-6 py-3 rounded-lg shadow-lg z-50`;
     toast.textContent = message;
     document.body.appendChild(toast);
-    setTimeout(() => { toast.remove(); }, type==='success' ? 3000 : 5000);
+    setTimeout(() => { toast.remove(); }, type === 'success' ? 3000 : 5000);
   }
 
   return (
@@ -401,36 +440,36 @@ export default function ProductsPage() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => router.back()}
-              className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-colors"
+              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors"
               title="Retour à la page précédente"
             >
               <ArrowLeftIcon className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Produits & Services</h1>
-              <p className="mt-1 text-xs sm:text-sm text-gray-500">
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Produits & Services</h1>
+              <p className="mt-1 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                 Gérez votre catalogue de produits et services
               </p>
             </div>
           </div>
           <div className="w-full sm:w-auto">
             <div className="relative">
-              <MagnifyingGlassIcon className="h-5 w-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
-              <input 
-                value={q} 
-                onChange={(e)=>setQ(e.target.value)} 
-                placeholder="Rechercher (nom, sku, tags)" 
-                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-sm sm:text-base"
+              <MagnifyingGlassIcon className="h-5 w-5 text-gray-400 dark:text-gray-500 absolute left-3 top-1/2 transform -translate-y-1/2" />
+              <input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Rechercher (nom, sku, tags)"
+                className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-sm sm:text-base bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
               />
             </div>
           </div>
         </div>
 
         {/* Tabs */}
-        <div className="border-b">
+        <div className="border-b dark:border-gray-700">
           <nav className="-mb-px flex space-x-6" aria-label="Tabs">
-            <button onClick={()=>setActiveTab('products')} className={`whitespace-nowrap py-4 px-1 border-b-2 text-sm font-medium ${activeTab==='products' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>Produits</button>
-            <button onClick={()=>setActiveTab('categories')} className={`whitespace-nowrap py-4 px-1 border-b-2 text-sm font-medium ${activeTab==='categories' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>Catégories</button>
+            <button onClick={() => setActiveTab('products')} className={`whitespace-nowrap py-4 px-1 border-b-2 text-sm font-medium transition-colors ${activeTab === 'products' ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:border-gray-600'}`}>Produits</button>
+            <button onClick={() => setActiveTab('categories')} className={`whitespace-nowrap py-4 px-1 border-b-2 text-sm font-medium transition-colors ${activeTab === 'categories' ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:border-gray-600'}`}>Catégories</button>
           </nav>
         </div>
 
@@ -442,39 +481,39 @@ export default function ProductsPage() {
         )}
 
         {/* Categories List (tab) */}
-        {activeTab==='categories' && (
-          <div className="bg-white shadow rounded-lg">
-            <div className="px-6 py-4 border-b border-gray-200">
+        {activeTab === 'categories' && (
+          <div className="bg-white dark:bg-gray-800 shadow rounded-lg">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-medium text-gray-900 flex items-center">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white flex items-center">
                   <span className="mr-2">📁</span>
                   Catégories ({filteredCategories.length})
                 </h3>
-                <button onClick={addCategory} className="inline-flex items-center px-3 py-1.5 rounded-md text-sm text-white bg-indigo-600 hover:bg-indigo-700"><PlusIcon className="h-4 w-4 mr-1"/>Nouvelle catégorie</button>
+                <button onClick={addCategory} className="inline-flex items-center px-3 py-1.5 rounded-md text-sm text-white bg-indigo-600 hover:bg-indigo-700"><PlusIcon className="h-4 w-4 mr-1" />Nouvelle catégorie</button>
               </div>
             </div>
             <div className="p-6">
               {filteredCategories.length === 0 ? (
-                <p className="text-sm text-gray-500">Aucune catégorie.</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Aucune catégorie.</p>
               ) : (
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead className="bg-gray-50 dark:bg-gray-700">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nom</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Code</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Nom</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                     {filteredCategories.map(category => (
-                      <tr key={category.code}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900">{category.code}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{category.nom}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <tr key={category.code} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900 dark:text-white">{category.code}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{category.nom}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                           <div className="flex items-center space-x-3">
-                            <button onClick={()=>handleViewCategory(category)} className="text-gray-600 hover:text-gray-900" title="Voir"><EyeIcon className="h-5 w-5" /></button>
-                            <button onClick={()=>handleEditCategory(category)} className="text-indigo-600 hover:text-indigo-900" title="Modifier"><PencilIcon className="h-5 w-5" /></button>
-                            <button onClick={()=>handleDeleteCategory(category.code)} className="text-red-600 hover:text-red-900" title="Supprimer"><TrashIcon className="h-5 w-5" /></button>
+                            <button onClick={() => handleViewCategory(category)} className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200" title="Voir"><EyeIcon className="h-5 w-5" /></button>
+                            <button onClick={() => handleEditCategory(category)} className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300" title="Modifier"><PencilIcon className="h-5 w-5" /></button>
+                            <button onClick={() => handleDeleteCategory(category.code)} className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300" title="Supprimer"><TrashIcon className="h-5 w-5" /></button>
                           </div>
                         </td>
                       </tr>
@@ -487,70 +526,70 @@ export default function ProductsPage() {
         )}
 
         {/* Products list (tab) */}
-        {activeTab==='products' ? (
-          <div className="bg-white shadow rounded-lg">
-            <div className="px-6 py-4 border-b border-gray-200">
+        {activeTab === 'products' ? (
+          <div className="bg-white dark:bg-gray-800 shadow rounded-lg">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-medium text-gray-900 flex items-center">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white flex items-center">
                   <span className="mr-2">🛍️</span>
                   Produits ({filteredProducts.length})
                 </h3>
-                <button onClick={addProduct} className="inline-flex items-center px-3 py-1.5 rounded-md text-sm text-white bg-indigo-600 hover:bg-indigo-700"><PlusIcon className="h-4 w-4 mr-1"/>Nouveau produit</button>
+                <button onClick={addProduct} className="inline-flex items-center px-3 py-1.5 rounded-md text-sm text-white bg-indigo-600 hover:bg-indigo-700"><PlusIcon className="h-4 w-4 mr-1" />Nouveau produit</button>
               </div>
             </div>
             <div className="p-6">
               {filteredProducts.length === 0 ? (
-          <div className="text-center py-12">
-            <ShoppingBagIcon className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">Aucun produit</h3>
-            <p className="mt-1 text-sm text-gray-500">
-              Commencez par créer votre premier produit ou service.
-            </p>
+                <div className="text-center py-12">
+                  <ShoppingBagIcon className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-600" />
+                  <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">Aucun produit</h3>
+                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    Commencez par créer votre premier produit ou service.
+                  </p>
                 </div>
-                              ) : (
-                  <div className="overflow-x-auto -mx-4 sm:mx-0 sm:rounded-md">
-                <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SKU</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Réf</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nom</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Prix (HT)</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">TVA</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unité</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredProducts.map((p) => (
-                  <tr key={p._id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900">{p.sku}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{p.referenceClient ?? '-'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{p.nom}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${p.estStocke ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'}`}>
-                        {p.estStocke ? 'ARTICLE' : 'SERVICE'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{p.prixVenteHT ?? '-'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{p.taxCode ?? '-'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{p.uomVenteCode ?? '-'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${p.actif ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{p.actif ? 'ACTIF' : 'INACTIF'}</span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      <div className="flex items-center space-x-3">
-                        <button onClick={()=>handleView(p)} className="text-gray-600 hover:text-gray-900" title="Voir"><EyeIcon className="h-5 w-5" /></button>
-                        <button onClick={()=>handleEdit(p)} className="text-indigo-600 hover:text-indigo-900" title="Modifier"><PencilIcon className="h-5 w-5" /></button>
-                        <button onClick={()=>handleDelete(p.sku)} className="text-red-600 hover:text-red-900" title="Supprimer"><TrashIcon className="h-5 w-5" /></button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              </table>
+              ) : (
+                <div className="overflow-x-auto -mx-4 sm:mx-0 sm:rounded-md">
+                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead className="bg-gray-50 dark:bg-gray-700">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">SKU</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Réf</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Nom</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Type</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Prix (HT)</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">TVA</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Unité</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Statut</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                      {filteredProducts.map((p) => (
+                        <tr key={p._id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900 dark:text-white">{p.sku}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{p.referenceClient ?? '-'}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{p.nom}</td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${p.estStocke ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300' : 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300'}`}>
+                              {p.estStocke ? 'ARTICLE' : 'SERVICE'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{p.prixVenteHT ?? '-'}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{p.taxCode ?? '-'}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{p.uomVenteCode ?? '-'}</td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${p.actif ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300' : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300'}`}>{p.actif ? 'ACTIF' : 'INACTIF'}</span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                            <div className="flex items-center space-x-3">
+                              <button onClick={() => handleView(p)} className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200" title="Voir"><EyeIcon className="h-5 w-5" /></button>
+                              <button onClick={() => handleEdit(p)} className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300" title="Modifier"><PencilIcon className="h-5 w-5" /></button>
+                              <button onClick={() => handleDelete(p.sku)} className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300" title="Supprimer"><TrashIcon className="h-5 w-5" /></button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </div>
@@ -559,260 +598,260 @@ export default function ProductsPage() {
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40" onClick={()=>setShowModal(false)} />
-          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-4xl mx-4 max-h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b sticky top-0 bg-white rounded-t-2xl z-10">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowModal(false)} />
+          <div className="relative bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-800 rounded-t-2xl z-10">
               <div className="flex items-center space-x-2">
                 <span className="text-2xl">🛍️</span>
-                <h3 className="text-lg font-semibold text-gray-900">{viewing ? 'Voir produit' : (editingSku ? 'Modifier produit' : 'Nouveau produit')}</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{viewing ? 'Voir produit' : (editingSku ? 'Modifier produit' : 'Nouveau produit')}</h3>
               </div>
-              <button onClick={()=>setShowModal(false)} className="text-gray-500 hover:text-gray-700" type="button"><XMarkIcon className="h-5 w-5" /></button>
+              <button onClick={() => setShowModal(false)} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" type="button"><XMarkIcon className="h-5 w-5" /></button>
             </div>
             <div className="px-6 pb-6 overflow-y-auto">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Informations principales */}
-              <div className="md:col-span-2">
-                <h4 className="text-sm font-medium text-gray-700 mb-3">Informations principales</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Nom du produit *</label>
-                    <input value={form.nom} onChange={(e)=>setForm({...form, nom:e.target.value})} placeholder="Ex : Clavier mécanique" className="w-full px-3 py-2 border border-gray-300 rounded-md" disabled={viewing} />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Référence client</label>
-                    <input value={form.referenceClient || ''} onChange={(e)=>setForm({...form, referenceClient:e.target.value})} placeholder="Ex : REF-CL-2025" className="w-full px-3 py-2 border border-gray-300 rounded-md" disabled={viewing} />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Code SKU</label>
-                    <div className="flex items-center space-x-2">
-                      <input value={form.sku} readOnly placeholder="AUTO-GÉNÉRÉ" className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-50" />
-                      {!viewing && !editingSku && (
-                        <button type="button" onClick={regenerateSku} className="px-2 py-2 border rounded-md text-sm text-gray-700 hover:bg-gray-50" title="Régénérer"><ArrowsRightLeftIcon className="h-4 w-4" /></button>
+                {/* Informations principales */}
+                <div className="md:col-span-2">
+                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Informations principales</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nom du produit *</label>
+                      <input value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} placeholder="Ex : Clavier mécanique" className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500" disabled={viewing} />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Référence client</label>
+                      <input value={form.referenceClient || ''} onChange={(e) => setForm({ ...form, referenceClient: e.target.value })} placeholder="Ex : REF-CL-2025" className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500" disabled={viewing} />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Code SKU</label>
+                      <div className="flex items-center space-x-2">
+                        <input value={form.sku} readOnly placeholder="AUTO-GÉNÉRÉ" className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400" />
+                        {!viewing && !editingSku && (
+                          <button type="button" onClick={regenerateSku} className="px-2 py-2 border dark:border-gray-600 rounded-md text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700" title="Régénérer"><ArrowsRightLeftIcon className="h-4 w-4" /></button>
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Code-barres</label>
+                      <input value={form.barcode || ''} onChange={(e) => setForm({ ...form, barcode: e.target.value })} placeholder="Ex : 1234567890123" className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500" disabled={viewing} />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Catégorie</label>
+                      <select value={form.categorieCode || ''} onChange={onChangeCategorie} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-indigo-500 focus:border-indigo-500" disabled={viewing}>
+                        <option value="">—</option>
+                        {categories.map(c => (
+                          <option key={c.code} value={c.code}>{c.code} - {c.nom}</option>
+                        ))}
+                        <option value="__create__">+ Ajouter une catégorie…</option>
+                      </select>
+                      {form.categorieCode === '__create__' && (
+                        <button onClick={addCategory} className="mt-2 text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300">Créer une nouvelle catégorie</button>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+                      {viewing ? (
+                        <div className="border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white">
+                          <div
+                            className="min-h-[80px] px-3 py-2"
+                            dangerouslySetInnerHTML={{ __html: form.description || '' }}
+                          />
+                        </div>
+                      ) : (
+                        <div className="border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700">
+                          {/* Toolbar */}
+                          <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 dark:bg-gray-800 border-b dark:border-gray-600 rounded-t-md">
+                            <button
+                              type="button"
+                              onClick={() => document.execCommand('bold', false)}
+                              className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-600 rounded text-gray-600 dark:text-gray-300"
+                              title="Gras"
+                            >
+                              <BoldIcon className="w-4 h-4" />
+                            </button>
+                            <div className="h-5 w-px bg-gray-300 dark:bg-gray-600" />
+                            <input
+                              type="color"
+                              onChange={(e) => document.execCommand('foreColor', false, e.target.value)}
+                              className="w-6 h-6 cursor-pointer"
+                              title="Couleur"
+                              defaultValue="#000000"
+                            />
+                            <div className="h-5 w-px bg-gray-300 dark:bg-gray-600" />
+                            <button
+                              type="button"
+                              onClick={() => document.execCommand('insertUnorderedList', false)}
+                              className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-600 rounded text-gray-600 dark:text-gray-300"
+                              title="Liste"
+                            >
+                              <ListBulletIcon className="w-4 h-4" />
+                            </button>
+                          </div>
+                          {/* Editable div */}
+                          <div className="relative">
+                            {!form.description && (
+                              <div className="absolute inset-0 px-3 py-2 text-gray-400 dark:text-gray-500 pointer-events-none">
+                                Ex : Clavier mécanique rétroéclairé
+                              </div>
+                            )}
+                            <div
+                              ref={productDescRef}
+                              contentEditable
+                              onInput={(e) => setForm({ ...form, description: e.currentTarget.innerHTML })}
+                              onBlur={() => {
+                                if (productDescRef.current && productDescRef.current.innerHTML !== form.description) {
+                                  setForm({ ...form, description: productDescRef.current.innerHTML });
+                                }
+                              }}
+                              className="min-h-[80px] px-3 py-2 focus:outline-none relative text-gray-900 dark:text-white"
+                              style={{ whiteSpace: 'pre-wrap' }}
+                            />
+                          </div>
+                        </div>
                       )}
                     </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Code-barres</label>
-                    <input value={form.barcode || ''} onChange={(e)=>setForm({...form, barcode: e.target.value})} placeholder="Ex : 1234567890123" className="w-full px-3 py-2 border border-gray-300 rounded-md" disabled={viewing} />
+                </div>
+
+                <div className="md:col-span-2 border-t dark:border-gray-700 pt-4">
+                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Prix & TVA</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Prix d'achat (TND)</label>
+                      <input type="number" value={form.prixAchatRef ?? ''} onChange={(e) => setForm({ ...form, prixAchatRef: e.target.value ? Number(e.target.value) : undefined })} placeholder="Ex : 150" className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500" disabled={viewing} />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Prix HT (TND)</label>
+                      <input type="number" value={form.prixVenteHT ?? ''} onChange={(e) => setForm({ ...form, prixVenteHT: e.target.value ? Number(e.target.value) : undefined })} placeholder="Ex : 250" className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500" disabled={viewing} />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">TVA</label>
+                      <select value={form.taxCode || ''} onChange={(e) => setForm({ ...form, taxCode: e.target.value || undefined })} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-indigo-500 focus:border-indigo-500" disabled={viewing}>
+                        <option value="">—</option>
+                        {taxRates.map(r => (
+                          <option key={r.code} value={r.code}>{r.tauxPct} % ({r.code})</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Prix TTC (auto)</label>
+                      <input value={prixTTC ?? ''} readOnly placeholder="Calcul automatique" className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400" />
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-                    <select value={form.categorieCode || ''} onChange={onChangeCategorie} className="w-full px-3 py-2 border border-gray-300 rounded-md" disabled={viewing}>
-                      <option value="">—</option>
-                      {categories.map(c => (
-                        <option key={c.code} value={c.code}>{c.code} - {c.nom}</option>
-                      ))}
-                      <option value="__create__">+ Ajouter une catégorie…</option>
-                    </select>
-                    {form.categorieCode === '__create__' && (
-                      <button onClick={addCategory} className="mt-2 text-sm text-indigo-600 hover:text-indigo-800">Créer une nouvelle catégorie</button>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                    {viewing ? (
-                      <div className="border border-gray-300 rounded-md bg-gray-50">
-                        <div 
-                          className="min-h-[80px] px-3 py-2"
-                          dangerouslySetInnerHTML={{ __html: form.description || '' }}
-                        />
+                </div>
+
+                <div className="md:col-span-2 border-t dark:border-gray-700 pt-4">
+                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Unité & Stock</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Unité de vente</label>
+                      <select value={form.uomVenteCode || ''} onChange={(e) => setForm({ ...form, uomVenteCode: e.target.value || undefined })} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-indigo-500 focus:border-indigo-500" disabled={viewing}>
+                        <option value="">—</option>
+                        {units.map(u => (
+                          <option key={u.code} value={u.code}>📦 {u.code} - {u.libelle}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Type de produit</label>
+                      <div className="flex items-center space-x-4 mt-2">
+                        <label className="inline-flex items-center space-x-2 text-gray-900 dark:text-gray-300"><input type="radio" checked={form.typeProduit === 'service'} onChange={() => setForm({ ...form, typeProduit: 'service' })} disabled={viewing} className="border-gray-300 dark:border-gray-600 text-indigo-600 focus:ring-indigo-500 dark:bg-gray-700" /><span>Service</span></label>
+                        <label className="inline-flex items-center space-x-2 text-gray-900 dark:text-gray-300"><input type="radio" checked={form.typeProduit === 'stocke'} onChange={() => setForm({ ...form, typeProduit: 'stocke' })} disabled={viewing} className="border-gray-300 dark:border-gray-600 text-indigo-600 focus:ring-indigo-500 dark:bg-gray-700" /><span>Article stocké</span></label>
                       </div>
-                    ) : (
-                      <div className="border border-gray-300 rounded-md">
-                        {/* Toolbar */}
-                        <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 border-b">
-                          <button
-                            type="button"
-                            onClick={() => document.execCommand('bold', false)}
-                            className="p-1.5 hover:bg-gray-200 rounded"
-                            title="Gras"
-                          >
-                            <BoldIcon className="w-4 h-4" />
-                          </button>
-                          <div className="h-5 w-px bg-gray-300" />
-                          <input
-                            type="color"
-                            onChange={(e) => document.execCommand('foreColor', false, e.target.value)}
-                            className="w-6 h-6 cursor-pointer"
-                            title="Couleur"
-                            defaultValue="#000000"
-                          />
-                          <div className="h-5 w-px bg-gray-300" />
-                          <button
-                            type="button"
-                            onClick={() => document.execCommand('insertUnorderedList', false)}
-                            className="p-1.5 hover:bg-gray-200 rounded"
-                            title="Liste"
-                          >
-                            <ListBulletIcon className="w-4 h-4" />
-                          </button>
-                        </div>
-                        {/* Editable div */}
-                        <div className="relative">
-                          {!form.description && (
-                            <div className="absolute inset-0 px-3 py-2 text-gray-400 pointer-events-none">
-                              Ex : Clavier mécanique rétroéclairé
-                            </div>
-                          )}
-                          <div
-                            ref={productDescRef}
-                            contentEditable
-                            onInput={(e) => setForm({...form, description: e.currentTarget.innerHTML})}
-                            onBlur={() => {
-                              if (productDescRef.current && productDescRef.current.innerHTML !== form.description) {
-                                setForm({...form, description: productDescRef.current.innerHTML});
-                              }
-                            }}
-                            className="min-h-[80px] px-3 py-2 focus:outline-none relative"
-                            style={{ whiteSpace: 'pre-wrap' }}
-                          />
-                        </div>
+                    </div>
+                  </div>
+                  {form.typeProduit === 'stocke' && (
+                    <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Quantité minimale</label>
+                        <input type="number" value={form.min ?? ''} onChange={(e) => setForm({ ...form, min: e.target.value ? Number(e.target.value) : undefined })} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500" disabled={viewing} />
                       </div>
-                    )}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Quantité maximale</label>
+                        <input type="number" value={form.max ?? ''} onChange={(e) => setForm({ ...form, max: e.target.value ? Number(e.target.value) : undefined })} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500" disabled={viewing} />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Délai de réappro (jours)</label>
+                        <input type="number" value={form.leadTimeJours ?? ''} onChange={(e) => setForm({ ...form, leadTimeJours: e.target.value ? Number(e.target.value) : undefined })} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500" disabled={viewing} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="md:col-span-2 border-t dark:border-gray-700 pt-4">
+                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Statut</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <label className="flex items-center space-x-2 text-gray-900 dark:text-gray-300"><input type="checkbox" checked={form.actif} onChange={(e) => setForm({ ...form, actif: e.target.checked })} disabled={viewing} className="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600" /><span>Actif</span></label>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tags (séparés par virgule)</label>
+                      <input value={form.tagsText} onChange={(e) => setForm({ ...form, tagsText: e.target.value })} placeholder="Ex : new, promo, premium" className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500" disabled={viewing} />
+                    </div>
                   </div>
                 </div>
               </div>
-
-              <div className="md:col-span-2 border-t pt-4">
-                <h4 className="text-sm font-medium text-gray-700 mb-3">Prix & TVA</h4>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Prix d'achat (TND)</label>
-                    <input type="number" value={form.prixAchatRef ?? ''} onChange={(e)=>setForm({...form, prixAchatRef: e.target.value? Number(e.target.value): undefined})} placeholder="Ex : 150" className="w-full px-3 py-2 border border-gray-300 rounded-md" disabled={viewing} />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Prix HT (TND)</label>
-                    <input type="number" value={form.prixVenteHT ?? ''} onChange={(e)=>setForm({...form, prixVenteHT: e.target.value? Number(e.target.value): undefined})} placeholder="Ex : 250" className="w-full px-3 py-2 border border-gray-300 rounded-md" disabled={viewing} />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">TVA</label>
-                    <select value={form.taxCode || ''} onChange={(e)=>setForm({...form, taxCode: e.target.value || undefined})} className="w-full px-3 py-2 border border-gray-300 rounded-md" disabled={viewing}>
-                      <option value="">—</option>
-                      {taxRates.map(r => (
-                        <option key={r.code} value={r.code}>{r.tauxPct} % ({r.code})</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Prix TTC (auto)</label>
-                    <input value={prixTTC ?? ''} readOnly placeholder="Calcul automatique" className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="md:col-span-2 border-t pt-4">
-                <h4 className="text-sm font-medium text-gray-700 mb-3">Unité & Stock</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Unité de vente</label>
-                    <select value={form.uomVenteCode || ''} onChange={(e)=>setForm({...form, uomVenteCode: e.target.value || undefined})} className="w-full px-3 py-2 border border-gray-300 rounded-md" disabled={viewing}>
-                      <option value="">—</option>
-                      {units.map(u => (
-                        <option key={u.code} value={u.code}>📦 {u.code} - {u.libelle}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Type de produit</label>
-                    <div className="flex items-center space-x-4 mt-2">
-                      <label className="inline-flex items-center space-x-2"><input type="radio" checked={form.typeProduit==='service'} onChange={()=>setForm({...form, typeProduit:'service'})} disabled={viewing} /><span>Service</span></label>
-                      <label className="inline-flex items-center space-x-2"><input type="radio" checked={form.typeProduit==='stocke'} onChange={()=>setForm({...form, typeProduit:'stocke'})} disabled={viewing} /><span>Article stocké</span></label>
-                    </div>
-                  </div>
-                </div>
-                {form.typeProduit==='stocke' && (
-                  <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Quantité minimale</label>
-                      <input type="number" value={form.min ?? ''} onChange={(e)=>setForm({...form, min: e.target.value? Number(e.target.value): undefined})} className="w-full px-3 py-2 border border-gray-300 rounded-md" disabled={viewing} />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Quantité maximale</label>
-                      <input type="number" value={form.max ?? ''} onChange={(e)=>setForm({...form, max: e.target.value? Number(e.target.value): undefined})} className="w-full px-3 py-2 border border-gray-300 rounded-md" disabled={viewing} />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Délai de réappro (jours)</label>
-                      <input type="number" value={form.leadTimeJours ?? ''} onChange={(e)=>setForm({...form, leadTimeJours: e.target.value? Number(e.target.value): undefined})} className="w-full px-3 py-2 border border-gray-300 rounded-md" disabled={viewing} />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="md:col-span-2 border-t pt-4">
-                <h4 className="text-sm font-medium text-gray-700 mb-3">Statut</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <label className="flex items-center space-x-2"><input type="checkbox" checked={form.actif} onChange={(e)=>setForm({...form, actif:e.target.checked})} disabled={viewing} /><span>Actif</span></label>
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Tags (séparés par virgule)</label>
-                    <input value={form.tagsText} onChange={(e)=>setForm({...form, tagsText:e.target.value})} placeholder="Ex : new, promo, premium" className="w-full px-3 py-2 border border-gray-300 rounded-md" disabled={viewing} />
-                  </div>
+            </div>
+            <div className="flex justify-end space-x-3 px-6 py-4 border-t dark:border-gray-700 sticky bottom-0 bg-white dark:bg-gray-800 rounded-b-2xl">
+              <button onClick={() => setShowModal(false)} className="px-4 py-2 text-sm bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600">Fermer</button>
+              {!viewing && (
+                <button onClick={submitProduct} disabled={saving} className="px-4 py-2 text-sm text-white bg-indigo-600 hover:bg-indigo-700 rounded-md disabled:opacity-50">{saving ? 'Sauvegarde...' : (editingSku ? 'Enregistrer' : 'Créer le produit')}</button>
+              )}
             </div>
           </div>
-                      </div>
-                        </div>
-            <div className="flex justify-end space-x-3 px-6 py-4 border-t sticky bottom-0 bg-white rounded-b-2xl">
-              <button onClick={()=>setShowModal(false)} className="px-4 py-2 text-sm bg-gray-100 border border-gray-300 rounded-md">Fermer</button>
-              {!viewing && (
-                <button onClick={submitProduct} disabled={saving} className="px-4 py-2 text-sm text-white bg-indigo-600 rounded-md disabled:opacity-50">{saving? 'Sauvegarde...' : (editingSku ? 'Enregistrer' : 'Créer le produit')}</button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
+        </div>
       )}
 
       {/* Category Modal */}
       {showCategoryModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40" onClick={()=>setShowCategoryModal(false)} />
-          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md mx-4">
-            <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowCategoryModal(false)} />
+          <div className="relative bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md mx-4">
+            <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b dark:border-gray-700">
               <div className="flex items-center space-x-2">
                 <span className="text-2xl">📁</span>
-                <h3 className="text-lg font-semibold text-gray-900">{viewingCategory ? 'Voir catégorie' : (editingCategoryCode ? 'Modifier catégorie' : 'Nouvelle catégorie')}</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{viewingCategory ? 'Voir catégorie' : (editingCategoryCode ? 'Modifier catégorie' : 'Nouvelle catégorie')}</h3>
               </div>
-              <button onClick={()=>setShowCategoryModal(false)} className="text-gray-500 hover:text-gray-700" type="button"><XMarkIcon className="h-5 w-5" /></button>
+              <button onClick={() => setShowCategoryModal(false)} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" type="button"><XMarkIcon className="h-5 w-5" /></button>
             </div>
             <div className="px-6 py-4">
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Nom *</label>
-                  <input type="text" value={categoryForm.nom} onChange={(e)=>handleCategoryNomChange(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="ex: Électronique" disabled={viewingCategory} />
-                    </div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nom *</label>
+                  <input type="text" value={categoryForm.nom} onChange={(e) => handleCategoryNomChange(e.target.value)} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="ex: Électronique" disabled={viewingCategory} />
+                </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Code *</label>
-                    <div className="flex items-center space-x-2">
-                    <input type="text" value={categoryForm.code} onChange={(e)=>setCategoryForm({...categoryForm, code: e.target.value.toUpperCase()})} className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="ex: ELEC" disabled={!!editingCategoryCode || viewingCategory} />
-                    {!editingCategoryCode && !viewingCategory && (<button type="button" onClick={()=>setAutoGenerateCode(!autoGenerateCode)} className={`px-3 py-2 text-sm rounded-md border ${autoGenerateCode ? 'bg-indigo-50 text-indigo-700 border-indigo-300' : 'bg-gray-50 text-gray-700 border-gray-300'}`}>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Code *</label>
+                  <div className="flex items-center space-x-2">
+                    <input type="text" value={categoryForm.code} onChange={(e) => setCategoryForm({ ...categoryForm, code: e.target.value.toUpperCase() })} className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="ex: ELEC" disabled={!!editingCategoryCode || viewingCategory} />
+                    {!editingCategoryCode && !viewingCategory && (<button type="button" onClick={() => setAutoGenerateCode(!autoGenerateCode)} className={`px-3 py-2 text-sm rounded-md border ${autoGenerateCode ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 border-indigo-300 dark:border-indigo-700' : 'bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600'}`}>
                       {autoGenerateCode ? 'Auto' : 'Manuel'}
                     </button>)}
                   </div>
                   {autoGenerateCode && !editingCategoryCode && !viewingCategory && (
-                    <p className="text-xs text-gray-500 mt-1">Le code sera généré automatiquement à partir du nom</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Le code sera généré automatiquement à partir du nom</p>
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
                   {viewingCategory ? (
-                    <div className="border border-gray-300 rounded-md bg-gray-50">
-                      <div 
+                    <div className="border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white">
+                      <div
                         className="min-h-[80px] px-3 py-2"
                         dangerouslySetInnerHTML={{ __html: categoryForm.description || '' }}
                       />
                     </div>
                   ) : (
-                    <div className="border border-gray-300 rounded-md">
+                    <div className="border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700">
                       {/* Toolbar */}
-                      <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 border-b">
+                      <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 dark:bg-gray-800 border-b dark:border-gray-600 rounded-t-md">
                         <button
                           type="button"
                           onClick={() => document.execCommand('bold', false)}
-                          className="p-1.5 hover:bg-gray-200 rounded"
+                          className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-600 rounded text-gray-600 dark:text-gray-300"
                           title="Gras"
                         >
                           <BoldIcon className="w-4 h-4" />
                         </button>
-                        <div className="h-5 w-px bg-gray-300" />
+                        <div className="h-5 w-px bg-gray-300 dark:bg-gray-600" />
                         <input
                           type="color"
                           onChange={(e) => document.execCommand('foreColor', false, e.target.value)}
@@ -820,11 +859,11 @@ export default function ProductsPage() {
                           title="Couleur"
                           defaultValue="#000000"
                         />
-                        <div className="h-5 w-px bg-gray-300" />
+                        <div className="h-5 w-px bg-gray-300 dark:bg-gray-600" />
                         <button
                           type="button"
                           onClick={() => document.execCommand('insertUnorderedList', false)}
-                          className="p-1.5 hover:bg-gray-200 rounded"
+                          className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-600 rounded text-gray-600 dark:text-gray-300"
                           title="Liste"
                         >
                           <ListBulletIcon className="w-4 h-4" />
@@ -833,20 +872,20 @@ export default function ProductsPage() {
                       {/* Editable div */}
                       <div className="relative">
                         {!categoryForm.description && (
-                          <div className="absolute inset-0 px-3 py-2 text-gray-400 pointer-events-none">
+                          <div className="absolute inset-0 px-3 py-2 text-gray-400 dark:text-gray-500 pointer-events-none">
                             Description de la catégorie
                           </div>
                         )}
                         <div
                           ref={categoryDescRef}
                           contentEditable
-                          onInput={(e) => setCategoryForm({...categoryForm, description: e.currentTarget.innerHTML})}
+                          onInput={(e) => setCategoryForm({ ...categoryForm, description: e.currentTarget.innerHTML })}
                           onBlur={() => {
                             if (categoryDescRef.current && categoryDescRef.current.innerHTML !== categoryForm.description) {
-                              setCategoryForm({...categoryForm, description: categoryDescRef.current.innerHTML});
+                              setCategoryForm({ ...categoryForm, description: categoryDescRef.current.innerHTML });
                             }
                           }}
-                          className="min-h-[80px] px-3 py-2 focus:outline-none relative"
+                          className="min-h-[80px] px-3 py-2 focus:outline-none relative text-gray-900 dark:text-white"
                           style={{ whiteSpace: 'pre-wrap' }}
                         />
                       </div>
@@ -855,12 +894,12 @@ export default function ProductsPage() {
                 </div>
               </div>
             </div>
-            <div className="flex justify-end space-x-3 px-6 py-4 border-t">
-              <button onClick={()=>setShowCategoryModal(false)} className="px-4 py-2 text-sm bg-gray-100 border border-gray-300 rounded-md">Annuler</button>
+            <div className="flex justify-end space-x-3 px-6 py-4 border-t dark:border-gray-700">
+              <button onClick={() => setShowCategoryModal(false)} className="px-4 py-2 text-sm bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600">Annuler</button>
               {!viewingCategory && (
-                <button onClick={submitCategory} disabled={!categoryForm.code || !categoryForm.nom} className="px-4 py-2 text-sm text-white bg-indigo-600 rounded-md disabled:opacity-50">{editingCategoryCode ? 'Enregistrer' : 'Créer'}</button>
-        )}
-      </div>
+                <button onClick={submitCategory} disabled={!categoryForm.code || !categoryForm.nom} className="px-4 py-2 text-sm text-white bg-indigo-600 hover:bg-indigo-700 rounded-md disabled:opacity-50">{editingCategoryCode ? 'Enregistrer' : 'Créer'}</button>
+              )}
+            </div>
           </div>
         </div>
       )}

@@ -130,8 +130,8 @@ export default function DashboardPage() {
       <DashboardLayout>
         <div className="flex items-center justify-center min-h-screen">
           <div className="flex flex-col items-center">
-            <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-indigo-600 mb-4"></div>
-            <p className="text-gray-500 animate-pulse">Chargement de votre tableau de bord...</p>
+            <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-indigo-600 dark:border-indigo-400 mb-4"></div>
+            <p className="text-gray-500 dark:text-gray-400 animate-pulse">Chargement de votre tableau de bord...</p>
           </div>
         </div>
       </DashboardLayout>
@@ -140,7 +140,7 @@ export default function DashboardPage() {
 
   return (
     <DashboardLayout>
-      <div className="min-h-screen bg-gray-50/50 pb-12">
+      <div className="min-h-screen bg-gray-50/50 dark:bg-gray-900 pb-12">
         <DashboardHeader
           userName={session?.user?.name}
           companyName={session?.user?.companyName}
@@ -148,15 +148,15 @@ export default function DashboardPage() {
 
         {/* Pending Invoices Alert Banner */}
         {pendingSummary && pendingSummary.totalCount > 0 && (
-          <div className="mb-8 bg-gradient-to-r from-orange-50 to-amber-50 border-l-4 border-orange-500 rounded-lg p-4 sm:p-6 shadow-sm">
+          <div className="mb-8 bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-900/10 dark:to-amber-900/10 border-l-4 border-orange-500 dark:border-orange-600 rounded-lg p-4 sm:p-6 shadow-sm">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div className="flex items-start gap-3">
                 <ExclamationTriangleIcon className="w-6 h-6 text-orange-600 flex-shrink-0 mt-0.5" />
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                     Vous avez {pendingSummary.totalCount} facture(s) en attente de paiement
                   </h3>
-                  <p className="text-sm text-gray-700 mt-1">
+                  <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">
                     Montant total impayé: <span className="font-bold text-orange-600">
                       {formatCurrency(pendingSummary.totalPendingAmount)}
                     </span>
@@ -165,7 +165,7 @@ export default function DashboardPage() {
               </div>
               <Link
                 href="/pending-invoices"
-                className="inline-flex items-center gap-2 bg-white text-orange-600 px-4 py-2 rounded-lg hover:bg-orange-50 transition-colors text-sm font-medium whitespace-nowrap border border-orange-200 shadow-sm"
+                className="inline-flex items-center gap-2 bg-white dark:bg-gray-800 text-orange-600 dark:text-orange-400 px-4 py-2 rounded-lg hover:bg-orange-50 dark:hover:bg-gray-700 transition-colors text-sm font-medium whitespace-nowrap border border-orange-200 dark:border-orange-900/30 shadow-sm"
               >
                 Gérer les impayés
                 <ArrowRightIcon className="w-4 h-4" />
@@ -232,21 +232,21 @@ export default function DashboardPage() {
         {/* Secondary Stats */}
         {data?.stats && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-            <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 text-center">
-              <p className="text-gray-500 text-sm mb-1">Total Clients</p>
-              <p className="text-xl font-bold text-gray-800">{formatNumber(data.stats.customers.total)}</p>
+            <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 text-center">
+              <p className="text-gray-500 dark:text-gray-400 text-sm mb-1">Total Clients</p>
+              <p className="text-xl font-bold text-gray-800 dark:text-white">{formatNumber(data.stats.customers.total)}</p>
             </div>
-            <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 text-center">
-              <p className="text-gray-500 text-sm mb-1">Total Fournisseurs</p>
-              <p className="text-xl font-bold text-gray-800">{formatNumber(data.stats.suppliers.total)}</p>
+            <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 text-center">
+              <p className="text-gray-500 dark:text-gray-400 text-sm mb-1">Total Fournisseurs</p>
+              <p className="text-xl font-bold text-gray-800 dark:text-white">{formatNumber(data.stats.suppliers.total)}</p>
             </div>
-            <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 text-center">
-              <p className="text-gray-500 text-sm mb-1">Total Devis</p>
-              <p className="text-xl font-bold text-gray-800">{formatNumber(data.stats.quotes.total)}</p>
+            <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 text-center">
+              <p className="text-gray-500 dark:text-gray-400 text-sm mb-1">Total Devis</p>
+              <p className="text-xl font-bold text-gray-800 dark:text-white">{formatNumber(data.stats.quotes.total)}</p>
             </div>
-            <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 text-center">
-              <p className="text-gray-500 text-sm mb-1">Total Produits</p>
-              <p className="text-xl font-bold text-gray-800">{formatNumber(data.stats.products.total)}</p>
+            <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 text-center">
+              <p className="text-gray-500 dark:text-gray-400 text-sm mb-1">Total Produits</p>
+              <p className="text-xl font-bold text-gray-800 dark:text-white">{formatNumber(data.stats.products.total)}</p>
             </div>
           </div>
         )}

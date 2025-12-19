@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
-import { 
-  ChartBarIcon, 
-  DocumentTextIcon, 
-  CurrencyEuroIcon, 
+import {
+  ChartBarIcon,
+  DocumentTextIcon,
+  CurrencyEuroIcon,
   UserGroupIcon,
   ArrowDownTrayIcon,
   FunnelIcon,
@@ -149,7 +149,7 @@ export default function ReportsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState<'expenses' | 'sales' | 'purchases' | 'payments' | 'invoices'>('expenses');
-  
+
   // Filtres
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -189,7 +189,7 @@ export default function ReportsPage() {
       if (reportData && reportData.expenses) {
         setReportData({
           ...reportData,
-          expenses: reportData.expenses.map(exp => 
+          expenses: reportData.expenses.map(exp =>
             exp._id === expenseId ? { ...exp, statut: newStatus } : exp
           )
         });
@@ -284,8 +284,23 @@ export default function ReportsPage() {
   if (loading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-indigo-600"></div>
+        <div className="space-y-4 sm:space-y-6 p-4 sm:p-6 animate-pulse">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="h-8 w-1/3 bg-gray-200 dark:bg-gray-700 rounded" />
+            <div className="h-10 w-32 bg-gray-200 dark:bg-gray-700 rounded" />
+          </div>
+
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 sm:p-6 h-32 border dark:border-gray-700" />
+
+          <div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="bg-white dark:bg-gray-800 h-24 rounded-lg shadow border dark:border-gray-700" />
+            ))}
+          </div>
+
+          <div className="h-12 bg-gray-200 dark:bg-gray-700 rounded w-full" />
+
+          <div className="bg-white dark:bg-gray-800 h-96 rounded-lg shadow border dark:border-gray-700" />
         </div>
       </DashboardLayout>
     );
@@ -315,15 +330,15 @@ export default function ReportsPage() {
 
         {/* Error message */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-md p-4">
-            <p className="text-sm text-red-600">{error}</p>
+          <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-900/50 rounded-md p-4">
+            <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
           </div>
         )}
 
         {/* Filtres */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 sm:p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 sm:p-6 border dark:border-gray-700">
           <div className="flex items-center gap-2 sm:gap-4 mb-3 sm:mb-4">
-            <FunnelIcon className="h-4 w-4 sm:h-5 sm:w-5 text-gray-500" />
+            <FunnelIcon className="h-4 w-4 sm:h-5 sm:w-5 text-gray-500 dark:text-gray-400" />
             <h3 className="text-base sm:text-lg font-medium text-gray-900 dark:text-white">Filtres</h3>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
@@ -335,7 +350,7 @@ export default function ReportsPage() {
                 type="date"
                 value={dateFrom}
                 onChange={(e) => setDateFrom(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white text-sm"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
               />
             </div>
             <div>
@@ -346,7 +361,7 @@ export default function ReportsPage() {
                 type="date"
                 value={dateTo}
                 onChange={(e) => setDateTo(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white text-sm"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
               />
             </div>
             <div className="flex items-end sm:col-span-2 lg:col-span-1">
@@ -365,7 +380,7 @@ export default function ReportsPage() {
           <div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {/* Dépenses */}
             {reportData.expensesSummary && (
-              <div className="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
+              <div className="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg border dark:border-gray-700">
                 <div className="p-4 sm:p-5">
                   <div className="flex items-center">
                     <div className="flex-shrink-0">
@@ -391,7 +406,7 @@ export default function ReportsPage() {
 
             {/* Ventes */}
             {reportData.salesSummary && (
-              <div className="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
+              <div className="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg border dark:border-gray-700">
                 <div className="p-4 sm:p-5">
                   <div className="flex items-center">
                     <div className="flex-shrink-0">
@@ -417,7 +432,7 @@ export default function ReportsPage() {
 
             {/* Achats */}
             {reportData.purchasesSummary && (
-              <div className="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
+              <div className="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg border dark:border-gray-700">
                 <div className="p-4 sm:p-5">
                   <div className="flex items-center">
                     <div className="flex-shrink-0">
@@ -443,7 +458,7 @@ export default function ReportsPage() {
 
             {/* Paiements */}
             {reportData.paymentsSummary && (
-              <div className="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
+              <div className="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg border dark:border-gray-700">
                 <div className="p-4 sm:p-5">
                   <div className="flex items-center">
                     <div className="flex-shrink-0">
@@ -484,11 +499,10 @@ export default function ReportsPage() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
-                  className={`py-3 sm:py-4 px-2 sm:px-1 border-b-2 font-medium text-xs sm:text-sm flex items-center space-x-1 sm:space-x-2 whitespace-nowrap ${
-                    activeTab === tab.id
+                  className={`py-3 sm:py-4 px-2 sm:px-1 border-b-2 font-medium text-xs sm:text-sm flex items-center space-x-1 sm:space-x-2 whitespace-nowrap ${activeTab === tab.id
                       ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
-                  }`}
+                    }`}
                 >
                   <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
                   <span className="hidden sm:inline">{tab.label}</span>
@@ -500,7 +514,7 @@ export default function ReportsPage() {
         </div>
 
         {/* Tables Content */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden border dark:border-gray-700">
           {/* Dépenses Table */}
           {activeTab === 'expenses' && reportData?.expenses && (
             <div>
@@ -519,33 +533,33 @@ export default function ReportsPage() {
               </div>
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                  <thead className="bg-gray-50 dark:bg-gray-900">
+                  <thead className="bg-gray-50 dark:bg-gray-700/50">
                     <tr>
-                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Date
                       </th>
-                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Numéro
                       </th>
-                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden sm:table-cell">
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider hidden sm:table-cell">
                         Nom de l'entreprise
                       </th>
-                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         TVA
                       </th>
-                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden md:table-cell">
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider hidden md:table-cell">
                         FODEC
                       </th>
-                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden md:table-cell">
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider hidden md:table-cell">
                         Timbre
                       </th>
-                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Total HT
                       </th>
-                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Total TTC
                       </th>
-                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Statut
                       </th>
                     </tr>
@@ -559,7 +573,7 @@ export default function ReportsPage() {
                       </tr>
                     ) : (
                       reportData.expenses.map((expense) => (
-                        <tr key={expense._id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                        <tr key={expense._id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                           <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">
                             {formatDate(expense.date)}
                           </td>
@@ -585,12 +599,11 @@ export default function ReportsPage() {
                             {formatPrice(expense.totalTTC, expense.devise || 'TND')}
                           </td>
                           <td className="px-2 py-2 whitespace-nowrap">
-                            <span className={`px-1.5 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                              expense.statut === 'paye' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
-                              expense.statut === 'valide' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
-                              expense.statut === 'en_attente' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
-                              'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
-                            }`}>
+                            <span className={`px-1.5 inline-flex text-xs leading-5 font-semibold rounded-full ${expense.statut === 'paye' ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300' :
+                                expense.statut === 'valide' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300' :
+                                  expense.statut === 'en_attente' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300' :
+                                    'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                              }`}>
                               {expense.statut.replace('_', ' ')}
                             </span>
                           </td>
@@ -599,7 +612,7 @@ export default function ReportsPage() {
                     )}
                   </tbody>
                   {reportData.expensesSummaryByCurrency && reportData.expenses.length > 0 && (
-                    <tfoot className="bg-gray-50 dark:bg-gray-900">
+                    <tfoot className="bg-gray-50 dark:bg-gray-700/50">
                       {Object.entries(reportData.expensesSummaryByCurrency).map(([currency, summary]: [string, any]) => (
                         <tr key={currency} className="border-t border-gray-200 dark:border-gray-700">
                           <td colSpan={5} className="px-3 sm:px-6 py-2 sm:py-3 text-right text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
@@ -641,30 +654,30 @@ export default function ReportsPage() {
               </div>
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                  <thead className="bg-gray-50 dark:bg-gray-900">
+                  <thead className="bg-gray-50 dark:bg-gray-700/50">
                     <tr>
-                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Date
                       </th>
-                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Numéro
                       </th>
-                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden sm:table-cell">
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider hidden sm:table-cell">
                         Nom du client
                       </th>
-                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         TVA
                       </th>
-                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden md:table-cell">
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider hidden md:table-cell">
                         Timbre
                       </th>
-                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Total HT
                       </th>
-                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Total TTC
                       </th>
-                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden lg:table-cell">
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider hidden lg:table-cell">
                         Statut
                       </th>
                     </tr>
@@ -678,7 +691,7 @@ export default function ReportsPage() {
                       </tr>
                     ) : (
                       reportData.salesInvoices.map((invoice) => (
-                        <tr key={invoice._id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                        <tr key={invoice._id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                           <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm text-gray-900 dark:text-white">
                             {formatDate(invoice.date)}
                           </td>
@@ -701,12 +714,11 @@ export default function ReportsPage() {
                             {formatPrice(invoice.totalTTC, invoice.devise || 'TND')}
                           </td>
                           <td className="px-2 py-2 whitespace-nowrap hidden lg:table-cell">
-                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                              invoice.statut === 'PAYEE' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
-                              invoice.statut === 'PARTIELLEMENT_PAYEE' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
-                              invoice.statut === 'VALIDEE' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
-                              'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
-                            }`}>
+                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${invoice.statut === 'PAYEE' ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300' :
+                                invoice.statut === 'PARTIELLEMENT_PAYEE' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300' :
+                                  invoice.statut === 'VALIDEE' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300' :
+                                    'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                              }`}>
                               {invoice.statut}
                             </span>
                           </td>
@@ -715,7 +727,7 @@ export default function ReportsPage() {
                     )}
                   </tbody>
                   {reportData.salesSummaryByCurrency && reportData.salesInvoices.length > 0 && (
-                    <tfoot className="bg-gray-50 dark:bg-gray-900">
+                    <tfoot className="bg-gray-50 dark:bg-gray-700/50">
                       {Object.entries(reportData.salesSummaryByCurrency).map(([currency, summary]: [string, any]) => (
                         <tr key={currency} className="border-t border-gray-200 dark:border-gray-700">
                           <td colSpan={5} className="px-3 sm:px-6 py-2 sm:py-3 text-right text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
@@ -757,33 +769,33 @@ export default function ReportsPage() {
               </div>
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                  <thead className="bg-gray-50 dark:bg-gray-900">
+                  <thead className="bg-gray-50 dark:bg-gray-700/50">
                     <tr>
-                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Date
                       </th>
-                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Numéro
                       </th>
-                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden sm:table-cell">
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider hidden sm:table-cell">
                         Nom du fournisseur
                       </th>
-                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         TVA
                       </th>
-                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden md:table-cell">
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider hidden md:table-cell">
                         Fodec
                       </th>
-                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden lg:table-cell">
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider hidden lg:table-cell">
                         Timbre
                       </th>
-                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Total HT
                       </th>
-                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Total TTC
                       </th>
-                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden xl:table-cell">
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider hidden xl:table-cell">
                         Statut
                       </th>
                     </tr>
@@ -797,7 +809,7 @@ export default function ReportsPage() {
                       </tr>
                     ) : (
                       reportData.purchaseInvoices.map((invoice) => (
-                        <tr key={invoice._id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                        <tr key={invoice._id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                           <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm text-gray-900 dark:text-white">
                             {formatDate(invoice.date)}
                           </td>
@@ -814,7 +826,7 @@ export default function ReportsPage() {
                             {formatPrice(invoice.fodec, invoice.devise || 'TND')}
                           </td>
                           <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden lg:table-cell">
-                            {formatPrice(invoice.timbre || 0, invoice.devise || 'TND')}
+                            {formatPrice(invoice.timbre, invoice.devise || 'TND')}
                           </td>
                           <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm text-gray-900 dark:text-white">
                             {formatPrice(invoice.totalHT, invoice.devise || 'TND')}
@@ -823,12 +835,11 @@ export default function ReportsPage() {
                             {formatPrice(invoice.totalTTC, invoice.devise || 'TND')}
                           </td>
                           <td className="px-2 py-2 whitespace-nowrap hidden xl:table-cell">
-                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                              invoice.statut === 'PAYEE' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
-                              invoice.statut === 'PARTIELLEMENT_PAYEE' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
-                              invoice.statut === 'VALIDEE' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
-                              'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
-                            }`}>
+                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${invoice.statut === 'PAYEE' ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300' :
+                                invoice.statut === 'PARTIELLEMENT_PAYEE' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300' :
+                                  invoice.statut === 'VALIDEE' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300' :
+                                    'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                              }`}>
                               {invoice.statut}
                             </span>
                           </td>
@@ -837,7 +848,7 @@ export default function ReportsPage() {
                     )}
                   </tbody>
                   {reportData.purchasesSummaryByCurrency && reportData.purchaseInvoices.length > 0 && (
-                    <tfoot className="bg-gray-50 dark:bg-gray-900">
+                    <tfoot className="bg-gray-50 dark:bg-gray-700/50">
                       {Object.entries(reportData.purchasesSummaryByCurrency).map(([currency, summary]: [string, any]) => (
                         <tr key={currency} className="border-t border-gray-200 dark:border-gray-700">
                           <td colSpan={6} className="px-3 sm:px-6 py-2 sm:py-3 text-right text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
@@ -861,107 +872,6 @@ export default function ReportsPage() {
             </div>
           )}
 
-          {/* افوار (Invoices) Table */}
-          {activeTab === 'invoices' && reportData?.invoices && (
-            <div>
-              <div className="px-2 py-2 border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                <h3 className="text-base sm:text-lg font-medium text-gray-900 dark:text-white">
-                  افوار ({reportData.invoices.length})
-                </h3>
-                <button
-                  onClick={() => handleExportPDF('invoices')}
-                  disabled={exporting}
-                  className="inline-flex items-center justify-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 w-full sm:w-auto"
-                >
-                  <ArrowDownTrayIcon className="h-4 w-4 mr-1" />
-                  PDF
-                </button>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                  <thead className="bg-gray-50 dark:bg-gray-900">
-                    <tr>
-                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        Date
-                      </th>
-                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        Numéro
-                      </th>
-                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        Type
-                      </th>
-                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden sm:table-cell">
-                        Nom
-                      </th>
-                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        TVA
-                      </th>
-                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden md:table-cell">
-                        Fodec
-                      </th>
-                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden lg:table-cell">
-                        Timbre
-                      </th>
-                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        Total HT
-                      </th>
-                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        Total TTC
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                    {reportData.invoices.length === 0 ? (
-                      <tr>
-                        <td colSpan={9} className="px-3 sm:px-6 py-4 text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-                          Aucune facture trouvée
-                        </td>
-                      </tr>
-                    ) : (
-                      reportData.invoices.map((invoice) => (
-                        <tr key={invoice._id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                          <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm text-gray-900 dark:text-white">
-                            {formatDate(invoice.date)}
-                          </td>
-                          <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
-                            {invoice.numero}
-                          </td>
-                          <td className="px-2 py-2 whitespace-nowrap">
-                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                              invoice.type === 'vente' 
-                                ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                                : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                            }`}>
-                              {invoice.type === 'vente' ? 'Vente' : 'Achat'}
-                            </span>
-                          </td>
-                          <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden sm:table-cell">
-                            {invoice.companyName}
-                          </td>
-                          <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-                            {formatPrice(invoice.tva, invoice.devise || 'TND')}
-                          </td>
-                          <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden md:table-cell">
-                            {formatPrice(invoice.fodec || 0, invoice.devise || 'TND')}
-                          </td>
-                          <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden lg:table-cell">
-                            {formatPrice(invoice.timbre || 0, invoice.devise || 'TND')}
-                          </td>
-                          <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm text-gray-900 dark:text-white">
-                            {formatPrice(invoice.totalHT, invoice.devise || 'TND')}
-                          </td>
-                          <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
-                            {formatPrice(invoice.totalTTC, invoice.devise || 'TND')}
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
           {/* Paiements Table */}
           {activeTab === 'payments' && reportData?.payments && (
             <div>
@@ -980,27 +890,27 @@ export default function ReportsPage() {
               </div>
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                  <thead className="bg-gray-50 dark:bg-gray-900">
+                  <thead className="bg-gray-50 dark:bg-gray-700/50">
                     <tr>
-                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Date
                       </th>
-                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Numéro
                       </th>
-                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden sm:table-cell">
-                        Nom
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        Tiers
                       </th>
-                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Type
                       </th>
-                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Montant
                       </th>
-                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden md:table-cell">
-                        Mode de paiement
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider hidden sm:table-cell">
+                        Mode
                       </th>
-                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden lg:table-cell">
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider hidden md:table-cell">
                         Référence
                       </th>
                     </tr>
@@ -1014,220 +924,37 @@ export default function ReportsPage() {
                       </tr>
                     ) : (
                       reportData.payments.map((payment) => (
-                        <tr key={payment._id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                          <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm text-gray-900 dark:text-white">
+                        <tr key={payment._id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                          <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900 dark:text-white">
                             {formatDate(payment.date)}
                           </td>
-                          <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
+                          <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
                             {payment.numero}
                           </td>
-                          <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden sm:table-cell">
+                          <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                             {payment.companyName}
                           </td>
-                          <td className="px-2 py-2 whitespace-nowrap">
-                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                              payment.type === 'client' 
-                                ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                                : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                            }`}>
-                              {payment.type === 'client' ? 'Client' : 'Fournisseur'}
-                            </span>
+                          <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                            {payment.type === 'client' ? 'Client' : 'Fournisseur'}
                           </td>
-                          <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
-                            {formatPrice(payment.montant)}
+                          <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
+                            {formatPrice(payment.montant, 'TND')}
                           </td>
-                          <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden md:table-cell">
+                          <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden sm:table-cell">
                             {payment.modePaiement}
                           </td>
-                          <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden lg:table-cell">
+                          <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden md:table-cell">
                             {payment.reference || '-'}
                           </td>
                         </tr>
                       ))
                     )}
                   </tbody>
-                  {reportData.paymentsSummary && reportData.payments.length > 0 && (
-                    <tfoot className="bg-gray-50 dark:bg-gray-900">
-                      <tr>
-                        <td colSpan={4} className="px-3 sm:px-6 py-2 sm:py-3 text-right text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
-                          Total:
-                        </td>
-                        <td className="px-3 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
-                          {formatPrice(reportData.paymentsSummary.total)}
-                        </td>
-                        <td colSpan={2}></td>
-                      </tr>
-                    </tfoot>
-                  )}
                 </table>
               </div>
             </div>
           )}
         </div>
-
-        {/* Statistiques supplémentaires */}
-        {reportData && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-            {/* Résumé financier */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 sm:p-6">
-              <h3 className="text-base sm:text-lg font-medium text-gray-900 dark:text-white mb-3 sm:mb-4">
-                Résumé Financier (TND)
-              </h3>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mb-3 sm:mb-4">
-                Tous les montants sont convertis en TND selon le taux de change à la date de la facture
-              </p>
-              <div className="space-y-3">
-                {reportData.financialSummary && (
-                  <>
-                    <div className="pb-2 border-b border-gray-200 dark:border-gray-700">
-                      <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Ventes</h4>
-                      <div className="space-y-2 pl-4">
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-600 dark:text-gray-400">Total HT:</span>
-                          <span className="text-sm font-medium text-gray-900 dark:text-white">
-                            {formatPrice(reportData.financialSummary.totalVentesHT, 'TND')}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-600 dark:text-gray-400">Total TVA:</span>
-                          <span className="text-sm font-medium text-gray-900 dark:text-white">
-                            {formatPrice(reportData.financialSummary.totalVentesTVA, 'TND')}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-600 dark:text-gray-400">Total Timbre:</span>
-                          <span className="text-sm font-medium text-gray-900 dark:text-white">
-                            {formatPrice(reportData.financialSummary.totalVentesTimbre, 'TND')}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm font-medium text-gray-900 dark:text-white">Total TTC:</span>
-                          <span className="text-sm font-bold text-gray-900 dark:text-white">
-                            {formatPrice(reportData.financialSummary.totalVentesTTC, 'TND')}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="pb-2 border-b border-gray-200 dark:border-gray-700">
-                      <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Achats</h4>
-                      <div className="space-y-2 pl-4">
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-600 dark:text-gray-400">Total HT:</span>
-                          <span className="text-sm font-medium text-gray-900 dark:text-white">
-                            {formatPrice(reportData.financialSummary.totalAchatsHT, 'TND')}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-600 dark:text-gray-400">Total TVA:</span>
-                          <span className="text-sm font-medium text-gray-900 dark:text-white">
-                            {formatPrice(reportData.financialSummary.totalAchatsTVA, 'TND')}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-600 dark:text-gray-400">Total Fodec:</span>
-                          <span className="text-sm font-medium text-gray-900 dark:text-white">
-                            {formatPrice(reportData.financialSummary.totalAchatsFodec, 'TND')}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-600 dark:text-gray-400">Total Timbre:</span>
-                          <span className="text-sm font-medium text-gray-900 dark:text-white">
-                            {formatPrice(reportData.financialSummary.totalAchatsTimbre, 'TND')}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm font-medium text-gray-900 dark:text-white">Total TTC:</span>
-                          <span className="text-sm font-bold text-gray-900 dark:text-white">
-                            {formatPrice(reportData.financialSummary.totalAchatsTTC, 'TND')}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="pb-2 border-b border-gray-200 dark:border-gray-700">
-                      <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Dépenses</h4>
-                      <div className="space-y-2 pl-4">
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-600 dark:text-gray-400">Total HT:</span>
-                          <span className="text-sm font-medium text-gray-900 dark:text-white">
-                            {formatPrice(reportData.financialSummary.totalDepensesHT, 'TND')}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-600 dark:text-gray-400">Total TVA:</span>
-                          <span className="text-sm font-medium text-gray-900 dark:text-white">
-                            {formatPrice(reportData.financialSummary.totalDepensesTVA, 'TND')}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm font-medium text-gray-900 dark:text-white">Total TTC:</span>
-                          <span className="text-sm font-bold text-gray-900 dark:text-white">
-                            {formatPrice(reportData.financialSummary.totalDepensesTTC, 'TND')}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="pt-3 border-t-2 border-gray-300 dark:border-gray-600">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-semibold text-gray-900 dark:text-white">Marge brute (TND):</span>
-                        <span className={`text-sm font-bold ${
-                          (reportData.financialSummary.totalVentesHT - reportData.financialSummary.totalAchatsHT - reportData.financialSummary.totalDepensesHT) >= 0
-                            ? 'text-green-600 dark:text-green-400'
-                            : 'text-red-600 dark:text-red-400'
-                        }`}>
-                          {formatPrice(
-                            reportData.financialSummary.totalVentesHT - 
-                            reportData.financialSummary.totalAchatsHT - 
-                            reportData.financialSummary.totalDepensesHT,
-                            'TND'
-                          )}
-                        </span>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* TVA Summary */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 sm:p-6">
-              <h3 className="text-base sm:text-lg font-medium text-gray-900 dark:text-white mb-3 sm:mb-4">
-                Résumé TVA
-              </h3>
-              <div className="space-y-3">
-                {reportData.salesSummary && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">TVA collectée (Ventes):</span>
-                    <span className="text-sm font-medium text-gray-900 dark:text-white">
-                      {formatPrice(reportData.salesSummary.totalTVA)}
-                    </span>
-                  </div>
-                )}
-                {reportData.purchasesSummary && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">TVA déductible (Achats):</span>
-                    <span className="text-sm font-medium text-gray-900 dark:text-white">
-                      {formatPrice(reportData.purchasesSummary.totalTVA)}
-                    </span>
-                  </div>
-                )}
-                {reportData.salesSummary && reportData.purchasesSummary && (
-                  <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm font-medium text-gray-900 dark:text-white">TVA à payer:</span>
-                      <span className={`text-sm font-bold ${
-                        (reportData.salesSummary.totalTVA - reportData.purchasesSummary.totalTVA) >= 0
-                          ? 'text-red-600 dark:text-red-400'
-                          : 'text-green-600 dark:text-green-400'
-                      }`}>
-                        {formatPrice(reportData.salesSummary.totalTVA - reportData.purchasesSummary.totalTVA)}
-                      </span>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </DashboardLayout>
   );

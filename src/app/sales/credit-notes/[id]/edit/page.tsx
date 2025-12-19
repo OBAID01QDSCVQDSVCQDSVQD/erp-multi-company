@@ -219,24 +219,24 @@ export default function EditCreditNotePage() {
     <DashboardLayout>
       <div className="p-4 sm:p-6 max-w-xl mx-auto space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-1">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
             Modifier l’avoir {numero}
           </h1>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
             Sélectionnez la facture liée à partir de la liste.
           </p>
         </div>
 
-        <div className="bg-white border rounded-2xl p-4 space-y-3">
+        <div className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-2xl p-4 space-y-3">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Facture liée (numéro)
             </label>
             <input
               type="text"
               value={referenceExterne}
               onChange={(e) => setReferenceExterne(e.target.value)}
-              className="w-full rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500 text-sm"
+              className="w-full rounded-lg border-gray-300 dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               placeholder="Rechercher par numéro de facture..."
             />
           </div>
@@ -250,7 +250,7 @@ export default function EditCreditNotePage() {
           )}
 
           {searchResults.length > 0 && (
-            <div className="border rounded-lg max-h-56 overflow-y-auto text-sm">
+            <div className="border dark:border-gray-700 rounded-lg max-h-56 overflow-y-auto text-sm">
               {searchResults.map((inv) => {
                 const currentId = (params?.id as string) || '';
                 const alreadyUsed = usedCreditNotes.some(
@@ -268,19 +268,17 @@ export default function EditCreditNotePage() {
                       if (alreadyUsed) return;
                       handleSelectInvoice(inv);
                     }}
-                    className={`w-full flex justify-between items-center px-3 py-2 border-b last:border-b-0 text-left ${
-                      alreadyUsed
-                        ? 'bg-gray-50 text-gray-400 cursor-not-allowed'
-                        : 'hover:bg-gray-50'
-                    }`}
+                    className={`w-full flex justify-between items-center px-3 py-2 border-b dark:border-gray-700 last:border-b-0 text-left ${alreadyUsed
+                        ? 'bg-gray-50 dark:bg-gray-700/50 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                        : 'hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-white'
+                      }`}
                   >
-                    <span className="font-medium text-gray-900">
+                    <span className="font-medium text-gray-900 dark:text-white">
                       {inv.numero}
                     </span>
-                    <span className="text-xs text-gray-600">
+                    <span className="text-xs text-gray-600 dark:text-gray-400">
                       {typeof inv.totalTTC === 'number' &&
-                        `${Math.abs(inv.totalTTC).toFixed(3)} ${
-                          inv.devise || 'TND'
+                        `${Math.abs(inv.totalTTC).toFixed(3)} ${inv.devise || 'TND'
                         }`}
                       {alreadyUsed && ' (déjà utilisé dans un avoir)'}
                     </span>
@@ -295,7 +293,7 @@ export default function EditCreditNotePage() {
           <button
             type="button"
             onClick={() => router.push('/sales/credit-notes')}
-            className="px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50"
+            className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
           >
             Annuler
           </button>

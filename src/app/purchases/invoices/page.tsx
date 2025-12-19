@@ -102,14 +102,14 @@ export default function PurchaseInvoicesPage() {
 
   async function handleDelete(invoiceId: string) {
     if (!confirm('Êtes-vous sûr de vouloir supprimer cette facture ?')) return;
-    
+
     if (!tenantId) return;
     try {
       const response = await fetch(`/api/purchases/invoices/${invoiceId}`, {
         method: 'DELETE',
         headers: { 'X-Tenant-Id': tenantId },
       });
-      
+
       if (response.ok) {
         toast.success('Facture supprimée avec succès');
         fetchInvoices();
@@ -135,7 +135,7 @@ export default function PurchaseInvoicesPage() {
 
   async function handleSaveImages() {
     if (!selectedInvoiceForImages || !tenantId) return;
-    
+
     if (newImages.length === 0) {
       toast.error('Veuillez ajouter au moins une image');
       return;
@@ -179,7 +179,7 @@ export default function PurchaseInvoicesPage() {
 
   async function handleStatusChange(invoiceId: string, newStatus: string) {
     if (!tenantId) return;
-    
+
     try {
       // For status change, we need to update the invoice
       // First, check if we can change the status
@@ -229,14 +229,14 @@ export default function PurchaseInvoicesPage() {
             <div className="flex items-center gap-3">
               <button
                 onClick={() => router.back()}
-                className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-colors"
+                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
                 title="Retour à la page précédente"
               >
                 <ArrowLeftIcon className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
               <div>
-                <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Factures d'achat</h1>
-                <p className="text-xs sm:text-sm text-gray-600 mt-1">Gérez vos factures fournisseurs</p>
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Factures d'achat</h1>
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1">Gérez vos factures fournisseurs</p>
               </div>
             </div>
             <button
@@ -256,13 +256,13 @@ export default function PurchaseInvoicesPage() {
                 placeholder="Rechercher par numéro, fournisseur..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
               />
             </div>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
             >
               <option value="">Tous les statuts</option>
               <option value="BROUILLON">Brouillon</option>
@@ -275,16 +275,47 @@ export default function PurchaseInvoicesPage() {
         </div>
 
         {loading ? (
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="animate-pulse space-y-4">
+          <div className="space-y-4">
+            {/* Desktop Skeleton */}
+            <div className="hidden lg:block bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+              <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+                <div className="animate-pulse flex items-center justify-between">
+                  <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/4"></div>
+                  <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/6"></div>
+                </div>
+              </div>
+              <div className="p-4 space-y-4">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="animate-pulse flex items-center gap-4">
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/6"></div>
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4"></div>
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/6"></div>
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/6"></div>
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/6"></div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {/* Mobile Skeleton */}
+            <div className="lg:hidden space-y-4">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="h-16 bg-gray-200 rounded"></div>
+                <div key={i} className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 animate-pulse">
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-1/3"></div>
+                    <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-1/6"></div>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-2/3"></div>
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4"></div>
+                  </div>
+                </div>
               ))}
             </div>
           </div>
         ) : filteredInvoices.length === 0 ? (
-          <div className="bg-white rounded-lg shadow p-12 text-center">
-            <p className="text-gray-500 mb-4">Aucune facture trouvée</p>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-12 text-center">
+            <p className="text-gray-500 dark:text-gray-400 mb-4">Aucune facture trouvée</p>
             <button
               onClick={() => router.push('/purchases/invoices/new')}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
@@ -293,34 +324,34 @@ export default function PurchaseInvoicesPage() {
             </button>
           </div>
         ) : (
-          <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden sm:rounded-md flex flex-col">
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-blue-50 border-b-2 border-blue-200">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead className="bg-blue-50 dark:bg-gray-700 border-b-2 border-blue-200 dark:border-gray-600">
                   <tr>
-                    <th className="px-4 sm:px-6 py-3 text-left text-sm font-bold text-gray-800 whitespace-nowrap">N° Facture</th>
-                    <th className="px-4 sm:px-6 py-3 text-left text-sm font-bold text-gray-800">Date</th>
-                    <th className="px-4 sm:px-6 py-3 text-left text-sm font-bold text-gray-800">N° Facture Fournisseur</th>
-                    <th className="px-4 sm:px-6 py-3 text-left text-sm font-bold text-gray-800">Fournisseur</th>
-                    <th className="px-4 sm:px-6 py-3 text-right text-sm font-bold text-gray-800 whitespace-nowrap">Total TTC</th>
-                    <th className="px-4 sm:px-6 py-3 text-center text-sm font-bold text-gray-800 whitespace-nowrap">Images</th>
-                    <th className="px-4 sm:px-6 py-3 text-right text-sm font-bold text-gray-800 whitespace-nowrap">Actions</th>
+                    <th className="px-4 sm:px-6 py-3 text-left text-sm font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">N° Facture</th>
+                    <th className="px-4 sm:px-6 py-3 text-left text-sm font-bold text-gray-800 dark:text-gray-200">Date</th>
+                    <th className="px-4 sm:px-6 py-3 text-left text-sm font-bold text-gray-800 dark:text-gray-200">N° Facture Fournisseur</th>
+                    <th className="px-4 sm:px-6 py-3 text-left text-sm font-bold text-gray-800 dark:text-gray-200">Fournisseur</th>
+                    <th className="px-4 sm:px-6 py-3 text-right text-sm font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">Total TTC</th>
+                    <th className="px-4 sm:px-6 py-3 text-center text-sm font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">Images</th>
+                    <th className="px-4 sm:px-6 py-3 text-right text-sm font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                   {filteredInvoices.map((invoice) => (
-                    <tr key={invoice._id} className="hover:bg-gray-50">
+                    <tr key={invoice._id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                       <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-blue-600">{invoice.numero}</div>
+                        <div className="text-sm font-medium text-blue-600 dark:text-blue-400">{invoice.numero}</div>
                       </td>
-                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                         {new Date(invoice.dateFacture).toLocaleDateString('fr-FR')}
                       </td>
-                      <td className="px-4 sm:px-6 py-4 text-sm text-gray-900">
+                      <td className="px-4 sm:px-6 py-4 text-sm text-gray-900 dark:text-white">
                         {invoice.referenceFournisseur || '—'}
                       </td>
-                      <td className="px-4 sm:px-6 py-4 text-sm text-gray-900">{invoice.fournisseurNom}</td>
-                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-right font-medium text-gray-900">
+                      <td className="px-4 sm:px-6 py-4 text-sm text-gray-900 dark:text-white">{invoice.fournisseurNom}</td>
+                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-right font-medium text-gray-900 dark:text-white">
                         {invoice.totaux.totalTTC.toFixed(3)} {invoice.devise || 'TND'}
                       </td>
                       <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-center">
@@ -341,7 +372,7 @@ export default function PurchaseInvoicesPage() {
                         <div className="flex items-center justify-end gap-1 sm:gap-2">
                           <button
                             onClick={() => router.push(`/purchases/invoices/${invoice._id}`)}
-                            className="p-1.5 sm:p-2 text-blue-600 hover:text-blue-900 hover:bg-blue-50 rounded transition-colors"
+                            className="p-1.5 sm:p-2 text-blue-600 hover:text-blue-900 hover:bg-blue-50 dark:hover:bg-blue-900/20 dark:text-blue-400 dark:hover:text-blue-300 rounded transition-colors"
                             title="Voir les détails"
                           >
                             <EyeIcon className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -350,14 +381,14 @@ export default function PurchaseInvoicesPage() {
                             <>
                               <button
                                 onClick={() => router.push(`/purchases/invoices/${invoice._id}/edit`)}
-                                className="p-1.5 sm:p-2 text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 rounded transition-colors"
+                                className="p-1.5 sm:p-2 text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 dark:text-indigo-400 dark:hover:text-indigo-300 rounded transition-colors"
                                 title="Modifier"
                               >
                                 <PencilIcon className="w-4 h-4 sm:w-5 sm:h-5" />
                               </button>
                               <button
                                 onClick={() => handleDelete(invoice._id)}
-                                className="p-1.5 sm:p-2 text-red-600 hover:text-red-900 hover:bg-red-50 rounded transition-colors"
+                                className="p-1.5 sm:p-2 text-red-600 hover:text-red-900 hover:bg-red-50 dark:hover:bg-red-900/20 dark:text-red-400 dark:hover:text-red-300 rounded transition-colors"
                                 title="Supprimer"
                               >
                                 <TrashIcon className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -366,14 +397,14 @@ export default function PurchaseInvoicesPage() {
                           )}
                           <button
                             onClick={() => handleDownloadPdf(invoice._id)}
-                            className="p-1.5 sm:p-2 text-green-600 hover:text-green-900 hover:bg-green-50 rounded transition-colors"
+                            className="p-1.5 sm:p-2 text-green-600 hover:text-green-900 hover:bg-green-50 dark:hover:bg-green-900/20 dark:text-green-400 dark:hover:text-green-300 rounded transition-colors"
                             title="Télécharger PDF"
                           >
                             <ArrowDownTrayIcon className="w-4 h-4 sm:w-5 sm:h-5" />
                           </button>
                           <button
                             onClick={() => handleAddImages(invoice)}
-                            className="p-1.5 sm:p-2 text-purple-600 hover:text-purple-900 hover:bg-purple-50 rounded transition-colors"
+                            className="p-1.5 sm:p-2 text-purple-600 hover:text-purple-900 hover:bg-purple-50 dark:hover:bg-purple-900/20 dark:text-purple-400 dark:hover:text-purple-300 rounded transition-colors"
                             title="Ajouter des images"
                           >
                             <PlusCircleIcon className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -390,10 +421,10 @@ export default function PurchaseInvoicesPage() {
 
         {/* Add Images Modal */}
         {showAddImagesModal && selectedInvoiceForImages && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between p-6 border-b">
-                <h2 className="text-xl font-bold text-gray-900">
+          <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between p-6 border-b dark:border-gray-700">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">
                   Ajouter des images - Facture {selectedInvoiceForImages.numero}
                 </h2>
                 <button
@@ -417,14 +448,14 @@ export default function PurchaseInvoicesPage() {
                   folder="erp-uploads"
                 />
               </div>
-              <div className="flex items-center justify-end gap-3 p-6 border-t bg-gray-50">
+              <div className="flex items-center justify-end gap-3 p-6 border-t dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
                 <button
                   onClick={() => {
                     setShowAddImagesModal(false);
                     setSelectedInvoiceForImages(null);
                     setNewImages([]);
                   }}
-                  className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-500 transition-colors"
                 >
                   Annuler
                 </button>
@@ -442,10 +473,10 @@ export default function PurchaseInvoicesPage() {
 
         {/* Images Modal */}
         {selectedInvoiceImages && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between p-6 border-b">
-                <h2 className="text-xl font-bold text-gray-900">
+          <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between p-6 border-b dark:border-gray-700">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">
                   Images - Facture {selectedInvoiceImages.invoiceNumero}
                 </h2>
                 <button
@@ -462,6 +493,6 @@ export default function PurchaseInvoicesPage() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </DashboardLayout >
   );
 }

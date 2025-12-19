@@ -30,7 +30,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
     if (status === 'loading') {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-50">
+            <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
                 <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-emerald-600"></div>
             </div>
         );
@@ -43,7 +43,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     }
 
     return (
-        <div className="h-screen flex overflow-hidden bg-gray-50 font-sans">
+        <div className="h-screen flex overflow-hidden bg-gray-50 dark:bg-gray-900 font-sans">
             <AdminSidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
 
             <div className="flex flex-col w-0 flex-1 overflow-hidden">

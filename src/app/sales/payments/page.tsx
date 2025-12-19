@@ -195,7 +195,7 @@ export default function PaymentsPage() {
   const handleCustomerKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setSelectedCustomerIndex(prev => 
+      setSelectedCustomerIndex(prev =>
         prev < filteredCustomers.length - 1 ? prev + 1 : prev
       );
     } else if (e.key === 'ArrowUp') {
@@ -222,7 +222,7 @@ export default function PaymentsPage() {
       toast.error('Veuillez sélectionner au moins une facture');
       return;
     }
-    
+
     if (useAdvance && selectedInvoiceIds.length === 0 && advanceBalance <= 0) {
       toast.error('Aucun solde avance disponible');
       return;
@@ -284,7 +284,7 @@ export default function PaymentsPage() {
         currentAdvanceBalance: advanceBalance,
         advanceUsed: advanceToUse,
       };
-      
+
       // If using advance and amount paid is less than available advance, create payment on account for remaining
       if (useAdvance && advanceBalance > totalToPay && totalToPay > 0) {
         payload.createRemainingAdvance = true;
@@ -367,7 +367,7 @@ export default function PaymentsPage() {
 
   async function handleSaveImages() {
     if (!selectedPaymentForImages || !tenantId) return;
-    
+
     if (newImages.length === 0) {
       toast.error('Veuillez ajouter au moins une image');
       return;
@@ -421,7 +421,7 @@ export default function PaymentsPage() {
             >
               <ArrowLeftIcon className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Paiements clients</h1>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Paiements clients</h1>
           </div>
           <button
             onClick={() => router.push('/sales/payments/new')}
@@ -441,197 +441,220 @@ export default function PaymentsPage() {
               placeholder="Rechercher par numéro, client, référence..."
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
             />
           </div>
         </div>
 
-        {/* Payments Table - Desktop */}
-        <div className="hidden lg:block bg-white rounded-lg shadow overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Numéro</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Client</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mode</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Référence</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Montant</th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Images</th>
-                  <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {loading ? (
-                  <tr>
-                    <td colSpan={8} className="px-6 py-4 text-center text-gray-500">
-                      Chargement...
-                    </td>
-                  </tr>
-                ) : filtered.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="px-6 py-4 text-center text-gray-500">
-                      Aucun paiement trouvé
-                    </td>
-                  </tr>
-                ) : (
-                  filtered.map((payment) => {
-                    return (
-                    <tr key={payment._id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {payment.numero}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(payment.datePaiement).toLocaleDateString('fr-FR')}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {payment.customerNom || '-'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {payment.modePaiement}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {payment.reference || '-'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {formatCurrency(payment.montantTotal)} TND
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center">
-                        {payment.images && payment.images.length > 0 ? (
+        {loading ? (
+          <div className="space-y-4">
+            <div className="hidden lg:block bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
+              <div className="p-4 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
+                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4 animate-pulse"></div>
+              </div>
+              <div className="p-4 space-y-4">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="flex gap-4">
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/6 animate-pulse"></div>
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/6 animate-pulse"></div>
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4 animate-pulse"></div>
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/6 animate-pulse"></div>
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/6 animate-pulse"></div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {/* Mobile Skeleton */}
+            <div className="lg:hidden space-y-4">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm space-y-3">
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/3 animate-pulse"></div>
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2 animate-pulse"></div>
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4 animate-pulse"></div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Payments Table - Desktop */}
+            <div className="hidden lg:block bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden border dark:border-gray-700">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead className="bg-gray-50 dark:bg-gray-700">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Numéro</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Date</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Client</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Mode</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Référence</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Montant</th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Images</th>
+                      <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {filtered.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+                          Aucun paiement trouvé
+                        </td>
+                      </tr>
+                    ) : (
+                      filtered.map((payment) => {
+                        return (
+                          <tr key={payment._id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                              {payment.numero}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                              {new Date(payment.datePaiement).toLocaleDateString('fr-FR')}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                              {payment.customerNom || '-'}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                              {payment.modePaiement}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                              {payment.reference || '-'}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                              {formatCurrency(payment.montantTotal)} TND
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-center">
+                              {payment.images && payment.images.length > 0 ? (
+                                <button
+                                  onClick={() => setSelectedPaymentImages({ paymentNumero: payment.numero, images: payment.images! })}
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors text-xs font-medium"
+                                  title={`${payment.images.length} image(s) jointe(s)`}
+                                >
+                                  <PhotoIcon className="w-4 h-4" />
+                                  <span>{payment.images.length}</span>
+                                </button>
+                              ) : (
+                                <span className="text-gray-400 text-xs">—</span>
+                              )}
+                            </td>
+                            <td className="px-2 py-2 whitespace-nowrap text-sm font-medium">
+                              <div className="flex items-center justify-end gap-0.5">
+                                <button
+                                  onClick={() => router.push(`/sales/payments/${payment._id}`)}
+                                  className="p-1.5 text-blue-600 hover:text-blue-900 hover:bg-blue-50 dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-900/20 rounded transition-colors"
+                                  title="Voir les détails"
+                                >
+                                  <EyeIcon className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleAddImages(payment)}
+                                  className="p-1.5 text-purple-600 hover:text-purple-900 hover:bg-purple-50 dark:text-purple-400 dark:hover:text-purple-300 dark:hover:bg-purple-900/20 rounded transition-colors"
+                                  title="Ajouter des images"
+                                >
+                                  <PlusCircleIcon className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleDelete(payment._id)}
+                                  className="p-1.5 text-red-600 hover:text-red-900 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/20 rounded transition-colors"
+                                  title="Supprimer"
+                                >
+                                  <TrashIcon className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Payments Cards - Mobile */}
+            <div className="lg:hidden space-y-4">
+              {filtered.length === 0 ? (
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 text-center text-gray-500 dark:text-gray-400">
+                  Aucun paiement trouvé
+                </div>
+              ) : (
+                filtered.map((payment) => (
+                  <div key={payment._id} className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg shadow p-4 hover:shadow-md transition-shadow">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1">
+                        <div className="text-sm font-medium text-gray-900 dark:text-white mb-1">{payment.numero}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          {new Date(payment.datePaiement).toLocaleDateString('fr-FR')}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => router.push(`/sales/payments/${payment._id}`)}
+                          className="p-1.5 text-blue-600 hover:text-blue-900 hover:bg-blue-50 dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-900/20 rounded transition-colors"
+                          title="Voir les détails"
+                        >
+                          <EyeIcon className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleAddImages(payment)}
+                          className="p-1.5 text-purple-600 hover:text-purple-900 hover:bg-purple-50 dark:text-purple-400 dark:hover:text-purple-300 dark:hover:bg-purple-900/20 rounded transition-colors"
+                          title="Ajouter des images"
+                        >
+                          <PlusCircleIcon className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(payment._id)}
+                          className="p-1.5 text-red-600 hover:text-red-900 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/20 rounded transition-colors"
+                          title="Supprimer"
+                        >
+                          <TrashIcon className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-gray-500 dark:text-gray-400">Client</span>
+                        <span className="text-sm font-medium text-gray-900 dark:text-white">{payment.customerNom || '-'}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-gray-500 dark:text-gray-400">Mode</span>
+                        <span className="text-sm text-gray-700 dark:text-gray-300">{payment.modePaiement}</span>
+                      </div>
+                      {payment.reference && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs text-gray-500 dark:text-gray-400">Référence</span>
+                          <span className="text-sm text-gray-700 dark:text-gray-300">{payment.reference}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between items-center pt-2 border-t dark:border-gray-700">
+                        <span className="text-xs text-gray-500 dark:text-gray-400">Montant</span>
+                        <span className="text-sm font-bold text-gray-900 dark:text-white">{formatCurrency(payment.montantTotal)} TND</span>
+                      </div>
+                      {payment.images && payment.images.length > 0 && (
+                        <div className="flex justify-between items-center pt-2">
+                          <span className="text-xs text-gray-500 dark:text-gray-400">Images</span>
                           <button
                             onClick={() => setSelectedPaymentImages({ paymentNumero: payment.numero, images: payment.images! })}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors text-xs font-medium"
-                            title={`${payment.images.length} image(s) jointe(s)`}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors text-xs font-medium"
                           >
                             <PhotoIcon className="w-4 h-4" />
                             <span>{payment.images.length}</span>
                           </button>
-                        ) : (
-                          <span className="text-gray-400 text-xs">—</span>
-                        )}
-                      </td>
-                      <td className="px-2 py-2 whitespace-nowrap text-sm font-medium">
-                        <div className="flex items-center justify-end gap-0.5">
-                          <button
-                            onClick={() => router.push(`/sales/payments/${payment._id}`)}
-                            className="p-1.5 text-blue-600 hover:text-blue-900 hover:bg-blue-50 rounded transition-colors"
-                            title="Voir les détails"
-                          >
-                            <EyeIcon className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleAddImages(payment)}
-                            className="p-1.5 text-purple-600 hover:text-purple-900 hover:bg-purple-50 rounded transition-colors"
-                            title="Ajouter des images"
-                          >
-                            <PlusCircleIcon className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(payment._id)}
-                            className="p-1.5 text-red-600 hover:text-red-900 hover:bg-red-50 rounded transition-colors"
-                            title="Supprimer"
-                          >
-                            <TrashIcon className="w-4 h-4" />
-                          </button>
                         </div>
-                      </td>
-                    </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Payments Cards - Mobile */}
-        <div className="lg:hidden space-y-4">
-          {loading ? (
-            <div className="bg-white rounded-lg shadow p-6 text-center text-gray-500">
-              Chargement...
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
-          ) : filtered.length === 0 ? (
-            <div className="bg-white rounded-lg shadow p-6 text-center text-gray-500">
-              Aucun paiement trouvé
-            </div>
-          ) : (
-            filtered.map((payment) => (
-              <div key={payment._id} className="bg-white rounded-lg shadow p-4 hover:shadow-md transition-shadow">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1">
-                    <div className="text-sm font-medium text-gray-900 mb-1">{payment.numero}</div>
-                    <div className="text-xs text-gray-500">
-                      {new Date(payment.datePaiement).toLocaleDateString('fr-FR')}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => router.push(`/sales/payments/${payment._id}`)}
-                      className="p-1.5 text-blue-600 hover:text-blue-900 hover:bg-blue-50 rounded transition-colors"
-                      title="Voir les détails"
-                    >
-                      <EyeIcon className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleAddImages(payment)}
-                      className="p-1.5 text-purple-600 hover:text-purple-900 hover:bg-purple-50 rounded transition-colors"
-                      title="Ajouter des images"
-                    >
-                      <PlusCircleIcon className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(payment._id)}
-                      className="p-1.5 text-red-600 hover:text-red-900 hover:bg-red-50 rounded transition-colors"
-                      title="Supprimer"
-                    >
-                      <TrashIcon className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-gray-500">Client</span>
-                    <span className="text-sm font-medium text-gray-900">{payment.customerNom || '-'}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-gray-500">Mode</span>
-                    <span className="text-sm text-gray-700">{payment.modePaiement}</span>
-                  </div>
-                  {payment.reference && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-gray-500">Référence</span>
-                      <span className="text-sm text-gray-700">{payment.reference}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between items-center pt-2 border-t">
-                    <span className="text-xs text-gray-500">Montant</span>
-                    <span className="text-sm font-bold text-gray-900">{formatCurrency(payment.montantTotal)} TND</span>
-                  </div>
-                  {payment.images && payment.images.length > 0 && (
-                    <div className="flex justify-between items-center pt-2">
-                      <span className="text-xs text-gray-500">Images</span>
-                      <button
-                        onClick={() => setSelectedPaymentImages({ paymentNumero: payment.numero, images: payment.images! })}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors text-xs font-medium"
-                      >
-                        <PhotoIcon className="w-4 h-4" />
-                        <span>{payment.images.length}</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))
-          )}
-        </div>
+          </>
+        )}
 
         {/* Create Payment Modal */}
         {showModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-              <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
-                <h2 className="text-xl font-bold text-gray-900">Nouveau paiement</h2>
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+              <div className="sticky top-0 bg-white dark:bg-gray-800 border-b dark:border-gray-700 px-6 py-4 flex items-center justify-between">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Nouveau paiement</h2>
                 <button
                   onClick={() => {
                     setShowModal(false);
@@ -646,7 +669,7 @@ export default function PaymentsPage() {
               <div className="p-6 space-y-6">
                 {/* Customer Selection */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Client *
                   </label>
                   <div className="relative">
@@ -661,23 +684,22 @@ export default function PaymentsPage() {
                       onFocus={() => setShowCustomerDropdown(true)}
                       onKeyDown={handleCustomerKeyDown}
                       placeholder="Rechercher un client..."
-                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                     />
                     {showCustomerDropdown && filteredCustomers.length > 0 && (
-                      <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-60 overflow-auto">
+                      <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg shadow-lg max-h-60 overflow-auto">
                         {filteredCustomers.map((customer, index) => (
                           <div
                             key={customer._id}
                             onClick={() => handleSelectCustomer(customer)}
-                            className={`px-4 py-2 cursor-pointer hover:bg-gray-100 ${
-                              index === selectedCustomerIndex ? 'bg-blue-50' : ''
-                            }`}
+                            className={`px-4 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 ${index === selectedCustomerIndex ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                              }`}
                           >
-                            <div className="font-medium">
+                            <div className="font-medium text-gray-900 dark:text-white">
                               {customer.raisonSociale || `${customer.nom || ''} ${customer.prenom || ''}`.trim()}
                             </div>
                             {customer.code && (
-                              <div className="text-sm text-gray-500">{customer.code}</div>
+                              <div className="text-sm text-gray-500 dark:text-gray-400">{customer.code}</div>
                             )}
                           </div>
                         ))}
@@ -689,24 +711,24 @@ export default function PaymentsPage() {
                 {/* Payment Details */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Date de paiement *
                     </label>
                     <input
                       type="date"
                       value={formData.datePaiement}
                       onChange={(e) => setFormData({ ...formData, datePaiement: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Mode de paiement *
                     </label>
                     <select
                       value={formData.modePaiement}
                       onChange={(e) => setFormData({ ...formData, modePaiement: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                       disabled={useAdvance}
                     >
                       <option value="Espèces">Espèces</option>
@@ -718,7 +740,7 @@ export default function PaymentsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Référence
                   </label>
                   <input
@@ -726,7 +748,7 @@ export default function PaymentsPage() {
                     value={formData.reference}
                     onChange={(e) => setFormData({ ...formData, reference: e.target.value })}
                     placeholder="N° de chèque, référence virement..."
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                     disabled={useAdvance}
                   />
                 </div>
@@ -761,31 +783,31 @@ export default function PaymentsPage() {
                 {/* Unpaid Invoices */}
                 {selectedCustomerId && unpaidInvoices.length > 0 && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Factures impayées
                     </label>
-                    <div className="border rounded-lg overflow-x-auto">
-                      <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
+                    <div className="border dark:border-gray-700 rounded-lg overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                        <thead className="bg-gray-50 dark:bg-gray-700">
                           <tr>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">N°</th>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Date</th>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Total</th>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Payé</th>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Reste</th>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Montant à payer</th>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">N°</th>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Date</th>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Total</th>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Payé</th>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Reste</th>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">Montant à payer</th>
                           </tr>
                         </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
+                        <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                           {unpaidInvoices.map((invoice) => (
                             <tr key={invoice._id}>
-                              <td className="px-4 py-2 text-sm">{invoice.numero}</td>
-                              <td className="px-4 py-2 text-sm text-gray-500">
+                              <td className="px-4 py-2 text-sm text-gray-900 dark:text-white">{invoice.numero}</td>
+                              <td className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">
                                 {new Date(invoice.dateDoc).toLocaleDateString('fr-FR')}
                               </td>
-                              <td className="px-4 py-2 text-sm">{formatCurrency(invoice.montantTotal)}</td>
-                              <td className="px-4 py-2 text-sm text-gray-500">{formatCurrency(invoice.montantPaye)}</td>
-                              <td className="px-4 py-2 text-sm font-medium">{formatCurrency(invoice.soldeRestant)}</td>
+                              <td className="px-4 py-2 text-sm text-gray-900 dark:text-white">{formatCurrency(invoice.montantTotal)}</td>
+                              <td className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">{formatCurrency(invoice.montantPaye)}</td>
+                              <td className="px-4 py-2 text-sm font-medium text-gray-900 dark:text-white">{formatCurrency(invoice.soldeRestant)}</td>
                               <td className="px-4 py-2">
                                 <input
                                   type="number"
@@ -797,7 +819,7 @@ export default function PaymentsPage() {
                                     const value = Math.min(invoice.soldeRestant, Math.max(0, parseFloat(e.target.value) || 0));
                                     setSelectedInvoices({ ...selectedInvoices, [invoice._id]: value });
                                   }}
-                                  className="w-32 px-2 py-1 border rounded text-sm"
+                                  className="w-32 px-2 py-1 border rounded text-sm bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                                   disabled={useAdvance}
                                 />
                               </td>
@@ -807,7 +829,7 @@ export default function PaymentsPage() {
                       </table>
                     </div>
                     <div className="mt-4 flex justify-end">
-                      <div className="text-lg font-bold">
+                      <div className="text-lg font-bold text-gray-900 dark:text-white">
                         Total à payer: {formatCurrency(totalToPay)} TND
                       </div>
                     </div>
@@ -816,26 +838,26 @@ export default function PaymentsPage() {
 
                 {/* Notes */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Notes
                   </label>
                   <textarea
                     value={formData.notes}
                     onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                     rows={3}
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                     placeholder="Notes supplémentaires..."
                   />
                 </div>
               </div>
 
-              <div className="sticky bottom-0 bg-gray-50 border-t px-6 py-4 flex justify-end gap-3">
+              <div className="sticky bottom-0 bg-gray-50 dark:bg-gray-800 border-t dark:border-gray-700 px-6 py-4 flex justify-end gap-3">
                 <button
                   onClick={() => {
                     setShowModal(false);
                     resetForm();
                   }}
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
                 >
                   Annuler
                 </button>
@@ -853,9 +875,9 @@ export default function PaymentsPage() {
         {/* Add Images Modal */}
         {showAddImagesModal && selectedPaymentForImages && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between p-6 border-b">
-                <h2 className="text-xl font-bold text-gray-900">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between p-6 border-b dark:border-gray-700">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">
                   Ajouter des images - Paiement {selectedPaymentForImages.numero}
                 </h2>
                 <button
@@ -864,7 +886,7 @@ export default function PaymentsPage() {
                     setSelectedPaymentForImages(null);
                     setNewImages([]);
                   }}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
                 >
                   <XMarkIcon className="w-6 h-6" />
                 </button>
@@ -879,14 +901,14 @@ export default function PaymentsPage() {
                   folder="erp-uploads"
                 />
               </div>
-              <div className="flex items-center justify-end gap-3 p-6 border-t bg-gray-50">
+              <div className="flex items-center justify-end gap-3 p-6 border-t dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
                 <button
                   onClick={() => {
                     setShowAddImagesModal(false);
                     setSelectedPaymentForImages(null);
                     setNewImages([]);
                   }}
-                  className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
                 >
                   Annuler
                 </button>
@@ -905,14 +927,14 @@ export default function PaymentsPage() {
         {/* Images Modal */}
         {selectedPaymentImages && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between p-6 border-b">
-                <h2 className="text-xl font-bold text-gray-900">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between p-6 border-b dark:border-gray-700">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">
                   Images - Paiement {selectedPaymentImages.paymentNumero}
                 </h2>
                 <button
                   onClick={() => setSelectedPaymentImages(null)}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
                 >
                   <XMarkIcon className="w-6 h-6" />
                 </button>

@@ -120,24 +120,58 @@ export default function StockTransferDetailPage() {
         } catch (e) { toast.error('Erreur serveur'); }
     };
 
-    if (loading) return <DashboardLayout><div>Chargement...</div></DashboardLayout>;
-    if (error) return <DashboardLayout><div className="p-8 text-center text-red-600 font-bold bg-white m-6 rounded shadow">Erreur: {error}</div></DashboardLayout>;
-    if (!transfer) return <DashboardLayout><div>Introuvable</div></DashboardLayout>;
+    if (loading) {
+        return (
+            <DashboardLayout>
+                <div className="p-6 space-y-6 max-w-5xl mx-auto animate-pulse">
+                    <div className="flex justify-between items-center">
+                        <div className="flex gap-4 items-center">
+                            <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-full" />
+                            <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-48" />
+                        </div>
+                        <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded w-32" />
+                    </div>
+                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 grid grid-cols-2 gap-6 border dark:border-gray-700">
+                        {[1, 2, 3, 4].map(i => (
+                            <div key={i}>
+                                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-24 mb-2" />
+                                <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-full" />
+                            </div>
+                        ))}
+                    </div>
+                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden border dark:border-gray-700">
+                        <div className="h-12 bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700" />
+                        <div className="p-4 space-y-4">
+                            {[1, 2, 3].map(i => (
+                                <div key={i} className="h-12 bg-gray-100 dark:bg-gray-700/30 rounded" />
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </DashboardLayout>
+        );
+    }
+    if (error) return <DashboardLayout><div className="p-8 text-center text-red-600 dark:text-red-400 font-bold bg-white dark:bg-gray-800 m-6 rounded shadow border dark:border-red-900/30">Erreur: {error}</div></DashboardLayout>;
+    if (!transfer) return <DashboardLayout><div className="p-8 text-center text-gray-500 dark:text-gray-400">Introuvable</div></DashboardLayout>;
 
     return (
         <DashboardLayout>
             <div className="p-6 space-y-6 max-w-5xl mx-auto">
                 <div className="flex justify-between items-center">
                     <div className="flex items-center gap-4">
-                        <button onClick={() => router.back()} className="p-2 hover:bg-gray-100 rounded-full">
+                        <button onClick={() => router.back()} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full text-gray-600 dark:text-gray-300">
                             <ArrowLeftIcon className="w-6 h-6" />
                         </button>
                         <div>
-                            <h1 className="text-2xl font-bold">Transfert {transfer.numero}</h1>
-                            <span className={`text-sm px-2 py-0.5 rounded-full ${transfer.statut === 'VALIDE' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                                }`}>
-                                {transfer.statut}
-                            </span>
+                            <div className="flex items-center gap-2">
+                                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Transfert {transfer.numero}</h1>
+                                <span className={`text-sm px-2 py-0.5 rounded-full border ${transfer.statut === 'VALIDE'
+                                    ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 dark:border-green-900/50'
+                                    : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600'
+                                    }`}>
+                                    {transfer.statut}
+                                </span>
+                            </div>
                         </div>
                     </div>
                     <div className="flex gap-2">
@@ -145,7 +179,7 @@ export default function StockTransferDetailPage() {
                             <button
                                 onClick={handleValidate}
                                 disabled={validating}
-                                className="px-4 py-2 bg-green-600 text-white rounded-lg flex items-center gap-2 hover:bg-green-700 disabled:opacity-50"
+                                className="px-4 py-2 bg-green-600 text-white rounded-lg flex items-center gap-2 hover:bg-green-700 disabled:opacity-50 transition-colors"
                             >
                                 <CheckIcon className="w-5 h-5" />
                                 {validating ? 'Validation...' : 'Valider'}
@@ -155,44 +189,44 @@ export default function StockTransferDetailPage() {
                     </div>
                 </div>
 
-                <div className="bg-white rounded-lg shadow p-6 grid grid-cols-2 gap-6">
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 grid grid-cols-2 gap-6 border dark:border-gray-700">
                     <div>
-                        <h3 className="text-sm font-medium text-gray-500">Source</h3>
-                        <p className="text-lg font-semibold">{warehouses[transfer.sourceWarehouseId] || transfer.sourceWarehouseId}</p>
+                        <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Source</h3>
+                        <p className="text-lg font-semibold text-gray-900 dark:text-white">{warehouses[transfer.sourceWarehouseId] || transfer.sourceWarehouseId}</p>
                     </div>
                     <div>
-                        <h3 className="text-sm font-medium text-gray-500">Destination</h3>
-                        <p className="text-lg font-semibold">{warehouses[transfer.destinationWarehouseId] || transfer.destinationWarehouseId}</p>
+                        <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Destination</h3>
+                        <p className="text-lg font-semibold text-gray-900 dark:text-white">{warehouses[transfer.destinationWarehouseId] || transfer.destinationWarehouseId}</p>
                     </div>
                     <div>
-                        <h3 className="text-sm font-medium text-gray-500">Date</h3>
-                        <p>{new Date(transfer.date).toLocaleDateString()}</p>
+                        <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Date</h3>
+                        <p className="text-gray-900 dark:text-white">{new Date(transfer.date).toLocaleDateString()}</p>
                     </div>
                     <div>
-                        <h3 className="text-sm font-medium text-gray-500">Créé par</h3>
-                        <p>{transfer.createdBy}</p>
+                        <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Créé par</h3>
+                        <p className="text-gray-900 dark:text-white">{transfer.createdBy}</p>
                     </div>
                     {transfer.notes && (
                         <div className="col-span-2">
-                            <h3 className="text-sm font-medium text-gray-500">Notes</h3>
-                            <p>{transfer.notes}</p>
+                            <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Notes</h3>
+                            <p className="text-gray-900 dark:text-white">{transfer.notes}</p>
                         </div>
                     )}
                 </div>
 
-                <div className="bg-white rounded-lg shadow overflow-hidden">
-                    <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden border dark:border-gray-700">
+                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                        <thead className="bg-gray-50 dark:bg-gray-700/50">
                             <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Produit</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Qté</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Produit</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Qté</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-200">
+                        <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
                             {transfer.lignes.map((line: any, idx: number) => (
-                                <tr key={idx}>
-                                    <td className="px-6 py-4">{products[line.productId] || line.productId}</td>
-                                    <td className="px-6 py-4 font-mono">{line.quantity}</td>
+                                <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                    <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">{products[line.productId] || line.productId}</td>
+                                    <td className="px-6 py-4 font-mono text-sm text-gray-900 dark:text-white">{line.quantity}</td>
                                 </tr>
                             ))}
                         </tbody>

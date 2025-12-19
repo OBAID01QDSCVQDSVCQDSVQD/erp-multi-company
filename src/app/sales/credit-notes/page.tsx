@@ -362,7 +362,7 @@ export default function CreditNotesPage() {
 
   const handleDeleteCreditNote = async (note: CreditNote) => {
     if (!tenantId) return;
-    
+
     if (!confirm(`Êtes-vous sûr de vouloir supprimer l'avoir ${note.numero} ?`)) {
       return;
     }
@@ -393,17 +393,17 @@ export default function CreditNotesPage() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => router.back()}
-              className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-colors"
+              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
               title="Retour à la page précédente"
             >
               <ArrowLeftIcon className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
             <div>
-              <h1 className="text-2xl font-bold flex items-center gap-2">
+              <h1 className="text-2xl font-bold flex items-center gap-2 text-gray-900 dark:text-white">
                 <DocumentTextIcon className="w-7 h-7 text-blue-600" />
                 Avoirs clients
               </h1>
-              <p className="text-gray-600 text-sm">
+              <p className="text-gray-600 dark:text-gray-400 text-sm">
                 Générez des notes de crédit à partir d'une facture existante.
               </p>
             </div>
@@ -411,7 +411,7 @@ export default function CreditNotesPage() {
           <div className="flex gap-2">
             <button
               onClick={fetchCreditNotes}
-              className="flex items-center gap-2 border border-gray-200 px-4 py-2 rounded-lg hover:bg-gray-50"
+              className="flex items-center gap-2 border border-gray-200 dark:border-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200"
             >
               <ArrowPathIcon className="w-4 h-4" />
               Rafraîchir
@@ -432,89 +432,113 @@ export default function CreditNotesPage() {
             placeholder="Rechercher par numéro d’avoir ou de facture..."
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            className="w-full pl-4 pr-4 py-2 border rounded-lg text-sm"
+            className="w-full pl-4 pr-4 py-2 border rounded-lg text-sm bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-blue-500 focus:border-blue-500"
           />
         </div>
 
         {loading ? (
-          <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
-            <p className="mt-4 text-gray-600">Chargement des avoirs...</p>
+          <div className="space-y-4">
+            <div className="hidden lg:block bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
+              <div className="p-4 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
+                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4 animate-pulse"></div>
+              </div>
+              <div className="p-4 space-y-4">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="flex gap-4">
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/6 animate-pulse"></div>
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4 animate-pulse"></div>
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/6 animate-pulse"></div>
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/6 animate-pulse"></div>
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/6 animate-pulse"></div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {/* Mobile Skeleton */}
+            <div className="lg:hidden space-y-4">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm space-y-3">
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/3 animate-pulse"></div>
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2 animate-pulse"></div>
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4 animate-pulse"></div>
+                </div>
+              ))}
+            </div>
           </div>
         ) : filteredCreditNotes.length === 0 ? (
-          <div className="text-center py-16 bg-white rounded-2xl border border-dashed">
-            <DocumentTextIcon className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">
+          <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-2xl border dark:border-gray-700 border-dashed">
+            <DocumentTextIcon className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
               Aucun avoir trouvé
             </h3>
-            <p className="text-gray-600">
+            <p className="text-gray-600 dark:text-gray-400">
               Créez un avoir en sélectionnant la facture correspondante.
             </p>
           </div>
         ) : (
-          <div className="bg-white rounded-2xl shadow-sm border">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border dark:border-gray-700">
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead className="bg-gray-50 dark:bg-gray-700">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                       Avoir
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                       Facture liée
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                       Date
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                       Montant
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
+                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                   {filteredCreditNotes.map((note) => (
-                    <tr key={note._id}>
-                      <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                    <tr key={note._id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">
                         {note.numero}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-600">
+                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
                         {note.referenceExterne || '-'}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-600">
+                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
                         {formatDate(note.dateDoc)}
                       </td>
-                      <td className="px-4 py-3 text-sm font-semibold text-green-600">
+                      <td className="px-4 py-3 text-sm font-semibold text-green-600 dark:text-green-400">
                         {formatPrice(Math.abs(note.totalTTC || 0), note.devise)}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => router.push(`/sales/credit-notes/${note._id}/edit`)}
-                            className="p-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50"
+                            className="p-2 rounded-lg border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-200"
                             title="Modifier l'avoir"
                           >
                             <PencilSquareIcon className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleViewCreditNote(note)}
-                            className="p-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50"
+                            className="p-2 rounded-lg border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-200"
                             title="Voir l'avoir"
                           >
                             <EyeIcon className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleDownloadPdf(note)}
-                            className="p-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50"
+                            className="p-2 rounded-lg border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-200"
                             title="Télécharger le PDF"
                           >
                             <ArrowDownTrayIcon className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleDeleteCreditNote(note)}
-                            className="p-2 rounded-lg border border-gray-200 text-red-600 hover:bg-red-50"
+                            className="p-2 rounded-lg border border-gray-200 dark:border-gray-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
                             title="Supprimer l'avoir"
                           >
                             <TrashIcon className="w-4 h-4" />
@@ -530,20 +554,20 @@ export default function CreditNotesPage() {
         )}
 
         {showModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl w-full max-w-4xl shadow-2xl flex flex-col max-h-[90vh]">
-              <div className="p-6 border-b flex items-center justify-between">
+          <div className="fixed inset-0 bg-black bg-opacity-40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-4xl shadow-2xl flex flex-col max-h-[90vh]">
+              <div className="p-6 border-b dark:border-gray-700 flex items-center justify-between">
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-900">
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
                     Créer un avoir
                   </h2>
-                  <p className="text-sm text-gray-600 mt-1">
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                     Saisissez le numéro de facture pour générer un avoir.
                   </p>
                 </div>
                 <button
                   onClick={() => setShowModal(false)}
-                  className="text-gray-400 hover:text-gray-600 text-2xl"
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-2xl"
                 >
                   ×
                 </button>
@@ -551,7 +575,7 @@ export default function CreditNotesPage() {
 
               <div className="p-6 space-y-6 overflow-y-auto">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Numéro de facture
                   </label>
                   <div className="relative">
@@ -567,28 +591,28 @@ export default function CreditNotesPage() {
                           }))
                         }
                         placeholder="FAC-2025-0001"
-                        className="flex-1 px-3 py-2 border rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                        className="flex-1 px-3 py-2 border rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                       />
                       <button
                         onClick={handleLookupInvoice}
-                        className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800"
+                        className="px-4 py-2 bg-gray-900 dark:bg-gray-700 text-white rounded-lg hover:bg-gray-800 dark:hover:bg-gray-600"
                         disabled={invoiceLookup.status === 'loading'}
                       >
                         {invoiceLookup.status === 'loading' ? 'Recherche...' : 'Rechercher'}
                       </button>
                     </div>
                     {invoiceSearchLoading && (
-                      <p className="text-xs text-gray-500 mt-1">Recherche...</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Recherche...</p>
                     )}
                     {invoiceSearchError && (
-                      <p className="text-xs text-red-600 mt-1">{invoiceSearchError}</p>
+                      <p className="text-xs text-red-600 dark:text-red-400 mt-1">{invoiceSearchError}</p>
                     )}
                     {invoiceDropdownPosition &&
                       invoiceSearchResults.length > 0 &&
                       typeof document !== 'undefined' &&
                       createPortal(
                         <div
-                          className="bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto"
+                          className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-60 overflow-y-auto"
                           style={{
                             position: 'fixed',
                             top: invoiceDropdownPosition.top,
@@ -617,16 +641,15 @@ export default function CreditNotesPage() {
                                   setInvoiceSearchError(null);
                                   fetchInvoiceDetails(invoice.numero);
                                 }}
-                                className={`w-full text-left px-4 py-2 text-sm ${
-                                  alreadyUsed
-                                    ? 'text-gray-400 bg-gray-50 cursor-not-allowed'
-                                    : 'hover:bg-blue-50'
-                                }`}
+                                className={`w-full text-left px-4 py-2 text-sm ${alreadyUsed
+                                  ? 'text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-700/50 cursor-not-allowed'
+                                  : 'hover:bg-blue-50 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-200'
+                                  }`}
                               >
                                 <div className="font-semibold">
                                   {invoice.numero}
                                 </div>
-                                <div className="text-xs">
+                                <div className="text-xs text-gray-500 dark:text-gray-400">
                                   {formatDate(invoice.dateDoc)} ·{' '}
                                   {formatPrice(
                                     invoice.totalTTC || 0,
@@ -642,7 +665,7 @@ export default function CreditNotesPage() {
                       )}
                   </div>
                   {invoiceLookup.status === 'error' && (
-                    <p className="mt-2 text-sm text-red-600 flex items-center gap-1">
+                    <p className="mt-2 text-sm text-red-600 dark:text-red-400 flex items-center gap-1">
                       <InformationCircleIcon className="w-4 h-4" />
                       {invoiceLookup.error}
                     </p>
@@ -651,13 +674,13 @@ export default function CreditNotesPage() {
 
                 {invoiceLookup.status === 'success' && invoiceLookup.data && (
                   <div className="space-y-4">
-                    <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
-                      <h3 className="font-semibold text-blue-900 text-lg mb-2">
+                    <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-xl p-4">
+                      <h3 className="font-semibold text-blue-900 dark:text-blue-100 text-lg mb-2">
                         Facture sélectionnée
                       </h3>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm text-blue-900">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm text-blue-900 dark:text-blue-200">
                         <div>
-                          <span className="text-blue-600 block text-xs uppercase">
+                          <span className="text-blue-600 dark:text-blue-400 block text-xs uppercase">
                             Numéro
                           </span>
                           <span className="font-semibold">
@@ -665,7 +688,7 @@ export default function CreditNotesPage() {
                           </span>
                         </div>
                         <div>
-                          <span className="text-blue-600 block text-xs uppercase">
+                          <span className="text-blue-600 dark:text-blue-400 block text-xs uppercase">
                             Date
                           </span>
                           <span className="font-semibold">
@@ -673,7 +696,7 @@ export default function CreditNotesPage() {
                           </span>
                         </div>
                         <div>
-                          <span className="text-blue-600 block text-xs uppercase">
+                          <span className="text-blue-600 dark:text-blue-400 block text-xs uppercase">
                             Montant TTC
                           </span>
                           <span className="font-semibold">
@@ -686,41 +709,41 @@ export default function CreditNotesPage() {
                       </div>
                     </div>
 
-                    <div className="border rounded-xl">
-                      <div className="px-4 py-2 border-b bg-gray-50 text-sm font-semibold text-gray-700">
+                    <div className="border dark:border-gray-700 rounded-xl overflow-hidden">
+                      <div className="px-4 py-2 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-700 text-sm font-semibold text-gray-700 dark:text-gray-200">
                         Lignes de la facture
                       </div>
-                      <div className="max-h-60 overflow-y-auto">
-                        <table className="min-w-full divide-y divide-gray-200 text-sm">
-                          <thead className="bg-gray-50">
+                      <div className="max-h-60 overflow-y-auto bg-white dark:bg-gray-800">
+                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
+                          <thead className="bg-gray-50 dark:bg-gray-700">
                             <tr>
-                              <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">
+                              <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase">
                                 Désignation
                               </th>
-                              <th className="px-4 py-2 text-right text-xs font-semibold text-gray-500 uppercase">
+                              <th className="px-4 py-2 text-right text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase">
                                 Qté
                               </th>
-                              <th className="px-4 py-2 text-right text-xs font-semibold text-gray-500 uppercase">
+                              <th className="px-4 py-2 text-right text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase">
                                 Prix HT
                               </th>
-                              <th className="px-4 py-2 text-right text-xs font-semibold text-gray-500 uppercase">
+                              <th className="px-4 py-2 text-right text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase">
                                 TVA %
                               </th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-gray-200">
+                          <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                             {invoiceLookup.data.lignes?.map((line: any, idx: number) => (
-                              <tr key={idx}>
-                                <td className="px-4 py-2 text-gray-700">
+                              <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                <td className="px-4 py-2 text-gray-700 dark:text-gray-300">
                                   {line.designation}
                                 </td>
-                                <td className="px-4 py-2 text-right text-gray-600">
+                                <td className="px-4 py-2 text-right text-gray-600 dark:text-gray-400">
                                   {line.quantite}
                                 </td>
-                                <td className="px-4 py-2 text-right text-gray-600">
+                                <td className="px-4 py-2 text-right text-gray-600 dark:text-gray-400">
                                   {formatPrice(line.prixUnitaireHT || 0, invoiceLookup.data.devise || 'TND')}
                                 </td>
-                                <td className="px-4 py-2 text-right text-gray-600">
+                                <td className="px-4 py-2 text-right text-gray-600 dark:text-gray-400">
                                   {line.tvaPct || 0}%
                                 </td>
                               </tr>
@@ -731,7 +754,7 @@ export default function CreditNotesPage() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Motif (optionnel)
                       </label>
                       <textarea
@@ -741,17 +764,17 @@ export default function CreditNotesPage() {
                           setFormData((prev) => ({ ...prev, reason: e.target.value }))
                         }
                         placeholder="Ex: Retour partiel, remise commerciale..."
-                        className="w-full px-3 py-2 border rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-3 py-2 border rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                       />
                     </div>
                   </div>
                 )}
               </div>
 
-              <div className="p-4 border-t flex gap-3 flex-col sm:flex-row sm:justify-end">
+              <div className="p-4 border-t dark:border-gray-700 flex gap-3 flex-col sm:flex-row sm:justify-end bg-white dark:bg-gray-800 rounded-b-2xl">
                 <button
                   onClick={() => setShowModal(false)}
-                  className="w-full sm:w-auto px-4 py-2 border rounded-lg hover:bg-gray-50"
+                  className="w-full sm:w-auto px-4 py-2 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300"
                 >
                   Annuler
                 </button>

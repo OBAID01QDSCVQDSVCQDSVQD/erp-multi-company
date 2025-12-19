@@ -127,11 +127,11 @@ export default function ViewInvoicePage() {
       if (response.ok) {
         const data = await response.json();
         setInvoice(data);
-        
+
         // Fetch customer if customerId exists
         if (data.customerId) {
           fetchCustomer(data.customerId);
-          
+
           // Calculate remaining amount to pay
           try {
             const unpaidResponse = await fetch(`/api/sales/payments/unpaid-invoices?customerId=${data.customerId}`, {
@@ -144,7 +144,7 @@ export default function ViewInvoicePage() {
               const roundedRemaining = Math.max(0, Math.round(remaining * 1000) / 1000);
               setMontantRestant(roundedRemaining);
               setSoldeRestantActuel(roundedRemaining);
-              
+
               // If invoice is not in unpaid list, it means it's fully paid
               // Check if it was converted from an internal invoice
               if (!invoiceData && data.linkedDocuments && data.linkedDocuments.length > 0) {
@@ -202,10 +202,10 @@ export default function ViewInvoicePage() {
 
   const handleDownloadPDF = async () => {
     if (!invoice) return;
-    
+
     try {
       setGeneratingPDF(true);
-      
+
       const response = await fetch(`/api/sales/invoices/${invoice._id}/pdf`, {
         headers: { 'X-Tenant-Id': tenantId },
       });
@@ -223,7 +223,7 @@ export default function ViewInvoicePage() {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-      
+
       toast.success('PDF téléchargé avec succès');
     } catch (error) {
       console.error('Error downloading PDF:', error);
@@ -293,7 +293,7 @@ export default function ViewInvoicePage() {
 
     const remaining = await calculateRemainingAmount();
     const totalToPay = paymentData.montantPaye;
-    
+
     if (totalToPay <= 0) {
       toast.error('Le montant payé doit être supérieur à zéro');
       return;
@@ -302,7 +302,7 @@ export default function ViewInvoicePage() {
     // Allow payment if amount is equal to or less than remaining balance
     const roundedTotalToPay = Math.round(totalToPay * 1000) / 1000;
     const roundedRemaining = Math.round(remaining * 1000) / 1000;
-    
+
     if (roundedTotalToPay > roundedRemaining) {
       toast.error(`Le montant payé (${roundedTotalToPay.toFixed(3)}) ne peut pas être supérieur au solde restant (${roundedRemaining.toFixed(3)})`);
       return;
@@ -329,7 +329,7 @@ export default function ViewInvoicePage() {
     setSavingPayment(true);
     try {
       const paymentAmount = paymentData.useAdvance ? advanceToUse : totalToPay;
-      
+
       const paymentPayload: any = {
         customerId: invoice.customerId,
         datePaiement: paymentData.datePaiement,
@@ -374,7 +374,7 @@ export default function ViewInvoicePage() {
         } else {
           toast.success('Paiement ajouté avec succès');
         }
-        
+
         setShowPaymentModal(false);
         await fetchInvoice();
         // Refresh advance balance after payment
@@ -439,16 +439,16 @@ export default function ViewInvoicePage() {
               <ArrowLeftIcon className="w-5 h-5" />
             </button>
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
-                <DocumentTextIcon className="w-6 h-6 sm:w-8 sm:h-8" /> 
+              <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2 text-gray-900 dark:text-white">
+                <DocumentTextIcon className="w-6 h-6 sm:w-8 sm:h-8" />
                 <span className="break-words">Facture {invoice.numero}</span>
               </h1>
-              <p className="text-xs sm:text-sm text-gray-600 mt-1">
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1">
                 Créée le {new Date(invoice.dateDoc).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
               </p>
             </div>
           </div>
-          
+
           {/* Actions */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
             {soldeRestantActuel > 0.001 ? (
@@ -467,15 +467,14 @@ export default function ViewInvoicePage() {
                 <span className="sm:hidden">Paiement</span>
               </button>
             ) : (
-              <div className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-sm sm:text-base ${
-                isConvertedFromPaidInternal 
-                  ? 'bg-blue-100 text-blue-700 border border-blue-200' 
-                  : 'bg-gray-100 text-gray-500'
-              }`}>
+              <div className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-sm sm:text-base ${isConvertedFromPaidInternal
+                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
+                : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'
+                }`}>
                 <BanknotesIcon className="w-4 h-4 sm:w-5 sm:h-5" />
                 <span>
-                  {isConvertedFromPaidInternal 
-                    ? 'Facture payée (convertie depuis facture interne)' 
+                  {isConvertedFromPaidInternal
+                    ? 'Facture payée (convertie depuis facture interne)'
                     : 'Facture payée'}
                 </span>
               </div>
@@ -494,7 +493,7 @@ export default function ViewInvoicePage() {
 
         {/* Company Header Info */}
         {companySettings?.societe && (
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 sm:p-4 mb-4 sm:mb-6">
+          <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 sm:p-4 mb-4 sm:mb-6">
             <div className="flex flex-col sm:flex-row justify-between items-start gap-3 sm:gap-4">
               {/* Logo */}
               {companySettings.societe.logoUrl && (
@@ -506,21 +505,21 @@ export default function ViewInvoicePage() {
                   />
                 </div>
               )}
-              
+
               {/* Company Info */}
               <div className="flex-1 text-center sm:text-left">
-                <h2 className="text-lg sm:text-xl font-bold text-gray-900">{companySettings.societe.nom}</h2>
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">{companySettings.societe.nom}</h2>
                 {companySettings.societe.enTete?.slogan && (
-                  <p className="text-xs sm:text-sm text-gray-600 italic mt-1">{companySettings.societe.enTete.slogan}</p>
+                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 italic mt-1">{companySettings.societe.enTete.slogan}</p>
                 )}
-                <div className="mt-2 text-xs sm:text-sm text-gray-600">
+                <div className="mt-2 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                   <p>{companySettings.societe.adresse.rue}, {companySettings.societe.adresse.ville} {companySettings.societe.adresse.codePostal}</p>
                   <p>{companySettings.societe.adresse.pays}</p>
                 </div>
               </div>
-              
+
               {/* Contact Info */}
-              <div className="text-center sm:text-right text-xs sm:text-sm text-gray-600 w-full sm:w-auto">
+              <div className="text-center sm:text-right text-xs sm:text-sm text-gray-600 dark:text-gray-400 w-full sm:w-auto">
                 {companySettings.societe.enTete?.telephone && (
                   <p>Tél: {companySettings.societe.enTete.telephone}</p>
                 )}
@@ -538,45 +537,45 @@ export default function ViewInvoicePage() {
           </div>
         )}
 
-          {/* Invoice Details */}
-        <div className="bg-white rounded-xl shadow-sm border p-3 sm:p-6">
+        {/* Invoice Details */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border dark:border-gray-700 p-3 sm:p-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6">
             <div>
-              <label className="text-sm text-gray-600">Numéro de facture</label>
-              <p className="text-lg font-bold text-blue-600">{invoice.numero}</p>
+              <label className="text-sm text-gray-600 dark:text-gray-400">Numéro de facture</label>
+              <p className="text-lg font-bold text-blue-600 dark:text-blue-400">{invoice.numero}</p>
             </div>
             <div>
-              <label className="text-sm text-gray-600">Date</label>
-              <p className="text-lg font-medium">{new Date(invoice.dateDoc).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</p>
+              <label className="text-sm text-gray-600 dark:text-gray-400">Date</label>
+              <p className="text-lg font-medium text-gray-900 dark:text-white">{new Date(invoice.dateDoc).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</p>
             </div>
             {invoice.dateEcheance && (
               <div>
-                <label className="text-sm text-gray-600">Date échéance</label>
-                <p className="text-lg font-medium">
+                <label className="text-sm text-gray-600 dark:text-gray-400">Date échéance</label>
+                <p className="text-lg font-medium text-gray-900 dark:text-white">
                   {new Date(invoice.dateEcheance).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                 </p>
               </div>
             )}
             {invoice.conditionsPaiement && (
               <div>
-                <label className="text-sm text-gray-600">Conditions de paiement</label>
-                <p className="text-lg font-medium">{invoice.conditionsPaiement}</p>
+                <label className="text-sm text-gray-600 dark:text-gray-400">Conditions de paiement</label>
+                <p className="text-lg font-medium text-gray-900 dark:text-white">{invoice.conditionsPaiement}</p>
               </div>
             )}
             <div>
-              <label className="text-sm text-gray-600">Client</label>
+              <label className="text-sm text-gray-600 dark:text-gray-400">Client</label>
               {customer ? (
-                <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 space-y-1">
-                  <p className="text-lg font-medium text-gray-900">
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900 rounded-lg p-4 space-y-1">
+                  <p className="text-lg font-medium text-gray-900 dark:text-white">
                     {customer.raisonSociale || `${customer.nom || ''} ${customer.prenom || ''}`.trim() || 'N/A'}
                   </p>
                   {customer.matriculeFiscale && (
-                    <p className="text-sm text-gray-700">
+                    <p className="text-sm text-gray-700 dark:text-gray-300">
                       <span className="font-medium">Matricule fiscal:</span> {customer.matriculeFiscale}
                     </p>
                   )}
                   {customer.adresseFacturation && (
-                    <p className="text-sm text-gray-700">
+                    <p className="text-sm text-gray-700 dark:text-gray-300">
                       <span className="font-medium">Adresse:</span> {[
                         customer.adresseFacturation.ligne1,
                         customer.adresseFacturation.ligne2,
@@ -586,13 +585,13 @@ export default function ViewInvoicePage() {
                     </p>
                   )}
                   {customer.code && (
-                    <p className="text-sm text-gray-700">
+                    <p className="text-sm text-gray-700 dark:text-gray-300">
                       <span className="font-medium">Code:</span> {customer.code}
                     </p>
                   )}
                 </div>
               ) : (
-                <p className="text-lg font-medium">Chargement...</p>
+                <p className="text-lg font-medium text-gray-900 dark:text-white">Chargement...</p>
               )}
             </div>
           </div>
@@ -601,41 +600,41 @@ export default function ViewInvoicePage() {
           {invoice.lignes && invoice.lignes.length > 0 && (
             <div className="mt-4 sm:mt-6 overflow-x-auto">
               <table className="w-full min-w-[600px]">
-                <thead className="bg-gray-100 border-b-2 border-gray-300">
+                <thead className="bg-gray-100 dark:bg-gray-700 border-b-2 border-gray-300 dark:border-gray-600">
                   <tr>
-                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs sm:text-sm font-bold text-gray-700">Produit</th>
-                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs sm:text-sm font-bold text-gray-700">Qté</th>
-                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs sm:text-sm font-bold text-gray-700">Prix HT</th>
-                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs sm:text-sm font-bold text-gray-700">Remise %</th>
-                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs sm:text-sm font-bold text-gray-700">TVA</th>
-                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs sm:text-sm font-bold text-gray-700">Total HT</th>
-                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs sm:text-sm font-bold text-gray-700">Total TTC</th>
+                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs sm:text-sm font-bold text-gray-700 dark:text-gray-200">Produit</th>
+                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs sm:text-sm font-bold text-gray-700 dark:text-gray-200">Qté</th>
+                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs sm:text-sm font-bold text-gray-700 dark:text-gray-200">Prix HT</th>
+                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs sm:text-sm font-bold text-gray-700 dark:text-gray-200">Remise %</th>
+                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs sm:text-sm font-bold text-gray-700 dark:text-gray-200">TVA</th>
+                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs sm:text-sm font-bold text-gray-700 dark:text-gray-200">Total HT</th>
+                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs sm:text-sm font-bold text-gray-700 dark:text-gray-200">Total TTC</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                   {invoice.lignes.map((line: any, index: number) => {
                     // If it's a service (estStocke = false), show description
-                    const displayText = line.estStocke === false && line.descriptionProduit 
-                      ? line.descriptionProduit 
+                    const displayText = line.estStocke === false && line.descriptionProduit
+                      ? line.descriptionProduit
                       : line.designation;
-                    
+
                     return (
-                      <tr key={index} className={index % 2 === 0 ? 'bg-blue-50' : 'bg-pink-50'}>
-                        <td className="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm">
+                      <tr key={index} className={index % 2 === 0 ? 'bg-blue-50 dark:bg-blue-900/10' : 'bg-pink-50 dark:bg-pink-900/10'}>
+                        <td className="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-900 dark:text-white">
                           {displayText ? (
                             <div dangerouslySetInnerHTML={{ __html: displayText }} />
                           ) : (
                             line.designation
                           )}
                         </td>
-                        <td className="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm whitespace-nowrap">{line.quantite}</td>
-                        <td className="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm whitespace-nowrap">{line.prixUnitaireHT?.toFixed(3)} {invoice.devise}</td>
-                        <td className="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm whitespace-nowrap">{line.remisePct || 0}%</td>
-                        <td className="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm whitespace-nowrap">{line.tvaPct || 0}%</td>
-                        <td className="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm font-medium whitespace-nowrap">
+                        <td className="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm whitespace-nowrap text-gray-900 dark:text-white">{line.quantite}</td>
+                        <td className="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm whitespace-nowrap text-gray-900 dark:text-white">{line.prixUnitaireHT?.toFixed(3)} {invoice.devise}</td>
+                        <td className="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm whitespace-nowrap text-gray-900 dark:text-white">{line.remisePct || 0}%</td>
+                        <td className="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm whitespace-nowrap text-gray-900 dark:text-white">{line.tvaPct || 0}%</td>
+                        <td className="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm font-medium whitespace-nowrap text-gray-900 dark:text-white">
                           {((line.quantite * line.prixUnitaireHT) * (1 - ((line.remisePct || 0) / 100))).toFixed(3)} {invoice.devise}
                         </td>
-                        <td className="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm font-medium text-blue-600 whitespace-nowrap">
+                        <td className="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm font-medium text-blue-600 dark:text-blue-400 whitespace-nowrap">
                           {(((line.quantite * line.prixUnitaireHT) * (1 - ((line.remisePct || 0) / 100))) * (1 + (line.tvaPct || 0) / 100)).toFixed(3)} {invoice.devise}
                         </td>
                       </tr>
@@ -648,7 +647,7 @@ export default function ViewInvoicePage() {
 
           {/* Totals */}
           <div className="mt-4 sm:mt-6 flex justify-end">
-            <div className="w-full sm:w-80 bg-blue-50 border border-blue-100 rounded-lg p-3 sm:p-4 space-y-2 sm:space-y-3">
+            <div className="w-full sm:w-80 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900 rounded-lg p-3 sm:p-4 space-y-2 sm:space-y-3">
               {(() => {
                 // Calculate remise lignes (line discounts)
                 const remiseLignes = invoice.lignes?.reduce((sum: number, line: any) => {
@@ -668,55 +667,55 @@ export default function ViewInvoicePage() {
                 return (
                   <>
                     <div className="flex justify-between text-sm">
-                      <span className="text-gray-700">Sous-total HT</span>
-                      <span className="font-medium text-gray-900">{(invoice.totalBaseHT || invoice.totalHT || 0).toFixed(3)} {invoice.devise}</span>
+                      <span className="text-gray-700 dark:text-gray-300">Sous-total HT</span>
+                      <span className="font-medium text-gray-900 dark:text-white">{(invoice.totalBaseHT || invoice.totalHT || 0).toFixed(3)} {invoice.devise}</span>
                     </div>
                     {remiseLignes > 0 && (
                       <div className="flex justify-between text-sm">
-                        <span className="text-gray-700">Remise lignes</span>
-                        <span className="font-medium text-red-600">-{remiseLignes.toFixed(3)} {invoice.devise}</span>
+                        <span className="text-gray-700 dark:text-gray-300">Remise lignes</span>
+                        <span className="font-medium text-red-600 dark:text-red-400">-{remiseLignes.toFixed(3)} {invoice.devise}</span>
                       </div>
                     )}
                     {remiseGlobale > 0 && (
                       <div className="flex justify-between text-sm">
-                        <span className="text-gray-700">Remise globale{remiseGlobalePct > 0 ? ` (${remiseGlobalePct}%)` : ''}</span>
-                        <span className="font-medium text-red-600">-{remiseGlobale.toFixed(3)} {invoice.devise}</span>
+                        <span className="text-gray-700 dark:text-gray-300">Remise globale{remiseGlobalePct > 0 ? ` (${remiseGlobalePct}%)` : ''}</span>
+                        <span className="font-medium text-red-600 dark:text-red-400">-{remiseGlobale.toFixed(3)} {invoice.devise}</span>
                       </div>
                     )}
                     <div className="flex justify-between text-sm font-semibold">
-                      <span className="text-gray-700">Total HT</span>
-                      <span className="font-bold text-gray-900">{totalHTAfterDiscount.toFixed(3)} {invoice.devise}</span>
+                      <span className="text-gray-700 dark:text-gray-300">Total HT</span>
+                      <span className="font-bold text-gray-900 dark:text-white">{totalHTAfterDiscount.toFixed(3)} {invoice.devise}</span>
                     </div>
                     {invoice.fodec?.montant && invoice.fodec.montant > 0 && (
                       <div className="flex justify-between text-sm">
-                        <span className="text-gray-700">FODEC{invoice.fodec.tauxPct ? ` (${invoice.fodec.tauxPct}%)` : ''}</span>
-                        <span className="font-medium text-gray-900">{invoice.fodec.montant.toFixed(3)} {invoice.devise}</span>
+                        <span className="text-gray-700 dark:text-gray-300">FODEC{invoice.fodec.tauxPct ? ` (${invoice.fodec.tauxPct}%)` : ''}</span>
+                        <span className="font-medium text-gray-900 dark:text-white">{invoice.fodec.montant.toFixed(3)} {invoice.devise}</span>
                       </div>
                     )}
                     <div className="flex justify-between text-sm">
-                      <span className="text-gray-700">Total TVA</span>
-                      <span className="font-medium text-gray-900">{invoice.totalTVA?.toFixed(3) || 0} {invoice.devise}</span>
+                      <span className="text-gray-700 dark:text-gray-300">Total TVA</span>
+                      <span className="font-medium text-gray-900 dark:text-white">{invoice.totalTVA?.toFixed(3) || 0} {invoice.devise}</span>
                     </div>
                     {invoice.timbreFiscal && invoice.timbreFiscal > 0 && (
                       <div className="flex justify-between text-sm">
-                        <span className="text-gray-700">Timbre fiscal</span>
-                        <span className="font-medium text-gray-900">{invoice.timbreFiscal.toFixed(3)} {invoice.devise}</span>
+                        <span className="text-gray-700 dark:text-gray-300">Timbre fiscal</span>
+                        <span className="font-medium text-gray-900 dark:text-white">{invoice.timbreFiscal.toFixed(3)} {invoice.devise}</span>
                       </div>
                     )}
-                    <div className="border-t border-blue-200 pt-3 flex justify-between text-lg font-bold">
-                      <span className="text-gray-900">Total TTC</span>
-                      <span className="text-blue-600">{invoice.totalTTC?.toFixed(3)} {invoice.devise}</span>
+                    <div className="border-t border-blue-200 dark:border-blue-800 pt-3 flex justify-between text-lg font-bold">
+                      <span className="text-gray-900 dark:text-white">Total TTC</span>
+                      <span className="text-blue-600 dark:text-blue-400">{invoice.totalTTC?.toFixed(3)} {invoice.devise}</span>
                     </div>
-                    <div className="border-t border-blue-200 pt-3 flex justify-between text-sm">
-                      <span className="text-gray-700">Montant à payer</span>
-                      <span className="font-medium text-red-600">{montantRestant.toFixed(3)} {invoice.devise}</span>
+                    <div className="border-t border-blue-200 dark:border-blue-800 pt-3 flex justify-between text-sm">
+                      <span className="text-gray-700 dark:text-gray-300">Montant à payer</span>
+                      <span className="font-medium text-red-600 dark:text-red-400">{montantRestant.toFixed(3)} {invoice.devise}</span>
                     </div>
                   </>
                 );
               })()}
             </div>
           </div>
-          
+
           {/* Mode de paiement at bottom left */}
           {invoice.modePaiement && (
             <div className="mt-4 text-left">
@@ -729,7 +728,7 @@ export default function ViewInvoicePage() {
 
         {/* Company Footer Info */}
         {companySettings?.societe && (
-          <div className="border-t border-gray-300 pt-6 mt-6">
+          <div className="border-t border-gray-300 dark:border-gray-700 pt-6 mt-6">
             {/* Footer content */}
             {(() => {
               const footerItems: string[] = [];
@@ -770,7 +769,7 @@ export default function ViewInvoicePage() {
               }
 
               return footerItems.length > 0 ? (
-                <div className="text-center text-sm text-gray-600">
+                <div className="text-center text-sm text-gray-600 dark:text-gray-400">
                   {footerItems.join(' - ')}
                 </div>
               ) : null;
@@ -780,10 +779,11 @@ export default function ViewInvoicePage() {
 
         {/* Payment Modal */}
         {showPaymentModal && invoice && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
-            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between p-6 border-b">
-                <h2 className="text-xl font-bold">Ajouter un paiement</h2>
+
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4 backdrop-blur-sm">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between p-6 border-b dark:border-gray-700">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Ajouter un paiement</h2>
                 <button
                   onClick={() => {
                     setShowPaymentModal(false);
@@ -803,16 +803,16 @@ export default function ViewInvoicePage() {
                   <XMarkIcon className="w-6 h-6" />
                 </button>
               </div>
-              
+
               <div className="p-6 space-y-4">
                 {/* Advance Balance Info */}
                 {advanceBalance > 0 && (
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-green-800">
+                      <span className="text-sm font-medium text-green-800 dark:text-green-300">
                         Solde avance disponible:
                       </span>
-                      <span className="text-lg font-bold text-green-700">
+                      <span className="text-lg font-bold text-green-700 dark:text-green-400">
                         {advanceBalance.toFixed(3)} {invoice.devise}
                       </span>
                     </div>
@@ -843,9 +843,9 @@ export default function ViewInvoicePage() {
                           }
                         });
                       }}
-                      className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                      className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600"
                     />
-                    <label htmlFor="useAdvance" className="ml-2 text-sm text-gray-700">
+                    <label htmlFor="useAdvance" className="ml-2 text-sm text-gray-700 dark:text-gray-300">
                       Utiliser l'avance disponible
                     </label>
                   </div>
@@ -853,14 +853,14 @@ export default function ViewInvoicePage() {
 
                 {/* Date */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Date de paiement *
                   </label>
                   <input
                     type="date"
                     value={paymentData.datePaiement}
                     onChange={(e) => setPaymentData({ ...paymentData, datePaiement: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     required
                   />
                 </div>
@@ -868,13 +868,13 @@ export default function ViewInvoicePage() {
                 {/* Payment Method */}
                 {!paymentData.useAdvance && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Mode de paiement *
                     </label>
                     <select
                       value={paymentData.modePaiement}
                       onChange={(e) => setPaymentData({ ...paymentData, modePaiement: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                       required
                     >
                       <option value="Espèces">Espèces</option>
@@ -889,7 +889,7 @@ export default function ViewInvoicePage() {
                 {/* Reference */}
                 {!paymentData.useAdvance && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Référence
                     </label>
                     <input
@@ -897,14 +897,14 @@ export default function ViewInvoicePage() {
                       value={paymentData.reference}
                       onChange={(e) => setPaymentData({ ...paymentData, reference: e.target.value })}
                       placeholder="N° de chèque, référence virement, etc."
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white dark:placeholder-gray-400"
                     />
                   </div>
                 )}
 
                 {/* Amount to Pay */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Montant à payer *
                   </label>
                   <input
@@ -982,35 +982,35 @@ export default function ViewInvoicePage() {
                     disabled={paymentData.useAdvance}
                     readOnly={paymentData.useAdvance}
                     placeholder="0.000"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:cursor-not-allowed dark:placeholder-gray-400"
                     required
                   />
                   {paymentData.useAdvance && (
-                    <p className="mt-1 text-sm text-gray-500">
+                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                       Le montant est automatiquement défini depuis l'avance disponible
                     </p>
                   )}
-                  <div className="mt-1 text-sm text-gray-600">
-                    Solde restant: <span className="font-medium">{soldeRestantActuel.toFixed(3)} {invoice.devise}</span>
+                  <div className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                    Solde restant: <span className="font-medium text-gray-900 dark:text-white">{soldeRestantActuel.toFixed(3)} {invoice.devise}</span>
                   </div>
                 </div>
 
                 {/* Notes */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Notes
                   </label>
                   <textarea
                     value={paymentData.notes}
                     onChange={(e) => setPaymentData({ ...paymentData, notes: e.target.value })}
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white dark:placeholder-gray-400"
                     placeholder="Notes supplémentaires..."
                   />
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-3 p-6 border-t bg-gray-50">
+              <div className="flex items-center justify-end gap-3 p-6 border-t dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
                 <button
                   onClick={() => {
                     setShowPaymentModal(false);
@@ -1025,7 +1025,7 @@ export default function ViewInvoicePage() {
                     });
                     setPaymentAmountInput('');
                   }}
-                  className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                  className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
                 >
                   Annuler
                 </button>

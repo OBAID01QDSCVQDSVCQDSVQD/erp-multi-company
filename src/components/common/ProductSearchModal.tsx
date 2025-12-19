@@ -116,22 +116,22 @@ export default function ProductSearchModal({
       }}
     >
       <div
-        className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col"
+        className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+        <div className="flex items-center justify-between p-4 border-b dark:border-gray-700">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h2>
           <button
             onClick={onClose}
-            className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
           >
-            <XMarkIcon className="w-5 h-5 text-gray-500" />
+            <XMarkIcon className="w-5 h-5 text-gray-500 dark:text-gray-400" />
           </button>
         </div>
 
         {/* Search Input */}
-        <div className="p-4 border-b">
+        <div className="p-4 border-b dark:border-gray-700">
           <div className="relative">
             <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
             <input
@@ -141,7 +141,7 @@ export default function ProductSearchModal({
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Rechercher par nom, SKU ou référence..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
             />
           </div>
         </div>
@@ -167,22 +167,21 @@ export default function ProductSearchModal({
                   <div
                     key={product._id}
                     onClick={() => handleSelect(product)}
-                    className={`px-4 py-3 cursor-pointer rounded-lg transition-colors ${
-                      index === selectedIndex
-                        ? 'bg-blue-50 border-2 border-blue-500'
-                        : 'hover:bg-gray-50 border-2 border-transparent'
-                    }`}
+                    className={`px-4 py-3 cursor-pointer rounded-lg transition-colors ${index === selectedIndex
+                        ? 'bg-blue-50 dark:bg-blue-900/30 border-2 border-blue-500'
+                        : 'hover:bg-gray-50 dark:hover:bg-gray-700 border-2 border-transparent'
+                      }`}
                   >
-                    <div className="font-medium text-gray-900 text-sm">
+                    <div className="font-medium text-gray-900 dark:text-white text-sm">
                       {displayName}
                     </div>
                     {secondaryInfo && (
-                      <div className="text-xs text-gray-500 mt-1">
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                         {secondaryInfo}
                       </div>
                     )}
                     {product.prixVenteHT !== undefined && product.prixVenteHT > 0 && (
-                      <div className="text-xs text-gray-600 mt-1">
+                      <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
                         Prix: {product.prixVenteHT.toFixed(3)} TND
                       </div>
                     )}
@@ -191,7 +190,7 @@ export default function ProductSearchModal({
               })}
             </div>
           ) : (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
               {searchQuery.trim()
                 ? 'Aucun produit trouvé'
                 : 'Commencez à taper pour rechercher...'}
@@ -200,7 +199,7 @@ export default function ProductSearchModal({
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t bg-gray-50 text-xs text-gray-500">
+        <div className="p-4 border-t dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-xs text-gray-500 dark:text-gray-400">
           <div className="flex items-center justify-between">
             <span>
               {filteredProducts.length} produit

@@ -867,12 +867,12 @@ export default function DeliveriesPage() {
             >
               <ArrowLeftIcon className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
-            <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
+            <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2 text-gray-900 dark:text-white">
               <DocumentTextIcon className="w-6 h-6 sm:w-8 sm:h-8" /> <span className="whitespace-nowrap">Bons de livraison</span>
             </h1>
           </div>
           <div className="flex gap-2">
-            <button className="hidden sm:flex items-center gap-2 border px-3 py-2 rounded-lg hover:bg-gray-50">
+            <button className="hidden sm:flex items-center gap-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 px-3 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
               <ArrowDownTrayIcon className="w-4 h-4" /> <span className="hidden lg:inline">Exporter</span>
             </button>
             <button
@@ -895,21 +895,45 @@ export default function DeliveriesPage() {
             placeholder="Rechercher par numéro ou nom du client..."
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border rounded-lg text-sm sm:text-base"
+            className="w-full pl-10 pr-4 py-2 border rounded-lg text-sm sm:text-base bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-blue-500 focus:border-blue-500"
           />
         </div>
 
         {/* Table */}
         {loading ? (
-          <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <p className="mt-4 text-gray-600">Chargement...</p>
+          <div className="space-y-4">
+            <div className="hidden lg:block bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
+              <div className="p-4 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
+                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4 animate-pulse"></div>
+              </div>
+              <div className="p-4 space-y-4">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="flex gap-4">
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/6 animate-pulse"></div>
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/6 animate-pulse"></div>
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4 animate-pulse"></div>
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/6 animate-pulse"></div>
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/6 animate-pulse"></div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {/* Mobile Skeleton */}
+            <div className="lg:hidden space-y-4">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm space-y-3">
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/3 animate-pulse"></div>
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2 animate-pulse"></div>
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4 animate-pulse"></div>
+                </div>
+              ))}
+            </div>
           </div>
         ) : filtered.length === 0 ? (
-          <div className="text-center py-20 bg-gray-50 rounded-2xl">
-            <DocumentTextIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Aucun bon de livraison trouvé</h3>
-            <p className="text-gray-600 mb-6">Créez votre premier bon de livraison en quelques clics</p>
+          <div className="text-center py-20 bg-gray-50 dark:bg-gray-800 rounded-2xl border dark:border-gray-700">
+            <DocumentTextIcon className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Aucun bon de livraison trouvé</h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">Créez votre premier bon de livraison en quelques clics</p>
             <button
               onClick={() => {
                 setSelectedWarehouseId('');
@@ -923,37 +947,33 @@ export default function DeliveriesPage() {
         ) : (
           <>
             {/* Desktop Table */}
-            <div className="hidden lg:block bg-white border rounded-xl overflow-hidden shadow-sm">
+            <div className="hidden lg:block bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-xl overflow-hidden shadow-sm">
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-gray-50 border-b">
+                  <thead className="bg-gray-50 dark:bg-gray-700 border-b dark:border-gray-600">
                     <tr>
-                      <th className="px-3 py-4 text-left text-sm font-semibold text-gray-700">Numéro</th>
-                      <th className="px-3 py-4 text-left text-sm font-semibold text-gray-700">Date</th>
-                      <th className="px-3 py-4 text-left text-sm font-semibold text-gray-700">Client</th>
-                      <th className="px-3 py-4 text-right text-sm font-semibold text-gray-700">Total HT</th>
-                      <th className="px-3 py-4 text-right text-sm font-semibold text-gray-700">Total TVA</th>
-                      <th className="px-3 py-4 text-right text-sm font-semibold text-gray-700">Total TTC</th>
-                      <th className="px-2 py-4 text-left text-sm font-semibold text-gray-700">Actions</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">Numéro</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">Date</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">Client</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">Entrepôt</th>
+                      <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700 dark:text-gray-200">Total TTC</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                     {filtered.map((delivery) => (
-                      <tr key={delivery._id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-3 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">{delivery.numero}</td>
-                        <td className="px-3 py-4 text-sm text-gray-600 whitespace-nowrap">
+                      <tr key={delivery._id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                        <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">{delivery.numero}</td>
+                        <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300 whitespace-nowrap">
                           {new Date(delivery.dateDoc).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                         </td>
-                        <td className="px-3 py-4 text-sm text-gray-600">
+                        <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
                           {delivery.customerName || '-'}
                         </td>
-                        <td className="px-3 py-4 text-sm text-gray-600 text-right whitespace-nowrap">
-                          {delivery.totalBaseHT?.toFixed(3)} {delivery.devise || 'TND'}
+                        <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
+                          {warehouses.find(w => w._id === delivery.warehouseId)?.name || 'Défaut'}
                         </td>
-                        <td className="px-3 py-4 text-sm text-gray-600 text-right whitespace-nowrap">
-                          {delivery.totalTVA?.toFixed(3)} {delivery.devise || 'TND'}
-                        </td>
-                        <td className="px-3 py-4 text-sm font-semibold text-gray-900 text-right whitespace-nowrap">
+                        <td className="px-6 py-4 text-sm font-semibold text-gray-900 dark:text-white text-right whitespace-nowrap">
                           {delivery.totalTTC?.toFixed(3)} {delivery.devise || 'TND'}
                         </td>
                         <td className="px-2 py-4">
@@ -963,7 +983,7 @@ export default function DeliveriesPage() {
                                 console.log('🔵 BUTTON CLICKED - Delivery ID:', delivery._id);
                                 handleView(delivery);
                               }}
-                              className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              className="p-1.5 text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
                               title="Voir"
                             >
                               <EyeIcon className="w-3.5 h-3.5" />
@@ -973,7 +993,7 @@ export default function DeliveriesPage() {
                                 console.log('🟢 MODIFY BUTTON CLICKED - Delivery:', delivery);
                                 handleEdit(delivery);
                               }}
-                              className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                              className="p-1.5 text-green-600 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-900/30 rounded-lg transition-colors"
                               title="Modifier"
                             >
                               <PencilIcon className="w-3.5 h-3.5" />
@@ -1004,11 +1024,11 @@ export default function DeliveriesPage() {
             {/* Mobile Cards */}
             <div className="lg:hidden space-y-4">
               {filtered.map((delivery) => (
-                <div key={delivery._id} className="bg-white border rounded-xl shadow-sm p-4 space-y-3">
+                <div key={delivery._id} className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-xl shadow-sm p-4 space-y-3">
                   <div className="flex items-start justify-between">
                     <div>
-                      <h3 className="font-semibold text-gray-900">{delivery.numero}</h3>
-                      <p className="text-sm text-gray-600 mt-1">
+                      <h3 className="font-semibold text-gray-900 dark:text-white">{delivery.numero}</h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                         {new Date(delivery.dateDoc).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                       </p>
                     </div>
@@ -1029,35 +1049,31 @@ export default function DeliveriesPage() {
                       </button>
                     </div>
                   </div>
-                  <div className="border-t pt-3 space-y-2">
+                  <div className="border-t dark:border-gray-700 pt-3 space-y-2">
                     <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Client:</span>
-                      <span className="font-medium text-gray-900">{delivery.customerName || '-'}</span>
+                      <span className="text-gray-600 dark:text-gray-400">Client:</span>
+                      <span className="font-medium text-gray-900 dark:text-white">{delivery.customerName || '-'}</span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Total HT:</span>
-                      <span className="font-medium text-gray-900">{delivery.totalBaseHT?.toFixed(3)} {delivery.devise || 'TND'}</span>
+                      <span className="text-gray-600 dark:text-gray-400">Entrepôt:</span>
+                      <span className="font-medium text-gray-900 dark:text-white">{warehouses.find(w => w._id === delivery.warehouseId)?.name || 'Défaut'}</span>
                     </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">TVA:</span>
-                      <span className="font-medium text-gray-900">{delivery.totalTVA?.toFixed(3)} {delivery.devise || 'TND'}</span>
-                    </div>
-                    <div className="flex justify-between text-base pt-2 border-t">
-                      <span className="font-semibold text-gray-900">Total TTC:</span>
-                      <span className="font-bold text-blue-600">{delivery.totalTTC?.toFixed(3)} {delivery.devise || 'TND'}</span>
+                    <div className="flex justify-between text-base pt-2 border-t dark:border-gray-700">
+                      <span className="font-semibold text-gray-900 dark:text-white">Total TTC:</span>
+                      <span className="font-bold text-blue-600 dark:text-blue-400">{delivery.totalTTC?.toFixed(3)} {delivery.devise || 'TND'}</span>
                     </div>
                   </div>
                   <div className="flex gap-2 pt-2">
                     <button
                       onClick={() => handleDownloadPDF(delivery)}
-                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm border rounded-lg hover:bg-gray-50"
+                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm border dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
                     >
                       <ArrowDownTrayIcon className="w-4 h-4" />
                       PDF
                     </button>
                     <button
                       onClick={() => handleDelete(delivery._id)}
-                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm text-red-600 border border-red-300 rounded-lg hover:bg-red-50"
+                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm text-red-600 border border-red-300 dark:border-red-700 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
                     >
                       <TrashIcon className="w-4 h-4" />
                       Supprimer
@@ -1071,14 +1087,14 @@ export default function DeliveriesPage() {
 
         {/* Simple Modal Placeholder - Will be replaced with full modal */}
         {showModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
-            <div className="bg-white rounded-xl sm:rounded-2xl max-w-7xl w-full max-h-[95vh] sm:max-h-[90vh] flex flex-col shadow-2xl">
-              <div className="p-4 sm:p-6 border-b flex items-center justify-between">
+          <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl max-w-7xl w-full max-h-[95vh] sm:max-h-[90vh] flex flex-col shadow-2xl">
+              <div className="p-4 sm:p-6 border-b dark:border-gray-700 flex items-center justify-between">
                 <div>
-                  <h2 className="text-lg sm:text-2xl font-bold text-gray-900">
+                  <h2 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white">
                     {editingDeliveryId ? '✏️ Modifier bon de livraison' : '🧾 Nouveau bon de livraison'}
                   </h2>
-                  <p className="text-sm text-gray-600 mt-1">
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                     {editingDeliveryId ? 'Modifiez votre bon de livraison' : 'Créez un bon de livraison élégant et précis en quelques clics'}
                   </p>
                 </div>
@@ -1093,11 +1109,11 @@ export default function DeliveriesPage() {
                 {/* Basic Info */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
                   <div className="relative customer-autocomplete">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Client *
                     </label>
                     {loadingData ? (
-                      <div className="w-full px-3 py-2 border rounded-lg bg-gray-100 animate-pulse">
+                      <div className="w-full px-3 py-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:border-gray-600 animate-pulse text-gray-500 dark:text-gray-400">
                         Chargement des clients...
                       </div>
                     ) : (
@@ -1116,15 +1132,15 @@ export default function DeliveriesPage() {
                             onFocus={() => setShowCustomerDropdown(true)}
                             onKeyDown={handleCustomerKeyDown}
                             placeholder="Rechercher un client..."
-                            className="w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                            className="w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                           />
                         </div>
 
                         {/* Dropdown */}
                         {showCustomerDropdown && (
-                          <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl max-h-[280px] overflow-hidden">
+                          <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl max-h-[280px] overflow-hidden">
                             {/* Alphabet filter bar */}
-                            <div className="flex items-center justify-center gap-1 px-2 py-2 bg-gray-50 border-b text-xs">
+                            <div className="flex items-center justify-center gap-1 px-2 py-2 bg-gray-50 dark:bg-gray-700 border-b dark:border-gray-600 text-xs">
                               {Array.from('ABCDEFGHIJKLMNOPQRSTUVWXYZ').map((letter) => (
                                 <button
                                   key={letter}
@@ -1151,13 +1167,13 @@ export default function DeliveriesPage() {
                                       key={customer._id}
                                       onClick={() => handleSelectCustomer(customer)}
                                       className={`px-4 py-3 cursor-pointer transition-colors ${index === selectedCustomerIndex
-                                        ? 'bg-blue-50 border-l-2 border-blue-500'
-                                        : 'hover:bg-gray-50'
+                                        ? 'bg-blue-50 dark:bg-blue-900/20 border-l-2 border-blue-500'
+                                        : 'hover:bg-gray-50 dark:hover:bg-gray-700'
                                         }`}
                                     >
-                                      <div className="font-medium text-gray-900">{displayName}</div>
+                                      <div className="font-medium text-gray-900 dark:text-white">{displayName}</div>
                                       {secondaryInfo && (
-                                        <div className="text-sm text-gray-500">{secondaryInfo}</div>
+                                        <div className="text-sm text-gray-500 dark:text-gray-400">{secondaryInfo}</div>
                                       )}
                                     </div>
                                   );
@@ -1174,26 +1190,26 @@ export default function DeliveriesPage() {
                     )}
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Date
                     </label>
                     <input
                       type="date"
                       value={formData.dateDoc}
                       onChange={(e) => setFormData({ ...formData, dateDoc: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                     />
                   </div>
 
                   {multiWarehouseEnabled && warehouses.length > 0 && (
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Entrepôt
                       </label>
                       <select
                         value={selectedWarehouseId}
                         onChange={(e) => setSelectedWarehouseId(e.target.value)}
-                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                       >
                         {warehouses.map((wh) => (
                           <option key={wh._id} value={wh._id}>
@@ -1204,7 +1220,7 @@ export default function DeliveriesPage() {
                     </div>
                   )}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Référence externe
                     </label>
                     <input
@@ -1212,17 +1228,17 @@ export default function DeliveriesPage() {
                       value={formData.referenceExterne}
                       onChange={(e) => setFormData({ ...formData, referenceExterne: e.target.value })}
                       placeholder="Ex: BC-2025-001"
-                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Devise
                     </label>
                     <select
                       value={formData.devise}
                       onChange={(e) => setFormData({ ...formData, devise: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                     >
                       <option value="TND">TND - Dinar tunisien</option>
                       <option value="EUR">EUR - Euro</option>
@@ -1230,29 +1246,29 @@ export default function DeliveriesPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Date livraison prévue
                     </label>
                     <input
                       type="date"
                       value={formData.dateLivraisonPrevue}
                       onChange={(e) => setFormData({ ...formData, dateLivraisonPrevue: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Date livraison réelle
                     </label>
                     <input
                       type="date"
                       value={formData.dateLivraisonReelle}
                       onChange={(e) => setFormData({ ...formData, dateLivraisonReelle: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Lieu de livraison
                     </label>
                     <input
@@ -1260,11 +1276,11 @@ export default function DeliveriesPage() {
                       value={formData.lieuLivraison}
                       onChange={(e) => setFormData({ ...formData, lieuLivraison: e.target.value })}
                       placeholder="Ex: Entrepôt principal"
-                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Moyen de transport
                     </label>
                     <input
@@ -1272,7 +1288,7 @@ export default function DeliveriesPage() {
                       value={formData.moyenTransport}
                       onChange={(e) => setFormData({ ...formData, moyenTransport: e.target.value })}
                       placeholder="Ex: Camion, Livraison express"
-                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                     />
                   </div>
                 </div>
@@ -1280,35 +1296,35 @@ export default function DeliveriesPage() {
                 {/* Lines Table */}
                 <div className="mb-8">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-900">Lignes</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Lignes</h3>
                     <button
                       onClick={addLine}
-                      className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                      className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
                     >
                       + Ajouter une ligne
                     </button>
                   </div>
-                  <div className="border rounded-lg overflow-visible">
+                  <div className="border dark:border-gray-700 rounded-lg overflow-visible">
                     {lines.length === 0 ? (
-                      <div className="text-center py-12 text-gray-500">
+                      <div className="text-center py-12 text-gray-500 dark:text-gray-400">
                         Aucune ligne ajoutée
                       </div>
                     ) : (
                       <table className="w-full">
-                        <thead className="bg-gray-50 border-b">
+                        <thead className="bg-gray-50 dark:bg-gray-700 border-b dark:border-gray-600">
                           <tr>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">Produit</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">Qté</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">Unité</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">Prix HT</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">TVA %</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">Total HT</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">Total TVA</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">Total TTC</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700"></th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300">Produit</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300">Qté</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300">Unité</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300">Prix HT</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300">TVA %</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300">Total HT</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300">Total TVA</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300">Total TTC</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300"></th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-100">
+                        <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                           {lines.map((line, index) => (
                             <tr key={index}>
                               <td className="px-2 sm:px-4 py-3" style={{ width: 'auto', maxWidth: 'none' }}>
@@ -1333,7 +1349,7 @@ export default function DeliveriesPage() {
                                         handleOpenProductModal(index);
                                       }}
                                       placeholder="Rechercher un produit..."
-                                      className="px-3 py-2 pr-8 border rounded-lg text-sm cursor-pointer focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                      className="px-3 py-2 pr-8 border rounded-lg text-sm cursor-pointer focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                                       readOnly
                                       style={{
                                         minWidth: '150px',
@@ -1372,7 +1388,7 @@ export default function DeliveriesPage() {
                                       updatedLines[index] = { ...updatedLines[index], quantite: parseFloat(val) || 0 };
                                       setLines(updatedLines);
                                     }}
-                                    className={`w-20 px-2 py-1 border rounded text-sm ${line.productId && productStocks[line.productId] !== undefined &&
+                                    className={`w-20 px-2 py-1 border rounded text-sm bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white ${line.productId && productStocks[line.productId] !== undefined &&
                                       (line.quantite || 0) > productStocks[line.productId]
                                       ? 'border-red-500' : ''
                                       }`}
@@ -1391,7 +1407,7 @@ export default function DeliveriesPage() {
                                   type="text"
                                   value={line.uomCode || ''}
                                   readOnly
-                                  className="w-20 px-2 py-1 border rounded text-sm bg-gray-50"
+                                  className="w-20 px-2 py-1 border rounded text-sm bg-gray-50 dark:bg-gray-800 dark:border-gray-600 text-gray-900 dark:text-white"
                                 />
                               </td>
                               <td className="px-4 py-3">
@@ -1404,7 +1420,7 @@ export default function DeliveriesPage() {
                                     updatedLines[index] = { ...updatedLines[index], prixUnitaireHT: parseFloat(val) || 0 };
                                     setLines(updatedLines);
                                   }}
-                                  className="w-24 px-2 py-1 border rounded text-sm"
+                                  className="w-24 px-2 py-1 border rounded text-sm bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                                   placeholder="0.000"
                                 />
                               </td>
@@ -1418,24 +1434,24 @@ export default function DeliveriesPage() {
                                     updatedLines[index] = { ...updatedLines[index], tvaPct: parseFloat(val) || 0 };
                                     setLines(updatedLines);
                                   }}
-                                  className="w-20 px-2 py-1 border rounded text-sm"
+                                  className="w-20 px-2 py-1 border rounded text-sm bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                                   placeholder="0%"
                                 />
-                                <div className="text-xs text-gray-500 mt-1">{line.taxCode || ''}</div>
+                                <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{line.taxCode || ''}</div>
                               </td>
-                              <td className="px-4 py-3 text-sm font-medium">
+                              <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">
                                 {(((line.quantite || 0) * (line.prixUnitaireHT || 0)) * (1 - ((line.remisePct || 0) / 100))).toFixed(3)} {formData.devise}
                               </td>
-                              <td className="px-4 py-3 text-sm font-medium">
+                              <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">
                                 {((((line.quantite || 0) * (line.prixUnitaireHT || 0)) * (1 - ((line.remisePct || 0) / 100))) * ((line.tvaPct || 0) / 100)).toFixed(3)} {formData.devise}
                               </td>
-                              <td className="px-4 py-3 text-sm font-medium text-blue-600">
+                              <td className="px-4 py-3 text-sm font-medium text-blue-600 dark:text-blue-400">
                                 {(((line.quantite || 0) * (line.prixUnitaireHT || 0) * (1 - ((line.remisePct || 0) / 100))) * (1 + (line.tvaPct || 0) / 100)).toFixed(3)} {formData.devise}
                               </td>
                               <td className="px-4 py-3">
                                 <button
                                   onClick={() => removeLine(index)}
-                                  className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                  className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                                   title="Supprimer"
                                 >
                                   <TrashIcon className="w-4 h-4" />
@@ -1450,26 +1466,26 @@ export default function DeliveriesPage() {
                 </div>
 
                 {/* Totals */}
-                <div className="bg-gray-50 rounded-lg p-6 border-2 border-gray-200">
+                <div className="bg-gray-50 dark:bg-gray-700/30 rounded-lg p-6 border-2 border-gray-200 dark:border-gray-700">
                   <div className="flex justify-end">
                     <div className="w-80 space-y-3">
                       <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Sous-total HT</span>
-                        <span className="font-medium">{totals.totalHT.toFixed(3)} {formData.devise}</span>
+                        <span className="text-gray-600 dark:text-gray-400">Sous-total HT</span>
+                        <span className="font-medium text-gray-900 dark:text-white">{totals.totalHT.toFixed(3)} {formData.devise}</span>
                       </div>
                       {totals.totalRemise > 0 && (
                         <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Total Remise</span>
-                          <span className="font-medium text-red-600">-{totals.totalRemise.toFixed(3)} {formData.devise}</span>
+                          <span className="text-gray-600 dark:text-gray-400">Total Remise</span>
+                          <span className="font-medium text-red-600 dark:text-red-400">-{totals.totalRemise.toFixed(3)} {formData.devise}</span>
                         </div>
                       )}
                       <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">TVA</span>
-                        <span className="font-medium">{totals.totalTVA.toFixed(3)} {formData.devise}</span>
+                        <span className="text-gray-600 dark:text-gray-400">TVA</span>
+                        <span className="font-medium text-gray-900 dark:text-white">{totals.totalTVA.toFixed(3)} {formData.devise}</span>
                       </div>
-                      <div className="border-t pt-3 flex justify-between text-lg font-bold">
-                        <span>Total TTC</span>
-                        <span className="text-blue-600">{totals.totalTTC.toFixed(3)} {formData.devise}</span>
+                      <div className="border-t dark:border-gray-600 pt-3 flex justify-between text-lg font-bold">
+                        <span className="text-gray-900 dark:text-white">Total TTC</span>
+                        <span className="text-blue-600 dark:text-blue-400">{totals.totalTTC.toFixed(3)} {formData.devise}</span>
                       </div>
                     </div>
                   </div>
@@ -1478,13 +1494,13 @@ export default function DeliveriesPage() {
                 {/* Conditions */}
                 <div className="mt-4 sm:mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Mode de paiement
                     </label>
                     <select
                       value={formData.modePaiement}
                       onChange={(e) => setFormData({ ...formData, modePaiement: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                     >
                       <option value="">Sélectionner...</option>
                       {modesReglement.map((mode, index) => (
@@ -1495,7 +1511,7 @@ export default function DeliveriesPage() {
                 </div>
 
                 <div className="mt-6">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Notes
                   </label>
                   <textarea
@@ -1503,14 +1519,14 @@ export default function DeliveriesPage() {
                     value={formData.notes}
                     onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                     placeholder="Notes additionnelles pour le client..."
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                   />
                 </div>
               </div>
-              <div className="p-4 sm:p-6 border-t flex flex-col sm:flex-row justify-end gap-3 relative">
+              <div className="p-4 sm:p-6 border-t dark:border-gray-700 flex flex-col sm:flex-row justify-end gap-3 relative dark:bg-gray-800">
                 <button
                   onClick={() => setShowModal(false)}
-                  className="w-full sm:w-auto px-4 py-2 border rounded-lg hover:bg-gray-50 text-sm sm:text-base"
+                  className="w-full sm:w-auto px-4 py-2 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-sm sm:text-base border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300"
                 >
                   Annuler
                 </button>

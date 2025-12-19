@@ -126,21 +126,21 @@ export default function CreditNoteDetailPage() {
           <div className="flex items-center gap-4">
             <button
               onClick={() => router.push('/sales/credit-notes')}
-              className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50"
+              className="p-2 rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400"
             >
               <ArrowLeftIcon className="w-5 h-5" />
             </button>
             <div>
-              <p className="text-sm text-gray-500">Avoir</p>
-              <h1 className="text-2xl font-bold text-gray-900">{creditNote.numero}</h1>
-              <p className="text-sm text-gray-500">Créé le {new Date(creditNote.dateDoc).toLocaleDateString('fr-FR')}</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Avoir</p>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{creditNote.numero}</h1>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Créé le {new Date(creditNote.dateDoc).toLocaleDateString('fr-FR')}</p>
             </div>
           </div>
           <div className="flex gap-2">
             <button
               onClick={handleDownloadPdf}
               disabled={downloading}
-              className="flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-gray-50 disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200"
             >
               <ArrowDownTrayIcon className="w-5 h-5" />
               Télécharger PDF
@@ -149,46 +149,45 @@ export default function CreditNoteDetailPage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <div className="bg-white border rounded-2xl p-4 space-y-3 lg:col-span-2">
+          <div className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-2xl p-4 space-y-3 lg:col-span-2">
             <div className="flex items-center gap-2">
-              <DocumentTextIcon className="w-6 h-6 text-blue-600" />
-              <h2 className="text-lg font-semibold text-gray-900">Informations</h2>
+              <DocumentTextIcon className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Informations</h2>
             </div>
-            <div className="grid sm:grid-cols-2 gap-4 text-sm text-gray-600">
+            <div className="grid sm:grid-cols-2 gap-4 text-sm text-gray-600 dark:text-gray-400">
               <div>
-                <p className="text-gray-500">Numéro d’avoir</p>
-                <p className="font-medium text-gray-900">{creditNote.numero}</p>
+                <p className="text-gray-500 dark:text-gray-400">Numéro d’avoir</p>
+                <p className="font-medium text-gray-900 dark:text-white">{creditNote.numero}</p>
               </div>
               <div>
-                <p className="text-gray-500">Date</p>
-                <p className="font-medium text-gray-900">
+                <p className="text-gray-500 dark:text-gray-400">Date</p>
+                <p className="font-medium text-gray-900 dark:text-white">
                   {new Date(creditNote.dateDoc).toLocaleDateString('fr-FR')}
                 </p>
               </div>
               <div>
-                <p className="text-gray-500">Statut</p>
-                <span className={`inline-flex px-2 py-1 rounded-full text-xs font-semibold ${
-                  creditNote.statut === 'PAYEE'
-                    ? 'bg-green-100 text-green-700'
-                    : 'bg-yellow-100 text-yellow-700'
-                }`}>
+                <p className="text-gray-500 dark:text-gray-400">Statut</p>
+                <span className={`inline-flex px-2 py-1 rounded-full text-xs font-semibold ${creditNote.statut === 'PAYEE'
+                    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                    : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                  }`}>
                   {creditNote.statut || 'BROUILLON'}
                 </span>
               </div>
               {creditNote.referenceExterne && (
                 <div>
-                  <p className="text-gray-500">Facture liée</p>
-                  <p className="font-medium text-blue-600">{creditNote.referenceExterne}</p>
+                  <p className="text-gray-500 dark:text-gray-400">Facture liée</p>
+                  <p className="font-medium text-blue-600 dark:text-blue-400">{creditNote.referenceExterne}</p>
                 </div>
               )}
             </div>
           </div>
 
-          <div className="bg-white border rounded-2xl p-4 space-y-3">
-            <h2 className="text-lg font-semibold text-gray-900">Client</h2>
+          <div className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-2xl p-4 space-y-3">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Client</h2>
             {customer ? (
-              <div className="text-sm text-gray-600 space-y-2">
-                <p className="font-medium text-gray-900">
+              <div className="text-sm text-gray-600 dark:text-gray-400 space-y-2">
+                <p className="font-medium text-gray-900 dark:text-white">
                   {customer.raisonSociale || `${customer.nom || ''} ${customer.prenom || ''}`.trim()}
                 </p>
                 {customer.adresseFacturation && (
@@ -202,27 +201,27 @@ export default function CreditNoteDetailPage() {
                 {customer.matriculeFiscale && <p>MF: {customer.matriculeFiscale}</p>}
               </div>
             ) : (
-              <p className="text-sm text-gray-500">Client introuvable</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Client introuvable</p>
             )}
           </div>
         </div>
 
-        <div className="bg-white border rounded-2xl overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-2xl overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+              <thead className="bg-gray-50 dark:bg-gray-700">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Réf</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Produit</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Qté</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Prix HT</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Remise %</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">TVA %</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Total HT</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Total TTC</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase">Réf</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase">Produit</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase">Qté</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase">Prix HT</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase">Remise %</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase">TVA %</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase">Total HT</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase">Total TTC</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                 {creditNote.lignes?.map((line: any, idx: number) => {
                   const quantite = Math.abs(line.quantite || 0);
                   const prix = line.prixUnitaireHT || 0;
@@ -233,19 +232,19 @@ export default function CreditNoteDetailPage() {
                   const totalTTC = totalHT * (1 + tva / 100);
 
                   return (
-                    <tr key={idx}>
-                      <td className="px-4 py-3 text-sm text-gray-600">
+                    <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
                         {line.codeAchat || line.categorieCode || line.designation || `Ligne ${idx + 1}`}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
                         {line.designation || line.description || '—'}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-600 text-right">{quantite}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600 text-right">{prix.toFixed(3)}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600 text-right">{remise}%</td>
-                      <td className="px-4 py-3 text-sm text-gray-600 text-right">{tva}%</td>
-                      <td className="px-4 py-3 text-sm text-gray-900 text-right">{totalHT.toFixed(3)}</td>
-                      <td className="px-4 py-3 text-sm text-gray-900 text-right">{totalTTC.toFixed(3)}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 text-right">{quantite}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 text-right">{prix.toFixed(3)}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 text-right">{remise}%</td>
+                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 text-right">{tva}%</td>
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white text-right">{totalHT.toFixed(3)}</td>
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white text-right">{totalTTC.toFixed(3)}</td>
                     </tr>
                   );
                 })}
@@ -254,43 +253,45 @@ export default function CreditNoteDetailPage() {
           </div>
         </div>
 
-        <div className="bg-white border rounded-2xl p-4 sm:p-6 flex flex-col sm:flex-row sm:justify-between gap-6">
-          <div className="text-sm text-gray-600 space-y-2">
+        <div className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-2xl p-4 sm:p-6 flex flex-col sm:flex-row sm:justify-between gap-6">
+          <div className="text-sm text-gray-600 dark:text-gray-400 space-y-2">
             <p>
-              <span className="text-gray-500">Mode paiement: </span>
-              <span className="font-medium text-gray-900">
+              <span className="text-gray-500 dark:text-gray-400">Mode paiement: </span>
+              <span className="font-medium text-gray-900 dark:text-white">
                 {creditNote.modePaiement || '—'}
               </span>
             </p>
             {creditNote.notes && (
-              <p className="text-gray-500 border-t pt-2">{creditNote.notes}</p>
+              <p className="text-gray-500 dark:text-gray-400 border-t dark:border-gray-700 pt-2">{creditNote.notes}</p>
             )}
             {creditNote.referenceExterne && (
-              <p className="text-sm text-blue-600 border-t pt-2">
+              <p className="text-sm text-blue-600 dark:text-blue-400 border-t dark:border-gray-700 pt-2">
                 Facture d’origine: {creditNote.referenceExterne}
               </p>
             )}
           </div>
-          <div className="bg-gray-50 rounded-xl p-4 w-full sm:w-80 space-y-2 text-sm">
-            <div className="flex justify-between text-gray-600">
+          <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4 w-full sm:w-80 space-y-2 text-sm">
+            <div className="flex justify-between text-gray-600 dark:text-gray-300">
               <span>Total HT</span>
-              <span className="font-semibold text-gray-900">
+              <span className="font-semibold text-gray-900 dark:text-white">
                 {(Math.abs(creditNote.totalBaseHT || creditNote.totalHT || 0)).toFixed(3)} {creditNote.devise || 'TND'}
               </span>
             </div>
-            <div className="flex justify-between text-gray-600">
+            <div className="flex justify-between text-gray-600 dark:text-gray-300">
               <span>Total TVA</span>
-              <span className="font-semibold text-gray-900">
+              <span className="font-semibold text-gray-900 dark:text-white">
                 {(Math.abs(creditNote.totalTVA || 0)).toFixed(3)} {creditNote.devise || 'TND'}
               </span>
             </div>
-            <div className="flex justify-between text-gray-600">
-              <span>Timbre fiscal</span>
-              <span className="font-semibold text-gray-900">
-                {(Math.abs(creditNote.timbreFiscal || 0)).toFixed(3)} {creditNote.devise || 'TND'}
-              </span>
-            </div>
-            <div className="border-t pt-3 flex justify-between text-lg font-bold text-blue-600">
+            {creditNote.timbreFiscal && (
+              <div className="flex justify-between text-gray-600 dark:text-gray-300">
+                <span>Timbre fiscal</span>
+                <span className="font-semibold text-gray-900 dark:text-white">
+                  {(Math.abs(creditNote.timbreFiscal || 0)).toFixed(3)} {creditNote.devise || 'TND'}
+                </span>
+              </div>
+            )}
+            <div className="border-t dark:border-gray-600 pt-3 flex justify-between text-lg font-bold text-blue-600 dark:text-blue-400">
               <span>Total TTC</span>
               <span>
                 {(Math.abs(creditNote.totalTTC || 0)).toFixed(3)} {creditNote.devise || 'TND'}

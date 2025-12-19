@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
-import { 
+import {
   BriefcaseIcon,
   PlusIcon,
   MagnifyingGlassIcon,
@@ -76,7 +76,7 @@ export default function ProjectsPage() {
       const response = await fetch('/api/projects', {
         headers: { 'X-Tenant-Id': tenantId || '' }
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         const items: Project[] = data.items || [];
@@ -175,8 +175,8 @@ export default function ProjectsPage() {
             typeof productsData.totalTTC === 'number'
               ? productsData.totalTTC
               : typeof productsData.total === 'number'
-              ? productsData.total
-              : (productsData.products || []).reduce(
+                ? productsData.total
+                : (productsData.products || []).reduce(
                   (sum: number, item: any) => sum + (item.totalCostTTC ?? item.totalCost ?? 0),
                   0
                 );
@@ -221,10 +221,10 @@ export default function ProjectsPage() {
 
   const getStatusBadge = (status: string) => {
     const styles = {
-      pending: 'bg-gray-100 text-gray-800',
-      in_progress: 'bg-blue-100 text-blue-800',
-      completed: 'bg-green-100 text-green-800',
-      cancelled: 'bg-red-100 text-red-800',
+      pending: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
+      in_progress: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300',
+      completed: 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300',
+      cancelled: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300',
     };
     const labels = {
       pending: 'En attente',
@@ -241,13 +241,13 @@ export default function ProjectsPage() {
 
   const filteredProjects = useMemo(() => {
     return projects.filter(project => {
-      const matchesSearch = 
+      const matchesSearch =
         project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         project.projectNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (project.description && project.description.toLowerCase().includes(searchQuery.toLowerCase()));
-      
+
       const matchesStatus = filterStatus === 'all' || project.status === filterStatus;
-      
+
       return matchesSearch && matchesStatus;
     });
   }, [projects, searchQuery, filterStatus]);
@@ -257,7 +257,7 @@ export default function ProjectsPage() {
     const total = filteredProjects.length;
     const inProgress = filteredProjects.filter(p => p.status === 'in_progress').length;
     const completed = filteredProjects.filter(p => p.status === 'completed').length;
-    
+
     return { total, inProgress, completed, totalBudget: costSummary.totalBudget };
   }, [filteredProjects, costSummary]);
 
@@ -267,8 +267,8 @@ export default function ProjectsPage() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Projets</h1>
-            <p className="mt-1 text-sm text-gray-600">Gérez vos projets et suivez leur progression</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Projets</h1>
+            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">Gérez vos projets et suivez leur progression</p>
           </div>
           <button
             onClick={() => router.push('/projects/new')}
@@ -281,56 +281,56 @@ export default function ProjectsPage() {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 sm:p-6 border dark:border-gray-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Total projets</p>
-                <p className="mt-2 text-2xl sm:text-3xl font-bold text-gray-900">{stats.total}</p>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total projets</p>
+                <p className="mt-2 text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">{stats.total}</p>
               </div>
-              <div className="p-3 bg-blue-100 rounded-lg">
-                <BriefcaseIcon className="w-6 h-6 text-blue-600" />
+              <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                <BriefcaseIcon className="w-6 h-6 text-blue-600 dark:text-blue-400" />
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 sm:p-6 border dark:border-gray-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">En cours</p>
-                <p className="mt-2 text-2xl sm:text-3xl font-bold text-blue-600">{stats.inProgress}</p>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">En cours</p>
+                <p className="mt-2 text-2xl sm:text-3xl font-bold text-blue-600 dark:text-blue-400">{stats.inProgress}</p>
               </div>
-              <div className="p-3 bg-blue-100 rounded-lg">
-                <CalendarIcon className="w-6 h-6 text-blue-600" />
+              <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                <CalendarIcon className="w-6 h-6 text-blue-600 dark:text-blue-400" />
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 sm:p-6 border dark:border-gray-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Terminés</p>
-                <p className="mt-2 text-2xl sm:text-3xl font-bold text-green-600">{stats.completed}</p>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Terminés</p>
+                <p className="mt-2 text-2xl sm:text-3xl font-bold text-green-600 dark:text-green-400">{stats.completed}</p>
               </div>
-              <div className="p-3 bg-green-100 rounded-lg">
-                <BriefcaseIcon className="w-6 h-6 text-green-600" />
+              <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                <BriefcaseIcon className="w-6 h-6 text-green-600 dark:text-green-400" />
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 sm:p-6 border dark:border-gray-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Budget total</p>
-                <p className="mt-2 text-2xl sm:text-3xl font-bold text-gray-900">
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Budget total</p>
+                <p className="mt-2 text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
                   {formatPrice(stats.totalBudget, 'TND')}
                 </p>
               </div>
-              <div className="p-3 bg-purple-100 rounded-lg">
-                <CurrencyDollarIcon className="w-6 h-6 text-purple-600" />
+              <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                <CurrencyDollarIcon className="w-6 h-6 text-purple-600 dark:text-purple-400" />
               </div>
             </div>
           </div>
         </div>
 
         {/* Filters and Search */}
-        <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 sm:p-6 border dark:border-gray-700">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1 relative">
               <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -339,7 +339,7 @@ export default function ProjectsPage() {
                 placeholder="Rechercher par nom, numéro, description..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
               />
             </div>
             <div className="flex items-center gap-2">
@@ -347,7 +347,7 @@ export default function ProjectsPage() {
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
-                className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
               >
                 <option value="all">Tous les statuts</option>
                 <option value="pending">En attente</option>
@@ -360,17 +360,27 @@ export default function ProjectsPage() {
         </div>
 
         {/* Projects Table */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden border dark:border-gray-700">
           {loading ? (
-            <div className="p-12 text-center">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-              <p className="mt-4 text-gray-600">Chargement...</p>
+            <div className="p-4 space-y-4">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="flex gap-4 p-4 items-center border-b dark:border-gray-700 last:border-0">
+                  <div className="space-y-2 flex-1">
+                    <div className="h-4 w-1/4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+                    <div className="h-3 w-1/3 bg-gray-100 dark:bg-gray-700/50 rounded animate-pulse" />
+                  </div>
+                  <div className="h-4 w-24 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+                  <div className="h-4 w-24 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+                  <div className="h-6 w-20 bg-gray-200 dark:bg-gray-700 rounded-full animate-pulse" />
+                  <div className="h-8 w-20 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+                </div>
+              ))}
             </div>
           ) : filteredProjects.length === 0 ? (
             <div className="p-12 text-center">
-              <BriefcaseIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Aucun projet trouvé</h3>
-              <p className="text-gray-600 mb-6">Commencez par créer votre premier projet</p>
+              <BriefcaseIcon className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Aucun projet trouvé</h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-6">Commencez par créer votre premier projet</p>
               <button
                 onClick={() => router.push('/projects/new')}
                 className="inline-flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700"
@@ -382,60 +392,60 @@ export default function ProjectsPage() {
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50 border-b">
+                <thead className="bg-gray-50 dark:bg-gray-700/50 border-b dark:border-gray-700">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Projet</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Client</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Dates</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Budget</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Coût</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Statut</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Projet</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Client</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Dates</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Budget</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Coût</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Statut</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                   {filteredProjects.map((project) => {
-                    const customerName = project.customerId.raisonSociale || 
-                      `${project.customerId.nom || ''} ${project.customerId.prenom || ''}`.trim() || 
+                    const customerName = project.customerId.raisonSociale ||
+                      `${project.customerId.nom || ''} ${project.customerId.prenom || ''}`.trim() ||
                       'N/A';
-                    
+
                     return (
-                      <tr key={project._id} className="hover:bg-gray-50 transition-colors">
+                      <tr key={project._id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                         <td className="px-4 py-4">
                           <div>
-                            <div className="text-sm font-medium text-gray-900">{project.name}</div>
-                            <div className="text-sm text-gray-500">{project.projectNumber}</div>
+                            <div className="text-sm font-medium text-gray-900 dark:text-white">{project.name}</div>
+                            <div className="text-sm text-gray-500 dark:text-gray-400">{project.projectNumber}</div>
                           </div>
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{customerName}</div>
+                          <div className="text-sm text-gray-900 dark:text-white">{customerName}</div>
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">
+                          <div className="text-sm text-gray-900 dark:text-white">
                             {formatDate(project.startDate)}
                           </div>
                           {project.expectedEndDate && (
-                            <div className="text-xs text-gray-500">
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
                               Fin prévue: {formatDate(project.expectedEndDate)}
                             </div>
                           )}
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">
+                          <div className="text-sm text-gray-900 dark:text-white">
                             {project.budget ? formatPrice(project.budget, project.currency) : '-'}
                           </div>
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">
+                          <div className="text-sm text-gray-900 dark:text-white">
                             {formatPrice(project.computedTotalCost ?? project.totalCost ?? 0, project.currency)}
                           </div>
                           {project.computedProfit !== undefined ? (
-                            <div className={`text-xs ${project.computedProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            <div className={`text-xs ${project.computedProfit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                               {project.computedProfit >= 0 ? '+' : ''}
                               {formatPrice(project.computedProfit, project.currency)}
                             </div>
                           ) : project.profit !== undefined ? (
-                            <div className={`text-xs ${project.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            <div className={`text-xs ${project.profit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                               {project.profit >= 0 ? '+' : ''}
                               {formatPrice(project.profit, project.currency)}
                             </div>
@@ -448,14 +458,14 @@ export default function ProjectsPage() {
                           <div className="flex items-center justify-end gap-2">
                             <button
                               onClick={() => router.push(`/projects/${project._id}`)}
-                              className="text-blue-600 hover:text-blue-900 p-2 hover:bg-blue-50 rounded-lg transition-colors"
+                              className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 p-2 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
                               title="Voir les détails"
                             >
                               <EyeIcon className="w-5 h-5" />
                             </button>
                             <button
                               onClick={() => router.push(`/projects/${project._id}/edit`)}
-                              className="text-gray-600 hover:text-gray-900 p-2 hover:bg-gray-50 rounded-lg transition-colors"
+                              className="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-300 p-2 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors"
                               title="Modifier"
                             >
                               <PencilIcon className="w-5 h-5" />
@@ -463,7 +473,7 @@ export default function ProjectsPage() {
                             <button
                               onClick={() => handleDelete(project._id, project.name)}
                               disabled={loading}
-                              className="text-red-600 hover:text-red-900 p-2 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                               title="Supprimer"
                             >
                               <TrashIcon className="w-5 h-5" />
@@ -482,4 +492,3 @@ export default function ProjectsPage() {
     </DashboardLayout>
   );
 }
-

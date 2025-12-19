@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useTenantId } from '@/hooks/useTenantId';
-import { Bars3Icon, BellIcon, HomeIcon, UserCircleIcon, ChartBarIcon, ArrowRightOnRectangleIcon, CogIcon, BuildingOfficeIcon, ChevronDownIcon, CreditCardIcon } from '@heroicons/react/24/outline';
+import { Bars3Icon, BellIcon, HomeIcon, UserCircleIcon, ChartBarIcon, ArrowRightOnRectangleIcon, CogIcon, BuildingOfficeIcon, ChevronDownIcon, CreditCardIcon, SunIcon, MoonIcon } from '@heroicons/react/24/outline';
 
 interface NotificationItem {
   _id: string;
@@ -38,6 +38,33 @@ export default function Header({ onMenuClick }: HeaderProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const adminContainerRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
+  const [darkMode, setDarkMode] = useState(false);
+
+  useEffect(() => {
+    // Initialize dark mode
+    if (
+      localStorage.theme === 'dark' ||
+      (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)
+    ) {
+      setDarkMode(true);
+      document.documentElement.classList.add('dark');
+    } else {
+      setDarkMode(false);
+      document.documentElement.classList.remove('dark');
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    if (darkMode) {
+      document.documentElement.classList.remove('dark');
+      localStorage.theme = 'light';
+      setDarkMode(false);
+    } else {
+      document.documentElement.classList.add('dark');
+      localStorage.theme = 'dark';
+      setDarkMode(true);
+    }
+  };
 
   // Check if user is the specific admin
   const isSystemAdmin = session?.user?.email === 'admin@entreprise-demo.com';
@@ -213,10 +240,10 @@ export default function Header({ onMenuClick }: HeaderProps) {
   };
 
   return (
-    <div className="relative z-40 flex-shrink-0 flex h-16 bg-white shadow" style={{ overflow: 'visible' }}>
+    <div className="relative z-40 flex-shrink-0 flex h-16 bg-white dark:bg-gray-800 shadow dark:border-b dark:border-gray-700" style={{ overflow: 'visible' }}>
       <button
         type="button"
-        className="px-4 border-r border-gray-200 text-gray-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500 lg:hidden relative z-50"
+        className="px-4 border-r border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500 lg:hidden relative z-50"
         onClick={onMenuClick}
       >
         <Bars3Icon className="h-6 w-6" />
@@ -236,7 +263,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
           {isAdmin && (
             <Link
               href="/"
-              className="bg-white p-1 rounded-full text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 mr-2"
+              className="bg-white dark:bg-gray-700 p-1 rounded-full text-gray-400 hover:text-gray-500 dark:text-gray-300 dark:hover:text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 mr-2"
               title="Retour à la page d'accueil"
             >
               <HomeIcon className="h-6 w-6" />
@@ -258,7 +285,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
                     return next;
                   })
                 }
-                className="bg-white p-1 rounded-full text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 relative"
+                className="bg-white dark:bg-gray-700 p-1 rounded-full text-gray-400 hover:text-gray-500 dark:text-gray-300 dark:hover:text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 relative"
               >
                 <BellIcon className="h-6 w-6" />
                 {unreadCount > 0 && (
@@ -268,9 +295,9 @@ export default function Header({ onMenuClick }: HeaderProps) {
                 )}
               </button>
               {notifOpen && (
-                <div className="origin-top-right absolute right-0 mt-2 w-80 rounded-lg shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50">
-                  <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-                    <span className="text-sm font-semibold text-gray-800">
+                <div className="origin-top-right absolute right-0 mt-2 w-80 rounded-lg shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 z-50">
+                  <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                    <span className="text-sm font-semibold text-gray-800 dark:text-white">
                       Notifications
                     </span>
                     {unreadCount > 0 && (
@@ -296,7 +323,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
                         {notifications.map((notif) => (
                           <li
                             key={notif._id}
-                            className={`px-4 py-3 text-sm cursor-pointer hover:bg-gray-50 ${notif.status === 'unread' ? 'bg-indigo-50' : ''
+                            className={`px-4 py-3 text-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 ${notif.status === 'unread' ? 'bg-indigo-50 dark:bg-indigo-900/20' : ''
                               }`}
                             onClick={() =>
                               markAsRead(notif._id, notif.link || undefined)
@@ -304,10 +331,10 @@ export default function Header({ onMenuClick }: HeaderProps) {
                           >
                             <div className="flex items-start justify-between">
                               <div className="flex-1 pr-2">
-                                <p className="font-medium text-gray-900">
+                                <p className="font-medium text-gray-900 dark:text-white">
                                   {notif.title}
                                 </p>
-                                <p className="text-xs text-gray-600 mt-0.5 line-clamp-2">
+                                <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5 line-clamp-2">
                                   {notif.message}
                                 </p>
                                 <p className="text-[11px] text-gray-400 mt-1">
@@ -323,7 +350,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
                       </ul>
                     )}
                   </div>
-                  <div className="px-4 py-2 border-t border-gray-100 text-xs text-right">
+                  <div className="px-4 py-2 border-t border-gray-100 dark:border-gray-700 text-xs text-right">
                     <Link
                       href="/notifications"
                       className="text-indigo-600 hover:text-indigo-800"
@@ -348,14 +375,14 @@ export default function Header({ onMenuClick }: HeaderProps) {
             >
               <button
                 type="button"
-                className="flex items-center space-x-1 text-gray-700 hover:text-indigo-600 px-3 py-2 text-sm font-medium transition-colors"
+                className="flex items-center space-x-1 text-gray-700 dark:text-gray-200 hover:text-indigo-600 dark:hover:text-indigo-400 px-3 py-2 text-sm font-medium transition-colors"
               >
                 <span>Administration</span>
                 <ChevronDownIcon className="h-4 w-4" />
               </button>
               {adminMenuOpen && (
                 <div
-                  className="absolute right-0 bg-white rounded-lg shadow-xl py-2 border border-gray-200"
+                  className="absolute right-0 bg-white dark:bg-gray-800 rounded-lg shadow-xl py-2 border border-gray-200 dark:border-gray-700"
                   style={{
                     top: 'calc(100% + 4px)',
                     width: '240px',
@@ -366,27 +393,27 @@ export default function Header({ onMenuClick }: HeaderProps) {
                 >
                   <Link
                     href="/companies"
-                    className="block px-4 py-3 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
+                    className="block px-4 py-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-indigo-900/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                     onClick={() => setAdminMenuOpen(false)}
                   >
                     <div className="flex items-center">
                       <BuildingOfficeIcon className="h-5 w-5 mr-3 text-indigo-600" />
                       <div>
                         <div className="font-medium">Gérer les entreprises</div>
-                        <div className="text-xs text-gray-500">Contrôler les inscriptions</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">Contrôler les inscriptions</div>
                       </div>
                     </div>
                   </Link>
                   <Link
                     href="/subscriptions/manage"
-                    className="block px-4 py-3 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
+                    className="block px-4 py-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-indigo-900/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                     onClick={() => setAdminMenuOpen(false)}
                   >
                     <div className="flex items-center">
                       <CreditCardIcon className="h-5 w-5 mr-3 text-indigo-600" />
                       <div>
                         <div className="font-medium">Gérer les abonnements</div>
-                        <div className="text-xs text-gray-500">Approuver les demandes</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">Approuver les demandes</div>
                       </div>
                     </div>
                   </Link>
@@ -421,6 +448,14 @@ export default function Header({ onMenuClick }: HeaderProps) {
             </button>
           )}
 
+          {/* Theme Toggle */}
+          <button
+            onClick={toggleTheme}
+            className="bg-white dark:bg-gray-700 p-1 rounded-full text-gray-400 hover:text-gray-500 dark:text-gray-300 dark:hover:text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 mr-2"
+          >
+            {darkMode ? <SunIcon className="h-6 w-6" /> : <MoonIcon className="h-6 w-6" />}
+          </button>
+
           <div
             ref={containerRef}
             className="ml-3 relative"
@@ -430,10 +465,10 @@ export default function Header({ onMenuClick }: HeaderProps) {
           >
             <button
               type="button"
-              className="flex items-center space-x-2 text-gray-700 hover:text-indigo-600 px-2 py-1 text-sm font-medium transition-colors"
+              className="flex items-center space-x-2 text-gray-700 dark:text-gray-200 hover:text-indigo-600 dark:hover:text-indigo-400 px-2 py-1 text-sm font-medium transition-colors"
             >
               {companySettings?.societe?.logoUrl ? (
-                <div className="relative w-8 h-8 rounded-full overflow-hidden flex-shrink-0 border-2 border-gray-300">
+                <div className="relative w-8 h-8 rounded-full overflow-hidden flex-shrink-0 border-2 border-gray-300 dark:border-gray-600">
                   <Image
                     src={companySettings.societe.logoUrl}
                     alt="Company Logo"
@@ -447,13 +482,13 @@ export default function Header({ onMenuClick }: HeaderProps) {
                 <UserCircleIcon className="h-6 w-6" />
               )}
               <div className="text-left">
-                <p className="text-sm font-medium text-gray-700">{session?.user?.name}</p>
-                <p className="text-xs text-gray-500 capitalize">{session?.user?.role === 'admin' ? 'Administrateur' : (session?.user?.role || 'Utilisateur')}</p>
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-200">{session?.user?.name}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{session?.user?.role === 'admin' ? 'Administrateur' : (session?.user?.role || 'Utilisateur')}</p>
               </div>
             </button>
             {userMenuOpen && (
               <div
-                className="absolute right-0 bg-white rounded-lg shadow-xl py-2 border border-gray-200"
+                className="absolute right-0 bg-white dark:bg-gray-800 rounded-lg shadow-xl py-2 border border-gray-200 dark:border-gray-700"
                 style={{
                   top: 'calc(100% + 4px)',
                   width: '224px',
@@ -462,9 +497,9 @@ export default function Header({ onMenuClick }: HeaderProps) {
                 onMouseEnter={handleMouseEnter}
                 onMouseLeave={handleMouseLeave}
               >
-                <div className="px-4 py-2 border-b border-gray-200">
-                  <p className="text-sm font-medium text-gray-900">{session?.user?.name}</p>
-                  <p className="text-xs text-gray-500">{session?.user?.email}</p>
+                <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-700">
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">{session?.user?.name}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{session?.user?.email}</p>
 
                   {session?.user?.role === 'admin' && (
                     <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800 mt-1">
@@ -474,7 +509,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
                 </div>
                 <Link
                   href="/settings"
-                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
+                  className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-indigo-900/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                   onClick={() => setUserMenuOpen(false)}
                 >
                   <div className="flex items-center">
@@ -488,7 +523,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
                     router.push('/auth/signin');
                     setUserMenuOpen(false);
                   }}
-                  className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors"
+                  className="w-full text-left block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 transition-colors"
                 >
                   <div className="flex items-center">
                     <ArrowRightOnRectangleIcon className="h-5 w-5 mr-2" />

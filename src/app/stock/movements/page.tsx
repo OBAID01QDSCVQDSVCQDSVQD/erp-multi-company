@@ -46,9 +46,9 @@ const SOURCE_LABELS: Record<string, string> = {
 };
 
 const TYPE_COLORS: Record<string, string> = {
-  ENTREE: 'bg-green-100 text-green-800',
-  SORTIE: 'bg-red-100 text-red-800',
-  INVENTAIRE: 'bg-blue-100 text-blue-800',
+  ENTREE: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
+  SORTIE: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
+  INVENTAIRE: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
 };
 
 export default function StockMovementsPage() {
@@ -224,12 +224,12 @@ export default function StockMovementsPage() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => router.back()}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors text-gray-600 dark:text-gray-300"
               title="Retour"
             >
-              <ArrowLeftIcon className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600" />
+              <ArrowLeftIcon className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
-            <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
+            <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2 text-gray-900 dark:text-white">
               <TruckIcon className="w-6 h-6 sm:w-8 sm:h-8" />
               <span>Mouvements de stock</span>
             </h1>
@@ -237,16 +237,16 @@ export default function StockMovementsPage() {
           <div className="flex gap-2">
             <button
               onClick={handleExport}
-              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-sm sm:text-base flex items-center gap-2"
+              className="px-4 py-2 bg-gray-600 dark:bg-gray-700 text-white rounded-lg hover:bg-gray-700 dark:hover:bg-gray-600 text-sm sm:text-base flex items-center gap-2 transition-colors"
             >
               <ArrowDownTrayIcon className="w-4 h-4" />
               <span className="hidden sm:inline">Exporter</span>
             </button>
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className={`px-4 py-2 rounded-lg text-sm sm:text-base flex items-center gap-2 ${showFilters
+              className={`px-4 py-2 rounded-lg text-sm sm:text-base flex items-center gap-2 transition-colors ${showFilters
                 ? 'bg-blue-600 text-white hover:bg-blue-700'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600'
                 }`}
             >
               <FunnelIcon className="w-4 h-4" />
@@ -270,29 +270,29 @@ export default function StockMovementsPage() {
                     handleSearch();
                   }
                 }}
-                className="w-full pl-10 pr-4 py-2 border rounded-lg text-sm sm:text-base"
+                className="w-full pl-10 pr-4 py-2 border rounded-lg text-sm sm:text-base bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <button
               onClick={handleSearch}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm sm:text-base"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm sm:text-base transition-colors"
             >
               Rechercher
             </button>
           </div>
 
           {showFilters && (
-            <div className="bg-gray-50 p-4 rounded-lg space-y-4">
+            <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg space-y-4 border border-gray-200 dark:border-gray-700">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Type</label>
                   <select
                     value={typeFilter}
                     onChange={(e) => {
                       setTypeFilter(e.target.value);
                       setPage(1);
                     }}
-                    className="w-full px-3 py-2 border rounded-lg text-sm"
+                    className="w-full px-3 py-2 border rounded-lg text-sm bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-blue-500"
                   >
                     <option value="">Tous les types</option>
                     <option value="ENTREE">Entrée</option>
@@ -301,14 +301,14 @@ export default function StockMovementsPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Source</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Source</label>
                   <select
                     value={sourceFilter}
                     onChange={(e) => {
                       setSourceFilter(e.target.value);
                       setPage(1);
                     }}
-                    className="w-full px-3 py-2 border rounded-lg text-sm"
+                    className="w-full px-3 py-2 border rounded-lg text-sm bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-blue-500"
                   >
                     <option value="">Toutes les sources</option>
                     <option value="BR">Bon de réception</option>
@@ -324,7 +324,7 @@ export default function StockMovementsPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Date début</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date début</label>
                   <input
                     type="date"
                     value={dateFrom}
@@ -332,11 +332,11 @@ export default function StockMovementsPage() {
                       setDateFrom(e.target.value);
                       setPage(1);
                     }}
-                    className="w-full px-3 py-2 border rounded-lg text-sm"
+                    className="w-full px-3 py-2 border rounded-lg text-sm bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-blue-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Date fin</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date fin</label>
                   <input
                     type="date"
                     value={dateTo}
@@ -344,7 +344,7 @@ export default function StockMovementsPage() {
                       setDateTo(e.target.value);
                       setPage(1);
                     }}
-                    className="w-full px-3 py-2 border rounded-lg text-sm"
+                    className="w-full px-3 py-2 border rounded-lg text-sm bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-blue-500"
                   />
                 </div>
               </div>
@@ -357,7 +357,7 @@ export default function StockMovementsPage() {
                     setDateTo('');
                     setPage(1);
                   }}
-                  className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
+                  className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
                 >
                   Réinitialiser
                 </button>
@@ -368,14 +368,50 @@ export default function StockMovementsPage() {
 
         {/* Movements table */}
         {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden sm:rounded-md border dark:border-gray-700">
+            <div className="hidden lg:block">
+              <div className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 p-4">
+                <div className="flex gap-4">
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-24" />
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-32" />
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-24" />
+                </div>
+              </div>
+              <div className="max-h-[600px] overflow-y-auto">
+                {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                  <div key={i} className="flex items-center space-x-4 p-4 border-b border-gray-100 dark:border-gray-700/50 last:border-0">
+                    <div className="flex-1 space-y-2">
+                      <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4 animate-pulse" />
+                      <div className="h-3 bg-gray-100 dark:bg-gray-700/50 rounded w-1/3 animate-pulse" />
+                    </div>
+                    <div className="w-24 h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+                    <div className="w-24 h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+                    <div className="w-20 h-6 bg-gray-200 dark:bg-gray-700 rounded-full animate-pulse" />
+                  </div>
+                ))}
+              </div>
+            </div>
+            {/* Mobile skeleton */}
+            <div className="lg:hidden space-y-4 p-4">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="p-4 border dark:border-gray-700 rounded-lg space-y-3">
+                  <div className="flex justify-between">
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2 animate-pulse" />
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-16 animate-pulse" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-full animate-pulse" />
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-full animate-pulse" />
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         ) : movements.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-lg shadow">
-            <TruckIcon className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">Aucun mouvement de stock</h3>
-            <p className="mt-1 text-sm text-gray-500">
+          <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg shadow border dark:border-gray-700">
+            <TruckIcon className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" />
+            <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">Aucun mouvement de stock</h3>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
               {q || typeFilter || sourceFilter || dateFrom || dateTo
                 ? 'Aucun résultat pour votre recherche.'
                 : 'Aucun mouvement de stock enregistré.'}
@@ -383,65 +419,65 @@ export default function StockMovementsPage() {
           </div>
         ) : (
           <>
-            <div className="bg-white shadow overflow-hidden sm:rounded-md">
+            <div className="bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-md border dark:border-gray-700">
               {/* Desktop table */}
               <div className="hidden lg:block overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead className="bg-gray-50 dark:bg-gray-700/50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Produit</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SKU</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Source</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dépôt</th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Quantité</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unité</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Référence</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notes</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Produit</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">SKU</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Type</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Source</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Dépôt</th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Quantité</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Unité</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Référence</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Notes</th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                     {movements.map((movement) => (
-                      <tr key={movement._id} className="hover:bg-gray-50">
+                      <tr key={movement._id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{formatDate(movement.date)}</div>
-                          <div className="text-xs text-gray-500">{formatDateTime(movement.createdAt)}</div>
+                          <div className="text-sm text-gray-900 dark:text-white">{formatDate(movement.date)}</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">{formatDateTime(movement.createdAt)}</div>
                         </td>
                         <td className="px-6 py-4">
-                          <div className="text-sm font-medium text-gray-900">{movement.productName}</div>
+                          <div className="text-sm font-medium text-gray-900 dark:text-white">{movement.productName}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{movement.productSku}</div>
+                          <div className="text-sm text-gray-900 dark:text-white">{movement.productSku}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${TYPE_COLORS[movement.type] || 'bg-gray-100 text-gray-800'}`}>
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${TYPE_COLORS[movement.type] || 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}`}>
                             {TYPE_LABELS[movement.type] || movement.type}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{SOURCE_LABELS[movement.source] || movement.source}</div>
+                          <div className="text-sm text-gray-900 dark:text-white">{SOURCE_LABELS[movement.source] || movement.source}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{movement.warehouseName || '-'}</div>
+                          <div className="text-sm text-gray-900 dark:text-white">{movement.warehouseName || '-'}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right">
-                          <div className={`text-sm font-semibold ${movement.type === 'ENTREE' ? 'text-green-600' :
-                            movement.type === 'SORTIE' ? 'text-red-600' :
-                              'text-blue-600'
+                          <div className={`text-sm font-semibold ${movement.type === 'ENTREE' ? 'text-green-600 dark:text-green-400' :
+                            movement.type === 'SORTIE' ? 'text-red-600 dark:text-red-400' :
+                              'text-blue-600 dark:text-blue-400'
                             }`}>
                             {movement.type === 'SORTIE' ? '-' : movement.type === 'ENTREE' ? '+' : ''}
                             {Math.abs(movement.qte).toFixed(2)}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{movement.productUom}</div>
+                          <div className="text-sm text-gray-900 dark:text-white">{movement.productUom}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           {movement.sourceId ? (
                             <button
                               onClick={() => handleViewSource(movement.source, movement.sourceId)}
-                              className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                              className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline"
                             >
                               {movement.referenceName || movement.sourceId}
                             </button>
@@ -450,7 +486,7 @@ export default function StockMovementsPage() {
                           )}
                         </td>
                         <td className="px-6 py-4">
-                          <div className="text-sm text-gray-500 max-w-xs truncate">{movement.notes || '—'}</div>
+                          <div className="text-sm text-gray-500 dark:text-gray-400 max-w-xs truncate">{movement.notes || '—'}</div>
                         </td>
                       </tr>
                     ))}
@@ -459,36 +495,36 @@ export default function StockMovementsPage() {
               </div>
 
               {/* Mobile cards */}
-              <div className="lg:hidden divide-y divide-gray-200">
+              <div className="lg:hidden divide-y divide-gray-200 dark:divide-gray-700">
                 {movements.map((movement) => (
-                  <div key={movement._id} className="p-4 hover:bg-gray-50">
+                  <div key={movement._id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex-1">
-                        <div className="text-sm font-medium text-gray-900">{movement.productName}</div>
-                        <div className="text-xs text-gray-500 mt-1">SKU: {movement.productSku}</div>
+                        <div className="text-sm font-medium text-gray-900 dark:text-white">{movement.productName}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">SKU: {movement.productSku}</div>
                       </div>
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${TYPE_COLORS[movement.type] || 'bg-gray-100 text-gray-800'}`}>
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${TYPE_COLORS[movement.type] || 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}`}>
                         {TYPE_LABELS[movement.type] || movement.type}
                       </span>
                     </div>
                     <div className="grid grid-cols-2 gap-4 mt-3">
                       <div>
-                        <div className="text-xs text-gray-500">Date</div>
-                        <div className="text-sm font-medium text-gray-900">{formatDate(movement.date)}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">Date</div>
+                        <div className="text-sm font-medium text-gray-900 dark:text-white">{formatDate(movement.date)}</div>
                       </div>
                       <div>
-                        <div className="text-xs text-gray-500">Source</div>
-                        <div className="text-sm text-gray-900">{SOURCE_LABELS[movement.source] || movement.source}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">Source</div>
+                        <div className="text-sm text-gray-900 dark:text-white">{SOURCE_LABELS[movement.source] || movement.source}</div>
                       </div>
                       <div>
-                        <div className="text-xs text-gray-500">Dépôt</div>
-                        <div className="text-sm text-gray-900">{movement.warehouseName || '-'}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">Dépôt</div>
+                        <div className="text-sm text-gray-900 dark:text-white">{movement.warehouseName || '-'}</div>
                       </div>
                       <div>
-                        <div className="text-xs text-gray-500">Quantité</div>
-                        <div className={`text-sm font-semibold ${movement.type === 'ENTREE' ? 'text-green-600' :
-                          movement.type === 'SORTIE' ? 'text-red-600' :
-                            'text-blue-600'
+                        <div className="text-xs text-gray-500 dark:text-gray-400">Quantité</div>
+                        <div className={`text-sm font-semibold ${movement.type === 'ENTREE' ? 'text-green-600 dark:text-green-400' :
+                          movement.type === 'SORTIE' ? 'text-red-600 dark:text-red-400' :
+                            'text-blue-600 dark:text-blue-400'
                           }`}>
                           {movement.type === 'SORTIE' ? '-' : movement.type === 'ENTREE' ? '+' : ''}
                           {Math.abs(movement.qte).toFixed(2)} {movement.productUom}
@@ -496,10 +532,10 @@ export default function StockMovementsPage() {
                       </div>
                       {movement.sourceId && (
                         <div>
-                          <div className="text-xs text-gray-500">Référence</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">Référence</div>
                           <button
                             onClick={() => handleViewSource(movement.source, movement.sourceId)}
-                            className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                            className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline"
                           >
                             {movement.referenceName || movement.sourceId}
                           </button>
@@ -508,8 +544,8 @@ export default function StockMovementsPage() {
                     </div>
                     {movement.notes && (
                       <div className="mt-2">
-                        <div className="text-xs text-gray-500">Notes</div>
-                        <div className="text-sm text-gray-700">{movement.notes}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">Notes</div>
+                        <div className="text-sm text-gray-700 dark:text-gray-300">{movement.notes}</div>
                       </div>
                     )}
                   </div>
@@ -519,9 +555,9 @@ export default function StockMovementsPage() {
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="flex items-center justify-between bg-white px-4 py-3 rounded-lg shadow">
+              <div className="flex items-center justify-between bg-white dark:bg-gray-800 px-4 py-3 rounded-lg shadow border dark:border-gray-700">
                 <div className="flex items-center gap-4">
-                  <p className="text-sm text-gray-700">
+                  <p className="text-sm text-gray-700 dark:text-gray-300">
                     Affichage de <span className="font-medium">{(page - 1) * limit + 1}</span> à{' '}
                     <span className="font-medium">{Math.min(page * limit, total)}</span> sur{' '}
                     <span className="font-medium">{total}</span> résultats
@@ -531,20 +567,20 @@ export default function StockMovementsPage() {
                   <button
                     onClick={() => setPage(Math.max(1, page - 1))}
                     disabled={page === 1}
-                    className="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="relative inline-flex items-center rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     title="Précédent"
                   >
                     <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                       <path fillRule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clipRule="evenodd" />
                     </svg>
                   </button>
-                  <span className="text-sm text-gray-700 px-2">
+                  <span className="text-sm text-gray-700 dark:text-gray-300 px-2">
                     Page {page} sur {totalPages}
                   </span>
                   <button
                     onClick={() => setPage(Math.min(totalPages, page + 1))}
                     disabled={page === totalPages}
-                    className="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="relative inline-flex items-center rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     title="Suivant"
                   >
                     <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -560,4 +596,3 @@ export default function StockMovementsPage() {
     </DashboardLayout>
   );
 }
-

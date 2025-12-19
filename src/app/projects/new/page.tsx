@@ -3,13 +3,12 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
-import { 
+import {
   ArrowLeftIcon,
   BriefcaseIcon,
   UserIcon,
   CalendarIcon,
   CurrencyDollarIcon,
-  DocumentTextIcon,
   UserGroupIcon,
 } from '@heroicons/react/24/outline';
 import { useTenantId } from '@/hooks/useTenantId';
@@ -87,7 +86,7 @@ export default function NewProjectPage() {
   const fetchData = async () => {
     try {
       setLoadingData(true);
-      
+
       // Fetch customers
       const customersRes = await fetch('/api/customers?actif=true&limit=1000', {
         headers: { 'X-Tenant-Id': tenantId || '' }
@@ -133,7 +132,7 @@ export default function NewProjectPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validation
     if (!formData.name || !formData.customerId || !formData.startDate) {
       toast.error('Veuillez remplir les champs obligatoires (Nom, Client, Date de début)');
@@ -142,7 +141,7 @@ export default function NewProjectPage() {
 
     try {
       setLoading(true);
-      
+
       if (!tenantId) {
         toast.error('Tenant ID manquant');
         return;
@@ -245,7 +244,7 @@ export default function NewProjectPage() {
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <p className="mt-4 text-gray-600">Chargement...</p>
+            <p className="mt-4 text-gray-600 dark:text-gray-400">Chargement...</p>
           </div>
         </div>
       </DashboardLayout>
@@ -260,20 +259,20 @@ export default function NewProjectPage() {
           <div className="flex items-center gap-4">
             <button
               onClick={() => router.push('/projects')}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
             >
-              <ArrowLeftIcon className="w-5 h-5 text-gray-600" />
+              <ArrowLeftIcon className="w-5 h-5 text-gray-600 dark:text-gray-400" />
             </button>
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Nouveau projet</h1>
-              <p className="mt-1 text-sm text-gray-600">Créez un nouveau projet et suivez son avancement</p>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Nouveau projet</h1>
+              <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">Créez un nouveau projet et suivez son avancement</p>
             </div>
           </div>
         </div>
 
         <form onSubmit={handleSubmit}>
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-6 flex items-center gap-2">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 border dark:border-gray-700">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
               <BriefcaseIcon className="w-5 h-5 text-gray-400" />
               Informations générales
             </h2>
@@ -281,7 +280,7 @@ export default function NewProjectPage() {
             <div className="space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 <div className="sm:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Nom du projet <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -289,20 +288,20 @@ export default function NewProjectPage() {
                     required
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                     placeholder="Ex: Site web entreprise XYZ"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Client <span className="text-red-500">*</span>
                   </label>
                   <select
                     required
                     value={formData.customerId}
                     onChange={(e) => setFormData({ ...formData, customerId: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                   >
                     <option value="">Sélectionner un client</option>
                     {customers.map(customer => (
@@ -314,13 +313,13 @@ export default function NewProjectPage() {
                 </div>
 
                 <div className="col-span-2">
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
                     Vous pourrez lier des Devis et des Bons de livraison après la création du projet.
                   </p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Date de début <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
@@ -330,13 +329,13 @@ export default function NewProjectPage() {
                       required
                       value={formData.startDate}
                       onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                      className="w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                      className="w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Date de fin prévue
                   </label>
                   <div className="relative">
@@ -346,19 +345,19 @@ export default function NewProjectPage() {
                       value={formData.expectedEndDate}
                       onChange={(e) => setFormData({ ...formData, expectedEndDate: e.target.value })}
                       min={formData.startDate}
-                      className="w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                      className="w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Statut
                   </label>
                   <select
                     value={formData.status}
                     onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                   >
                     <option value="pending">En attente</option>
                     <option value="in_progress">En cours</option>
@@ -368,7 +367,7 @@ export default function NewProjectPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Budget ({formData.currency})
                   </label>
                   <div className="relative">
@@ -379,20 +378,20 @@ export default function NewProjectPage() {
                       min="0"
                       value={formData.budget}
                       onChange={(e) => setFormData({ ...formData, budget: e.target.value })}
-                      className="w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                      className="w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                       placeholder="0.00"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Devise
                   </label>
                   <select
                     value={formData.currency}
                     onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                   >
                     <option value="TND">TND (Dinar tunisien)</option>
                     <option value="EUR">EUR (Euro)</option>
@@ -401,14 +400,14 @@ export default function NewProjectPage() {
                 </div>
 
                 <div className="sm:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Description
                   </label>
                   <textarea
                     rows={4}
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                     placeholder="Description du projet..."
                   />
                 </div>
@@ -417,9 +416,9 @@ export default function NewProjectPage() {
           </div>
 
           {/* Assigned Employees */}
-          <div className="bg-white rounded-lg shadow p-6 mt-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mt-6 border dark:border-gray-700">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                 <UserGroupIcon className="w-5 h-5 text-gray-400" />
                 Équipe assignée
               </h2>
@@ -434,7 +433,7 @@ export default function NewProjectPage() {
             </div>
 
             {formData.assignedEmployees.length === 0 ? (
-              <p className="text-sm text-gray-500 text-center py-4">
+              <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
                 Aucun employé assigné. Cliquez sur "Ajouter un employé" pour commencer.
               </p>
             ) : (
@@ -442,20 +441,20 @@ export default function NewProjectPage() {
                 {formData.assignedEmployees.map((emp, index) => {
                   const selectedEmployee = employees.find(e => e._id === emp.employeeId);
                   return (
-                    <div key={index} className="border rounded-lg p-4">
+                    <div key={index} className="border border-gray-200 dark:border-gray-600 rounded-lg p-4">
                       <div className="flex items-start justify-between mb-4">
-                        <h3 className="text-sm font-medium text-gray-700">Employé {index + 1}</h3>
+                        <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">Employé {index + 1}</h3>
                         <button
                           type="button"
                           onClick={() => removeEmployee(index)}
-                          className="text-red-600 hover:text-red-900 text-sm"
+                          className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 text-sm"
                         >
                           Supprimer
                         </button>
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <div>
-                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                             Employé <span className="text-red-500">*</span>
                           </label>
                           <select
@@ -469,7 +468,7 @@ export default function NewProjectPage() {
                                 updateEmployee(index, 'dailyRate', emp.dailyRate.toString());
                               }
                             }}
-                            className="w-full px-2 py-1.5 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            className="w-full px-2 py-1.5 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                           >
                             <option value="">Sélectionner</option>
                             {employees.map(employee => (
@@ -480,7 +479,7 @@ export default function NewProjectPage() {
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                             Rôle <span className="text-red-500">*</span>
                           </label>
                           <input
@@ -488,12 +487,12 @@ export default function NewProjectPage() {
                             required
                             value={emp.role}
                             onChange={(e) => updateEmployee(index, 'role', e.target.value)}
-                            className="w-full px-2 py-1.5 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            className="w-full px-2 py-1.5 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                             placeholder="Ex: Développeur, Chef de projet..."
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                             Taux journalier ({formData.currency})
                           </label>
                           <input
@@ -501,12 +500,12 @@ export default function NewProjectPage() {
                             step="0.01"
                             value={emp.dailyRate || selectedEmployee?.dailyRate || ''}
                             onChange={(e) => updateEmployee(index, 'dailyRate', e.target.value)}
-                            className="w-full px-2 py-1.5 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            className="w-full px-2 py-1.5 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                             placeholder="0.00"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                             Date de début
                           </label>
                           <input
@@ -514,7 +513,7 @@ export default function NewProjectPage() {
                             value={emp.startDate}
                             onChange={(e) => updateEmployee(index, 'startDate', e.target.value)}
                             min={formData.startDate}
-                            className="w-full px-2 py-1.5 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            className="w-full px-2 py-1.5 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                           />
                         </div>
                       </div>
@@ -526,38 +525,38 @@ export default function NewProjectPage() {
           </div>
 
           {/* Notes and Tags */}
-          <div className="bg-white rounded-lg shadow p-6 mt-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Informations supplémentaires</h2>
-            
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mt-6 border dark:border-gray-700">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Informations supplémentaires</h2>
+
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Notes
                 </label>
                 <textarea
                   rows={3}
                   value={formData.notes}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                   placeholder="Notes supplémentaires sur le projet..."
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Tags
                 </label>
                 <div className="flex flex-wrap gap-2 mb-2">
                   {formData.tags.map(tag => (
                     <span
                       key={tag}
-                      className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
+                      className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300 rounded-full text-sm"
                     >
                       {tag}
                       <button
                         type="button"
                         onClick={() => removeTag(tag)}
-                        className="hover:text-blue-900"
+                        className="hover:text-blue-900 dark:hover:text-blue-200"
                       >
                         ×
                       </button>
@@ -573,7 +572,7 @@ export default function NewProjectPage() {
                       e.currentTarget.value = '';
                     }
                   }}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                   placeholder="Appuyez sur Entrée pour ajouter un tag"
                 />
               </div>
@@ -585,7 +584,7 @@ export default function NewProjectPage() {
             <button
               type="button"
               onClick={() => router.push('/projects')}
-              className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+              className="px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
             >
               Annuler
             </button>
@@ -602,21 +601,3 @@ export default function NewProjectPage() {
     </DashboardLayout>
   );
 }
-
-// Helper functions
-function formatPrice(amount: number, currency: string = 'TND') {
-  return new Intl.NumberFormat('fr-FR', {
-    style: 'currency',
-    currency: currency,
-    minimumFractionDigits: 2,
-  }).format(amount);
-}
-
-function formatDate(dateString: string) {
-  return new Date(dateString).toLocaleDateString('fr-FR', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-}
-

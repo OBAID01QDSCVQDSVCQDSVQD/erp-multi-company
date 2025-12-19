@@ -82,8 +82,8 @@ export default function SettingsPage() {
     <DashboardLayout>
       <div className="p-4 sm:p-8 max-w-7xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">Paramètres</h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Paramètres</h1>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
             Gérez les préférences et la configuration de votre entreprise.
           </p>
         </div>
@@ -94,7 +94,7 @@ export default function SettingsPage() {
             <nav className="space-y-8 sticky top-6">
               {settingsGroups.map((group) => (
                 <div key={group.title}>
-                  <h3 className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                  <h3 className="px-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
                     {group.title}
                   </h3>
                   <div className="space-y-1">
@@ -108,8 +108,8 @@ export default function SettingsPage() {
                           className={`
                             group flex items-center w-full px-3 py-2 text-sm font-medium rounded-md transition-all duration-200
                             ${isActive
-                              ? 'bg-indigo-50 text-indigo-700 shadow-sm border-l-4 border-indigo-600'
-                              : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900 border-l-4 border-transparent'
+                              ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400 shadow-sm border-l-4 border-indigo-600 dark:border-indigo-400'
+                              : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white border-l-4 border-transparent'
                             }
                           `}
                         >
@@ -131,7 +131,7 @@ export default function SettingsPage() {
 
           {/* Main Content Area */}
           <main className="lg:col-span-9">
-            <div className="bg-white shadow rounded-xl border border-gray-100 min-h-[500px]">
+            <div className="bg-white dark:bg-gray-800 shadow rounded-xl border border-gray-100 dark:border-gray-700 min-h-[500px]">
               <div className="p-6">
                 <ActiveComponent tenantId={tenantId} />
               </div>

@@ -37,12 +37,12 @@ export default function EmployeesPage() {
   const fetchEmployees = async () => {
     try {
       if (!tenantId) return;
-      
+
       setLoading(true);
       const response = await fetch(`/api/hr/employees`, {
         headers: { 'X-Tenant-Id': tenantId }
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         setEmployees(data.items || []);
@@ -60,22 +60,22 @@ export default function EmployeesPage() {
   };
 
   const filteredEmployees = employees.filter(emp => {
-    const matchesSearch = 
+    const matchesSearch =
       emp.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       emp.lastName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       emp.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
       emp.position.toLowerCase().includes(searchQuery.toLowerCase());
-    
+
     const matchesStatus = filterStatus === 'all' || emp.status === filterStatus;
-    
+
     return matchesSearch && matchesStatus;
   });
 
   const getStatusBadge = (status: string) => {
     const styles = {
-      active: 'bg-green-100 text-green-800',
-      inactive: 'bg-gray-100 text-gray-800',
-      on_leave: 'bg-yellow-100 text-yellow-800',
+      active: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
+      inactive: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
+      on_leave: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
     };
     const labels = {
       active: 'Actif',
@@ -132,8 +132,8 @@ export default function EmployeesPage() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Liste des employés</h1>
-            <p className="mt-1 text-sm text-gray-600">Gérez vos employés et leurs informations</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Liste des employés</h1>
+            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">Gérez vos employés et leurs informations</p>
           </div>
           <button
             onClick={() => router.push('/hr/employees/new')}
@@ -146,60 +146,60 @@ export default function EmployeesPage() {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 sm:p-6 border dark:border-gray-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Total employés</p>
-                <p className="mt-2 text-2xl sm:text-3xl font-bold text-gray-900">{employees.length}</p>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total employés</p>
+                <p className="mt-2 text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">{employees.length}</p>
               </div>
-              <div className="p-3 bg-blue-100 rounded-lg">
-                <UserIcon className="w-6 h-6 text-blue-600" />
+              <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                <UserIcon className="w-6 h-6 text-blue-600 dark:text-blue-400" />
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 sm:p-6 border dark:border-gray-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Actifs</p>
-                <p className="mt-2 text-2xl sm:text-3xl font-bold text-green-600">
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Actifs</p>
+                <p className="mt-2 text-2xl sm:text-3xl font-bold text-green-600 dark:text-green-400">
                   {employees.filter(e => e.status === 'active').length}
                 </p>
               </div>
-              <div className="p-3 bg-green-100 rounded-lg">
-                <UserIcon className="w-6 h-6 text-green-600" />
+              <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                <UserIcon className="w-6 h-6 text-green-600 dark:text-green-400" />
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 sm:p-6 border dark:border-gray-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">En congé</p>
-                <p className="mt-2 text-2xl sm:text-3xl font-bold text-yellow-600">
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">En congé</p>
+                <p className="mt-2 text-2xl sm:text-3xl font-bold text-yellow-600 dark:text-yellow-400">
                   {employees.filter(e => e.status === 'on_leave').length}
                 </p>
               </div>
-              <div className="p-3 bg-yellow-100 rounded-lg">
-                <UserIcon className="w-6 h-6 text-yellow-600" />
+              <div className="p-3 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
+                <UserIcon className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 sm:p-6 border dark:border-gray-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Départements</p>
-                <p className="mt-2 text-2xl sm:text-3xl font-bold text-gray-900">
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Départements</p>
+                <p className="mt-2 text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
                   {new Set(employees.map(e => e.department)).size}
                 </p>
               </div>
-              <div className="p-3 bg-purple-100 rounded-lg">
-                <UserIcon className="w-6 h-6 text-purple-600" />
+              <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                <UserIcon className="w-6 h-6 text-purple-600 dark:text-purple-400" />
               </div>
             </div>
           </div>
         </div>
 
         {/* Filters and Search */}
-        <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 sm:p-6 border dark:border-gray-700">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1 relative">
               <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -208,7 +208,7 @@ export default function EmployeesPage() {
                 placeholder="Rechercher par nom, email, poste..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
               />
             </div>
             <div className="flex items-center gap-2">
@@ -216,7 +216,7 @@ export default function EmployeesPage() {
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
-                className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
               >
                 <option value="all">Tous les statuts</option>
                 <option value="active">Actifs</option>
@@ -228,20 +228,28 @@ export default function EmployeesPage() {
         </div>
 
         {/* Employees Table */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden border dark:border-gray-700">
           {loading ? (
-            <div className="p-12 text-center">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-              <p className="mt-4 text-gray-600">Chargement...</p>
+            <div className="p-4 space-y-4">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="flex gap-4 p-4 items-center border-b dark:border-gray-700 last:border-0">
+                  <div className="h-10 w-10 rounded-full bg-gray-200 dark:bg-gray-700 animate-pulse" />
+                  <div className="space-y-2 flex-1">
+                    <div className="h-4 w-1/4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+                    <div className="h-3 w-1/3 bg-gray-100 dark:bg-gray-700/50 rounded animate-pulse" />
+                  </div>
+                  <div className="h-8 w-20 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+                </div>
+              ))}
             </div>
           ) : filteredEmployees.length === 0 ? (
             <div className="p-12 text-center">
-              <UserIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Aucun employé trouvé</h3>
-              <p className="text-gray-600 mb-6">Commencez par ajouter votre premier employé</p>
+              <UserIcon className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Aucun employé trouvé</h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-6">Commencez par ajouter votre premier employé</p>
               <button
                 onClick={() => router.push('/hr/employees/new')}
-                className="inline-flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700"
+                className="inline-flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
               >
                 <PlusIcon className="w-5 h-5" />
                 Ajouter un employé
@@ -250,42 +258,42 @@ export default function EmployeesPage() {
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50 border-b">
+                <thead className="bg-gray-50 dark:bg-gray-700/50 border-b dark:border-gray-700">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Employé</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Poste</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Département</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Date d'embauche</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Statut</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Employé</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Poste</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Département</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Date d'embauche</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Statut</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                   {filteredEmployees.map((employee) => (
-                    <tr key={employee._id} className="hover:bg-gray-50 transition-colors">
+                    <tr key={employee._id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                       <td className="px-4 py-4 whitespace-nowrap">
                         <div className="flex items-center">
-                          <div className="flex-shrink-0 h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
-                            <span className="text-blue-600 font-medium text-sm">
+                          <div className="flex-shrink-0 h-10 w-10 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
+                            <span className="text-blue-600 dark:text-blue-400 font-medium text-sm">
                               {employee.firstName[0]}{employee.lastName[0]}
                             </span>
                           </div>
                           <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900">
+                            <div className="text-sm font-medium text-gray-900 dark:text-white">
                               {employee.firstName} {employee.lastName}
                             </div>
-                            <div className="text-sm text-gray-500">{employee.email}</div>
+                            <div className="text-sm text-gray-500 dark:text-gray-400">{employee.email}</div>
                           </div>
                         </div>
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{employee.position}</div>
+                        <div className="text-sm text-gray-900 dark:text-white">{employee.position}</div>
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{employee.department}</div>
+                        <div className="text-sm text-gray-900 dark:text-white">{employee.department}</div>
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
+                        <div className="text-sm text-gray-900 dark:text-white">
                           {new Date(employee.hireDate).toLocaleDateString('fr-FR')}
                         </div>
                       </td>
@@ -296,14 +304,14 @@ export default function EmployeesPage() {
                         <div className="flex items-center justify-end gap-2">
                           <button
                             onClick={() => handleView(employee._id)}
-                            className="text-blue-600 hover:text-blue-900 p-2 hover:bg-blue-50 rounded-lg transition-colors"
+                            className="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 p-2 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
                             title="Voir les détails"
                           >
                             <EyeIcon className="w-5 h-5" />
                           </button>
                           <button
                             onClick={() => handleEdit(employee._id)}
-                            className="text-gray-600 hover:text-gray-900 p-2 hover:bg-gray-50 rounded-lg transition-colors"
+                            className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 p-2 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors"
                             title="Modifier"
                           >
                             <PencilIcon className="w-5 h-5" />
@@ -311,7 +319,7 @@ export default function EmployeesPage() {
                           <button
                             onClick={() => handleDelete(employee._id, `${employee.firstName} ${employee.lastName}`)}
                             disabled={loading}
-                            className="text-red-600 hover:text-red-900 p-2 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300 p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             title="Supprimer"
                           >
                             <TrashIcon className="w-5 h-5" />
@@ -329,4 +337,3 @@ export default function EmployeesPage() {
     </DashboardLayout>
   );
 }
-

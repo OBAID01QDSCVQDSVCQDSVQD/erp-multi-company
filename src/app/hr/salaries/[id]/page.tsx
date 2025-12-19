@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
-import { 
+import {
   ArrowLeftIcon,
   CurrencyDollarIcon,
   CalendarIcon,
@@ -107,7 +107,7 @@ export default function SalaryDetailPage() {
       const response = await fetch(`/api/hr/salaries/${params.id}`, {
         headers: { 'X-Tenant-Id': tenantId || '' }
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         setSalary(data);
@@ -312,35 +312,35 @@ export default function SalaryDetailPage() {
     switch (status) {
       case 'paid':
         return (
-          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 dark:text-green-300 dark:bg-green-900/40">
             <CheckCircleIcon className="w-4 h-4 mr-1" />
             Payé
           </span>
         );
       case 'partial':
         return (
-          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 dark:text-blue-300 dark:bg-blue-900/40">
             <ArrowDownTrayIcon className="w-4 h-4 mr-1" />
             Paiement partiel
           </span>
         );
       case 'owing':
         return (
-          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-orange-100 text-orange-800">
+          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-orange-100 text-orange-800 dark:text-orange-300 dark:bg-orange-900/40">
             <CurrencyDollarIcon className="w-4 h-4 mr-1" />
             Montant dû
           </span>
         );
       case 'cancelled':
         return (
-          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">
+          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800 dark:text-red-300 dark:bg-red-900/40">
             <XCircleIcon className="w-4 h-4 mr-1" />
             Annulé
           </span>
         );
       default:
         return (
-          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800">
+          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800 dark:text-yellow-300 dark:bg-yellow-900/40">
             <ClockIcon className="w-4 h-4 mr-1" />
             En attente
           </span>
@@ -364,10 +364,22 @@ export default function SalaryDetailPage() {
   if (loading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <p className="mt-4 text-gray-600">Chargement...</p>
+        <div className="space-y-6 animate-pulse">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="h-8 w-1/3 bg-gray-200 dark:bg-gray-700 rounded" />
+            <div className="h-10 w-32 bg-gray-200 dark:bg-gray-700 rounded" />
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-6">
+              <div className="bg-white dark:bg-gray-800 rounded-lg h-40 p-6 border dark:border-gray-700" />
+              <div className="bg-white dark:bg-gray-800 rounded-lg h-40 p-6 border dark:border-gray-700" />
+              <div className="bg-white dark:bg-gray-800 rounded-lg h-60 p-6 border dark:border-gray-700" />
+            </div>
+            <div className="space-y-6">
+              <div className="bg-blue-600 rounded-lg h-48 p-6" />
+              <div className="bg-white dark:bg-gray-800 rounded-lg h-56 p-6 border dark:border-gray-700" />
+            </div>
           </div>
         </div>
       </DashboardLayout>
@@ -386,13 +398,13 @@ export default function SalaryDetailPage() {
           <div className="flex items-center gap-4">
             <button
               onClick={() => router.push('/hr/salaries')}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
             >
-              <ArrowLeftIcon className="w-5 h-5 text-gray-600" />
+              <ArrowLeftIcon className="w-5 h-5 text-gray-600 dark:text-gray-400" />
             </button>
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Fiche de paie</h1>
-              <p className="mt-1 text-sm text-gray-600">
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Fiche de paie</h1>
+              <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
                 {getMonthName(salary.period.month)} {salary.period.year}
               </p>
             </div>
@@ -410,35 +422,35 @@ export default function SalaryDetailPage() {
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
             {/* Employee Info */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 border dark:border-gray-700">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                 <UserIcon className="w-5 h-5 text-gray-400" />
                 Informations de l'employé
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <p className="text-sm text-gray-600">Nom complet</p>
-                  <p className="text-base font-medium text-gray-900">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Nom complet</p>
+                  <p className="text-base font-medium text-gray-900 dark:text-white">
                     {salary.employeeId.firstName} {salary.employeeId.lastName}
                   </p>
                 </div>
                 {salary.employeeId.employeeNumber && (
                   <div>
-                    <p className="text-sm text-gray-600">Numéro d'employé</p>
-                    <p className="text-base font-medium text-gray-900">
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Numéro d'employé</p>
+                    <p className="text-base font-medium text-gray-900 dark:text-white">
                       {salary.employeeId.employeeNumber}
                     </p>
                   </div>
                 )}
                 <div>
-                  <p className="text-sm text-gray-600">Poste</p>
-                  <p className="text-base font-medium text-gray-900">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Poste</p>
+                  <p className="text-base font-medium text-gray-900 dark:text-white">
                     {salary.employeeId.position}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Département</p>
-                  <p className="text-base font-medium text-gray-900">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Département</p>
+                  <p className="text-base font-medium text-gray-900 dark:text-white">
                     {salary.employeeId.department}
                   </p>
                 </div>
@@ -446,33 +458,33 @@ export default function SalaryDetailPage() {
             </div>
 
             {/* Period Info */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 border dark:border-gray-700">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                 <CalendarIcon className="w-5 h-5 text-gray-400" />
                 Période de paie
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <p className="text-sm text-gray-600">Mois</p>
-                  <p className="text-base font-medium text-gray-900">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Mois</p>
+                  <p className="text-base font-medium text-gray-900 dark:text-white">
                     {getMonthName(salary.period.month)} {salary.period.year}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Date de début</p>
-                  <p className="text-base font-medium text-gray-900">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Date de début</p>
+                  <p className="text-base font-medium text-gray-900 dark:text-white">
                     {formatDate(salary.period.startDate)}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Date de fin</p>
-                  <p className="text-base font-medium text-gray-900">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Date de fin</p>
+                  <p className="text-base font-medium text-gray-900 dark:text-white">
                     {formatDate(salary.period.endDate)}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Jours totaux</p>
-                  <p className="text-base font-medium text-gray-900">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Jours totaux</p>
+                  <p className="text-base font-medium text-gray-900 dark:text-white">
                     {salary.totalDays} jours
                   </p>
                 </div>
@@ -480,42 +492,42 @@ export default function SalaryDetailPage() {
             </div>
 
             {/* Work Days */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 border dark:border-gray-700">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                 <ClockIcon className="w-5 h-5 text-gray-400" />
                 Jours de travail
               </h2>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div className="text-center p-4 bg-green-50 rounded-lg">
-                  <p className="text-2xl font-bold text-green-600">{salary.workedDays}</p>
-                  <p className="text-sm text-gray-600 mt-1">Jours travaillés</p>
+                <div className="text-center p-4 bg-green-50 dark:bg-green-900/30 rounded-lg">
+                  <p className="text-2xl font-bold text-green-600 dark:text-green-400">{salary.workedDays}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Jours travaillés</p>
                 </div>
-                <div className="text-center p-4 bg-red-50 rounded-lg">
-                  <p className="text-2xl font-bold text-red-600">{salary.absentDays}</p>
-                  <p className="text-sm text-gray-600 mt-1">Jours d'absence</p>
+                <div className="text-center p-4 bg-red-50 dark:bg-red-900/30 rounded-lg">
+                  <p className="text-2xl font-bold text-red-600 dark:text-red-400">{salary.absentDays}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Jours d'absence</p>
                 </div>
-                <div className="text-center p-4 bg-blue-50 rounded-lg">
-                  <p className="text-2xl font-bold text-blue-600">{salary.leaveDays}</p>
-                  <p className="text-sm text-gray-600 mt-1">Jours de congé</p>
+                <div className="text-center p-4 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
+                  <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{salary.leaveDays}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Jours de congé</p>
                 </div>
-                <div className="text-center p-4 bg-gray-50 rounded-lg">
-                  <p className="text-2xl font-bold text-gray-600">{salary.totalDays}</p>
-                  <p className="text-sm text-gray-600 mt-1">Total jours</p>
+                <div className="text-center p-4 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
+                  <p className="text-2xl font-bold text-gray-600 dark:text-gray-300">{salary.totalDays}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Total jours</p>
                 </div>
               </div>
-              <div className="mt-4 pt-4 border-t">
+              <div className="mt-4 pt-4 border-t dark:border-gray-700">
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-600">Taux journalier</span>
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Taux journalier</span>
                     <button
                       onClick={handleEditSalaryClick}
-                      className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                      className="p-1 text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20 rounded transition-colors"
                       title="Modifier le taux journalier"
                     >
                       <PencilIcon className="w-3 h-3" />
                     </button>
                   </div>
-                  <span className="text-base font-semibold text-gray-900">
+                  <span className="text-base font-semibold text-gray-900 dark:text-white">
                     {formatPrice(salary.dailyRate, salary.currency)}
                   </span>
                 </div>
@@ -523,53 +535,53 @@ export default function SalaryDetailPage() {
             </div>
 
             {/* Earnings */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <CurrencyDollarIcon className="w-5 h-5 text-green-600" />
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 border dark:border-gray-700">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                <CurrencyDollarIcon className="w-5 h-5 text-green-600 dark:text-green-400" />
                 Gains
               </h2>
               <div className="space-y-3">
-                <div className="flex justify-between items-center py-2 border-b">
-                  <span className="text-sm text-gray-600">Salaire de base</span>
-                  <span className="text-base font-medium text-gray-900">
+                <div className="flex justify-between items-center py-2 border-b dark:border-gray-700">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Salaire de base</span>
+                  <span className="text-base font-medium text-gray-900 dark:text-white">
                     {formatPrice(salary.earnings.baseSalary, salary.currency)}
                   </span>
                 </div>
                 {salary.earnings.overtimePay > 0 && (
-                  <div className="flex justify-between items-center py-2 border-b">
-                    <span className="text-sm text-gray-600">Heures supplémentaires</span>
-                    <span className="text-base font-medium text-gray-900">
+                  <div className="flex justify-between items-center py-2 border-b dark:border-gray-700">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Heures supplémentaires</span>
+                    <span className="text-base font-medium text-gray-900 dark:text-white">
                       {formatPrice(salary.earnings.overtimePay, salary.currency)}
                     </span>
                   </div>
                 )}
                 {salary.earnings.bonuses > 0 && (
-                  <div className="flex justify-between items-center py-2 border-b">
-                    <span className="text-sm text-gray-600">Primes</span>
-                    <span className="text-base font-medium text-gray-900">
+                  <div className="flex justify-between items-center py-2 border-b dark:border-gray-700">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Primes</span>
+                    <span className="text-base font-medium text-gray-900 dark:text-white">
                       {formatPrice(salary.earnings.bonuses, salary.currency)}
                     </span>
                   </div>
                 )}
                 {salary.earnings.allowances > 0 && (
-                  <div className="flex justify-between items-center py-2 border-b">
-                    <span className="text-sm text-gray-600">Indemnités</span>
-                    <span className="text-base font-medium text-gray-900">
+                  <div className="flex justify-between items-center py-2 border-b dark:border-gray-700">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Indemnités</span>
+                    <span className="text-base font-medium text-gray-900 dark:text-white">
                       {formatPrice(salary.earnings.allowances, salary.currency)}
                     </span>
                   </div>
                 )}
                 {salary.earnings.otherEarnings > 0 && (
-                  <div className="flex justify-between items-center py-2 border-b">
-                    <span className="text-sm text-gray-600">Autres gains</span>
-                    <span className="text-base font-medium text-gray-900">
+                  <div className="flex justify-between items-center py-2 border-b dark:border-gray-700">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Autres gains</span>
+                    <span className="text-base font-medium text-gray-900 dark:text-white">
                       {formatPrice(salary.earnings.otherEarnings, salary.currency)}
                     </span>
                   </div>
                 )}
-                <div className="flex justify-between items-center pt-3 border-t-2 border-gray-200">
-                  <span className="text-base font-semibold text-gray-900">Total gains</span>
-                  <span className="text-lg font-bold text-green-600">
+                <div className="flex justify-between items-center pt-3 border-t-2 border-gray-200 dark:border-gray-600">
+                  <span className="text-base font-semibold text-gray-900 dark:text-white">Total gains</span>
+                  <span className="text-lg font-bold text-green-600 dark:text-green-400">
                     {formatPrice(salary.earnings.totalEarnings, salary.currency)}
                   </span>
                 </div>
@@ -577,63 +589,62 @@ export default function SalaryDetailPage() {
             </div>
 
             {/* Deductions */}
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 border dark:border-gray-700">
               <div className="flex items-center justify-between mb-2">
-                <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                  <CurrencyDollarIcon className="w-5 h-5 text-red-600" />
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                  <CurrencyDollarIcon className="w-5 h-5 text-red-600 dark:text-red-400" />
                   Déductions
                 </h2>
                 <button
                   onClick={handleToggleDeductions}
                   disabled={toggleDeductionsLoading}
-                  className={`text-xs font-medium px-3 py-1 rounded-full transition-colors ${
-                    salary.deductionsEnabled
-                      ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  className={`text-xs font-medium px-3 py-1 rounded-full transition-colors ${salary.deductionsEnabled
+                      ? 'bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-300 dark:hover:bg-green-900/50'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
                   {toggleDeductionsLoading
                     ? 'Patientez...'
                     : salary.deductionsEnabled
-                    ? 'Désactiver'
-                    : 'Activer'}
+                      ? 'Désactiver'
+                      : 'Activer'}
                 </button>
               </div>
-              <p className="text-xs text-gray-500 mb-4">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
                 {salary.deductionsEnabled
                   ? 'Les déductions automatiques (impôts 10% + sécurité sociale 9%) sont activées.'
                   : 'Désactivées par défaut. Activez-les si vous souhaitez appliquer les impôts et la sécurité sociale.'}
               </p>
               <div className="space-y-3">
                 {salary.deductions.taxes > 0 && (
-                  <div className="flex justify-between items-center py-2 border-b">
-                    <span className="text-sm text-gray-600">Impôts</span>
-                    <span className="text-base font-medium text-gray-900">
+                  <div className="flex justify-between items-center py-2 border-b dark:border-gray-700">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Impôts</span>
+                    <span className="text-base font-medium text-gray-900 dark:text-white">
                       {formatPrice(salary.deductions.taxes, salary.currency)}
                     </span>
                   </div>
                 )}
                 {salary.deductions.socialSecurity > 0 && (
-                  <div className="flex justify-between items-center py-2 border-b">
-                    <span className="text-sm text-gray-600">Sécurité sociale</span>
-                    <span className="text-base font-medium text-gray-900">
+                  <div className="flex justify-between items-center py-2 border-b dark:border-gray-700">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Sécurité sociale</span>
+                    <span className="text-base font-medium text-gray-900 dark:text-white">
                       {formatPrice(salary.deductions.socialSecurity, salary.currency)}
                     </span>
                   </div>
                 )}
                 {salary.deductions.insurance > 0 && (
-                  <div className="flex justify-between items-center py-2 border-b">
-                    <span className="text-sm text-gray-600">Assurance</span>
-                    <span className="text-base font-medium text-gray-900">
+                  <div className="flex justify-between items-center py-2 border-b dark:border-gray-700">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Assurance</span>
+                    <span className="text-base font-medium text-gray-900 dark:text-white">
                       {formatPrice(salary.deductions.insurance, salary.currency)}
                     </span>
                   </div>
                 )}
-                
+
                 {/* Advances Table */}
-                <div className="py-2 border-b">
+                <div className="py-2 border-b dark:border-gray-700">
                   <div className="flex justify-between items-center mb-3">
-                    <span className="text-sm font-medium text-gray-700">Avances</span>
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Avances</span>
                     <button
                       onClick={handleAddAdvanceClick}
                       className="flex items-center gap-1 px-3 py-1 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -643,34 +654,34 @@ export default function SalaryDetailPage() {
                       <span>Ajouter</span>
                     </button>
                   </div>
-                  
+
                   {salary.deductions.advancesList && salary.deductions.advancesList.length > 0 ? (
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
-                        <thead className="bg-gray-50">
+                        <thead className="bg-gray-50 dark:bg-gray-700/50">
                           <tr>
-                            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Date</th>
-                            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Montant</th>
-                            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Notes</th>
-                            <th className="px-3 py-2 text-right text-xs font-semibold text-gray-700 uppercase">Actions</th>
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Date</th>
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Montant</th>
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Notes</th>
+                            <th className="px-3 py-2 text-right text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Actions</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-200">
+                        <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                           {salary.deductions.advancesList.map((advance, index) => (
-                            <tr key={index} className="hover:bg-gray-50">
-                              <td className="px-3 py-2 whitespace-nowrap">
+                            <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                              <td className="px-3 py-2 whitespace-nowrap text-gray-600 dark:text-gray-300">
                                 {formatDate(advance.date)}
                               </td>
-                              <td className="px-3 py-2 whitespace-nowrap font-medium text-gray-900">
+                              <td className="px-3 py-2 whitespace-nowrap font-medium text-gray-900 dark:text-white">
                                 {formatPrice(advance.amount, salary.currency)}
                               </td>
-                              <td className="px-3 py-2 text-gray-600">
+                              <td className="px-3 py-2 text-gray-600 dark:text-gray-400">
                                 {advance.notes || '-'}
                               </td>
                               <td className="px-3 py-2 text-right">
                                 <button
                                   onClick={() => handleDeleteAdvance(index)}
-                                  className="text-red-600 hover:text-red-900 p-1 hover:bg-red-50 rounded transition-colors"
+                                  className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 p-1 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
                                   title="Supprimer"
                                 >
                                   <TrashIcon className="w-4 h-4" />
@@ -679,12 +690,12 @@ export default function SalaryDetailPage() {
                             </tr>
                           ))}
                         </tbody>
-                        <tfoot className="bg-gray-50">
+                        <tfoot className="bg-gray-50 dark:bg-gray-700/50">
                           <tr>
-                            <td colSpan={3} className="px-3 py-2 text-sm font-semibold text-gray-700 text-right">
+                            <td colSpan={3} className="px-3 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 text-right">
                               Total Avances:
                             </td>
-                            <td className="px-3 py-2 text-sm font-bold text-gray-900">
+                            <td className="px-3 py-2 text-sm font-bold text-gray-900 dark:text-white">
                               {formatPrice(salary.deductions.advances || 0, salary.currency)}
                             </td>
                           </tr>
@@ -692,23 +703,23 @@ export default function SalaryDetailPage() {
                       </table>
                     </div>
                   ) : (
-                    <div className="text-center py-4 text-sm text-gray-500">
+                    <div className="text-center py-4 text-sm text-gray-500 dark:text-gray-400">
                       Aucune avance enregistrée
                     </div>
                   )}
                 </div>
 
                 {salary.deductions.otherDeductions > 0 && (
-                  <div className="flex justify-between items-center py-2 border-b">
-                    <span className="text-sm text-gray-600">Autres déductions</span>
-                    <span className="text-base font-medium text-gray-900">
+                  <div className="flex justify-between items-center py-2 border-b dark:border-gray-700">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Autres déductions</span>
+                    <span className="text-base font-medium text-gray-900 dark:text-white">
                       {formatPrice(salary.deductions.otherDeductions, salary.currency)}
                     </span>
                   </div>
                 )}
-                <div className="flex justify-between items-center pt-3 border-t-2 border-gray-200">
-                  <span className="text-base font-semibold text-gray-900">Total déductions</span>
-                  <span className="text-lg font-bold text-red-600">
+                <div className="flex justify-between items-center pt-3 border-t-2 border-gray-200 dark:border-gray-600">
+                  <span className="text-base font-semibold text-gray-900 dark:text-white">Total déductions</span>
+                  <span className="text-lg font-bold text-red-600 dark:text-red-400">
                     {formatPrice(salary.deductions.totalDeductions, salary.currency)}
                   </span>
                 </div>
@@ -739,32 +750,32 @@ export default function SalaryDetailPage() {
             </div>
 
             {/* Payment Info */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Informations de paiement</h3>
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 border dark:border-gray-700">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Informations de paiement</h3>
               <div className="space-y-3">
                 <div>
-                  <p className="text-sm text-gray-600">Méthode de paiement</p>
-                  <p className="text-base font-medium text-gray-900">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Méthode de paiement</p>
+                  <p className="text-base font-medium text-gray-900 dark:text-white">
                     {getPaymentMethodLabel(salary.paymentMethod)}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Statut</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Statut</p>
                   <div className="mt-1">
                     {getPaymentStatusBadge(salary.paymentStatus)}
                   </div>
                 </div>
                 {salary.paymentDate && (
                   <div>
-                    <p className="text-sm text-gray-600">Date de paiement</p>
-                    <p className="text-base font-medium text-gray-900">
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Date de paiement</p>
+                    <p className="text-base font-medium text-gray-900 dark:text-white">
                       {formatDate(salary.paymentDate)}
                     </p>
                   </div>
                 )}
                 <div>
-                  <p className="text-sm text-gray-600">Salaire de base</p>
-                  <p className="text-base font-medium text-gray-900">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Salaire de base</p>
+                  <p className="text-base font-medium text-gray-900 dark:text-white">
                     {formatPrice(salary.baseSalary, salary.currency)}
                   </p>
                 </div>
@@ -773,23 +784,23 @@ export default function SalaryDetailPage() {
 
             {/* Notes */}
             {salary.notes && (
-              <div className="bg-white rounded-lg shadow p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Notes</h3>
-                <p className="text-sm text-gray-600 whitespace-pre-wrap">{salary.notes}</p>
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 border dark:border-gray-700">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Notes</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap">{salary.notes}</p>
               </div>
             )}
 
             {/* Dates */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Dates</h3>
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 border dark:border-gray-700">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Dates</h3>
               <div className="space-y-2 text-sm">
                 <div>
-                  <p className="text-gray-600">Créé le</p>
-                  <p className="font-medium text-gray-900">{formatDate(salary.createdAt)}</p>
+                  <p className="text-gray-600 dark:text-gray-400">Créé le</p>
+                  <p className="font-medium text-gray-900 dark:text-white">{formatDate(salary.createdAt)}</p>
                 </div>
                 <div>
-                  <p className="text-gray-600">Modifié le</p>
-                  <p className="font-medium text-gray-900">{formatDate(salary.updatedAt)}</p>
+                  <p className="text-gray-600 dark:text-gray-400">Modifié le</p>
+                  <p className="font-medium text-gray-900 dark:text-white">{formatDate(salary.updatedAt)}</p>
                 </div>
               </div>
             </div>
@@ -799,14 +810,14 @@ export default function SalaryDetailPage() {
 
       {/* Edit Salary Modal */}
       {showEditSalaryModal && salary && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full border dark:border-gray-700">
             <div className="p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">Modifier le salaire</h2>
-              
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Modifier le salaire</h2>
+
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Salaire de base ({salary.currency})
                   </label>
                   <input
@@ -814,13 +825,13 @@ export default function SalaryDetailPage() {
                     step="0.01"
                     value={editForm.baseSalary}
                     onChange={(e) => setEditForm({ ...editForm, baseSalary: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                     placeholder="0.00"
                   />
                 </div>
-                
+
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Taux journalier ({salary.currency})
                   </label>
                   <input
@@ -828,10 +839,10 @@ export default function SalaryDetailPage() {
                     step="0.01"
                     value={editForm.dailyRate}
                     onChange={(e) => setEditForm({ ...editForm, dailyRate: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                     placeholder="0.00"
                   />
-                  <p className="mt-1 text-xs text-gray-500">
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                     Calcul automatique: {formatPrice(salary.baseSalary / salary.totalDays, salary.currency)}/jour
                   </p>
                 </div>
@@ -840,7 +851,7 @@ export default function SalaryDetailPage() {
               <div className="mt-6 flex justify-end gap-3">
                 <button
                   onClick={() => setShowEditSalaryModal(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                 >
                   Annuler
                 </button>
@@ -859,14 +870,14 @@ export default function SalaryDetailPage() {
 
       {/* Add Advance Modal */}
       {showAddAdvanceModal && salary && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full border dark:border-gray-700">
             <div className="p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">Ajouter une avance</h2>
-              
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Ajouter une avance</h2>
+
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Montant ({salary.currency}) <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -876,13 +887,13 @@ export default function SalaryDetailPage() {
                     required
                     value={newAdvance.amount}
                     onChange={(e) => setNewAdvance({ ...newAdvance, amount: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                     placeholder="0.00"
                   />
                 </div>
-                
+
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Date <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -890,19 +901,19 @@ export default function SalaryDetailPage() {
                     required
                     value={newAdvance.date}
                     onChange={(e) => setNewAdvance({ ...newAdvance, date: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                   />
                 </div>
-                
+
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Notes (optionnel)
                   </label>
                   <textarea
                     rows={3}
                     value={newAdvance.notes}
                     onChange={(e) => setNewAdvance({ ...newAdvance, notes: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                     placeholder="Notes sur cette avance..."
                   />
                 </div>
@@ -911,7 +922,7 @@ export default function SalaryDetailPage() {
               <div className="mt-6 flex justify-end gap-3">
                 <button
                   onClick={() => setShowAddAdvanceModal(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                 >
                   Annuler
                 </button>
@@ -930,4 +941,3 @@ export default function SalaryDetailPage() {
     </DashboardLayout>
   );
 }
-

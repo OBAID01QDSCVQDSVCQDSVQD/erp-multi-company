@@ -3,10 +3,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
-import { 
-  CurrencyDollarIcon, 
-  ChartBarIcon, 
-  CalendarIcon, 
+import {
+  CurrencyDollarIcon,
+  ChartBarIcon,
+  CalendarIcon,
   ArrowDownTrayIcon,
   PlusIcon,
   MagnifyingGlassIcon,
@@ -110,7 +110,7 @@ export default function SalariesPage() {
       const response = await fetch(`/api/hr/salaries?month=${month}&year=${year}`, {
         headers: { 'X-Tenant-Id': tenantId || '' }
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         setSalaries(data.items || []);
@@ -131,7 +131,7 @@ export default function SalariesPage() {
       const response = await fetch('/api/hr/employees', {
         headers: { 'X-Tenant-Id': tenantId || '' }
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         setEmployees(data.items || []);
@@ -240,10 +240,10 @@ export default function SalariesPage() {
       const employeeName = `${salary.employeeId.firstName} ${salary.employeeId.lastName}`.toLowerCase();
       const matchesSearch = employeeName.includes(searchQuery.toLowerCase()) ||
         salary.employeeId.employeeNumber?.toLowerCase().includes(searchQuery.toLowerCase());
-      
+
       const matchesDepartment = filterDepartment === 'all' || salary.employeeId.department === filterDepartment;
       const matchesStatus = filterStatus === 'all' || salary.paymentStatus === filterStatus;
-      
+
       return matchesSearch && matchesDepartment && matchesStatus;
     });
   }, [salaries, searchQuery, filterDepartment, filterStatus]);
@@ -253,7 +253,7 @@ export default function SalariesPage() {
     const totalSalary = filteredSalaries.reduce((sum, s) => sum + s.netSalary, 0);
     const averageSalary = filteredSalaries.length > 0 ? totalSalary / filteredSalaries.length : 0;
     const paidCount = filteredSalaries.filter(s => s.paymentStatus === 'paid').length;
-    
+
     return {
       totalSalary,
       averageSalary,
@@ -280,8 +280,8 @@ export default function SalariesPage() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Salaires</h1>
-            <p className="mt-1 text-sm text-gray-600">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Salaires</h1>
+            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
               Gestion des salaires - {getMonthName(month)} {year}
             </p>
           </div>
@@ -291,7 +291,7 @@ export default function SalariesPage() {
               type="month"
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(e.target.value)}
-              className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+              className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
             />
             <button
               onClick={() => setShowCreateModal(true)}
@@ -309,62 +309,62 @@ export default function SalariesPage() {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 sm:p-6 border dark:border-gray-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Masse salariale</p>
-                <p className="mt-2 text-2xl sm:text-3xl font-bold text-gray-900">
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Masse salariale</p>
+                <p className="mt-2 text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
                   {formatPrice(stats.totalSalary)}
                 </p>
               </div>
-              <div className="p-3 bg-blue-100 rounded-lg">
-                <CurrencyDollarIcon className="w-6 h-6 text-blue-600" />
+              <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                <CurrencyDollarIcon className="w-6 h-6 text-blue-600 dark:text-blue-400" />
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 sm:p-6 border dark:border-gray-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Salaire moyen</p>
-                <p className="mt-2 text-2xl sm:text-3xl font-bold text-gray-900">
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Salaire moyen</p>
+                <p className="mt-2 text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
                   {formatPrice(stats.averageSalary)}
                 </p>
               </div>
-              <div className="p-3 bg-green-100 rounded-lg">
-                <ChartBarIcon className="w-6 h-6 text-green-600" />
+              <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                <ChartBarIcon className="w-6 h-6 text-green-600 dark:text-green-400" />
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 sm:p-6 border dark:border-gray-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Fiches de paie</p>
-                <p className="mt-2 text-2xl sm:text-3xl font-bold text-gray-900">
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Fiches de paie</p>
+                <p className="mt-2 text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
                   {stats.count}
                 </p>
               </div>
-              <div className="p-3 bg-purple-100 rounded-lg">
-                <ArrowDownTrayIcon className="w-6 h-6 text-purple-600" />
+              <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                <ArrowDownTrayIcon className="w-6 h-6 text-purple-600 dark:text-purple-400" />
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 sm:p-6 border dark:border-gray-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Payées</p>
-                <p className="mt-2 text-2xl sm:text-3xl font-bold text-gray-900">
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Payées</p>
+                <p className="mt-2 text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
                   {stats.paidCount} / {stats.count}
                 </p>
               </div>
-              <div className="p-3 bg-yellow-100 rounded-lg">
-                <CheckCircleIcon className="w-6 h-6 text-yellow-600" />
+              <div className="p-3 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
+                <CheckCircleIcon className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
               </div>
             </div>
           </div>
         </div>
 
         {/* Filters */}
-        <div className="bg-white rounded-lg shadow p-4">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 border dark:border-gray-700">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1 relative">
               <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -373,7 +373,7 @@ export default function SalariesPage() {
                 placeholder="Rechercher par nom ou numéro..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
               />
             </div>
             <div className="flex items-center gap-2">
@@ -381,7 +381,7 @@ export default function SalariesPage() {
               <select
                 value={filterDepartment}
                 onChange={(e) => setFilterDepartment(e.target.value)}
-                className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
               >
                 <option value="all">Tous les départements</option>
                 {departments.map(dept => (
@@ -391,7 +391,7 @@ export default function SalariesPage() {
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
-                className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
               >
                 <option value="all">Tous les statuts</option>
                 <option value="pending">En attente</option>
@@ -405,18 +405,27 @@ export default function SalariesPage() {
         </div>
 
         {/* Salaries Table */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden border dark:border-gray-700">
           {loading ? (
-            <div className="p-12 text-center">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-              <p className="mt-4 text-gray-600">Chargement...</p>
+            <div className="p-4 space-y-4">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="flex gap-4 p-4 items-center border-b dark:border-gray-700 last:border-0">
+                  <div className="space-y-2 flex-1">
+                    <div className="h-4 w-1/4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+                    <div className="h-3 w-1/3 bg-gray-100 dark:bg-gray-700/50 rounded animate-pulse" />
+                  </div>
+                  <div className="h-4 w-16 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+                  <div className="h-4 w-16 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+                  <div className="h-4 w-16 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+                </div>
+              ))}
             </div>
           ) : filteredSalaries.length === 0 ? (
             <div className="p-12 text-center">
-              <CurrencyDollarIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Aucun salaire trouvé</h3>
-              <p className="text-gray-600 mb-4">
-                {salaries.length === 0 
+              <CurrencyDollarIcon className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Aucun salaire trouvé</h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-4">
+                {salaries.length === 0
                   ? 'Aucune donnée de salaire pour cette période'
                   : 'Aucun résultat ne correspond à vos filtres'}
               </p>
@@ -431,91 +440,91 @@ export default function SalariesPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead className="bg-gray-50 dark:bg-gray-700/50">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Employé</th>
-                    <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Jours</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Gains</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Déductions</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Net</th>
-                    <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Statut</th>
-                    <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Employé</th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Jours</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Gains</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Déductions</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Net</th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Statut</th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                   {filteredSalaries.map((salary) => (
-                    <tr key={salary._id} className="hover:bg-gray-50">
+                    <tr key={salary._id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                       <td className="px-4 py-3 whitespace-nowrap">
                         <div>
-                          <div className="text-sm font-medium text-gray-900">
+                          <div className="text-sm font-medium text-gray-900 dark:text-white">
                             {salary.employeeId.firstName} {salary.employeeId.lastName}
                           </div>
-                          <div className="text-xs text-gray-500">
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
                             {salary.employeeId.position} • {salary.employeeId.department}
                             {salary.employeeId.employeeNumber && ` • ${salary.employeeId.employeeNumber}`}
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-center text-sm text-gray-900">
+                      <td className="px-4 py-3 whitespace-nowrap text-center text-sm text-gray-900 dark:text-white">
                         <div className="flex items-center justify-center gap-1">
                           <CalendarIcon className="w-4 h-4 text-gray-400" />
                           <span>{salary.workedDays}j</span>
                         </div>
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
                           {salary.totalDays}j total
                         </div>
                         {salary.absentDays > 0 && (
-                          <div className="text-xs text-red-600">
+                          <div className="text-xs text-red-600 dark:text-red-400">
                             {salary.absentDays}j abs
                           </div>
                         )}
                         {salary.leaveDays > 0 && (
-                          <div className="text-xs text-blue-600">
+                          <div className="text-xs text-blue-600 dark:text-blue-400">
                             {salary.leaveDays}j congé
                           </div>
                         )}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-900">
+                      <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-900 dark:text-white">
                         <div>{formatPrice(salary.earnings.totalEarnings, salary.currency)}</div>
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
                           Base: {formatPrice(salary.earnings.baseSalary, salary.currency)}
                         </div>
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-900">
+                      <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-900 dark:text-white">
                         <div>{formatPrice(salary.deductions.totalDeductions, salary.currency)}</div>
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
                           Taxes: {formatPrice(salary.deductions.taxes, salary.currency)}
                         </div>
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-right">
-                        <div className="text-sm font-semibold text-gray-900">
+                        <div className="text-sm font-semibold text-gray-900 dark:text-white">
                           {formatPrice(salary.netSalary, salary.currency)}
                         </div>
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-center">
                         {salary.paymentStatus === 'paid' ? (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:text-green-300 dark:bg-green-900/40">
                             <CheckCircleIcon className="w-4 h-4 mr-1" />
                             Payé
                           </span>
                         ) : salary.paymentStatus === 'partial' ? (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:text-blue-300 dark:bg-blue-900/40">
                             <ArrowDownTrayIcon className="w-4 h-4 mr-1" />
                             Paiement partiel
                           </span>
                         ) : salary.paymentStatus === 'owing' ? (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800 dark:text-orange-300 dark:bg-orange-900/40">
                             <CurrencyDollarIcon className="w-4 h-4 mr-1" />
                             Montant dû
                           </span>
                         ) : salary.paymentStatus === 'cancelled' ? (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:text-red-300 dark:bg-red-900/40">
                             <XCircleIcon className="w-4 h-4 mr-1" />
                             Annulé
                           </span>
                         ) : (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:text-yellow-300 dark:bg-yellow-900/40">
                             <ClockIcon className="w-4 h-4 mr-1" />
                             En attente
                           </span>
@@ -525,7 +534,7 @@ export default function SalariesPage() {
                         <div className="flex items-center justify-center gap-3">
                           <button
                             onClick={() => router.push(`/hr/salaries/${salary._id}`)}
-                            className="text-blue-600 hover:text-blue-900 transition-colors"
+                            className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
                           >
                             Voir
                           </button>
@@ -535,7 +544,7 @@ export default function SalariesPage() {
                               `${salary.employeeId.firstName} ${salary.employeeId.lastName}`
                             )}
                             disabled={loading}
-                            className="text-red-600 hover:text-red-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                            className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
                             title="Supprimer"
                           >
                             <TrashIcon className="w-4 h-4" />
@@ -553,20 +562,20 @@ export default function SalariesPage() {
 
       {/* Create Salary Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto border dark:border-gray-700">
             <div className="p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">Créer un salaire</h2>
-              
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Créer un salaire</h2>
+
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Employé
                   </label>
                   <select
                     value={selectedEmployee}
                     onChange={(e) => setSelectedEmployee(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                   >
                     <option value="">Sélectionner un employé</option>
                     {employeesWithoutSalary.map(emp => (
@@ -576,34 +585,34 @@ export default function SalariesPage() {
                     ))}
                   </select>
                   {employeesWithoutSalary.length === 0 && (
-                    <p className="mt-2 text-sm text-gray-500">
+                    <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                       Tous les employés ont déjà un salaire pour cette période
                     </p>
                   )}
                 </div>
 
-                <div className="bg-blue-50 p-3 rounded-lg">
-                  <p className="text-sm text-blue-800">
+                <div className="bg-blue-50 dark:bg-blue-900/30 p-3 rounded-lg">
+                  <p className="text-sm text-blue-800 dark:text-blue-200">
                     <strong>Période:</strong> {getMonthName(month)} {year}
                   </p>
-                  <p className="text-xs text-blue-600 mt-1">
+                  <p className="text-xs text-blue-600 dark:text-blue-300 mt-1">
                     Le salaire sera calculé automatiquement en fonction des heures de travail enregistrées.
                   </p>
                 </div>
 
-                <div className="flex items-start gap-3 p-3 border rounded-lg">
+                <div className="flex items-start gap-3 p-3 border dark:border-gray-600 rounded-lg">
                   <input
                     id="enableDeductions"
                     type="checkbox"
                     checked={enableDeductions}
                     onChange={(e) => setEnableDeductions(e.target.checked)}
-                    className="mt-1 h-4 w-4 text-blue-600 border-gray-300 rounded"
+                    className="mt-1 h-4 w-4 text-blue-600 border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700"
                   />
                   <div>
-                    <label htmlFor="enableDeductions" className="text-sm font-medium text-gray-700">
+                    <label htmlFor="enableDeductions" className="text-sm font-medium text-gray-700 dark:text-gray-300">
                       Activer les déductions automatiques
                     </label>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
                       Applique 10% d'impôts et 9% de sécurité sociale sur les gains. Désactivé par défaut.
                     </p>
                   </div>
@@ -617,7 +626,7 @@ export default function SalariesPage() {
                     setSelectedEmployee('');
                     setEnableDeductions(false);
                   }}
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                 >
                   Annuler
                 </button>

@@ -6,6 +6,22 @@
   html {
     font-family: 'Inter', system-ui, sans-serif;
   }
+  
+  :root {
+    --chart-grid: #F3F4F6;
+    --chart-text: #6B7280;
+    --chart-tooltip-bg: #FFFFFF;
+    --chart-tooltip-border: #E5E7EB;
+    --chart-tooltip-text: #111827;
+  }
+
+  .dark {
+    --chart-grid: #374151;
+    --chart-text: #9CA3AF;
+    --chart-tooltip-bg: #1F2937;
+    --chart-tooltip-border: #374151;
+    --chart-tooltip-text: #F9FAFB;
+  }
 }
 
 @layer components {

@@ -57,17 +57,17 @@ export default function QuotesPage() {
   const [taxRates, setTaxRates] = useState<Array<{ code: string; tauxPct: number }>>([]);
   const [tvaSettings, setTvaSettings] = useState<any>(null);
   const [modesReglement, setModesReglement] = useState<string[]>([]);
-  
+
   // Autocomplete state
   const [customerSearch, setCustomerSearch] = useState('');
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
   const [selectedCustomerIndex, setSelectedCustomerIndex] = useState(-1);
-  
+
   // Product autocomplete state per line (modal-based)
   const [productSearches, setProductSearches] = useState<{ [key: number]: string }>({});
   const [showProductModal, setShowProductModal] = useState<{ [key: number]: boolean }>({});
   const [currentProductLineIndex, setCurrentProductLineIndex] = useState<number | null>(null);
-  
+
   // Calculate default validity date (15 days from today)
   const getDefaultValidite = () => {
     const date = new Date();
@@ -88,7 +88,7 @@ export default function QuotesPage() {
     timbreActif: false,
     fodec: { enabled: false, tauxPct: 1 }
   });
-  
+
   const [lines, setLines] = useState<Array<{
     productId: string;
     codeAchat?: string;
@@ -126,15 +126,15 @@ export default function QuotesPage() {
   const filteredCustomers = customers.filter((customer) => {
     const searchLower = customerSearch.toLowerCase().trim();
     if (!searchLower) return true;
-    
+
     const name = (customer.raisonSociale || `${customer.nom || ''} ${customer.prenom || ''}`.trim()).toLowerCase();
     const code = (customer.code || '').toLowerCase();
-    
+
     // If single letter, use startsWith
     if (searchLower.length === 1) {
       return name.startsWith(searchLower) || code.startsWith(searchLower);
     }
-    
+
     // If more than one letter, use contains
     return name.includes(searchLower) || code.includes(searchLower);
   });
@@ -150,10 +150,10 @@ export default function QuotesPage() {
   // Handle keyboard navigation
   const handleCustomerKeyDown = (e: React.KeyboardEvent) => {
     if (!showCustomerDropdown) return;
-    
+
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setSelectedCustomerIndex(prev => 
+      setSelectedCustomerIndex(prev =>
         prev < filteredCustomers.length - 1 ? prev + 1 : prev
       );
     } else if (e.key === 'ArrowUp') {
@@ -192,7 +192,7 @@ export default function QuotesPage() {
     newLines[lineIndex].prixUnitaireHT = product.prixVenteHT || 0;
     newLines[lineIndex].taxCode = product.taxCode || '';
     newLines[lineIndex].uomCode = product.uomVenteCode || '';
-    
+
     // Use tvaPct from product if available
     if (product.tvaPct !== undefined && product.tvaPct !== null) {
       newLines[lineIndex].tvaPct = product.tvaPct;
@@ -202,7 +202,7 @@ export default function QuotesPage() {
     } else {
       newLines[lineIndex].tvaPct = 0;
     }
-    
+
     setLines(newLines);
     setProductSearches({ ...productSearches, [lineIndex]: product.nom });
     setShowProductModal({ ...showProductModal, [lineIndex]: false });
@@ -337,7 +337,7 @@ export default function QuotesPage() {
   const updateLine = (index: number, field: string, value: any) => {
     const newLines = [...lines];
     newLines[index] = { ...newLines[index], [field]: value };
-    
+
     // Auto-calculate line total if product selected
     if (field === 'productId' && value) {
       const product = products.find(p => p._id === value);
@@ -349,7 +349,7 @@ export default function QuotesPage() {
         newLines[index].prixUnitaireHT = product.prixVenteHT || 0;
         newLines[index].taxCode = product.taxCode || '';
         newLines[index].uomCode = product.uomVenteCode || '';
-        
+
         // Use tvaPct from product if available, otherwise search for it
         if (product.tvaPct !== undefined && product.tvaPct !== null) {
           newLines[index].tvaPct = product.tvaPct;
@@ -361,12 +361,12 @@ export default function QuotesPage() {
         }
       }
     }
-    
+
     // Recalculate total line (HT only for now, TVA calculated separately)
     if (field === 'quantite' || field === 'prixUnitaireHT') {
       newLines[index].totalLine = newLines[index].quantite * newLines[index].prixUnitaireHT;
     }
-    
+
     // Update tax code when tvaPct changes (if manually edited)
     if (field === 'tvaPct' && Array.isArray(taxRates) && taxRates.length > 0) {
       // Keep taxCode as reference, but allow manual TVA override
@@ -376,7 +376,7 @@ export default function QuotesPage() {
         newLines[index].taxCode = matchingRate.code;
       }
     }
-    
+
     setLines(newLines);
   };
 
@@ -390,7 +390,7 @@ export default function QuotesPage() {
       if (response.ok) {
         const data = await response.json();
         const quotes = data.items || [];
-        
+
         // Fetch customer names for each quote
         const quotesWithCustomers = await Promise.all(
           quotes.map(async (quote: Quote) => {
@@ -413,7 +413,7 @@ export default function QuotesPage() {
             return quote;
           })
         );
-        
+
         setQuotes(quotesWithCustomers);
       }
     } catch (err) {
@@ -433,26 +433,26 @@ export default function QuotesPage() {
   const calculateTotals = () => {
     let totalHTBeforeDiscount = 0;
     let totalHTAfterLineDiscount = 0;
-    
+
     lines.forEach(line => {
       const lineHTBeforeDiscount = (line.quantite || 0) * (line.prixUnitaireHT || 0);
       totalHTBeforeDiscount += lineHTBeforeDiscount;
       const lineHT = lineHTBeforeDiscount * (1 - ((line.remisePct || 0) / 100));
       totalHTAfterLineDiscount += lineHT;
     });
-    
+
     // Apply global remise
     const remiseGlobalePct = formData.remiseGlobalePct || 0;
     const totalHT = totalHTAfterLineDiscount * (1 - (remiseGlobalePct / 100));
-    
+
     // Calculate remise amounts
     const remiseLignes = totalHTBeforeDiscount - totalHTAfterLineDiscount;
     const remiseGlobale = totalHTAfterLineDiscount - totalHT;
-    
+
     // Calculate FODEC on Total HT AFTER discount
     // FODEC = totalHT * (tauxPct / 100)
     const fodec = formData.fodec?.enabled ? totalHT * ((formData.fodec.tauxPct || 1) / 100) : 0;
-    
+
     // Calculate TVA per line (based on HT after line discount, before global remise, plus FODEC)
     const totalTVA = lines.reduce((sum, line) => {
       const lineHTBeforeDiscount = (line.quantite || 0) * (line.prixUnitaireHT || 0);
@@ -465,24 +465,24 @@ export default function QuotesPage() {
       const lineTVA = lineBaseTVA * (line.tvaPct || 0) / 100;
       return sum + lineTVA;
     }, 0);
-    
+
     // Timbre fiscal
-    const timbreAmount = (formData.timbreActif && tvaSettings?.timbreFiscal?.actif) 
-      ? (tvaSettings?.timbreFiscal?.montantFixe || 1) 
+    const timbreAmount = (formData.timbreActif && tvaSettings?.timbreFiscal?.actif)
+      ? (tvaSettings?.timbreFiscal?.montantFixe || 1)
       : 0;
-    
+
     const totalTTC = totalHT + fodec + totalTVA + timbreAmount;
-    
-    return { 
+
+    return {
       totalHTBeforeDiscount,
-      totalHT, 
+      totalHT,
       remiseLignes,
       remiseGlobale,
       remiseGlobalePct,
-      totalTVA, 
+      totalTVA,
       fodec,
       timbreAmount,
-      totalTTC 
+      totalTTC
     };
   };
 
@@ -502,7 +502,7 @@ export default function QuotesPage() {
 
     try {
       if (!tenantId) return;
-      
+
       const lignesData = lines
         .filter(line => line.designation && line.designation.trim() !== '')
         .map(line => ({
@@ -517,23 +517,23 @@ export default function QuotesPage() {
           taxCode: line.taxCode,
           tvaPct: line.tvaPct || 0
         }));
-      
+
       if (lignesData.length === 0) {
         toast.error('Veuillez remplir au moins une ligne de produit valide');
         return;
       }
 
-      const url = editingQuoteId 
-        ? `/api/sales/quotes/${editingQuoteId}` 
+      const url = editingQuoteId
+        ? `/api/sales/quotes/${editingQuoteId}`
         : '/api/sales/quotes';
-      
+
       const method = editingQuoteId ? 'PATCH' : 'POST';
 
       const response = await fetch(url, {
         method,
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
-          'X-Tenant-Id': tenantId 
+          'X-Tenant-Id': tenantId
         },
         body: JSON.stringify({
           customerId: formData.customerId,
@@ -593,14 +593,14 @@ export default function QuotesPage() {
     try {
       console.log('🔍 Viewing quote:', quote._id);
       console.log('📋 Quote details:', quote);
-      
+
       // Fetch full quote details
       const response = await fetch(`/api/sales/quotes/${quote._id}`, {
         headers: { 'X-Tenant-Id': tenantId }
       });
-      
+
       console.log('📡 Response status:', response.status);
-      
+
       if (response.ok) {
         const data = await response.json();
         console.log('✅ Full quote data:', data);
@@ -620,17 +620,17 @@ export default function QuotesPage() {
   // Handle edit quote
   const handleEdit = async (quote: Quote) => {
     console.log('✏️ Editing quote:', quote._id);
-    
+
     // Fetch full quote details
     try {
       const response = await fetch(`/api/sales/quotes/${quote._id}`, {
         headers: { 'X-Tenant-Id': tenantId }
       });
-      
+
       if (response.ok) {
         const fullQuote = await response.json();
         console.log('📋 Full quote data:', fullQuote);
-        
+
         // Populate form with quote data
         setFormData({
           customerId: fullQuote.customerId || '',
@@ -647,7 +647,7 @@ export default function QuotesPage() {
             tauxPct: fullQuote.fodec.tauxPct || 1
           } : { enabled: false, tauxPct: 1 }
         });
-        
+
         // Set customer search based on selected customer
         if (fullQuote.customerId) {
           const selectedCustomer = customers.find(c => c._id === fullQuote.customerId);
@@ -657,7 +657,7 @@ export default function QuotesPage() {
         } else {
           setCustomerSearch('');
         }
-        
+
         // Populate lines
         if (fullQuote.lignes && fullQuote.lignes.length > 0) {
           const mappedLines = fullQuote.lignes.map((line: any) => ({
@@ -674,7 +674,7 @@ export default function QuotesPage() {
             totalLine: 0
           }));
           setLines(mappedLines);
-          
+
           // Populate product searches
           const searches: { [key: number]: string } = {};
           mappedLines.forEach((line: any, idx: number) => {
@@ -685,10 +685,10 @@ export default function QuotesPage() {
           });
           setProductSearches(searches);
         }
-        
+
         // Set editing state
         setEditingQuoteId(fullQuote._id);
-        
+
         // Open modal
         setShowModal(true);
       } else {
@@ -710,7 +710,7 @@ export default function QuotesPage() {
     setCustomerSearch('');
     setShowCustomerDropdown(false);
     setSelectedCustomerIndex(-1);
-    
+
     // Ensure TVA settings are loaded before opening modal
     let currentTvaSettings = tvaSettings;
     if (!currentTvaSettings) {
@@ -729,7 +729,7 @@ export default function QuotesPage() {
         console.error('Error fetching TVA settings:', err);
       }
     }
-    
+
     const resolvedForm = {
       customerId: '',
       dateDoc: new Date().toISOString().split('T')[0],
@@ -770,7 +770,7 @@ export default function QuotesPage() {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-      
+
       toast.success('PDF téléchargé avec succès');
     } catch (error) {
       console.error('Error downloading PDF:', error);
@@ -786,7 +786,7 @@ export default function QuotesPage() {
 
     try {
       if (!tenantId) return;
-      
+
       const response = await fetch(`/api/sales/quotes/${quoteId}`, {
         method: 'DELETE',
         headers: { 'X-Tenant-Id': tenantId }
@@ -818,16 +818,16 @@ export default function QuotesPage() {
             >
               <ArrowLeftIcon className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
-            <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
+            <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2 text-gray-900 dark:text-white">
               <DocumentTextIcon className="w-6 h-6 sm:w-8 sm:h-8" /> <span className="whitespace-nowrap">Devis</span>
             </h1>
           </div>
           <div className="flex gap-2">
-            <button className="hidden sm:flex items-center gap-2 border px-3 py-2 rounded-lg hover:bg-gray-50">
+            <button className="hidden sm:flex items-center gap-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 px-3 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
               <ArrowDownTrayIcon className="w-4 h-4" /> <span className="hidden lg:inline">Exporter</span>
             </button>
-            <button 
-              onClick={handleOpenNewQuoteModal} 
+            <button
+              onClick={handleOpenNewQuoteModal}
               className="flex items-center gap-2 bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-blue-700 text-sm sm:text-base w-full sm:w-auto justify-center"
             >
               <PlusIcon className="w-5 h-5" /> <span>Nouveau devis</span>
@@ -843,22 +843,46 @@ export default function QuotesPage() {
             placeholder="Rechercher par numéro ou nom du client..."
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border rounded-lg text-sm sm:text-base"
+            className="w-full pl-10 pr-4 py-2 border rounded-lg text-sm sm:text-base bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-blue-500 focus:border-blue-500"
           />
         </div>
 
         {/* Table */}
         {loading ? (
-          <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <p className="mt-4 text-gray-600">Chargement...</p>
+          <div className="space-y-4">
+            <div className="hidden lg:block bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
+              <div className="p-4 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
+                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4 animate-pulse"></div>
+              </div>
+              <div className="p-4 space-y-4">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="flex gap-4">
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/6 animate-pulse"></div>
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/6 animate-pulse"></div>
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4 animate-pulse"></div>
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/6 animate-pulse"></div>
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/6 animate-pulse"></div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {/* Mobile Skeleton */}
+            <div className="lg:hidden space-y-4">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm space-y-3">
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/3 animate-pulse"></div>
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2 animate-pulse"></div>
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4 animate-pulse"></div>
+                </div>
+              ))}
+            </div>
           </div>
         ) : filtered.length === 0 ? (
-          <div className="text-center py-20 bg-gray-50 rounded-2xl">
-            <DocumentTextIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Aucun devis trouvé</h3>
-            <p className="text-gray-600 mb-6">Créez votre premier devis en quelques clics</p>
-            <button 
+          <div className="text-center py-20 bg-gray-50 dark:bg-gray-800 rounded-2xl border dark:border-gray-700">
+            <DocumentTextIcon className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Aucun devis trouvé</h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">Créez votre premier devis en quelques clics</p>
+            <button
               onClick={handleOpenNewQuoteModal}
               className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 mx-auto"
             >
@@ -868,108 +892,93 @@ export default function QuotesPage() {
         ) : (
           <>
             {/* Desktop Table */}
-            <div className="hidden lg:block bg-white border rounded-xl overflow-hidden shadow-sm">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50 border-b">
-                    <tr>
-                  <th className="px-3 py-4 text-left text-sm font-semibold text-gray-700">Numéro</th>
-                  <th className="px-3 py-4 text-left text-sm font-semibold text-gray-700">Date</th>
-                  <th className="px-3 py-4 text-left text-sm font-semibold text-gray-700">Client</th>
-                  <th className="px-3 py-4 text-right text-sm font-semibold text-gray-700">Total HT</th>
-                  <th className="px-3 py-4 text-right text-sm font-semibold text-gray-700">Timbre</th>
-                  <th className="px-3 py-4 text-right text-sm font-semibold text-gray-700">Total TVA</th>
-                  <th className="px-3 py-4 text-right text-sm font-semibold text-gray-700">Total TTC</th>
-                  <th className="px-2 py-4 text-left text-sm font-semibold text-gray-700">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {filtered.map((quote) => (
-                  <tr key={quote._id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-3 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">{quote.numero}</td>
-                    <td className="px-3 py-4 text-sm text-gray-600 whitespace-nowrap">
-                      {new Date(quote.dateDoc).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
-                    </td>
-                    <td className="px-3 py-4 text-sm text-gray-600">
-                      {quote.customerName || '-'}
-                    </td>
-                    <td className="px-3 py-4 text-sm text-gray-600 text-right whitespace-nowrap">
-                      {quote.totalBaseHT?.toFixed(3)} {quote.devise || 'TND'}
-                    </td>
-                    <td className="px-3 py-4 text-sm text-gray-500 text-right whitespace-nowrap">
-                      {quote.timbreFiscal && quote.timbreFiscal > 0 ? `${quote.timbreFiscal.toFixed(3)} ${quote.devise || 'TND'}` : '-'}
-                    </td>
-                    <td className="px-3 py-4 text-sm text-gray-600 text-right whitespace-nowrap">
-                      {quote.totalTVA?.toFixed(3)} {quote.devise || 'TND'}
-                    </td>
-                    <td className="px-3 py-4 text-sm font-semibold text-gray-900 text-right whitespace-nowrap">
-                      {quote.totalTTC?.toFixed(3)} {quote.devise || 'TND'}
-                    </td>
-                    <td className="px-2 py-4">
-                      <div className="flex gap-0.5">
-                        <button 
-                          onClick={() => {
-                            console.log('🔵 BUTTON CLICKED - Quote ID:', quote._id);
-                            handleView(quote);
-                          }}
-                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Voir"
-                        >
-                          <EyeIcon className="w-3.5 h-3.5" />
-                        </button>
-                        <button 
-                          onClick={() => {
-                            console.log('🟢 MODIFY BUTTON CLICKED - Quote:', quote);
-                            handleEdit(quote);
-                          }}
-                          className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                          title="Modifier"
-                        >
-                          <PencilIcon className="w-3.5 h-3.5" />
-                        </button>
-                        <button 
-                          onClick={() => handleDownloadPDF(quote)}
-                          className="p-1.5 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
-                          title="Télécharger PDF"
-                        >
-                          <ArrowDownTrayIcon className="w-3.5 h-3.5" />
-                        </button>
-                        <button 
-                          onClick={() => handleDelete(quote._id)}
-                          className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Supprimer"
-                        >
-                          <TrashIcon className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </td>
+            <div className="hidden lg:block bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg shadow overflow-hidden">
+              <table className="w-full">
+                <thead className="bg-gray-50 dark:bg-gray-700 border-b dark:border-gray-600">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">Numéro</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">Date</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">Client</th>
+                    <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700 dark:text-gray-200">Total TTC</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">Actions</th>
                   </tr>
-                ))}
-                  </tbody>
-                </table>
-              </div>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                  {filtered.map((quote) => (
+                    <tr key={quote._id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                      <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">{quote.numero}</td>
+                      <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300 whitespace-nowrap">
+                        {new Date(quote.dateDoc).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">{quote.customerName || '-'}</td>
+                      <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white text-right whitespace-nowrap">
+                        {quote.totalTTC?.toFixed(3)} {quote.devise || 'TND'}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex gap-0.5">
+                          <button
+                            onClick={() => {
+                              console.log('🔵 BUTTON CLICKED - Quote ID:', quote._id);
+                              handleView(quote);
+                            }}
+                            className="p-1.5 text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
+                            title="Voir"
+                          >
+                            <EyeIcon className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              console.log('🟢 MODIFY BUTTON CLICKED - Quote:', quote);
+                              handleEdit(quote);
+                            }}
+                            className="p-1.5 text-green-600 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-900/30 rounded-lg transition-colors"
+                            title="Modifier"
+                          >
+                            <PencilIcon className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleDownloadPDF(quote)}
+                            className="p-1.5 text-purple-600 hover:bg-purple-50 dark:text-purple-400 dark:hover:bg-purple-900/30 rounded-lg transition-colors"
+                            title="Télécharger PDF"
+                          >
+                            <ArrowDownTrayIcon className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(quote._id)}
+                            className="p-1.5 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30 rounded-lg transition-colors"
+                            title="Supprimer"
+                          >
+                            <TrashIcon className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+
+                </tbody>
+              </table>
             </div>
 
             {/* Mobile Cards */}
             <div className="lg:hidden space-y-4">
               {filtered.map((quote) => (
-                <div key={quote._id} className="bg-white border rounded-xl shadow-sm p-4 space-y-3">
+                <div key={quote._id} className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg shadow-sm p-4 space-y-3">
                   <div className="flex items-start justify-between">
                     <div>
-                      <h3 className="font-semibold text-gray-900">{quote.numero}</h3>
-                      <p className="text-sm text-gray-600 mt-1">
+                      <h3 className="font-semibold text-gray-900 dark:text-white">{quote.numero}</h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                         {new Date(quote.dateDoc).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                       </p>
                     </div>
                     <div className="flex gap-1">
-                      <button 
+                      <button
                         onClick={() => handleView(quote)}
                         className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
                         title="Voir"
                       >
                         <EyeIcon className="w-4 h-4" />
                       </button>
-                      <button 
+                      <button
                         onClick={() => handleEdit(quote)}
                         className="p-2 text-green-600 hover:bg-green-50 rounded-lg"
                         title="Modifier"
@@ -978,39 +987,19 @@ export default function QuotesPage() {
                       </button>
                     </div>
                   </div>
-                  <div className="border-t pt-3 space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Client:</span>
-                      <span className="font-medium text-gray-900">{quote.customerName || '-'}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Total HT:</span>
-                      <span className="font-medium text-gray-900">{quote.totalBaseHT?.toFixed(3)} {quote.devise || 'TND'}</span>
-                    </div>
-                    {quote.timbreFiscal && quote.timbreFiscal > 0 && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Timbre:</span>
-                        <span className="font-medium text-gray-900">{quote.timbreFiscal.toFixed(3)} {quote.devise || 'TND'}</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">TVA:</span>
-                      <span className="font-medium text-gray-900">{quote.totalTVA?.toFixed(3)} {quote.devise || 'TND'}</span>
-                    </div>
-                    <div className="flex justify-between text-base pt-2 border-t">
-                      <span className="font-semibold text-gray-900">Total TTC:</span>
-                      <span className="font-bold text-blue-600">{quote.totalTTC?.toFixed(3)} {quote.devise || 'TND'}</span>
-                    </div>
+                  <div className="border-t dark:border-gray-700 pt-3 flex justify-between items-center">
+                    <span className="text-gray-600 dark:text-gray-400 text-sm">Total TTC</span>
+                    <span className="font-bold text-gray-900 dark:text-white">{quote.totalTTC?.toFixed(3)} {quote.devise || 'TND'}</span>
                   </div>
                   <div className="flex gap-2 pt-2">
-                    <button 
+                    <button
                       onClick={() => handleDownloadPDF(quote)}
                       className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm border rounded-lg hover:bg-gray-50"
                     >
                       <ArrowDownTrayIcon className="w-4 h-4" />
                       PDF
                     </button>
-                    <button 
+                    <button
                       onClick={() => handleDelete(quote._id)}
                       className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm text-red-600 border border-red-300 rounded-lg hover:bg-red-50"
                     >
@@ -1027,17 +1016,17 @@ export default function QuotesPage() {
         {/* Simple Modal Placeholder - Will be replaced with full modal */}
         {showModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
-            <div className="bg-white rounded-xl sm:rounded-2xl max-w-7xl w-full max-h-[95vh] sm:max-h-[90vh] flex flex-col shadow-2xl">
-              <div className="p-4 sm:p-6 border-b flex items-center justify-between">
+            <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl max-w-7xl w-full max-h-[95vh] sm:max-h-[90vh] flex flex-col shadow-2xl">
+              <div className="p-4 sm:p-6 border-b dark:border-gray-700 flex items-center justify-between">
                 <div>
-                  <h2 className="text-lg sm:text-2xl font-bold text-gray-900">
+                  <h2 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white">
                     {editingQuoteId ? '✏️ Modifier devis' : '🧾 Nouveau devis'}
                   </h2>
-                  <p className="text-sm text-gray-600 mt-1">
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                     {editingQuoteId ? 'Modifiez votre devis' : 'Créez un devis élégant et précis en quelques clics'}
                   </p>
                 </div>
-                <button 
+                <button
                   onClick={() => setShowModal(false)}
                   className="text-gray-400 hover:text-gray-600 text-2xl"
                 >
@@ -1048,11 +1037,11 @@ export default function QuotesPage() {
                 {/* Basic Info */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
                   <div className="relative customer-autocomplete">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Client *
                     </label>
                     {loadingData ? (
-                      <div className="w-full px-3 py-2 border rounded-lg bg-gray-100 animate-pulse">
+                      <div className="w-full px-3 py-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:border-gray-600 animate-pulse text-gray-500 dark:text-gray-400">
                         Chargement des clients...
                       </div>
                     ) : (
@@ -1071,26 +1060,26 @@ export default function QuotesPage() {
                             onFocus={() => setShowCustomerDropdown(true)}
                             onKeyDown={handleCustomerKeyDown}
                             placeholder="Rechercher un client..."
-                            className="w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                            className="w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                           />
                         </div>
-                        
+
                         {/* Dropdown */}
                         {showCustomerDropdown && (
-                          <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl max-h-[280px] overflow-hidden">
+                          <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl max-h-[280px] overflow-hidden">
                             {/* Alphabet filter bar */}
-                            <div className="flex items-center justify-center gap-1 px-2 py-2 bg-gray-50 border-b text-xs">
+                            <div className="flex items-center justify-center gap-1 px-2 py-2 bg-gray-50 dark:bg-gray-700 border-b dark:border-gray-600 text-xs">
                               {Array.from('ABCDEFGHIJKLMNOPQRSTUVWXYZ').map((letter) => (
                                 <button
                                   key={letter}
                                   onClick={() => handleAlphabetClick(letter)}
-                                  className="px-1.5 py-0.5 rounded hover:bg-blue-100 hover:text-blue-600 transition-colors font-semibold"
+                                  className="px-1.5 py-0.5 rounded hover:bg-blue-100 hover:text-blue-600 transition-colors font-semibold dark:text-gray-300 dark:hover:bg-blue-900/40 dark:hover:text-blue-400"
                                 >
                                   {letter}
                                 </button>
                               ))}
                             </div>
-                            
+
                             {/* Customer list */}
                             <div className="overflow-y-auto max-h-[240px]">
                               {filteredCustomers.length > 0 ? (
@@ -1100,20 +1089,19 @@ export default function QuotesPage() {
                                     customer.code,
                                     customer.matriculeFiscale
                                   ].filter(Boolean).join(' - ');
-                                  
+
                                   return (
                                     <div
                                       key={customer._id}
                                       onClick={() => handleSelectCustomer(customer)}
-                                      className={`px-4 py-3 cursor-pointer transition-colors ${
-                                        index === selectedCustomerIndex
-                                          ? 'bg-blue-50 border-l-2 border-blue-500'
-                                          : 'hover:bg-gray-50'
-                                      }`}
+                                      className={`px-4 py-3 cursor-pointer transition-colors ${index === selectedCustomerIndex
+                                        ? 'bg-blue-50 dark:bg-blue-900/20 border-l-2 border-blue-500'
+                                        : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                                        }`}
                                     >
-                                      <div className="font-medium text-gray-900">{displayName}</div>
+                                      <div className="font-medium text-gray-900 dark:text-white">{displayName}</div>
                                       {secondaryInfo && (
-                                        <div className="text-sm text-gray-500">{secondaryInfo}</div>
+                                        <div className="text-sm text-gray-500 dark:text-gray-400">{secondaryInfo}</div>
                                       )}
                                     </div>
                                   );
@@ -1130,36 +1118,36 @@ export default function QuotesPage() {
                     )}
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Date
                     </label>
-                    <input 
+                    <input
                       type="date"
                       value={formData.dateDoc}
                       onChange={(e) => setFormData({ ...formData, dateDoc: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Référence externe
                     </label>
-                    <input 
+                    <input
                       type="text"
                       value={formData.referenceExterne}
                       onChange={(e) => setFormData({ ...formData, referenceExterne: e.target.value })}
                       placeholder="Ex: BC-2025-001"
-                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Devise
                     </label>
                     <select
                       value={formData.devise}
                       onChange={(e) => setFormData({ ...formData, devise: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                     >
                       <option value="TND">TND - Dinar tunisien</option>
                       <option value="EUR">EUR - Euro</option>
@@ -1171,10 +1159,10 @@ export default function QuotesPage() {
                 {/* Lines Table */}
                 <div className="mb-8">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-900">Lignes</h3>
-                    <button 
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Lignes</h3>
+                    <button
                       onClick={addLine}
-                      className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                      className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
                     >
                       + Ajouter une ligne
                     </button>
@@ -1186,18 +1174,18 @@ export default function QuotesPage() {
                       </div>
                     ) : (
                       <table className="w-full">
-                        <thead className="bg-gray-50 border-b">
+                        <thead className="bg-gray-50 dark:bg-gray-700 border-b dark:border-gray-600">
                           <tr>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">Produit</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">Qté</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">Unité</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">Prix HT</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">TVA %</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">Total HT</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">Remise %</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">Total TVA</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">Total TTC</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700"></th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">Produit</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">Qté</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">Unité</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">Prix HT</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">TVA %</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">Total HT</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">Remise %</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">Total TVA</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">Total TTC</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200"></th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
@@ -1254,8 +1242,8 @@ export default function QuotesPage() {
                                 </div>
                               </td>
                               <td className="px-4 py-3">
-                                <input 
-                                  type="text" 
+                                <input
+                                  type="text"
                                   value={line.quantite || ''}
                                   onChange={(e) => {
                                     const val = e.target.value;
@@ -1268,16 +1256,16 @@ export default function QuotesPage() {
                                 />
                               </td>
                               <td className="px-4 py-3">
-                                <input 
-                                  type="text" 
+                                <input
+                                  type="text"
                                   value={line.uomCode || ''}
                                   readOnly
                                   className="w-20 px-2 py-1 border rounded text-sm bg-gray-50"
                                 />
                               </td>
                               <td className="px-4 py-3">
-                                <input 
-                                  type="text" 
+                                <input
+                                  type="text"
                                   value={line.prixUnitaireHT || ''}
                                   onChange={(e) => {
                                     const val = e.target.value;
@@ -1290,8 +1278,8 @@ export default function QuotesPage() {
                                 />
                               </td>
                               <td className="px-4 py-3">
-                                <input 
-                                  type="text" 
+                                <input
+                                  type="text"
                                   value={line.tvaPct ?? ''}
                                   onChange={(e) => {
                                     const val = e.target.value;
@@ -1308,8 +1296,8 @@ export default function QuotesPage() {
                                 {(((line.quantite || 0) * (line.prixUnitaireHT || 0)) * (1 - ((line.remisePct || 0) / 100))).toFixed(3)} {formData.devise}
                               </td>
                               <td className="px-4 py-3">
-                                <input 
-                                  type="number" 
+                                <input
+                                  type="number"
                                   min="0"
                                   max="100"
                                   step="0.01"
@@ -1332,7 +1320,7 @@ export default function QuotesPage() {
                                 {(((line.quantite || 0) * (line.prixUnitaireHT || 0) * (1 - ((line.remisePct || 0) / 100))) * (1 + (line.tvaPct || 0) / 100)).toFixed(3)} {formData.devise}
                               </td>
                               <td className="px-4 py-3">
-                                <button 
+                                <button
                                   onClick={() => removeLine(index)}
                                   className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                   title="Supprimer"
@@ -1398,35 +1386,35 @@ export default function QuotesPage() {
                       <div className="flex justify-between text-sm items-center">
                         <div className="flex items-center gap-2">
                           <span className="text-gray-600">FODEC</span>
-                          <input 
+                          <input
                             type="checkbox"
                             checked={formData.fodec?.enabled || false}
-                            onChange={(e) => setFormData({ 
-                              ...formData, 
-                              fodec: { 
-                                ...formData.fodec, 
+                            onChange={(e) => setFormData({
+                              ...formData,
+                              fodec: {
+                                ...formData.fodec,
                                 enabled: e.target.checked,
                                 tauxPct: formData.fodec?.tauxPct || 1
-                              } 
+                              }
                             })}
                             className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                           />
                         </div>
                         {formData.fodec?.enabled && (
                           <div className="flex items-center gap-2">
-                            <input 
+                            <input
                               type="number"
                               min="0"
                               max="100"
                               step="0.1"
                               value={formData.fodec?.tauxPct || 1}
-                              onChange={(e) => setFormData({ 
-                                ...formData, 
-                                fodec: { 
-                                  ...formData.fodec, 
+                              onChange={(e) => setFormData({
+                                ...formData,
+                                fodec: {
+                                  ...formData.fodec,
                                   enabled: formData.fodec?.enabled || false,
                                   tauxPct: parseFloat(e.target.value) || 1
-                                } 
+                                }
                               })}
                               className="w-16 px-2 py-1 border rounded text-sm"
                               placeholder="1"
@@ -1471,7 +1459,7 @@ export default function QuotesPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Mode de paiement
                     </label>
-                    <select 
+                    <select
                       value={formData.modePaiement}
                       onChange={(e) => setFormData({ ...formData, modePaiement: e.target.value })}
                       className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
@@ -1486,8 +1474,8 @@ export default function QuotesPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Validité
                     </label>
-                    <input 
-                      type="date" 
+                    <input
+                      type="date"
                       value={formData.validite}
                       onChange={(e) => setFormData({ ...formData, validite: e.target.value })}
                       className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
@@ -1499,7 +1487,7 @@ export default function QuotesPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Notes
                   </label>
-                  <textarea 
+                  <textarea
                     rows={3}
                     value={formData.notes}
                     onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
@@ -1509,13 +1497,13 @@ export default function QuotesPage() {
                 </div>
               </div>
               <div className="p-4 sm:p-6 border-t flex flex-col sm:flex-row justify-end gap-3">
-                <button 
+                <button
                   onClick={() => setShowModal(false)}
                   className="w-full sm:w-auto px-4 py-2 border rounded-lg hover:bg-gray-50 text-sm sm:text-base"
                 >
                   Annuler
                 </button>
-                <button 
+                <button
                   onClick={handleCreateQuote}
                   className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm sm:text-base"
                 >

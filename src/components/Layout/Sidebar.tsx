@@ -214,8 +214,8 @@ export default function Sidebar({ sidebarOpen: externalSidebarOpen, setSidebarOp
   }, [tenantId]);
 
   const SidebarContent = () => (
-    <div className="flex flex-col h-full bg-white text-gray-900 shadow-xl border-r border-gray-200">
-      <div className="flex items-center flex-shrink-0 px-6 py-4 border-b border-gray-200 min-h-[80px]">
+    <div className="flex flex-col h-full bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-xl border-r border-gray-200 dark:border-gray-700">
+      <div className="flex items-center flex-shrink-0 px-6 py-4 border-b border-gray-200 dark:border-gray-700 min-h-[80px]">
         {companySettings?.societe?.logoUrl ? (
           <div className="flex items-center gap-3 w-full">
             <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden">
@@ -227,7 +227,7 @@ export default function Sidebar({ sidebarOpen: externalSidebarOpen, setSidebarOp
                 priority
               />
             </div>
-            <span className="text-lg font-bold text-gray-900 truncate leading-tight">
+            <span className="text-lg font-bold text-gray-900 dark:text-white truncate leading-tight">
               {companySettings?.societe?.nom || session?.user?.companyName || 'ERP System'}
             </span>
           </div>
@@ -238,7 +238,7 @@ export default function Sidebar({ sidebarOpen: externalSidebarOpen, setSidebarOp
         )}
       </div>
 
-      <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-200">
+      <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-gray-600">
         {filteredNavigation.map((item) => {
           if (item.hasSubmenu && item.submenu) {
             const isSubmenuOpen = openSubmenus[item.name] || false;
@@ -251,12 +251,12 @@ export default function Sidebar({ sidebarOpen: externalSidebarOpen, setSidebarOp
                 <button
                   onClick={() => toggleSubmenu(item.name)}
                   className={`w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 group ${isSubmenuActive
-                    ? 'bg-gray-50 text-blue-600 shadow-sm'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    ? 'bg-gray-50 dark:bg-gray-700/50 text-blue-600 dark:text-blue-400 shadow-sm'
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'
                     }`}
                 >
                   <div className="flex items-center">
-                    <item.icon className={`mr-3 flex-shrink-0 h-5 w-5 transition-colors ${isSubmenuActive ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-500'}`} />
+                    <item.icon className={`mr-3 flex-shrink-0 h-5 w-5 transition-colors ${isSubmenuActive ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500 group-hover:text-gray-500 dark:group-hover:text-gray-300'}`} />
                     {item.name}
                   </div>
                   <ChevronDownIcon
@@ -272,7 +272,7 @@ export default function Sidebar({ sidebarOpen: externalSidebarOpen, setSidebarOp
                       transition={{ duration: 0.2, ease: "easeInOut" }}
                       className="overflow-hidden"
                     >
-                      <div className="ml-4 mt-1 pl-4 border-l border-gray-200 space-y-1 py-1">
+                      <div className="ml-4 mt-1 pl-4 border-l border-gray-200 dark:border-gray-700 space-y-1 py-1">
                         {item.submenu.map((subItem: any) => {
                           const isActive = pathname === subItem.href || pathname.startsWith(subItem.href + '/');
                           return (
@@ -281,12 +281,12 @@ export default function Sidebar({ sidebarOpen: externalSidebarOpen, setSidebarOp
                               href={subItem.href}
                               onClick={() => setSidebarOpen(false)}
                               className={`group flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all ${isActive
-                                ? 'bg-blue-50 text-blue-600 font-semibold'
-                                : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
+                                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-semibold'
+                                : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700/50'
                                 }`}
                             >
                               <subItem.icon
-                                className={`mr-3 flex-shrink-0 h-4 w-4 transition-colors ${isActive ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-500'
+                                className={`mr-3 flex-shrink-0 h-4 w-4 transition-colors ${isActive ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500 group-hover:text-gray-500 dark:group-hover:text-gray-300'
                                   }`}
                               />
                               {subItem.name}
@@ -309,11 +309,11 @@ export default function Sidebar({ sidebarOpen: externalSidebarOpen, setSidebarOp
                 onClick={() => setSidebarOpen(false)}
                 className={`group flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 ${isActive
                   ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md'
-                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'
                   }`}
               >
                 <item.icon
-                  className={`mr-3 flex-shrink-0 h-5 w-5 transition-colors ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-gray-500'
+                  className={`mr-3 flex-shrink-0 h-5 w-5 transition-colors ${isActive ? 'text-white' : 'text-gray-400 dark:text-gray-500 group-hover:text-gray-500 dark:group-hover:text-gray-300'
                     }`}
                 />
                 {item.name}
@@ -323,8 +323,8 @@ export default function Sidebar({ sidebarOpen: externalSidebarOpen, setSidebarOp
         })}
 
         {/* Test Section */}
-        <div className="pt-6 mt-6 border-t border-gray-200">
-          <p className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+        <div className="pt-6 mt-6 border-t border-gray-200 dark:border-gray-700">
+          <p className="px-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
             Zone de Test
           </p>
           {testPages.map((item) => {
@@ -335,8 +335,8 @@ export default function Sidebar({ sidebarOpen: externalSidebarOpen, setSidebarOp
                 href={item.href}
                 onClick={() => setSidebarOpen(false)}
                 className={`group flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${isActive
-                  ? 'bg-gray-100 text-gray-900'
-                  : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
+                  ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700'
                   }`}
               >
                 <item.icon className="mr-3 flex-shrink-0 h-5 w-5 text-gray-400 group-hover:text-gray-500" />
@@ -347,20 +347,20 @@ export default function Sidebar({ sidebarOpen: externalSidebarOpen, setSidebarOp
         </div>
       </nav>
 
-      <div className="flex-shrink-0 p-4 border-t border-gray-200 bg-gray-50">
+      <div className="flex-shrink-0 p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
         <div className="flex items-center">
           <div className="h-10 w-10 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold text-sm shadow-inner flex-shrink-0">
             {session?.user?.name?.charAt(0) || 'U'}
           </div>
           <div className="ml-3 min-w-0 flex-1">
-            <p className="text-sm font-medium text-gray-900 truncate">{session?.user?.name}</p>
-            <p className="text-xs font-medium text-gray-500 truncate capitalize">
+            <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{session?.user?.name}</p>
+            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 truncate capitalize">
               {session?.user?.role === 'admin' ? 'Administrateur' : (session?.user?.role || 'Utilisateur')}
             </p>
           </div>
           <button
             onClick={() => signOut()}
-            className="ml-2 p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+            className="ml-2 p-1.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             title="Se déconnecter"
           >
             <ArrowUturnLeftIcon className="h-5 w-5" />

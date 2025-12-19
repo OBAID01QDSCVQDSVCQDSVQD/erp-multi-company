@@ -72,18 +72,18 @@ export default function RecentActivity({ invoices, payments }: RecentActivityPro
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.5, delay: 0.4 }}
-                className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
+                className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden"
             >
-                <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-                    <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                    <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                         <DocumentTextIcon className="w-5 h-5 text-indigo-500" />
                         Factures Récentes
                     </h3>
-                    <Link href="/sales/invoices" className="text-sm text-indigo-600 font-medium hover:text-indigo-800 flex items-center">
+                    <Link href="/sales/invoices" className="text-sm text-indigo-600 dark:text-indigo-400 font-medium hover:text-indigo-800 dark:hover:text-indigo-300 flex items-center">
                         Voir tout <ChevronRightIcon className="w-4 h-4 ml-1" />
                     </Link>
                 </div>
-                <div className="divide-y divide-gray-50">
+                <div className="divide-y divide-gray-50 dark:divide-gray-700">
                     {invoices.length === 0 ? (
                         <div className="p-8 text-center text-gray-400 text-sm">Aucune facture récente</div>
                     ) : (
@@ -93,20 +93,20 @@ export default function RecentActivity({ invoices, payments }: RecentActivityPro
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
                                 transition={{ delay: 0.1 * i }}
-                                className="p-4 hover:bg-gray-50 transition-colors"
+                                className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                             >
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-4">
-                                        <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold text-xs">
+                                        <div className="w-10 h-10 rounded-full bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold text-xs">
                                             {invoice.numero.slice(-3)}
                                         </div>
                                         <div>
-                                            <p className="text-sm font-medium text-gray-900">{invoice.customer}</p>
-                                            <p className="text-xs text-gray-500">{invoice.numero} • {formatDate(invoice.date)}</p>
+                                            <p className="text-sm font-medium text-gray-900 dark:text-white">{invoice.customer}</p>
+                                            <p className="text-xs text-gray-500 dark:text-gray-400">{invoice.numero} • {formatDate(invoice.date)}</p>
                                         </div>
                                     </div>
                                     <div className="text-right">
-                                        <p className="text-sm font-bold text-gray-900">{formatCurrency(invoice.total)}</p>
+                                        <p className="text-sm font-bold text-gray-900 dark:text-white">{formatCurrency(invoice.total)}</p>
                                         <span className={`inline-block px-2 py-0.5 text-[10px] rounded-full mt-1 ${getStatusColor(invoice.status)}`}>
                                             {getStatusLabel(invoice.status)}
                                         </span>
@@ -122,18 +122,18 @@ export default function RecentActivity({ invoices, payments }: RecentActivityPro
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.5, delay: 0.4 }}
-                className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
+                className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden"
             >
-                <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-                    <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                    <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                         <BanknotesIcon className="w-5 h-5 text-emerald-500" />
                         Paiements Récents
                     </h3>
-                    <Link href="/sales/payments" className="text-sm text-emerald-600 font-medium hover:text-emerald-800 flex items-center">
+                    <Link href="/sales/payments" className="text-sm text-emerald-600 dark:text-emerald-400 font-medium hover:text-emerald-800 dark:hover:text-emerald-300 flex items-center">
                         Voir tout <ChevronRightIcon className="w-4 h-4 ml-1" />
                     </Link>
                 </div>
-                <div className="divide-y divide-gray-50">
+                <div className="divide-y divide-gray-50 dark:divide-gray-700">
                     {payments.length === 0 ? (
                         <div className="p-8 text-center text-gray-400 text-sm">Aucun paiement récent</div>
                     ) : (
@@ -143,21 +143,21 @@ export default function RecentActivity({ invoices, payments }: RecentActivityPro
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
                                 transition={{ delay: 0.1 * i }}
-                                className="p-4 hover:bg-gray-50 transition-colors"
+                                className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                             >
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-4">
-                                        <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600 font-bold text-xs">
+                                        <div className="w-10 h-10 rounded-full bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 font-bold text-xs">
                                             {payment.numero.slice(-3)}
                                         </div>
                                         <div>
-                                            <p className="text-sm font-medium text-gray-900">{payment.customer}</p>
-                                            <p className="text-xs text-gray-500">{payment.numero} • {formatDate(payment.date)}</p>
+                                            <p className="text-sm font-medium text-gray-900 dark:text-white">{payment.customer}</p>
+                                            <p className="text-xs text-gray-500 dark:text-gray-400">{payment.numero} • {formatDate(payment.date)}</p>
                                         </div>
                                     </div>
                                     <div className="text-right">
-                                        <p className="text-sm font-bold text-emerald-600">+{formatCurrency(payment.montant)}</p>
-                                        <span className="text-xs text-gray-400">Reçu</span>
+                                        <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400">+{formatCurrency(payment.montant)}</p>
+                                        <span className="text-xs text-gray-400 dark:text-gray-500">Reçu</span>
                                     </div>
                                 </div>
                             </motion.div>

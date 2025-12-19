@@ -253,18 +253,18 @@ export default function NewReturnPage() {
             <ArrowLeftIcon className="w-5 h-5 text-gray-600" />
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Nouveau retour</h1>
-            <p className="text-sm text-gray-600 mt-1">Créer un bon de retour</p>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Nouveau retour</h1>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Créer un bon de retour</p>
           </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* BL Selection */}
-          <div className="bg-white rounded-lg shadow p-6 space-y-4">
-            <h2 className="text-lg font-semibold text-gray-900">Sélectionner le BL</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 space-y-4 border dark:border-gray-700">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Sélectionner le BL</h2>
 
             <div className="relative">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Bon de livraison *
               </label>
               <div className="relative">
@@ -277,7 +277,7 @@ export default function NewReturnPage() {
                   }}
                   onFocus={() => setShowBlDropdown(true)}
                   placeholder="Rechercher un BL..."
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                 />
                 {selectedBL && (
                   <button
@@ -294,16 +294,16 @@ export default function NewReturnPage() {
                 )}
 
                 {showBlDropdown && filteredBLs.length > 0 && (
-                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto">
+                  <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-60 overflow-auto">
                     {filteredBLs.map((bl) => (
                       <button
                         key={bl._id}
                         type="button"
                         onClick={() => handleSelectBL(bl)}
-                        className="w-full px-4 py-2 text-left hover:bg-gray-100 border-b border-gray-200 last:border-b-0"
+                        className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-600 border-b border-gray-200 dark:border-gray-600 last:border-b-0 text-gray-900 dark:text-white"
                       >
                         <div className="font-medium">{bl.numero}</div>
-                        <div className="text-sm text-gray-600">
+                        <div className="text-sm text-gray-600 dark:text-gray-300">
                           {new Date(bl.dateDoc).toLocaleDateString('fr-FR')} - {getCustomerName(bl.customerId)}
                         </div>
                       </button>
@@ -314,11 +314,11 @@ export default function NewReturnPage() {
             </div>
 
             {selectedBL && (
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <p className="text-sm text-gray-600">
-                  <span className="font-medium">BL:</span> {selectedBL.numero} |
-                  <span className="font-medium ml-2">Date:</span> {new Date(selectedBL.dateDoc).toLocaleDateString('fr-FR')} |
-                  <span className="font-medium ml-2">Client:</span> {getCustomerName(selectedBL.customerId)}
+              <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border dark:border-gray-600">
+                <p className="text-sm text-gray-600 dark:text-gray-300">
+                  <span className="font-medium text-gray-900 dark:text-white">BL:</span> {selectedBL.numero} |
+                  <span className="font-medium ml-2 text-gray-900 dark:text-white">Date:</span> {new Date(selectedBL.dateDoc).toLocaleDateString('fr-FR')} |
+                  <span className="font-medium ml-2 text-gray-900 dark:text-white">Client:</span> {getCustomerName(selectedBL.customerId)}
                 </p>
               </div>
             )}
@@ -326,24 +326,24 @@ export default function NewReturnPage() {
 
           {/* Return Lines */}
           {selectedBL && (
-            <div className="bg-white rounded-lg shadow p-6 space-y-4">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 space-y-4 border dark:border-gray-700">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-gray-900">Lignes de retour</h2>
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Lignes de retour</h2>
               </div>
 
               {returnLines.length === 0 ? (
-                <p className="text-gray-500 text-center py-4">Aucune ligne disponible dans ce BL</p>
+                <p className="text-gray-500 dark:text-gray-400 text-center py-4">Aucune ligne disponible dans ce BL</p>
               ) : (
                 <div className="space-y-4">
                   {returnLines.map((line, index) => (
-                    <div key={index} className="border border-gray-200 rounded-lg p-4 space-y-3">
+                    <div key={index} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-3 bg-gray-50/50 dark:bg-gray-800/50">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          <p className="font-medium text-gray-900">{line.designation}</p>
-                          <p className="text-sm text-gray-600">
+                          <p className="font-medium text-gray-900 dark:text-white">{line.designation}</p>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
                             Quantité livrée: {line.quantiteOriginale} {line.uomCode || ''}
                             {line.qtyLivree !== line.quantiteOriginale && (
-                              <span className="text-orange-600 ml-2">
+                              <span className="text-orange-600 dark:text-orange-400 ml-2">
                                 (Disponible pour retour: {line.quantiteMax} {line.uomCode || ''})
                               </span>
                             )}
@@ -362,7 +362,7 @@ export default function NewReturnPage() {
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                             Quantité à retourner *
                           </label>
                           <input
@@ -371,10 +371,10 @@ export default function NewReturnPage() {
                             max={line.quantiteMax}
                             value={line.quantite}
                             onChange={(e) => updateReturnLineQuantity(index, parseFloat(e.target.value) || 0)}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                             required
                           />
-                          <p className="text-xs text-gray-500 mt-1">
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                             Maximum: {line.quantiteMax} {line.uomCode || ''}
                           </p>
                         </div>
@@ -388,15 +388,15 @@ export default function NewReturnPage() {
 
           {/* Form Details */}
           {selectedBL && returnLines.some(line => line.quantite > 0) && (
-            <div className="bg-white rounded-lg shadow p-6 space-y-4">
-              <h2 className="text-lg font-semibold text-gray-900">Détails du retour</h2>
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 space-y-4 border dark:border-gray-700">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Détails du retour</h2>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Entrepôt de réception (Stock) *</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Entrepôt de réception (Stock) *</label>
                 <select
                   value={selectedWarehouseId}
                   onChange={(e) => setSelectedWarehouseId(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   required
                 >
                   <option value="">Sélectionner un entrepôt...</option>
@@ -407,27 +407,27 @@ export default function NewReturnPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Date du retour *
                 </label>
                 <input
                   type="date"
                   value={formData.dateDoc}
                   onChange={(e) => setFormData({ ...formData, dateDoc: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Notes (optionnel)
                 </label>
                 <textarea
                   value={formData.notes}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                   rows={3}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                 />
               </div>
             </div>

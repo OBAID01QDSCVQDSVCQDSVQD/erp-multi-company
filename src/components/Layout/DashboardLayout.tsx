@@ -45,14 +45,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   }
 
   return (
-    <div className="h-screen flex overflow-hidden bg-gray-100">
+    <div className="h-screen flex overflow-hidden bg-gray-100 dark:bg-gray-900">
       <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
       <div className="flex flex-col w-0 flex-1 overflow-hidden">
         <Header onMenuClick={() => setSidebarOpen(true)} />
         {announcement && (
-          <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 relative z-30">
+          <div className="bg-amber-50 dark:bg-amber-900/30 border-b border-amber-200 dark:border-amber-700/50 px-4 py-2 relative z-30">
             <div className="max-w-7xl mx-auto flex items-center justify-center">
-              <span className="text-amber-800 text-sm font-medium text-center flex items-center gap-2">
+              <span className="text-amber-800 dark:text-amber-200 text-sm font-medium text-center flex items-center gap-2">
                 <span className="text-lg">📢</span> {announcement}
               </span>
             </div>

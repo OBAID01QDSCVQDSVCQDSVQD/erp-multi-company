@@ -1,28 +1,30 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import Link from 'next/link';
+import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
 import {
   ArrowLeftIcon,
   BriefcaseIcon,
   PencilIcon,
-  CalendarIcon,
   CurrencyDollarIcon,
   UserGroupIcon,
   DocumentTextIcon,
   ChartBarIcon,
   CubeIcon,
   BanknotesIcon,
-  ClockIcon,
   MagnifyingGlassIcon,
   XMarkIcon,
   TruckIcon,
-  DocumentArrowDownIcon,
 } from '@heroicons/react/24/outline';
 import { useTenantId } from '@/hooks/useTenantId';
 import toast from 'react-hot-toast';
+
+// Import Tabs
+import ExpensesTab from './tabs/ExpensesTab';
+import ProductsTab from './tabs/ProductsTab';
+import LaborTab from './tabs/LaborTab';
+import ReportTab from './tabs/ReportTab';
 
 interface Project {
   _id: string;
@@ -51,6 +53,7 @@ interface Project {
     totalBaseHT?: number;
     totalHT?: number;
     totalTTC: number;
+    statut?: string;
   }>;
   blIds?: Array<{
     _id: string;
@@ -60,6 +63,7 @@ interface Project {
     totalBaseHT?: number;
     totalHT?: number;
     totalTTC: number;
+    statut?: string;
   }>;
   assignedEmployees: Array<{
     employeeId: {
@@ -87,36 +91,6 @@ interface Project {
   updatedAt: string;
 }
 
-interface ProjectLaborEntry {
-  employee: {
-    _id: string;
-    firstName: string;
-    lastName: string;
-    position?: string;
-    department?: string;
-  };
-  role: string;
-  salaryId?: string;
-  startDate?: string;
-  endDate?: string;
-  dailyRate?: number;
-  hourlyRate?: number;
-  daysWorked: number;
-  totalHours: number;
-  laborCost: number;
-  attendanceRecords?: number;
-  advanceAmount?: number;
-  advanceDays?: number;
-}
-
-interface LaborSummary {
-  totalEmployees: number;
-  totalDays: number;
-  totalHours: number;
-  totalCost: number;
-  totalAdvances: number;
-}
-
 export default function ProjectDetailPage() {
   const router = useRouter();
   const params = useParams();
@@ -126,7 +100,7 @@ export default function ProjectDetailPage() {
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'documents' | 'products' | 'expenses' | 'labor' | 'report'>('overview');
-  
+
   // Modal state
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [linkType, setLinkType] = useState<'devis' | 'bl'>('devis');
@@ -204,8 +178,8 @@ export default function ProjectDetailPage() {
         typeof productsData.totalTTC === 'number'
           ? productsData.totalTTC
           : typeof productsData.total === 'number'
-          ? productsData.total
-          : (productsData.products || []).reduce(
+            ? productsData.total
+            : (productsData.products || []).reduce(
               (sum: number, item: any) => sum + (item.totalCostTTC || item.totalCost || 0),
               0
             );
@@ -254,10 +228,10 @@ export default function ProjectDetailPage() {
 
   const getStatusBadge = (status: string) => {
     const styles = {
-      pending: 'bg-gray-100 text-gray-800',
-      in_progress: 'bg-blue-100 text-blue-800',
-      completed: 'bg-green-100 text-green-800',
-      cancelled: 'bg-red-100 text-red-800',
+      pending: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
+      in_progress: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300',
+      completed: 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300',
+      cancelled: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300',
     };
     const labels = {
       pending: 'En attente',
@@ -274,8 +248,8 @@ export default function ProjectDetailPage() {
 
   const getCustomerName = () => {
     if (!project?.customerId) return 'N/A';
-    return project.customerId.raisonSociale || 
-      `${project.customerId.nom || ''} ${project.customerId.prenom || ''}`.trim() || 
+    return project.customerId.raisonSociale ||
+      `${project.customerId.nom || ''} ${project.customerId.prenom || ''}`.trim() ||
       'N/A';
   };
 
@@ -283,8 +257,7 @@ export default function ProjectDetailPage() {
     try {
       setSearching(true);
       const endpoint = linkType === 'devis' ? '/api/sales/quotes' : '/api/sales/deliveries';
-      // If search query is empty, get all documents (no q parameter)
-      const url = searchQuery.trim() 
+      const url = searchQuery.trim()
         ? `${endpoint}?q=${encodeURIComponent(searchQuery)}&limit=100`
         : `${endpoint}?limit=100`;
       const response = await fetch(url, {
@@ -294,32 +267,29 @@ export default function ProjectDetailPage() {
       if (response.ok) {
         const data = await response.json();
         const allResults = data.items || [];
-        
+
         // Fetch all projects to check which documents are linked to which projects
         const projectsResponse = await fetch('/api/projects?limit=1000', {
           headers: { 'X-Tenant-Id': tenantId || '' }
         });
-        
+
         let allProjects: any[] = [];
         if (projectsResponse.ok) {
           const projectsData = await projectsResponse.json();
           allProjects = projectsData.items || [];
         }
-        
-        // Create a map: documentId -> projectId (to know which document is linked to which project)
+
         const documentToProjectMap = new Map<string, string>();
         allProjects.forEach((proj: any) => {
           const projId = proj._id?.toString() || proj.toString();
-          
-          // Check devisIds
+
           if (proj.devisIds && Array.isArray(proj.devisIds)) {
             proj.devisIds.forEach((devis: any) => {
               const devisId = devis._id?.toString() || devis.toString();
               documentToProjectMap.set(devisId, projId);
             });
           }
-          
-          // Check blIds
+
           if (proj.blIds && Array.isArray(proj.blIds)) {
             proj.blIds.forEach((bl: any) => {
               const blId = bl._id?.toString() || bl.toString();
@@ -327,45 +297,26 @@ export default function ProjectDetailPage() {
             });
           }
         });
-        
-        console.log('Document to Project Map:', Array.from(documentToProjectMap.entries()).slice(0, 5));
-        
-        // Get already linked document IDs to this project
+
         const linkedIds = linkType === 'devis'
           ? (project?.devisIds || []).map((d: any) => d._id?.toString() || d.toString())
           : (project?.blIds || []).map((b: any) => b._id?.toString() || b.toString());
-        
-        // Enrich all results - show ALL documents, but mark which ones cannot be linked
+
         const enrichedResults = allResults.map((doc: any) => {
           const docId = doc._id?.toString() || doc.toString();
           const isAlreadyLinkedToThisProject = linkedIds.includes(docId);
-          
-          // Check if document is linked to any project using the map we created
+
           const linkedProjectId = documentToProjectMap.get(docId) || null;
           const hasProjetId = linkedProjectId !== null;
-          
-          // Determine if linked to this project or another project
+
           const normalizedLinkedProjectId = linkedProjectId ? linkedProjectId.trim() : null;
           const normalizedCurrentProjectId = projectId ? projectId.trim() : null;
-          
+
           const isLinkedToThisProject = normalizedLinkedProjectId && normalizedLinkedProjectId === normalizedCurrentProjectId;
           const isLinkedToOtherProject = hasProjetId && normalizedLinkedProjectId && !isLinkedToThisProject;
-          
-          // Cannot link if: already linked to this project OR linked to ANY other project
+
           const cannotLink = isAlreadyLinkedToThisProject || isLinkedToOtherProject;
-          
-          // Debug log for troubleshooting
-          if (hasProjetId) {
-            console.log(`[${doc.numero}]`, {
-              docId,
-              linkedProjectId: normalizedLinkedProjectId,
-              currentProjectId: normalizedCurrentProjectId,
-              isLinkedToThisProject,
-              isLinkedToOtherProject,
-              cannotLink
-            });
-          }
-          
+
           return {
             ...doc,
             isAlreadyLinkedToThisProject,
@@ -376,7 +327,7 @@ export default function ProjectDetailPage() {
             cannotLink
           };
         });
-        
+
         setSearchResults(enrichedResults);
       } else {
         toast.error('Erreur lors de la recherche');
@@ -392,12 +343,11 @@ export default function ProjectDetailPage() {
   const handleLinkDocument = async (documentId: string) => {
     try {
       setLoading(true);
-      
-      // Check if document is already linked
-      const currentIds = linkType === 'devis' 
+
+      const currentIds = linkType === 'devis'
         ? (project?.devisIds || []).map((d: any) => d._id?.toString() || d.toString())
         : (project?.blIds || []).map((b: any) => b._id?.toString() || b.toString());
-      
+
       if (currentIds.includes(documentId)) {
         toast.error('Ce document est déjà lié');
         return;
@@ -443,15 +393,15 @@ export default function ProjectDetailPage() {
     try {
       setLoading(true);
       const updateData: any = {};
-      
+
       if (type === 'devis') {
         const currentDevisIds = (project?.devisIds || []).map((d: any) => d._id?.toString() || d.toString());
-        updateData.devisIds = documentId 
+        updateData.devisIds = documentId
           ? currentDevisIds.filter((id: string) => id !== documentId)
           : [];
       } else {
         const currentBlIds = (project?.blIds || []).map((b: any) => b._id?.toString() || b.toString());
-        updateData.blIds = documentId 
+        updateData.blIds = documentId
           ? currentBlIds.filter((id: string) => id !== documentId)
           : [];
       }
@@ -480,7 +430,6 @@ export default function ProjectDetailPage() {
     }
   };
 
-  // Auto-search when query changes
   useEffect(() => {
     if (!showLinkModal) {
       setSearchQuery('');
@@ -492,7 +441,6 @@ export default function ProjectDetailPage() {
       if (searchQuery.trim()) {
         handleSearchDocuments();
       } else {
-        // When modal opens, show all documents (empty search)
         handleSearchDocuments();
       }
     }, 300);
@@ -500,14 +448,24 @@ export default function ProjectDetailPage() {
     return () => clearTimeout(timeoutId);
   }, [searchQuery, linkType, showLinkModal]);
 
-  if (loading) {
+  if (loading && !project) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <p className="mt-4 text-gray-600">Chargement...</p>
+        <div className="space-y-6 p-4 sm:p-6 animate-pulse">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="h-8 w-1/3 bg-gray-200 dark:bg-gray-700 rounded" />
+            <div className="h-10 w-32 bg-gray-200 dark:bg-gray-700 rounded" />
           </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="h-24 bg-gray-200 dark:bg-gray-700 rounded-lg" />
+            ))}
+          </div>
+
+          <div className="h-12 bg-gray-200 dark:bg-gray-700 rounded w-full" />
+
+          <div className="h-96 bg-gray-200 dark:bg-gray-700 rounded-lg" />
         </div>
       </DashboardLayout>
     );
@@ -518,18 +476,9 @@ export default function ProjectDetailPage() {
   }
 
   const effectiveBudget = costSummary.budget || project.budget || 0;
-  const effectiveTotalCost =
-    costSummary.totalCostTTC ||
-    (project as any)?.totalCostTTC ||
-    project?.totalCost ||
-    0;
-  const effectiveProfit =
-    costSummary.profit ||
-    project.profit ||
-    (project.budget || 0) - (project.totalCost || 0);
-  const effectiveMargin =
-    costSummary.profitMargin ||
-    (project.profitMargin || (project.budget ? (effectiveProfit / project.budget) * 100 : 0));
+  const effectiveTotalCost = costSummary.totalCostTTC || (project as any)?.totalCostTTC || project?.totalCost || 0;
+  const effectiveProfit = costSummary.profit || project.profit || (project.budget || 0) - (project.totalCost || 0);
+  const effectiveMargin = costSummary.profitMargin || (project.profitMargin || (project.budget ? (effectiveProfit / project.budget) * 100 : 0));
 
   return (
     <DashboardLayout>
@@ -539,22 +488,22 @@ export default function ProjectDetailPage() {
           <div className="flex items-center gap-4">
             <button
               onClick={() => router.push('/projects')}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
             >
-              <ArrowLeftIcon className="w-5 h-5 text-gray-600" />
+              <ArrowLeftIcon className="w-5 h-5 text-gray-600 dark:text-gray-400" />
             </button>
             <div>
               <div className="flex items-center gap-3">
-                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{project.name}</h1>
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">{project.name}</h1>
                 {getStatusBadge(project.status)}
               </div>
-              <p className="mt-1 text-sm text-gray-600">{project.projectNumber}</p>
+              <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{project.projectNumber}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => router.push(`/projects/${projectId}/edit`)}
-              className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
             >
               <PencilIcon className="w-4 h-4" />
               <span className="hidden sm:inline">Modifier</span>
@@ -564,63 +513,63 @@ export default function ProjectDetailPage() {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 sm:p-6 border dark:border-gray-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Budget</p>
-                <p className="mt-2 text-xl sm:text-2xl font-bold text-gray-900">
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Budget</p>
+                <p className="mt-2 text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
                   {formatPrice(effectiveBudget, project.currency)}
                 </p>
               </div>
-              <div className="p-3 bg-blue-100 rounded-lg">
-                <CurrencyDollarIcon className="w-6 h-6 text-blue-600" />
+              <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                <CurrencyDollarIcon className="w-6 h-6 text-blue-600 dark:text-blue-400" />
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 sm:p-6 border dark:border-gray-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Coût total TTC</p>
-                <p className="mt-2 text-xl sm:text-2xl font-bold text-gray-900">
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Coût total TTC</p>
+                <p className="mt-2 text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
                   {formatPrice(effectiveTotalCost, project.currency)}
                 </p>
               </div>
-              <div className="p-3 bg-purple-100 rounded-lg">
-                <BanknotesIcon className="w-6 h-6 text-purple-600" />
+              <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                <BanknotesIcon className="w-6 h-6 text-purple-600 dark:text-purple-400" />
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 sm:p-6 border dark:border-gray-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Profit / Perte</p>
-                <p className={`mt-2 text-xl sm:text-2xl font-bold ${effectiveProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Profit / Perte</p>
+                <p className={`mt-2 text-xl sm:text-2xl font-bold ${effectiveProfit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                   {effectiveProfit >= 0 ? '+' : ''}{formatPrice(effectiveProfit, project.currency)}
                 </p>
               </div>
-              <div className="p-3 bg-green-100 rounded-lg">
-                <ChartBarIcon className="w-6 h-6 text-green-600" />
+              <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                <ChartBarIcon className="w-6 h-6 text-green-600 dark:text-green-400" />
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 sm:p-6 border dark:border-gray-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Marge</p>
-                <p className={`mt-2 text-xl sm:text-2xl font-bold ${effectiveMargin >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Marge</p>
+                <p className={`mt-2 text-xl sm:text-2xl font-bold ${effectiveMargin >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                   {effectiveMargin.toFixed(1)}%
                 </p>
               </div>
-              <div className="p-3 bg-yellow-100 rounded-lg">
-                <ChartBarIcon className="w-6 h-6 text-yellow-600" />
+              <div className="p-3 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
+                <ChartBarIcon className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
               </div>
             </div>
           </div>
         </div>
 
         {/* Tabs */}
-        <div className="bg-white rounded-lg shadow">
-          <div className="border-b border-gray-200">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow border dark:border-gray-700">
+          <div className="border-b border-gray-200 dark:border-gray-700">
             <nav className="flex overflow-x-auto -mb-px">
               {[
                 { id: 'overview', label: 'Vue d\'ensemble', icon: BriefcaseIcon },
@@ -633,11 +582,10 @@ export default function ProjectDetailPage() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex items-center gap-2 px-4 sm:px-6 py-4 border-b-2 font-medium text-sm whitespace-nowrap transition-colors ${
-                    activeTab === tab.id
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
+                  className={`flex items-center gap-2 px-4 sm:px-6 py-4 border-b-2 font-medium text-sm whitespace-nowrap transition-colors ${activeTab === tab.id
+                      ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+                    }`}
                 >
                   <tab.icon className="w-5 h-5" />
                   <span className="hidden sm:inline">{tab.label}</span>
@@ -652,50 +600,50 @@ export default function ProjectDetailPage() {
               <div className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Informations générales</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Informations générales</h3>
                     <dl className="space-y-3">
                       <div>
-                        <dt className="text-sm font-medium text-gray-500">Client</dt>
-                        <dd className="mt-1 text-sm text-gray-900">{getCustomerName()}</dd>
+                        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Client</dt>
+                        <dd className="mt-1 text-sm text-gray-900 dark:text-white">{getCustomerName()}</dd>
                       </div>
                       <div>
-                        <dt className="text-sm font-medium text-gray-500">Date de début</dt>
-                        <dd className="mt-1 text-sm text-gray-900">{formatDate(project.startDate)}</dd>
+                        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Date de début</dt>
+                        <dd className="mt-1 text-sm text-gray-900 dark:text-white">{formatDate(project.startDate)}</dd>
                       </div>
                       {project.expectedEndDate && (
                         <div>
-                          <dt className="text-sm font-medium text-gray-500">Date de fin prévue</dt>
-                          <dd className="mt-1 text-sm text-gray-900">{formatDate(project.expectedEndDate)}</dd>
+                          <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Date de fin prévue</dt>
+                          <dd className="mt-1 text-sm text-gray-900 dark:text-white">{formatDate(project.expectedEndDate)}</dd>
                         </div>
                       )}
                       {project.actualEndDate && (
                         <div>
-                          <dt className="text-sm font-medium text-gray-500">Date de fin réelle</dt>
-                          <dd className="mt-1 text-sm text-gray-900">{formatDate(project.actualEndDate)}</dd>
+                          <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Date de fin réelle</dt>
+                          <dd className="mt-1 text-sm text-gray-900 dark:text-white">{formatDate(project.actualEndDate)}</dd>
                         </div>
                       )}
                       <div>
-                        <dt className="text-sm font-medium text-gray-500">Statut</dt>
+                        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Statut</dt>
                         <dd className="mt-1">{getStatusBadge(project.status)}</dd>
                       </div>
                     </dl>
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Équipe</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Équipe</h3>
                     {project.assignedEmployees.length === 0 ? (
-                      <p className="text-sm text-gray-500">Aucun employé assigné</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Aucun employé assigné</p>
                     ) : (
                       <div className="space-y-3">
                         {project.assignedEmployees.map((assignment, index) => (
-                          <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                          <div key={index} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
                             <div>
-                              <p className="text-sm font-medium text-gray-900">
+                              <p className="text-sm font-medium text-gray-900 dark:text-white">
                                 {assignment.employeeId.firstName} {assignment.employeeId.lastName}
                               </p>
-                              <p className="text-xs text-gray-500">{assignment.role}</p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">{assignment.role}</p>
                             </div>
                             {assignment.dailyRate && (
-                              <p className="text-sm text-gray-600">
+                              <p className="text-sm text-gray-600 dark:text-gray-300">
                                 {formatPrice(assignment.dailyRate, project.currency)}/jour
                               </p>
                             )}
@@ -707,18 +655,18 @@ export default function ProjectDetailPage() {
                 </div>
                 {project.description && (
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Description</h3>
-                    <p className="text-sm text-gray-700 whitespace-pre-wrap">{project.description}</p>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Description</h3>
+                    <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{project.description}</p>
                   </div>
                 )}
                 {project.tags && project.tags.length > 0 && (
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Tags</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Tags</h3>
                     <div className="flex flex-wrap gap-2">
                       {project.tags.map(tag => (
                         <span
                           key={tag}
-                          className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
+                          className="px-3 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300 rounded-full text-sm"
                         >
                           {tag}
                         </span>
@@ -735,7 +683,7 @@ export default function ProjectDetailPage() {
                 {/* Devis Section */}
                 <div>
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-900">Devis liés</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Devis liés</h3>
                     <button
                       onClick={() => {
                         setLinkType('devis');
@@ -750,22 +698,22 @@ export default function ProjectDetailPage() {
                   {project.devisIds && project.devisIds.length > 0 ? (
                     <div className="space-y-3">
                       {project.devisIds.map((devis: any) => (
-                        <div key={devis._id} className="p-4 bg-gray-50 rounded-lg border">
+                        <div key={devis._id} className="p-4 bg-gray-50 dark:bg-gray-700/30 rounded-lg border dark:border-gray-700">
                           <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center gap-2">
                               <DocumentTextIcon className="w-5 h-5 text-gray-400" />
-                              <span className="font-medium text-gray-900">{devis.numero}</span>
+                              <span className="font-medium text-gray-900 dark:text-white">{devis.numero}</span>
                             </div>
                             <div className="flex items-center gap-2">
                               <button
                                 onClick={() => router.push(`/sales/quotes/${devis._id}`)}
-                                className="text-sm text-blue-600 hover:text-blue-900"
+                                className="text-sm text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
                               >
                                 Voir →
                               </button>
                               <button
                                 onClick={() => handleUnlinkDocument('devis', devis._id)}
-                                className="text-sm text-red-600 hover:text-red-900"
+                                className="text-sm text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
                               >
                                 Délier
                               </button>
@@ -773,33 +721,33 @@ export default function ProjectDetailPage() {
                           </div>
                           <dl className="grid grid-cols-2 gap-2 text-sm">
                             <div>
-                              <dt className="text-gray-500">Date</dt>
-                              <dd className="font-medium text-gray-900">{formatDate(devis.dateDoc || devis.date)}</dd>
+                              <dt className="text-gray-500 dark:text-gray-400">Date</dt>
+                              <dd className="font-medium text-gray-900 dark:text-white">{formatDate(devis.dateDoc || devis.date)}</dd>
                             </div>
                             <div>
-                              <dt className="text-gray-500">Total HT</dt>
-                              <dd className="font-medium text-gray-900">{formatPrice(devis.totalBaseHT || devis.totalHT || 0, project.currency)}</dd>
+                              <dt className="text-gray-500 dark:text-gray-400">Total HT</dt>
+                              <dd className="font-medium text-gray-900 dark:text-white">{formatPrice(devis.totalBaseHT || devis.totalHT || 0, project.currency)}</dd>
                             </div>
                             <div className="col-span-2">
-                              <dt className="text-gray-500">Total TTC</dt>
-                              <dd className="font-medium text-gray-900">{formatPrice(devis.totalTTC || 0, project.currency)}</dd>
+                              <dt className="text-gray-500 dark:text-gray-400">Total TTC</dt>
+                              <dd className="font-medium text-gray-900 dark:text-white">{formatPrice(devis.totalTTC || 0, project.currency)}</dd>
                             </div>
                           </dl>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <div className="p-4 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                    <div className="p-4 bg-gray-50 dark:bg-gray-700/30 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">
                       <div className="text-center">
-                        <DocumentTextIcon className="w-12 h-12 text-gray-300 mx-auto mb-2" />
-                        <h4 className="text-sm font-semibold text-gray-700 mb-1">Aucun Devis lié</h4>
-                        <p className="text-xs text-gray-500 mb-3">Ce projet n'a pas de Devis associé</p>
+                        <DocumentTextIcon className="w-12 h-12 text-gray-300 dark:text-gray-500 mx-auto mb-2" />
+                        <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Aucun Devis lié</h4>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Ce projet n'a pas de Devis associé</p>
                         <button
                           onClick={() => {
                             setLinkType('devis');
                             setShowLinkModal(true);
                           }}
-                          className="text-xs text-blue-600 hover:text-blue-900"
+                          className="text-xs text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
                         >
                           Lier un Devis
                         </button>
@@ -811,7 +759,7 @@ export default function ProjectDetailPage() {
                 {/* BL Section */}
                 <div>
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-900">Bons de livraison liés</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Bons de livraison liés</h3>
                     <button
                       onClick={() => {
                         setLinkType('bl');
@@ -826,22 +774,22 @@ export default function ProjectDetailPage() {
                   {project.blIds && project.blIds.length > 0 ? (
                     <div className="space-y-3">
                       {project.blIds.map((bl: any) => (
-                        <div key={bl._id} className="p-4 bg-gray-50 rounded-lg border">
+                        <div key={bl._id} className="p-4 bg-gray-50 dark:bg-gray-700/30 rounded-lg border dark:border-gray-700">
                           <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center gap-2">
                               <TruckIcon className="w-5 h-5 text-gray-400" />
-                              <span className="font-medium text-gray-900">{bl.numero}</span>
+                              <span className="font-medium text-gray-900 dark:text-white">{bl.numero}</span>
                             </div>
                             <div className="flex items-center gap-2">
                               <button
                                 onClick={() => router.push(`/sales/deliveries/${bl._id}`)}
-                                className="text-sm text-blue-600 hover:text-blue-900"
+                                className="text-sm text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
                               >
                                 Voir →
                               </button>
                               <button
                                 onClick={() => handleUnlinkDocument('bl', bl._id)}
-                                className="text-sm text-red-600 hover:text-red-900"
+                                className="text-sm text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
                               >
                                 Délier
                               </button>
@@ -849,33 +797,33 @@ export default function ProjectDetailPage() {
                           </div>
                           <dl className="grid grid-cols-2 gap-2 text-sm">
                             <div>
-                              <dt className="text-gray-500">Date</dt>
-                              <dd className="font-medium text-gray-900">{formatDate(bl.dateDoc || bl.date)}</dd>
+                              <dt className="text-gray-500 dark:text-gray-400">Date</dt>
+                              <dd className="font-medium text-gray-900 dark:text-white">{formatDate(bl.dateDoc || bl.date)}</dd>
                             </div>
                             <div>
-                              <dt className="text-gray-500">Total HT</dt>
-                              <dd className="font-medium text-gray-900">{formatPrice(bl.totalBaseHT || bl.totalHT || 0, project.currency)}</dd>
+                              <dt className="text-gray-500 dark:text-gray-400">Total HT</dt>
+                              <dd className="font-medium text-gray-900 dark:text-white">{formatPrice(bl.totalBaseHT || bl.totalHT || 0, project.currency)}</dd>
                             </div>
                             <div className="col-span-2">
-                              <dt className="text-gray-500">Total TTC</dt>
-                              <dd className="font-medium text-gray-900">{formatPrice(bl.totalTTC || 0, project.currency)}</dd>
+                              <dt className="text-gray-500 dark:text-gray-400">Total TTC</dt>
+                              <dd className="font-medium text-gray-900 dark:text-white">{formatPrice(bl.totalTTC || 0, project.currency)}</dd>
                             </div>
                           </dl>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <div className="p-4 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                    <div className="p-4 bg-gray-50 dark:bg-gray-700/30 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">
                       <div className="text-center">
-                        <TruckIcon className="w-12 h-12 text-gray-300 mx-auto mb-2" />
-                        <h4 className="text-sm font-semibold text-gray-700 mb-1">Aucun BL lié</h4>
-                        <p className="text-xs text-gray-500 mb-3">Ce projet n'a pas de Bon de livraison associé</p>
+                        <TruckIcon className="w-12 h-12 text-gray-300 dark:text-gray-500 mx-auto mb-2" />
+                        <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Aucun BL lié</h4>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Ce projet n'a pas de Bon de livraison associé</p>
                         <button
                           onClick={() => {
                             setLinkType('bl');
                             setShowLinkModal(true);
                           }}
-                          className="text-xs text-blue-600 hover:text-blue-900"
+                          className="text-xs text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
                         >
                           Lier un BL
                         </button>
@@ -903,9 +851,9 @@ export default function ProjectDetailPage() {
 
             {/* Report Tab */}
             {activeTab === 'report' && (
-              <ReportTab 
-                projectId={projectId} 
-                tenantId={tenantId || ''} 
+              <ReportTab
+                projectId={projectId}
+                tenantId={tenantId || ''}
                 currency={project.currency}
                 budget={project.budget || 0}
               />
@@ -916,11 +864,11 @@ export default function ProjectDetailPage() {
 
       {/* Link Document Modal */}
       {showLinkModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-4xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col">
             {/* Header */}
-            <div className="flex items-center justify-between p-4 sm:p-6 border-b">
-              <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
+            <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700">
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">
                 Lier un {linkType === 'devis' ? 'Devis' : 'Bon de livraison'}
               </h2>
               <button
@@ -929,14 +877,14 @@ export default function ProjectDetailPage() {
                   setSearchQuery('');
                   setSearchResults([]);
                 }}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
               >
                 <XMarkIcon className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
             </div>
 
             {/* Search */}
-            <div className="p-4 sm:p-6 border-b">
+            <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700">
               <div className="relative">
                 <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
                 <input
@@ -944,25 +892,25 @@ export default function ProjectDetailPage() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder={`Rechercher par numéro ou nom de client...`}
-                  className="w-full pl-9 sm:pl-10 pr-4 py-2 text-sm sm:text-base border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full pl-9 sm:pl-10 pr-4 py-2 text-sm sm:text-base border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                   autoFocus
                 />
               </div>
             </div>
 
             {/* Results */}
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-gray-50 dark:bg-gray-900/50">
               {searching ? (
                 <div className="text-center py-8">
-                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                  <p className="mt-4 text-sm sm:text-base text-gray-600">Recherche en cours...</p>
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 dark:border-blue-500"></div>
+                  <p className="mt-4 text-sm sm:text-base text-gray-600 dark:text-gray-400">Recherche en cours...</p>
                 </div>
               ) : searchResults.length === 0 ? (
                 <div className="text-center py-8">
-                  <DocumentTextIcon className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mx-auto mb-4" />
-                  <p className="text-sm sm:text-base text-gray-600">
-                    {searchQuery.trim() 
-                      ? 'Aucun résultat trouvé' 
+                  <DocumentTextIcon className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+                  <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
+                    {searchQuery.trim()
+                      ? 'Aucun résultat trouvé'
                       : 'Commencez à taper pour rechercher'}
                   </p>
                 </div>
@@ -972,48 +920,45 @@ export default function ProjectDetailPage() {
                     let customerName = 'N/A';
                     if (doc.customerId) {
                       if (typeof doc.customerId === 'object' && doc.customerId !== null && !Array.isArray(doc.customerId)) {
-                        // Populated customer object
                         const customer = doc.customerId as any;
-                        customerName = customer.raisonSociale || 
-                          `${customer.nom || ''} ${customer.prenom || ''}`.trim() || 
+                        customerName = customer.raisonSociale ||
+                          `${customer.nom || ''} ${customer.prenom || ''}`.trim() ||
                           'N/A';
                       } else if (typeof doc.customerId === 'string' && doc.customerId.trim() !== '') {
-                        // Just ObjectId string - show ID for now
                         customerName = `ID: ${doc.customerId.substring(0, 8)}...`;
                       }
                     }
-                    
+
                     const cannotLink = doc.cannotLink;
                     const isLinkedToThisProject = doc.isLinkedToThisProject;
                     const isLinkedToOtherProject = doc.isLinkedToOtherProject;
-                    
+
                     return (
                       <div
                         key={doc._id}
-                        className={`flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 border rounded-lg transition-colors ${
-                          cannotLink 
-                            ? 'bg-amber-50 border-amber-200 opacity-75' 
-                            : 'bg-white hover:bg-gray-50'
-                        }`}
+                        className={`flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 border rounded-lg transition-colors ${cannotLink
+                            ? 'bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-900/30 opacity-75'
+                            : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
+                          }`}
                       >
                         <div className="flex-1 mb-3 sm:mb-0">
                           <div className="flex flex-wrap items-center gap-2 mb-1 sm:mb-2">
                             <DocumentTextIcon className={`w-4 h-4 sm:w-5 sm:h-5 ${cannotLink ? 'text-amber-500' : 'text-gray-400'}`} />
-                            <span className={`font-medium ${cannotLink ? 'text-amber-900' : 'text-gray-900'}`}>
+                            <span className={`font-medium ${cannotLink ? 'text-amber-900 dark:text-amber-400' : 'text-gray-900 dark:text-white'}`}>
                               {doc.numero}
                             </span>
                             {isLinkedToThisProject && (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300 border border-blue-200 dark:border-blue-900/50">
                                 ✓ Lié à ce projet
                               </span>
                             )}
                             {isLinkedToOtherProject && (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800 border border-amber-200">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 border border-amber-200 dark:border-amber-900/50">
                                 ⚠️ Indisponible - Déjà lié à un autre projet
                               </span>
                             )}
                           </div>
-                          <div className="text-xs sm:text-sm text-gray-600 space-y-1 sm:space-y-0">
+                          <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 space-y-1 sm:space-y-0">
                             <div className="flex flex-wrap items-center gap-1 sm:gap-2">
                               <span>Client: {customerName}</span>
                               <span className="hidden sm:inline">•</span>
@@ -1022,8 +967,8 @@ export default function ProjectDetailPage() {
                               <span>Total: {formatPrice(doc.totalTTC || doc.totalBaseHT || 0, project?.currency || 'TND')}</span>
                             </div>
                             {cannotLink && (
-                              <p className="text-xs text-amber-700 mt-1 sm:mt-0 font-medium">
-                                {isLinkedToThisProject 
+                              <p className="text-xs text-amber-700 dark:text-amber-500 mt-1 sm:mt-0 font-medium">
+                                {isLinkedToThisProject
                                   ? `Ce ${linkType === 'devis' ? 'devis' : 'bon de livraison'} est déjà lié à ce projet.`
                                   : `⚠️ Ce ${linkType === 'devis' ? 'devis' : 'bon de livraison'} est déjà utilisé dans un autre projet et ne peut pas être sélectionné.`
                                 }
@@ -1034,11 +979,10 @@ export default function ProjectDetailPage() {
                         <button
                           onClick={() => handleLinkDocument(doc._id)}
                           disabled={loading || cannotLink}
-                          className={`ml-0 sm:ml-4 px-3 sm:px-4 py-2 text-sm rounded-lg transition-colors whitespace-nowrap font-medium ${
-                            cannotLink
-                              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                              : 'bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed'
-                          }`}
+                          className={`ml-0 sm:ml-4 px-3 sm:px-4 py-2 text-sm rounded-lg transition-colors whitespace-nowrap font-medium ${cannotLink
+                              ? 'bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+                              : 'bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed'
+                            }`}
                         >
                           {cannotLink ? 'Indisponible' : 'Lier'}
                         </button>
@@ -1054,958 +998,3 @@ export default function ProjectDetailPage() {
     </DashboardLayout>
   );
 }
-
-// Expenses Tab Component
-function ExpensesTab({ projectId, currency, tenantId }: { projectId: string; currency: string; tenantId: string }) {
-  const router = useRouter();
-  const [expenses, setExpenses] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [totalCost, setTotalCost] = useState(0);
-
-  useEffect(() => {
-    fetchExpenses();
-  }, [projectId, tenantId]);
-
-  const fetchExpenses = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch(`/api/expenses?projetId=${projectId}`, {
-        headers: { 'X-Tenant-Id': tenantId }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        const expensesList = data.expenses || [];
-        setExpenses(expensesList);
-        
-        // Calculate total cost
-        const total = expensesList.reduce((sum: number, exp: any) => {
-          return sum + (exp.totalTTC || exp.totalHT || 0);
-        }, 0);
-        setTotalCost(total);
-      }
-    } catch (error) {
-      console.error('Error fetching expenses:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const formatPrice = (amount: number) => {
-    return new Intl.NumberFormat('fr-FR', {
-      style: 'currency',
-      currency: currency || 'TND',
-      minimumFractionDigits: 3,
-      maximumFractionDigits: 3,
-    }).format(amount);
-  };
-
-  const formatDate = (dateString: string | Date | undefined) => {
-    if (!dateString) return 'N/A';
-    try {
-      const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
-      if (isNaN(date.getTime())) return 'N/A';
-      return date.toLocaleDateString('fr-FR', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-      });
-    } catch (error) {
-      return 'N/A';
-    }
-  };
-
-  const getStatusBadge = (status: string) => {
-    const styles: { [key: string]: string } = {
-      brouillon: 'bg-gray-100 text-gray-800',
-      en_attente: 'bg-yellow-100 text-yellow-800',
-      valide: 'bg-blue-100 text-blue-800',
-      paye: 'bg-green-100 text-green-800',
-      rejete: 'bg-red-100 text-red-800',
-    };
-    const labels: { [key: string]: string } = {
-      brouillon: 'Brouillon',
-      en_attente: 'En attente',
-      valide: 'Validé',
-      paye: 'Payé',
-      rejete: 'Rejeté',
-    };
-    return (
-      <span className={`px-2 py-1 text-xs font-medium rounded-full ${styles[status] || styles.brouillon}`}>
-        {labels[status] || status}
-      </span>
-    );
-  };
-
-  if (loading) {
-    return (
-      <div className="text-center py-12">
-        <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        <p className="mt-4 text-gray-600">Chargement des dépenses...</p>
-      </div>
-    );
-  }
-
-  if (expenses.length === 0) {
-    return (
-      <div className="text-center py-12">
-        <BanknotesIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">Dépenses</h3>
-        <p className="text-sm text-gray-600">Aucune dépense liée à ce projet</p>
-        <p className="text-sm text-gray-500 mt-2">Coût total: {formatPrice(totalCost)}</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-900">Dépenses liées au projet</h3>
-        <div className="text-sm text-gray-600">
-          <span className="font-medium text-gray-900">{expenses.length}</span> dépense(s) • 
-          <span className="font-medium text-gray-900 ml-1">{formatPrice(totalCost)}</span>
-        </div>
-      </div>
-
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Numéro</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Catégorie</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total TTC</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {expenses.map((expense) => (
-              <tr key={expense._id} className="hover:bg-gray-50">
-                <td className="px-4 py-3 whitespace-nowrap">
-                  <div className="text-sm font-medium text-gray-900">{expense.numero}</div>
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap">
-                  <div className="text-sm text-gray-900">{formatDate(expense.date)}</div>
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap">
-                  <div className="flex items-center">
-                    {expense.categorieId?.icone && (
-                      <span className="mr-2">{expense.categorieId.icone}</span>
-                    )}
-                    <span className="text-sm text-gray-900">
-                      {expense.categorieId?.nom || 'N/A'}
-                    </span>
-                  </div>
-                </td>
-                <td className="px-4 py-3">
-                  <div className="text-sm text-gray-900 max-w-xs truncate">
-                    {expense.description || '-'}
-                  </div>
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium text-gray-900">
-                  {formatPrice(expense.totalTTC || expense.totalHT || 0)}
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap">
-                  {getStatusBadge(expense.statut || 'brouillon')}
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap text-sm">
-                  <button
-                    onClick={() => router.push(`/expenses/${expense._id}`)}
-                    className="text-indigo-600 hover:text-indigo-900"
-                  >
-                    Voir →
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-          <tfoot className="bg-gray-50">
-            <tr>
-              <td colSpan={4} className="px-4 py-3 text-right text-sm font-medium text-gray-900">
-                Total:
-              </td>
-              <td className="px-4 py-3 text-right text-sm font-bold text-gray-900">
-                {formatPrice(totalCost)}
-              </td>
-              <td colSpan={2}></td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-// Products Tab Component
-function ProductsTab({ projectId, currency, tenantId }: { projectId: string; currency: string; tenantId: string }) {
-  const [products, setProducts] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [totalCostTTC, setTotalCostTTC] = useState(0);
-
-  useEffect(() => {
-    fetchProducts();
-  }, [projectId]);
-
-  const fetchProducts = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch(`/api/projects/${projectId}/products`, {
-        headers: { 'X-Tenant-Id': tenantId }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        const productsList = data.products || [];
-        setProducts(productsList);
-        const ttc =
-          typeof data.totalTTC === 'number'
-            ? data.totalTTC
-            : typeof data.total === 'number'
-            ? data.total
-            : productsList.reduce(
-                (sum: number, item: any) => sum + (item.totalCostTTC || item.totalCost || 0),
-                0
-              );
-        setTotalCostTTC(ttc);
-      }
-    } catch (error) {
-      console.error('Error fetching products:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const formatPrice = (amount: number) => {
-    return new Intl.NumberFormat('fr-FR', {
-      style: 'currency',
-      currency: currency || 'TND',
-      minimumFractionDigits: 2,
-    }).format(amount);
-  };
-
-  const formatDate = (dateString: string | Date | undefined) => {
-    if (!dateString) return 'N/A';
-    try {
-      const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
-      if (isNaN(date.getTime())) return 'N/A';
-      return date.toLocaleDateString('fr-FR', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-      });
-    } catch (error) {
-      return 'N/A';
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="text-center py-12">
-        <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        <p className="mt-4 text-gray-600">Chargement des produits...</p>
-      </div>
-    );
-  }
-
-  if (products.length === 0) {
-    return (
-      <div className="text-center py-12">
-        <CubeIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">Produits</h3>
-        <p className="text-sm text-gray-600">Aucun produit consommé pour ce projet</p>
-        <p className="text-sm text-gray-500 mt-2">Coût total TTC: {formatPrice(totalCostTTC)}</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-900">Produits consommés</h3>
-        <div className="text-sm text-gray-600">
-          <span className="font-medium text-gray-900">{products.length}</span> produit(s) • 
-          <span className="font-medium text-gray-900 ml-1">{formatPrice(totalCostTTC)}</span>
-        </div>
-      </div>
-
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Produit</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Quantité</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Coût unitaire HT</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Coût unitaire TTC</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Coût total TTC</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Documents</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {products.map((item) => (
-              <tr key={item.productId}>
-                <td className="px-4 py-3 whitespace-nowrap">
-                  <div>
-                    <div className="text-sm font-medium text-gray-900">{item.product.nom}</div>
-                    <div className="text-xs text-gray-500">{item.product.sku}</div>
-                  </div>
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-900">
-                  {item.quantity.toLocaleString('fr-FR')}
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-900">
-                  {formatPrice(item.movements[0]?.unitCostHT || 0)}
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-900">
-                  {formatPrice(item.movements[0]?.unitCostTTC || 0)}
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium text-gray-900">
-                  {formatPrice(item.totalCostTTC || item.totalCost || 0)}
-                </td>
-                <td className="px-4 py-3 text-sm text-gray-500">
-                  <div className="space-y-1">
-                    {item.movements.map((movement: any, idx: number) => (
-                      <div key={idx} className="text-xs">
-                        {/* Afficher toujours le numéro du BL / document, jamais l'ID */}
-                        {movement.documentType} {movement.documentNumero || movement.documentNumber} • {formatDate(movement.date)}
-                      </div>
-                    ))}
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-          <tfoot className="bg-gray-50">
-            <tr>
-              <td colSpan={4} className="px-4 py-3 text-right text-sm font-medium text-gray-900">
-                Total TTC:
-              </td>
-              <td className="px-4 py-3 text-right text-sm font-bold text-gray-900">
-                {formatPrice(totalCostTTC)}
-              </td>
-              <td></td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-function LaborTab({ projectId, tenantId, currency }: { projectId: string; tenantId: string; currency: string }) {
-  const [labor, setLabor] = useState<ProjectLaborEntry[]>([]);
-  const [summary, setSummary] = useState<LaborSummary | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    let mounted = true;
-    const fetchLabor = async () => {
-      if (!tenantId || !projectId) return;
-      setLoading(true);
-      setError('');
-      try {
-        const response = await fetch(`/api/projects/${projectId}/labor`, {
-          headers: { 'X-Tenant-Id': tenantId },
-        });
-        if (!response.ok) {
-          const data = await response.json().catch(() => ({}));
-          throw new Error(data?.error || 'Erreur lors du chargement de la main d’œuvre');
-        }
-        const data = await response.json();
-        if (mounted) {
-          setLabor(data.labor || []);
-          setSummary(data.summary || null);
-        }
-      } catch (err: any) {
-        if (mounted) setError(err.message || 'Erreur lors du chargement de la main d’œuvre');
-      } finally {
-          if (mounted) setLoading(false);
-      }
-    };
-    fetchLabor();
-    return () => {
-      mounted = false;
-    };
-  }, [projectId, tenantId]);
-
-  const formatCurrency = (value: number) =>
-    new Intl.NumberFormat('fr-FR', {
-      style: 'currency',
-      currency,
-      minimumFractionDigits: 2,
-    }).format(value || 0);
-
-  const formatNumber = (value: number, decimals = 0) =>
-    new Intl.NumberFormat('fr-FR', {
-      minimumFractionDigits: decimals,
-      maximumFractionDigits: decimals,
-    }).format(value || 0);
-
-  if (loading) {
-    return (
-      <div className="py-16 text-center text-gray-500">
-        <div className="mb-4 flex justify-center">
-          <div className="h-12 w-12 border-4 border-blue-100 border-t-blue-500 rounded-full animate-spin" />
-        </div>
-        Chargement des données de main d’œuvre...
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="py-16 text-center text-red-500">
-        {error}
-      </div>
-    );
-  }
-
-  if (!labor.length) {
-    return (
-      <div className="text-center py-12">
-        <UserGroupIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">Main d'œuvre</h3>
-        <p className="text-sm text-gray-600">Aucun membre d’équipe n’est associé à ce projet.</p>
-        <p className="text-sm text-gray-500 mt-2">Coût total: {formatCurrency(0)}</p>
-      </div>
-    );
-  }
-
-  const totalDays = summary?.totalDays ?? labor.reduce((sum, l) => sum + (l.daysWorked || 0), 0);
-  const totalHours = summary?.totalHours ?? labor.reduce((sum, l) => sum + (l.totalHours || 0), 0);
-  const totalCost = summary?.totalCost ?? labor.reduce((sum, l) => sum + (l.laborCost || 0), 0);
-  const totalAdvances = summary?.totalAdvances ?? labor.reduce((sum, l) => sum + (l.advanceAmount || 0), 0);
-
-  return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white border rounded-lg p-4">
-          <p className="text-sm text-gray-500">Équipe</p>
-          <p className="text-2xl font-semibold text-gray-900">{summary?.totalEmployees ?? labor.length}</p>
-          <p className="text-xs text-gray-400 mt-1">Membres affectés</p>
-        </div>
-        <div className="bg-white border rounded-lg p-4">
-          <p className="text-sm text-gray-500">Jours travaillés</p>
-          <p className="text-2xl font-semibold text-gray-900">{formatNumber(totalDays)}</p>
-          <p className="text-xs text-gray-400 mt-1">Validés via présence</p>
-        </div>
-        <div className="bg-white border rounded-lg p-4">
-          <p className="text-sm text-gray-500">Heures cumulées</p>
-          <p className="text-2xl font-semibold text-gray-900">{formatNumber(totalHours, 1)} h</p>
-          <p className="text-xs text-gray-400 mt-1">Basées sur les pointages</p>
-        </div>
-        <div className="bg-white border rounded-lg p-4">
-          <p className="text-sm text-gray-500">Coût total</p>
-          <p className="text-2xl font-semibold text-gray-900">{formatCurrency(totalCost)}</p>
-          <p className="text-xs text-gray-400 mt-1">Avances: {formatCurrency(totalAdvances)}</p>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 text-sm">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Employé</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Rôle</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Jours</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Heures</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Taux jour</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Coût</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Avances</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 bg-white">
-              {labor.map((item) => (
-                <tr key={item.employee?._id}>
-                  <td className="px-4 py-3">
-                    <Link
-                      href={`/hr/salaries/${item.salaryId ?? ''}`}
-                      className="font-medium text-blue-600 hover:text-blue-800 transition-colors underline-offset-2 hover:underline"
-                    >
-                      {item.employee?.firstName} {item.employee?.lastName}
-                    </Link>
-                    <div className="text-xs text-gray-500">
-                      {item.employee?.position}
-                      {item.employee?.department ? ` • ${item.employee.department}` : ''}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-gray-700">{item.role || '-'}</td>
-                  <td className="px-4 py-3 text-center font-semibold text-gray-900">
-                    {formatNumber(item.daysWorked || 0)}
-                  </td>
-                  <td className="px-4 py-3 text-center text-gray-700">
-                    {formatNumber(item.totalHours || 0, 1)} h
-                  </td>
-                  <td className="px-4 py-3 text-right text-gray-700">
-                    {formatCurrency(item.dailyRate || item.hourlyRate || 0)}
-                  </td>
-                  <td className="px-4 py-3 text-right font-semibold text-gray-900">
-                    {formatCurrency(item.laborCost || 0)}
-                  </td>
-                  <td className="px-4 py-3 text-right text-gray-600">
-                    <div className="flex flex-col items-end">
-                      <span>{formatCurrency(item.advanceAmount || 0)}</span>
-                      {item.advanceAmount ? (
-                        <span className="text-xs text-gray-400">
-                          {formatNumber(item.advanceDays || 0, 1)} j
-                        </span>
-                      ) : (
-                        <span className="text-xs text-gray-300">—</span>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot className="bg-gray-50">
-              <tr>
-                <td className="px-4 py-3 font-semibold text-gray-900">Total</td>
-                <td></td>
-                <td className="px-4 py-3 text-center font-semibold text-gray-900">
-                  {formatNumber(totalDays)}
-                </td>
-                <td className="px-4 py-3 text-center font-semibold text-gray-900">
-                  {formatNumber(totalHours, 1)} h
-                </td>
-                <td></td>
-                <td className="px-4 py-3 text-right font-semibold text-gray-900">
-                  {formatCurrency(totalCost)}
-                </td>
-                <td className="px-4 py-3 text-right font-semibold text-gray-900">
-                  {formatCurrency(totalAdvances)}
-                </td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Report Tab Component
-function ReportTab({ 
-  projectId, 
-  tenantId, 
-  currency, 
-  budget 
-}: { 
-  projectId: string; 
-  tenantId: string; 
-  currency: string; 
-  budget: number;
-}) {
-  const [expenses, setExpenses] = useState<any[]>([]);
-  const [labor, setLabor] = useState<any[]>([]);
-  const [products, setProducts] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [summary, setSummary] = useState<any>(null);
-  const [downloading, setDownloading] = useState(false);
-  const reportRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    fetchReportData();
-  }, [projectId, tenantId]);
-
-  const formatPrice = (amount: number) => {
-    return new Intl.NumberFormat('fr-FR', {
-      style: 'currency',
-      currency: currency || 'TND',
-      minimumFractionDigits: 2,
-    }).format(amount);
-  };
-
-  const formatDate = (dateString: string | Date | undefined) => {
-    if (!dateString) return 'N/A';
-    try {
-      const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
-      if (isNaN(date.getTime())) return 'N/A';
-      return date.toLocaleDateString('fr-FR', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-      });
-    } catch (error) {
-      return 'N/A';
-    }
-  };
-
-  const handleExportPdf = async () => {
-    if (!summary || !reportRef.current) return;
-    try {
-      setDownloading(true);
-      const [{ default: jsPDF }, html2canvasModule] = await Promise.all([
-        import('jspdf'),
-        import('html2canvas'),
-      ]);
-      const html2canvas = html2canvasModule.default;
-      const canvas = await html2canvas(reportRef.current, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: '#ffffff',
-      });
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-      let position = 0;
-      let heightLeft = pdfHeight;
-
-      pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
-      heightLeft -= pdf.internal.pageSize.getHeight();
-
-      while (heightLeft > 0) {
-        position = heightLeft - pdfHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
-        heightLeft -= pdf.internal.pageSize.getHeight();
-      }
-
-      pdf.save(`rapport-projet-${projectId}.pdf`);
-    } catch (error) {
-      console.error('Error generating PDF:', error);
-    } finally {
-      setDownloading(false);
-    }
-  };
-
-  const fetchReportData = async () => {
-    try {
-      setLoading(true);
-      
-      // Fetch all data in parallel
-      const [expensesRes, laborRes, productsRes] = await Promise.all([
-        fetch(`/api/projects/${projectId}/expenses`, {
-          headers: { 'X-Tenant-Id': tenantId }
-        }),
-        fetch(`/api/projects/${projectId}/labor`, {
-          headers: { 'X-Tenant-Id': tenantId }
-        }),
-        fetch(`/api/projects/${projectId}/products`, {
-          headers: { 'X-Tenant-Id': tenantId }
-        })
-      ]);
-
-      const expensesData = expensesRes.ok ? await expensesRes.json() : { expenses: [], total: 0 };
-      const laborData = laborRes.ok ? await laborRes.json() : { labor: [], summary: null };
-      const productsData = productsRes.ok ? await productsRes.json() : { products: [], total: 0 };
-
-      setExpenses(expensesData.expenses || []);
-      setLabor(laborData.labor || []);
-
-      const normalizedProducts = (productsData.products || []).map((item: any) => ({
-        ...item,
-        totalCostTTC: item.totalCostTTC ?? item.totalCost ?? 0,
-      }));
-      setProducts(normalizedProducts);
-
-      // Calculate totals
-      const totalExpensesTTC = (expensesData.expenses || []).reduce(
-        (sum: number, e: any) => sum + (e.totalTTC || e.totalHT || 0), 
-        0
-      );
-      const totalLaborCost = (laborData.labor || []).reduce(
-        (sum: number, l: any) => sum + (l.laborCost || 0), 
-        0
-      );
-      const totalProductsTTC =
-        typeof productsData.totalTTC === 'number'
-          ? productsData.totalTTC
-          : typeof productsData.total === 'number'
-          ? productsData.total
-          : normalizedProducts.reduce(
-              (sum: number, product: any) => sum + (product.totalCostTTC ?? 0),
-              0
-            );
-
-      const totalCostTTC = totalExpensesTTC + totalLaborCost + totalProductsTTC;
-      const profit = budget - totalCostTTC;
-      const profitMargin = budget > 0 ? (profit / budget) * 100 : 0;
-
-      setSummary({
-        budget,
-        totalExpensesTTC,
-        totalLaborCost,
-        totalProductsTTC,
-        totalCostTTC,
-        profit,
-        profitMargin,
-        totalEmployees: laborData.labor?.length || 0,
-        totalDays: (laborData.labor || []).reduce((sum: number, l: any) => sum + (l.daysWorked || 0), 0),
-        totalHours: (laborData.labor || []).reduce((sum: number, l: any) => sum + (l.totalHours || 0), 0),
-      });
-    } catch (error) {
-      console.error('Error fetching report data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-
-  if (loading) {
-    return (
-      <div className="text-center py-12">
-        <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        <p className="mt-4 text-gray-600">Chargement du rapport...</p>
-      </div>
-    );
-  }
-
-  if (!summary) {
-    return (
-      <div className="text-center py-12">
-        <ChartBarIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">Rapport complet</h3>
-        <p className="text-sm text-gray-600">Aucune donnée disponible</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-900">Rapport détaillé</h3>
-        <button
-          onClick={handleExportPdf}
-          disabled={downloading}
-          className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors ${
-            downloading ? 'bg-gray-400 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700'
-          }`}
-        >
-          <DocumentArrowDownIcon className="w-5 h-5" />
-          {downloading ? 'Génération...' : 'Télécharger PDF'}
-        </button>
-      </div>
-      <div
-        ref={reportRef}
-        className="space-y-6 bg-white p-6 md:p-10 rounded-2xl shadow border border-gray-100"
-      >
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-gradient-to-br from-blue-50 to-white border-l-4 border-blue-400 rounded-lg p-4">
-          <p className="text-sm text-gray-500">Budget</p>
-          <p className="text-2xl font-semibold text-gray-900">{formatPrice(summary.budget)}</p>
-          <p className="text-xs text-gray-400 mt-1">Montant alloué</p>
-        </div>
-        <div className="bg-gradient-to-br from-red-50 to-white border-l-4 border-red-400 rounded-lg p-4">
-          <p className="text-sm text-gray-500">Coût total TTC</p>
-          <p className="text-2xl font-semibold text-red-600">{formatPrice(summary.totalCostTTC)}</p>
-          <p className="text-xs text-gray-400 mt-1">Tous frais inclus</p>
-        </div>
-        <div className="bg-gradient-to-br from-green-50 to-white border-l-4 border-green-400 rounded-lg p-4">
-          <p className="text-sm text-gray-500">Profit / Perte</p>
-          <p className={`text-2xl font-semibold ${summary.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-            {formatPrice(summary.profit)}
-          </p>
-          <p className="text-xs text-gray-400 mt-1">Marge: {summary.profitMargin.toFixed(1)}%</p>
-        </div>
-        <div className="bg-gradient-to-br from-purple-50 to-white border-l-4 border-purple-400 rounded-lg p-4">
-          <p className="text-sm text-gray-500">Équipe</p>
-          <p className="text-2xl font-semibold text-gray-900">{summary.totalEmployees}</p>
-          <p className="text-xs text-gray-400 mt-1">
-            {summary.totalDays} jours • {summary.totalHours.toFixed(1)}h
-          </p>
-        </div>
-        </div>
-
-        {/* Cost Breakdown */}
-        <div className="bg-gradient-to-br from-indigo-50 to-white rounded-lg shadow p-6 border border-indigo-100">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Répartition des coûts (TTC)</h3>
-        <div className="space-y-4">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-sm text-gray-600">Dépenses</span>
-            <span className="text-sm font-semibold text-gray-900">{formatPrice(summary.totalExpensesTTC)}</span>
-          </div>
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-sm text-gray-600">Main d'œuvre</span>
-            <span className="text-sm font-semibold text-gray-900">{formatPrice(summary.totalLaborCost)}</span>
-          </div>
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-sm text-gray-600">Produits</span>
-            <span className="text-sm font-semibold text-gray-900">{formatPrice(summary.totalProductsTTC)}</span>
-          </div>
-          <div className="border-t border-indigo-100 pt-4 flex items-center justify-between">
-            <span className="text-base font-semibold text-gray-900">Total coûts TTC</span>
-            <span className="text-base font-bold text-gray-900">{formatPrice(summary.totalCostTTC)}</span>
-          </div>
-        </div>
-        </div>
-
-        {/* Expenses Section */}
-        <div className="bg-white rounded-lg shadow overflow-hidden border border-pink-100">
-        <div className="px-6 py-4 border-b border-pink-100 bg-pink-50/60">
-          <h3 className="text-lg font-semibold text-gray-900">Dépenses ({expenses.length})</h3>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-pink-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Numéro</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Catégorie</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Montant TTC</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {expenses.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-500">
-                    Aucune dépense
-                  </td>
-                </tr>
-              ) : (
-                expenses.map((expense) => (
-                  <tr key={expense._id}>
-                    <td className="px-4 py-3 text-sm text-gray-900">{expense.numero}</td>
-                    <td className="px-4 py-3 text-sm text-gray-900">{formatDate(expense.date)}</td>
-                    <td className="px-4 py-3 text-sm text-gray-900">
-                      {expense.categorieId?.nom || 'N/A'}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-900 max-w-xs truncate">
-                      {expense.description || '-'}
-                    </td>
-                    <td className="px-4 py-3 text-right text-sm font-medium text-gray-900">
-                      {formatPrice(expense.totalTTC || expense.totalHT || 0)}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-            <tfoot className="bg-gray-50">
-              <tr>
-                <td colSpan={4} className="px-4 py-3 text-right text-sm font-medium text-gray-900">
-                  Total:
-                </td>
-                <td className="px-4 py-3 text-right text-sm font-bold text-gray-900">
-                  {formatPrice(summary.totalExpensesTTC)}
-                </td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-        </div>
-
-        {/* Labor Section */}
-        <div className="bg-white rounded-lg shadow overflow-hidden border border-blue-100">
-        <div className="px-6 py-4 border-b border-blue-100 bg-blue-50/60">
-          <h3 className="text-lg font-semibold text-gray-900">Main d'œuvre ({labor.length})</h3>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-blue-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Employé</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rôle</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Jours</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Heures</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Coût</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {labor.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-500">
-                    Aucune main d'œuvre
-                  </td>
-                </tr>
-              ) : (
-                labor.map((item) => (
-                  <tr key={item.employee?._id}>
-                    <td className="px-4 py-3 text-sm text-gray-900">
-                      {item.employee?.firstName} {item.employee?.lastName}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-700">{item.role || '-'}</td>
-                    <td className="px-4 py-3 text-center text-sm font-semibold text-gray-900">
-                      {item.daysWorked || 0}
-                    </td>
-                    <td className="px-4 py-3 text-center text-sm text-gray-700">
-                      {(item.totalHours || 0).toFixed(1)} h
-                    </td>
-                    <td className="px-4 py-3 text-right text-sm font-medium text-gray-900">
-                      {formatPrice(item.laborCost || 0)}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-            <tfoot className="bg-gray-50">
-              <tr>
-                <td colSpan={4} className="px-4 py-3 text-right text-sm font-medium text-gray-900">
-                  Total:
-                </td>
-                <td className="px-4 py-3 text-right text-sm font-bold text-gray-900">
-                  {formatPrice(summary.totalLaborCost)}
-                </td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-        </div>
-
-        {/* Products Section */}
-        <div className="bg-white rounded-lg shadow overflow-hidden border border-green-100">
-        <div className="px-6 py-4 border-b border-green-100 bg-green-50/60">
-          <h3 className="text-lg font-semibold text-gray-900">Produits consommés ({products.length})</h3>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-green-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Produit</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Quantité</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Coût unitaire TTC</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Coût total TTC</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {products.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-sm text-gray-500">
-                    Aucun produit
-                  </td>
-                </tr>
-              ) : (
-                products.map((item) => (
-                  <tr key={item.productId}>
-                    <td className="px-4 py-3 text-sm text-gray-900">
-                      <div>
-                        <div className="font-medium">{item.product.nom}</div>
-                        <div className="text-xs text-gray-500">{item.product.sku}</div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-right text-sm text-gray-900">
-                      {Number(item.quantity || 0).toLocaleString('fr-FR')}
-                    </td>
-                    <td className="px-4 py-3 text-right text-sm text-gray-900">
-                      {formatPrice(item.movements?.[0]?.unitCostTTC || 0)}
-                    </td>
-                    <td className="px-4 py-3 text-right text-sm font-medium text-gray-900">
-                      {formatPrice(item.totalCostTTC ?? item.totalCost ?? 0)}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-            <tfoot className="bg-gray-50">
-              <tr>
-                <td colSpan={3} className="px-4 py-3 text-right text-sm font-medium text-gray-900">
-                  Total TTC:
-                </td>
-                <td className="px-4 py-3 text-right text-sm font-bold text-gray-900">
-                  {formatPrice(summary.totalProductsTTC)}
-                </td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
