@@ -31,9 +31,9 @@ export default function StatCard({
   };
 
   const ChangeIcon = () => {
-    if (changeType === 'positive') return <ArrowTrendingUpIcon className="w-4 h-4 mr-1" />;
-    if (changeType === 'negative') return <ArrowTrendingDownIcon className="w-4 h-4 mr-1" />;
-    return <MinusIcon className="w-4 h-4 mr-1" />;
+    if (changeType === 'positive') return <ArrowTrendingUpIcon className="w-2 h-2 mr-0.5" />;
+    if (changeType === 'negative') return <ArrowTrendingDownIcon className="w-2 h-2 mr-0.5" />;
+    return <MinusIcon className="w-2 h-2 mr-0.5" />;
   };
 
   return (
@@ -41,38 +41,37 @@ export default function StatCard({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay }}
-      className="bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 border border-gray-100 dark:border-gray-700 overflow-hidden group"
+      className="bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow transition-all duration-300 border border-gray-100 dark:border-gray-700 overflow-hidden group"
     >
-      <div className="p-6">
+      <div className="p-2">
         <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">{name}</p>
-            <h3 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+          <div className="flex-1 min-w-0 pr-1">
+            <p className="text-[9px] font-bold text-gray-500 dark:text-gray-400 mb-0 uppercase tracking-wider truncate leading-none">{name}</p>
+            <h3 className="text-base font-bold text-gray-900 dark:text-white tracking-tight leading-none mt-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors truncate">
               {value}
             </h3>
             {subtitle && (
-              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{subtitle}</p>
+              <p className="text-[9px] text-gray-400 dark:text-gray-500 mt-0.5 truncate leading-none">{subtitle}</p>
             )}
           </div>
-          <div className={`p-3 rounded-lg ${color} bg-opacity-10 text-opacity-100`}>
-            {/* The icon color is usually passed as part of the color prop (e.g. text-blue-600) */}
+          <div className={`p-1 rounded-md ${color} bg-opacity-10 text-opacity-100 flex-shrink-0`}>
             <div className={`${color.replace('bg-', 'text-').replace('500', '600')} dark:${color.replace('bg-', 'text-').replace('500', '400')}`}>
-              <Icon className="w-6 h-6" />
+              <Icon className="w-3.5 h-3.5" />
             </div>
           </div>
         </div>
 
         {change && (
-          <div className="mt-4 flex items-center">
-            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getChangeColor()}`}>
+          <div className="mt-1.5 flex items-center">
+            <span className={`inline-flex items-center px-1 py-0 rounded text-[9px] font-medium leading-none ${getChangeColor()}`}>
               <ChangeIcon />
               {change}
             </span>
-            <span className="text-xs text-gray-400 dark:text-gray-500 ml-2">vs mois dernier</span>
+            <span className="text-[9px] text-gray-400 dark:text-gray-500 ml-1 leading-none">vs mois dernier</span>
           </div>
         )}
       </div>
-      <div className="h-1 w-full bg-gray-50 dark:bg-gray-700">
+      <div className="h-0.5 w-full bg-gray-50 dark:bg-gray-700">
         <motion.div
           initial={{ width: 0 }}
           animate={{ width: '100%' }}

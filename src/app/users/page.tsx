@@ -1,17 +1,20 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
-import { 
-  PlusIcon, 
-  UserGroupIcon, 
+import {
+  PlusIcon,
+  UserGroupIcon,
   MagnifyingGlassIcon,
   PencilIcon,
   EyeIcon,
   TrashIcon,
   FunnelIcon,
-  XMarkIcon
+  XMarkIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+  ShieldCheckIcon
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 
@@ -93,29 +96,34 @@ export default function UsersPage() {
     setFilteredUsers(filtered);
   };
 
+  const stats = useMemo(() => {
+    return {
+      total: users.length,
+      active: users.filter(u => u.isActive).length,
+      inactive: users.filter(u => !u.isActive).length,
+      admins: users.filter(u => u.role === 'admin').length,
+    };
+  }, [users]);
+
   const getRoleColor = (role: string) => {
     switch (role) {
       case 'admin':
-        return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400';
+        return 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 border border-purple-200 dark:border-purple-800';
       case 'manager':
-        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400';
+        return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 border border-blue-200 dark:border-blue-800';
       case 'user':
-        return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300 border border-gray-200 dark:border-gray-700';
       default:
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300';
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300 border border-gray-200 dark:border-gray-700';
     }
   };
 
   const getRoleLabel = (role: string) => {
     switch (role) {
-      case 'admin':
-        return 'Administrateur';
-      case 'manager':
-        return 'Gestionnaire';
-      case 'user':
-        return 'Utilisateur';
-      default:
-        return role;
+      case 'admin': return 'Administrateur';
+      case 'manager': return 'Gestionnaire';
+      case 'user': return 'Utilisateur';
+      default: return role;
     }
   };
 
@@ -141,165 +149,186 @@ export default function UsersPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-        </div>
-      </DashboardLayout>
-    );
-  }
+  const StatsCard = ({ title, value, icon: Icon, color, subtext }: any) => (
+    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 flex items-start justify-between transition-transform hover:scale-[1.02]">
+      <div>
+        <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{title}</p>
+        <h3 className="text-3xl font-bold text-gray-900 dark:text-white mt-2">{value}</h3>
+        {subtext && <p className="text-xs text-gray-400 mt-1">{subtext}</p>}
+      </div>
+      <div className={`p-3 rounded-xl ${color}`}>
+        <Icon className="w-6 h-6 text-white" />
+      </div>
+    </div>
+  );
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        {/* Header */}
+      <div className="space-y-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+        {/* Header Section */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
-              Utilisateurs
+            <h1 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-300">
+              Gestion des Utilisateurs
             </h1>
-            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              Gérez les utilisateurs et leurs permissions
+            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+              Gérez l'accès, les rôles et les performances de votre équipe.
             </p>
           </div>
           <button
             onClick={() => router.push('/users/new')}
-            className="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+            className="inline-flex items-center justify-center px-5 py-2.5 border border-transparent rounded-xl shadow-lg text-sm font-medium text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all transform hover:-translate-y-0.5"
           >
             <PlusIcon className="h-5 w-5 mr-2" />
-            <span className="hidden sm:inline">Nouvel utilisateur</span>
-            <span className="sm:hidden">Nouveau</span>
+            Nouvel utilisateur
           </button>
         </div>
 
-        {/* Filters and Search */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 sm:p-6">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {/* Search */}
-            <div className="relative">
+        {/* Stats Grid */}
+        {!loading && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <StatsCard
+              title="Total Utilisateurs"
+              value={stats.total}
+              icon={UserGroupIcon}
+              color="bg-gradient-to-br from-indigo-500 to-indigo-600"
+              subtext="Tous les comptes enregistrés"
+            />
+            <StatsCard
+              title="Utilisateurs Actifs"
+              value={stats.active}
+              icon={CheckCircleIcon}
+              color="bg-gradient-to-br from-green-500 to-emerald-600"
+              subtext="Comptes actuellement actifs"
+            />
+            <StatsCard
+              title="Administrateurs"
+              value={stats.admins}
+              icon={ShieldCheckIcon}
+              color="bg-gradient-to-br from-purple-500 to-violet-600"
+              subtext="Accès complet au système"
+            />
+            <StatsCard
+              title="Utilisateurs Inactifs"
+              value={stats.inactive}
+              icon={XCircleIcon}
+              color="bg-gradient-to-br from-red-500 to-pink-600"
+              subtext="Comptes désactivés ou suspendus"
+            />
+          </div>
+        )}
+
+        {/* Filter Bar */}
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-4">
+          <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+            <div className="relative w-full md:w-96">
               <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
               <input
                 type="text"
-                placeholder="Rechercher par nom ou email..."
+                placeholder="Rechercher un utilisateur..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white text-sm"
+                className="w-full pl-10 pr-10 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:text-white text-sm transition-all"
               />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                 >
                   <XMarkIcon className="h-4 w-4" />
                 </button>
               )}
             </div>
 
-            {/* Role Filter */}
-            <div className="relative">
-              <FunnelIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <select
-                value={roleFilter}
-                onChange={(e) => setRoleFilter(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white text-sm appearance-none"
-              >
-                <option value="all">Tous les rôles</option>
-                <option value="admin">Administrateur</option>
-                <option value="manager">Gestionnaire</option>
-                <option value="user">Utilisateur</option>
-              </select>
-            </div>
+            <div className="flex gap-3 w-full md:w-auto overflow-x-auto pb-2 md:pb-0 scrollbar-hide">
+              <div className="relative min-w-[140px]">
+                <select
+                  value={roleFilter}
+                  onChange={(e) => setRoleFilter(e.target.value)}
+                  className="w-full pl-4 pr-8 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 dark:text-white appearance-none cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                >
+                  <option value="all">Tous les rôles</option>
+                  <option value="admin">Admin</option>
+                  <option value="manager">Manager</option>
+                  <option value="user">Utilisateur</option>
+                </select>
+                <FunnelIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
+              </div>
 
-            {/* Status Filter */}
-            <div className="relative">
-              <FunnelIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white text-sm appearance-none"
-              >
-                <option value="all">Tous les statuts</option>
-                <option value="active">Actifs</option>
-                <option value="inactive">Inactifs</option>
-              </select>
+              <div className="relative min-w-[140px]">
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="w-full pl-4 pr-8 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 dark:text-white appearance-none cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                >
+                  <option value="all">Tous statuts</option>
+                  <option value="active">Actif</option>
+                  <option value="inactive">Inactif</option>
+                </select>
+                <FunnelIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
+              </div>
             </div>
-          </div>
-
-          {/* Results count */}
-          <div className="mt-4 text-sm text-gray-500 dark:text-gray-400">
-            {filteredUsers.length} utilisateur{filteredUsers.length !== 1 ? 's' : ''} trouvé{filteredUsers.length !== 1 ? 's' : ''}
           </div>
         </div>
 
-        {/* Error message */}
-        {error && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-            <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-          </div>
-        )}
-
-        {/* Users list */}
-        {filteredUsers.length === 0 ? (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-12 text-center">
-            <UserGroupIcon className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-4 text-sm font-medium text-gray-900 dark:text-white">
-              {users.length === 0 ? 'Aucun utilisateur' : 'Aucun résultat'}
-            </h3>
-            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-              {users.length === 0
-                ? 'Commencez par créer votre premier utilisateur.'
-                : 'Essayez de modifier vos critères de recherche.'}
-            </p>
-            {users.length === 0 && (
-              <div className="mt-6">
-                <button
-                  onClick={() => router.push('/users/new')}
-                  className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700"
-                >
-                  <PlusIcon className="h-5 w-5 mr-2" />
-                  Nouvel utilisateur
-                </button>
+        {/* Content */}
+        {loading ? (
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 space-y-4">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="flex items-center space-x-4 animate-pulse">
+                <div className="h-10 w-10 bg-gray-200 dark:bg-gray-700 rounded-full" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4" />
+                  <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/3" />
+                </div>
+                <div className="h-8 w-20 bg-gray-200 dark:bg-gray-700 rounded-full" />
               </div>
-            )}
+            ))}
+          </div>
+        ) : filteredUsers.length === 0 ? (
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-16 text-center">
+            <div className="w-20 h-20 bg-gray-50 dark:bg-gray-900 rounded-full flex items-center justify-center mx-auto mb-6">
+              <MagnifyingGlassIcon className="h-10 w-10 text-gray-400" />
+            </div>
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+              Aucun utilisateur trouvé
+            </h3>
+            <p className="text-gray-500 dark:text-gray-400 max-w-sm mx-auto mb-8">
+              Aucun résultat ne correspond à vos critères de recherche. Essayez de modifier vos filtres.
+            </p>
+            <button
+              onClick={() => { setSearchQuery(''); setRoleFilter('all'); setStatusFilter('all'); }}
+              className="text-indigo-600 hover:text-indigo-700 font-medium hover:underline"
+            >
+              Effacer les filtres
+            </button>
           </div>
         ) : (
-          <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
-            {/* Desktop Table */}
-            <div className="hidden md:block overflow-x-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+            <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead className="bg-gray-50 dark:bg-gray-900">
+                <thead className="bg-gray-50/50 dark:bg-gray-900/50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Utilisateur
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Rôle
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Statut
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Dernière connexion
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Actions
-                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Utilisateur</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Rôle</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Statut</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Dernière Connexion</th>
+                    <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                   {filteredUsers.map((user) => (
-                    <tr key={user._id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                    <tr key={user._id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors group">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <div className="flex-shrink-0 h-10 w-10">
-                            <div className="h-10 w-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-medium text-sm">
-                              {user.firstName.charAt(0)}{user.lastName.charAt(0)}
+                            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-md">
+                              {user.firstName.charAt(0).toUpperCase()}{user.lastName.charAt(0).toUpperCase()}
                             </div>
                           </div>
                           <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900 dark:text-white">
+                            <div className="text-sm font-semibold text-gray-900 dark:text-white">
                               {user.firstName} {user.lastName}
                             </div>
                             <div className="text-sm text-gray-500 dark:text-gray-400">
@@ -309,49 +338,48 @@ export default function UsersPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getRoleColor(user.role)}`}>
+                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getRoleColor(user.role)}`}>
                           {getRoleLabel(user.role)}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          user.isActive 
-                            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' 
-                            : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-                        }`}>
-                          {user.isActive ? 'Actif' : 'Inactif'}
-                        </span>
+                        <div className="flex items-center">
+                          <div className={`h-2.5 w-2.5 rounded-full mr-2 ${user.isActive ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                          <span className={`text-sm ${user.isActive ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}`}>
+                            {user.isActive ? 'Actif' : 'Inactif'}
+                          </span>
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        {user.lastLogin 
+                        {user.lastLogin
                           ? new Date(user.lastLogin).toLocaleDateString('fr-FR', {
-                              day: '2-digit',
-                              month: '2-digit',
-                              year: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })
-                          : 'Jamais'}
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })
+                          : <span className="text-gray-400 italic">Jamais connecté</span>}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="flex items-center justify-end space-x-2">
+                        <div className="flex items-center justify-end space-x-3 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
                             onClick={() => router.push(`/users/${user._id}`)}
-                            className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300"
-                            title="Voir les détails"
+                            className="p-1 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                            title="Voir détails"
                           >
                             <EyeIcon className="h-5 w-5" />
                           </button>
                           <button
                             onClick={() => router.push(`/users/${user._id}/edit`)}
-                            className="text-yellow-600 hover:text-yellow-900 dark:text-yellow-400 dark:hover:text-yellow-300"
+                            className="p-1 text-gray-400 hover:text-yellow-600 dark:hover:text-yellow-400 transition-colors"
                             title="Modifier"
                           >
                             <PencilIcon className="h-5 w-5" />
                           </button>
                           <button
                             onClick={() => handleDelete(user._id, `${user.firstName} ${user.lastName}`)}
-                            className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+                            className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
                             title="Désactiver"
                           >
                             <TrashIcon className="h-5 w-5" />
@@ -364,68 +392,41 @@ export default function UsersPage() {
               </table>
             </div>
 
-            {/* Mobile Cards */}
-            <div className="md:hidden divide-y divide-gray-200 dark:divide-gray-700">
+            {/* Mobile View (Hidden on MD+) */}
+            <div className="md:hidden divide-y divide-gray-200 dark:divide-gray-700 bg-gray-50 dark:bg-gray-900/20">
               {filteredUsers.map((user) => (
-                <div key={user._id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center space-x-3 flex-1 min-w-0">
-                      <div className="flex-shrink-0">
-                        <div className="h-12 w-12 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-medium">
-                          {user.firstName.charAt(0)}{user.lastName.charAt(0)}
-                        </div>
+                <div key={user._id} className="p-4 bg-white dark:bg-gray-800 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-md">
+                        {user.firstName.charAt(0).toUpperCase()}{user.lastName.charAt(0).toUpperCase()}
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center space-x-2">
-                          <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                            {user.firstName} {user.lastName}
-                          </p>
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getRoleColor(user.role)}`}>
-                            {getRoleLabel(user.role)}
-                          </span>
-                        </div>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 truncate mt-1">
-                          {user.email}
-                        </p>
-                        <div className="flex items-center space-x-2 mt-2">
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                            user.isActive 
-                              ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' 
-                              : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-                          }`}>
-                            {user.isActive ? 'Actif' : 'Inactif'}
-                          </span>
-                          {user.lastLogin && (
-                            <span className="text-xs text-gray-500 dark:text-gray-400">
-                              {new Date(user.lastLogin).toLocaleDateString('fr-FR')}
-                            </span>
-                          )}
-                        </div>
+                      <div>
+                        <h4 className="text-sm font-semibold text-gray-900 dark:text-white">{user.firstName} {user.lastName}</h4>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{user.email}</p>
                       </div>
                     </div>
-                    <div className="flex items-center space-x-2 ml-2">
-                      <button
-                        onClick={() => router.push(`/users/${user._id}`)}
-                        className="p-2 text-indigo-600 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-900/30 rounded-lg"
-                        title="Voir"
-                      >
-                        <EyeIcon className="h-5 w-5" />
-                      </button>
-                      <button
-                        onClick={() => router.push(`/users/${user._id}/edit`)}
-                        className="p-2 text-yellow-600 hover:bg-yellow-50 dark:text-yellow-400 dark:hover:bg-yellow-900/30 rounded-lg"
-                        title="Modifier"
-                      >
-                        <PencilIcon className="h-5 w-5" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(user._id, `${user.firstName} ${user.lastName}`)}
-                        className="p-2 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30 rounded-lg"
-                        title="Désactiver"
-                      >
-                        <TrashIcon className="h-5 w-5" />
-                      </button>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getRoleColor(user.role)}`}>
+                      {getRoleLabel(user.role)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-100 dark:border-gray-700">
+                    <div className="flex items-center">
+                      <div className={`h-2 w-2 rounded-full mr-2 ${user.isActive ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                      {user.isActive ? 'Actif' : 'Inactif'}
                     </div>
+                    <span>{user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : 'Jamais'}</span>
+                  </div>
+                  <div className="flex justify-end gap-2 pt-2">
+                    <button onClick={() => router.push(`/users/${user._id}`)} className="p-2 bg-gray-50 dark:bg-gray-700 rounded-lg text-gray-600 dark:text-gray-300">
+                      <EyeIcon className="h-4 w-4" />
+                    </button>
+                    <button onClick={() => router.push(`/users/${user._id}/edit`)} className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-blue-600 dark:text-blue-400">
+                      <PencilIcon className="h-4 w-4" />
+                    </button>
+                    <button onClick={() => handleDelete(user._id, `${user.firstName} ${user.lastName}`)} className="p-2 bg-red-50 dark:bg-red-900/20 rounded-lg text-red-600 dark:text-red-400">
+                      <TrashIcon className="h-4 w-4" />
+                    </button>
                   </div>
                 </div>
               ))}

@@ -79,7 +79,7 @@ const navigation = [
   },
   { name: 'Dépenses', href: '/expenses', icon: CurrencyEuroIcon, permission: 'expenses' },
   {
-    name: '👥 Ressources humaines (RH)', href: '#', icon: UserGroupIcon, hasSubmenu: true, permission: null, submenu: [
+    name: '👥 Ressources Humaines', href: '#', icon: UserGroupIcon, hasSubmenu: true, permission: null, submenu: [
       { name: 'Liste des employés', href: '/hr/employees', icon: UserIcon, permission: 'employees' },
       { name: 'Présence / Pointage', href: '/hr/attendance', icon: ClockIcon, permission: 'attendance' },
       { name: 'Heures de travail', href: '/hr/work-hours', icon: CalendarIcon, permission: 'work_hours' },
@@ -198,7 +198,12 @@ export default function Sidebar({ sidebarOpen: externalSidebarOpen, setSidebarOp
   }, [pathname]);
 
   const toggleSubmenu = (menuName: string) => {
-    setOpenSubmenus(prev => ({ ...prev, [menuName]: !prev[menuName] }));
+    setOpenSubmenus(prev => {
+      // Accordion behavior: Close all others when opening a new one
+      // If clicking an already open menu (prev[menuName] is true), close it (return empty object or just don't include it)
+      // If clicking a closed menu, open it (return object with only this menu true)
+      return prev[menuName] ? {} : { [menuName]: true };
+    });
   };
 
   const sidebarOpen = externalSidebarOpen !== undefined ? externalSidebarOpen : internalSidebarOpen;
@@ -260,7 +265,7 @@ export default function Sidebar({ sidebarOpen: externalSidebarOpen, setSidebarOp
                     {item.name}
                   </div>
                   <ChevronDownIcon
-                    className={`h-4 w-4 text-gray-400 transition-transform duration-200 ${isSubmenuOpen ? 'rotate-180' : ''}`}
+                    className={`h-4 w-4 text-gray-400 transition-transform duration-300 ease-in-out ${isSubmenuOpen ? 'rotate-180' : ''}`}
                   />
                 </button>
                 <AnimatePresence initial={false}>
@@ -269,7 +274,7 @@ export default function Sidebar({ sidebarOpen: externalSidebarOpen, setSidebarOp
                       initial={{ height: 0, opacity: 0 }}
                       animate={{ height: 'auto', opacity: 1 }}
                       exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.2, ease: "easeInOut" }}
+                      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
                       className="overflow-hidden"
                     >
                       <div className="ml-4 mt-1 pl-4 border-l border-gray-200 dark:border-gray-700 space-y-1 py-1">
