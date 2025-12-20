@@ -19,27 +19,27 @@ export class NumberingService {
 
     // Récupérer le template de numérotation
     let template = settings.numerotation?.[seqName];
-    
+
     // Fallback: if ca not found, use po template
     if (!template && seqName === 'ca' && settings.numerotation.po) {
       template = settings.numerotation.po.replace(/PO-/g, 'CA-');
     }
-    
+
     // Fallback: if pafo not found, use default template
     if (!template && seqName === 'pafo') {
       template = 'PAFO-{{YYYY}}-{{SEQ:5}}';
     }
-    
+
     // Fallback: if pac not found, use default template
     if (!template && seqName === 'pac') {
       template = 'PAC-{{YYYY}}-{{SEQ:5}}';
     }
-    
+
     // Fallback: if int_fac not found, use default template (just number, no prefix)
     if (!template && seqName === 'int_fac') {
       template = '{{SEQ:4}}';
     }
-    
+
     // Fallback: if retour not found, use default template
     if (!template && seqName === 'retour') {
       template = 'RET-{{YYYY}}-{{SEQ:4}}';
@@ -56,14 +56,14 @@ export class NumberingService {
         // Continue anyway with the fallback template
       }
     }
-    
+
     if (!template) {
       throw new Error(`Template de numérotation non trouvé pour ${seqName}`);
     }
 
     // Vérifier si le compteur existe déjà
     let counter = await (Counter as any).findOne({ tenantId, seqName });
-    
+
     if (!counter) {
       // Si le compteur n'existe pas, utiliser la valeur de départ si définie
       const startingNumber = settings.numerotation.startingNumbers?.[seqName];
@@ -85,7 +85,7 @@ export class NumberingService {
         );
       }
     }
-    
+
     // Incrémenter le compteur
     counter = await (Counter as any).findOneAndUpdate(
       { tenantId, seqName },
@@ -102,15 +102,15 @@ export class NumberingService {
    */
   private static generateNumber(template: string, sequenceValue: number): string {
     const now = new Date();
-    
+
     let result = template;
-    
+
     // Remplacer les variables de date
     result = result.replace(/\{\{YYYY\}\}/g, now.getFullYear().toString());
     result = result.replace(/\{\{YY\}\}/g, now.getFullYear().toString().slice(-2));
     result = result.replace(/\{\{MM\}\}/g, (now.getMonth() + 1).toString().padStart(2, '0'));
     result = result.replace(/\{\{DD\}\}/g, now.getDate().toString().padStart(2, '0'));
-    
+
     // Remplacer les variables de séquence
     const seqMatch = result.match(/\{\{SEQ:(\d+)\}\}/);
     if (seqMatch) {
@@ -118,7 +118,7 @@ export class NumberingService {
       const paddedSequence = sequenceValue.toString().padStart(padding, '0');
       result = result.replace(/\{\{SEQ:\d+\}\}/g, paddedSequence);
     }
-    
+
     return result;
   }
 
@@ -134,22 +134,22 @@ export class NumberingService {
     }
 
     let template = settings.numerotation[seqName];
-    
+
     // Fallback: if pafo not found, use default template
     if (!template && seqName === 'pafo') {
       template = 'PAFO-{{YYYY}}-{{SEQ:5}}';
     }
-    
+
     // Fallback: if pac not found, use default template
     if (!template && seqName === 'pac') {
       template = 'PAC-{{YYYY}}-{{SEQ:5}}';
     }
-    
+
     // Fallback: if int_fac not found, use default template (just number, no prefix)
     if (!template && seqName === 'int_fac') {
       template = '{{SEQ:4}}';
     }
-    
+
     if (!template) {
       throw new Error(`Template de numérotation non trouvé pour ${seqName}`);
     }
@@ -157,7 +157,7 @@ export class NumberingService {
     // Récupérer la valeur actuelle du compteur
     const counter = await (Counter as any).findOne({ tenantId, seqName });
     let currentValue = counter ? counter.value : 0;
-    
+
     // Si le compteur n'existe pas, utiliser la valeur de départ si définie
     if (!counter) {
       const startingNumber = settings.numerotation.startingNumbers?.[seqName];
@@ -175,7 +175,7 @@ export class NumberingService {
    */
   static async reset(tenantId: string, seqName: SequenceType): Promise<void> {
     await connectDB();
-    
+
     await (Counter as any).findOneAndUpdate(
       { tenantId, seqName },
       { value: 0 },
@@ -188,9 +188,9 @@ export class NumberingService {
    */
   static async resetAll(tenantId: string): Promise<void> {
     await connectDB();
-    
+
     const sequenceTypes: SequenceType[] = ['devis', 'bc', 'bl', 'fac', 'avoir', 'ca', 'br', 'facfo', 'avoirfo', 'pafo', 'pac', 'int_fac', 'retour'];
-    
+
     for (const seqName of sequenceTypes) {
       await (Counter as any).findOneAndUpdate(
         { tenantId, seqName },
@@ -205,8 +205,28 @@ export class NumberingService {
    */
   static async getCurrentValue(tenantId: string, seqName: SequenceType): Promise<number> {
     await connectDB();
-    
+
     const counter = await (Counter as any).findOne({ tenantId, seqName });
     return counter ? counter.value : 0;
+  }
+
+  /**
+   * Assure que le compteur est au moins à une certaine valeur
+   * Utilisé pour la réparation automatique en cas de collision
+   */
+  static async ensureSequenceAhead(tenantId: string, seqName: SequenceType, minVal: number): Promise<void> {
+    await connectDB();
+
+    // Find counter first to check value
+    const counter = await (Counter as any).findOne({ tenantId, seqName });
+
+    // Only update if current value is less than minVal
+    if (!counter || counter.value < minVal) {
+      await (Counter as any).findOneAndUpdate(
+        { tenantId, seqName },
+        { $set: { value: minVal } },
+        { upsert: true, new: true }
+      );
+    }
   }
 }

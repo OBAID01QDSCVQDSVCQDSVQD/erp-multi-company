@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
           ...paiement,
           images: paiement.images || [], // Ensure images array is always present
         };
-        
+
         if (paiement.lignes && paiement.lignes.length > 0) {
           const enrichedLignes = await Promise.all(
             paiement.lignes.map(async (ligne: any) => {
@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
                   tenantId: tenantId,
                   type: { $in: ['FAC', 'INT_FAC'] },
                 }).select('referenceExterne numero').lean();
-                
+
                 if (invoice) {
                   ligne.referenceExterne = invoice.referenceExterne || invoice.numero;
                 }
@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
     const tenantId = session.user.companyId?.toString() || '';
     const currentUserEmail = session.user.email as string | undefined;
     const body = await request.json();
-    
+
     const {
       customerId,
       datePaiement,
@@ -132,14 +132,14 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    
+
     if (!datePaiement) {
       return NextResponse.json(
         { error: 'Veuillez saisir la date de paiement' },
         { status: 400 }
       );
     }
-    
+
     if (!modePaiement) {
       return NextResponse.json(
         { error: 'Veuillez sélectionner un mode de paiement' },
@@ -180,9 +180,6 @@ export async function POST(request: NextRequest) {
     }
 
     const customerNom = customer.raisonSociale || `${customer.nom || ''} ${customer.prenom || ''}`.trim();
-
-    // Generate payment number
-    const numero = await NumberingService.next(tenantId, 'pac');
 
     // Process payment lines
     const processedLignes = await Promise.all(
@@ -228,10 +225,10 @@ export async function POST(request: NextRequest) {
           });
 
           const montantFacture = invoice.totalTTC || invoice.totalBaseHT || 0;
-          
+
           // Debug logging
           console.log(`Invoice ${invoice.numero}: montantFacture=${montantFacture}, montantPayeAvant=${montantPayeAvant}, montantPaye=${ligne.montantPaye}`);
-          
+
           const roundedMontantPayeAvant = Math.round(montantPayeAvant * 1000) / 1000;
           const roundedMontantPaye = Math.round(ligne.montantPaye * 1000) / 1000;
           const roundedSoldeRestantAvant = Math.round((montantFacture - roundedMontantPayeAvant) * 1000) / 1000;
@@ -243,7 +240,7 @@ export async function POST(request: NextRequest) {
               `Détails: Montant facture=${montantFacture}, Montant payé avant=${roundedMontantPayeAvant}, Solde restant=${roundedSoldeRestantAvant}`
             );
           }
-          
+
           // Additional validation: ensure montantFacture is valid
           if (montantFacture <= 0) {
             throw new Error(
@@ -276,45 +273,95 @@ export async function POST(request: NextRequest) {
     // Calculate total amount
     const montantTotal = processedLignes.reduce((sum, ligne) => sum + (ligne.montantPaye || 0), 0);
 
-    // Create payment document
-    const paiement = new PaiementClient({
-      societeId: new mongoose.Types.ObjectId(tenantId),
-      numero,
-      datePaiement: new Date(datePaiement),
-      customerId: new mongoose.Types.ObjectId(customerId),
-      customerNom,
-      modePaiement,
-      reference,
-      montantTotal,
-      lignes: processedLignes,
-      images: Array.isArray(body.images) ? body.images : [],
-      notes,
-      isPaymentOnAccount: processedLignes.every((l) => l.isPaymentOnAccount),
-      advanceUsed: Math.round(advanceUsed * 1000) / 1000, // Round to 3 decimal places
-      createdBy: session.user.email,
-    });
+    let paiement;
+    let retries = 5;
+    let numeroString = '';
 
-    // Force Mongoose to recognize images as modified if present
-    if (Array.isArray(body.images) && body.images.length > 0) {
-      paiement.images = [];
-      body.images.forEach((img: any) => {
-        const imageObj = {
-          id: img.id || `${Date.now()}-${Math.random()}`,
-          name: img.name || '',
-          url: img.url || '',
-          publicId: img.publicId || undefined,
-          type: img.type || 'image/jpeg',
-          size: img.size || 0,
-          width: img.width || undefined,
-          height: img.height || undefined,
-          format: img.format || undefined,
-        };
-        paiement.images.push(imageObj);
-      });
-      (paiement as any).markModified('images');
+    while (retries > 0) {
+      try {
+        // Generate payment number
+        numeroString = await NumberingService.next(tenantId, 'pac');
+
+        // Create payment document
+        paiement = new PaiementClient({
+          societeId: new mongoose.Types.ObjectId(tenantId),
+          numero: numeroString,
+          datePaiement: new Date(datePaiement),
+          customerId: new mongoose.Types.ObjectId(customerId),
+          customerNom,
+          modePaiement,
+          reference,
+          montantTotal,
+          lignes: processedLignes,
+          images: Array.isArray(body.images) ? body.images : [],
+          notes,
+          isPaymentOnAccount: processedLignes.every((l) => l.isPaymentOnAccount),
+          advanceUsed: Math.round(advanceUsed * 1000) / 1000, // Round to 3 decimal places
+          createdBy: session.user.email,
+        });
+
+        // Force Mongoose to recognize images as modified if present
+        if (Array.isArray(body.images) && body.images.length > 0) {
+          paiement.images = [];
+          body.images.forEach((img: any) => {
+            const imageObj = {
+              id: img.id || `${Date.now()}-${Math.random()}`,
+              name: img.name || '',
+              url: img.url || '',
+              publicId: img.publicId || undefined,
+              type: img.type || 'image/jpeg',
+              size: img.size || 0,
+              width: img.width || undefined,
+              height: img.height || undefined,
+              format: img.format || undefined,
+            };
+            paiement.images.push(imageObj);
+          });
+          (paiement as any).markModified('images');
+        }
+
+        await paiement.save();
+        break; // Success, exit loop
+      } catch (error: any) {
+        if (error.code === 11000 && retries > 1) {
+          console.warn(`Duplicate key error for payment number ${numeroString}, retrying... (${retries} retries left)`);
+
+          try {
+            // Self-healing v2: Find the global key max to jump over ALL collisions
+            // We look for the latest payment number to ensure we're ahead of everything
+            const latestPayment = await PaiementClient.findOne({
+              societeId: new mongoose.Types.ObjectId(tenantId),
+              numero: { $regex: /^PAC-/ } // Filter for PAC numbers
+            }).sort({ numero: -1 }).select('numero').lean();
+
+            if (latestPayment && latestPayment.numero) {
+              console.log(`Self-healing: Found max existing payment ${latestPayment.numero}`);
+              const match = latestPayment.numero.match(/(\d+)$/);
+              if (match) {
+                const maxSeq = parseInt(match[1], 10);
+                if (!isNaN(maxSeq)) {
+                  console.log(`Self-healing: Advancing counter to ${maxSeq}`);
+                  await NumberingService.ensureSequenceAhead(tenantId, 'pac', maxSeq);
+                }
+              }
+            } else {
+              // Fallback if we can't find max (rare): use the collision number
+              const match = numeroString.match(/(\d+)$/);
+              if (match) {
+                const sequenceVal = parseInt(match[1], 10);
+                await NumberingService.ensureSequenceAhead(tenantId, 'pac', sequenceVal);
+              }
+            }
+          } catch (healError) {
+            console.error("Error during numbering self-healing:", healError);
+          }
+
+          retries--;
+          continue;
+        }
+        throw error;
+      }
     }
-
-    await paiement.save();
 
     // ------------------------------------------------------------------
     // Notifications: informer المستخدم بحالة الفواتير بعد الدفع
@@ -352,13 +399,13 @@ export async function POST(request: NextRequest) {
 
               const message = isFullyPaid
                 ? `Facture ${numero} réglée. Montant: ${montantFacture.toFixed(
-                    3
-                  )} TND.`
+                  3
+                )} TND.`
                 : `Paiement de ${montantPaye.toFixed(
-                    3
-                  )} TND sur la facture ${numero}. Solde restant: ${soldeRestant.toFixed(
-                    3
-                  )} TND.`;
+                  3
+                )} TND sur la facture ${numero}. Solde restant: ${soldeRestant.toFixed(
+                  3
+                )} TND.`;
 
               const link = `/sales/invoices/${l.factureId}`;
 
@@ -410,7 +457,7 @@ export async function POST(request: NextRequest) {
           });
 
           const montantFacture = invoice.totalTTC || 0;
-          
+
           if (totalPaye >= montantFacture - 0.001) {
             invoice.statut = 'PAYEE';
           } else if (totalPaye > 0) {
@@ -429,7 +476,7 @@ export async function POST(request: NextRequest) {
     // The netAdvanceBalance is calculated as: totalPaymentsOnAccount - totalAdvanceUsed
     // We DON'T create a new payment on account for the remaining balance, as that would double-count.
     // The remaining balance is automatically calculated when we compute netAdvanceBalance.
-    
+
     // Note: We no longer create a payment on account for the remaining advance.
     // The calculation of netAdvanceBalance in /api/customers/[id]/balance will automatically
     // show the correct remaining balance by subtracting advanceUsed from totalPaymentsOnAccount.
@@ -437,10 +484,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(paiement, { status: 201 });
   } catch (error: any) {
     console.error('Erreur POST /api/sales/payments:', error);
-    
+
     // Determine error message based on error type
     let errorMessage = 'Erreur lors de l\'enregistrement du paiement';
-    
+
     if (error.message) {
       // Use the specific error message if available
       errorMessage = error.message;
@@ -451,10 +498,10 @@ export async function POST(request: NextRequest) {
     } else if (error.code === 11000) {
       errorMessage = 'Un paiement avec ce numéro existe déjà.';
     }
-    
+
     // Return the specific error message instead of generic "Erreur serveur"
     return NextResponse.json(
-      { 
+      {
         error: errorMessage,
         details: process.env.NODE_ENV === 'development' ? error.stack : undefined
       },
