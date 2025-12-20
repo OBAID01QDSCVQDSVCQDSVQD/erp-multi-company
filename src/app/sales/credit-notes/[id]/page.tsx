@@ -168,8 +168,8 @@ export default function CreditNoteDetailPage() {
               <div>
                 <p className="text-gray-500 dark:text-gray-400">Statut</p>
                 <span className={`inline-flex px-2 py-1 rounded-full text-xs font-semibold ${creditNote.statut === 'PAYEE'
-                    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                    : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                  ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                  : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
                   }`}>
                   {creditNote.statut || 'BROUILLON'}
                 </span>
@@ -207,7 +207,7 @@ export default function CreditNoteDetailPage() {
         </div>
 
         <div className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-2xl overflow-hidden">
-          <div className="overflow-x-auto">
+          <div className="hidden md:block overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
               <thead className="bg-gray-50 dark:bg-gray-700">
                 <tr>
@@ -250,6 +250,60 @@ export default function CreditNoteDetailPage() {
                 })}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile Cards */}
+          <div className="md:hidden space-y-3 p-4">
+            {creditNote.lignes?.map((line: any, idx: number) => {
+              const quantite = Math.abs(line.quantite || 0);
+              const prix = line.prixUnitaireHT || 0;
+              const remise = line.remisePct || 0;
+              const tva = line.tvaPct || 0;
+              const prixApresRemise = prix * (1 - remise / 100);
+              const totalHT = prixApresRemise * quantite;
+              const totalTTC = totalHT * (1 + tva / 100);
+
+              return (
+                <div key={idx} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 shadow-sm">
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <div className="font-semibold text-gray-900 dark:text-white text-sm">
+                        {line.designation || line.description || '—'}
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                        {line.codeAchat || line.categorieCode || line.designation || `Ligne ${idx + 1}`}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-300 mb-3">
+                    <div>
+                      <span className="block text-gray-500 dark:text-gray-400">Qté</span>
+                      <span className="font-medium text-gray-900 dark:text-white">{quantite}</span>
+                    </div>
+                    <div>
+                      <span className="block text-gray-500 dark:text-gray-400">Prix Unitaire</span>
+                      <span className="font-medium text-gray-900 dark:text-white">{prix.toFixed(3)}</span>
+                    </div>
+                    <div>
+                      <span className="block text-gray-500 dark:text-gray-400">Remise</span>
+                      <span className="font-medium text-gray-900 dark:text-white">{remise}%</span>
+                    </div>
+                    <div>
+                      <span className="block text-gray-500 dark:text-gray-400">TVA</span>
+                      <span className="font-medium text-gray-900 dark:text-white">{tva}%</span>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between items-center pt-3 border-t border-gray-100 dark:border-gray-700">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Total TTC</span>
+                    <span className="text-sm font-bold text-blue-600 dark:text-blue-400">
+                      {totalTTC.toFixed(3)} {creditNote.devise || 'TND'}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
 

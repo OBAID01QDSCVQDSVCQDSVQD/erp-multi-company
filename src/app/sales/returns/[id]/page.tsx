@@ -116,8 +116,8 @@ export default function ViewReturnPage() {
     <DashboardLayout>
       <div className="p-6 space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
             <button
               onClick={() => router.push('/sales/returns')}
               className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors text-gray-600 dark:text-gray-300"
@@ -125,9 +125,9 @@ export default function ViewReturnPage() {
               <ArrowLeftIcon className="w-5 h-5" />
             </button>
             <div>
-              <h1 className="text-2xl font-bold flex items-center gap-2 text-gray-900 dark:text-white">
-                <DocumentTextIcon className="w-8 h-8" /> Bon de retour{' '}
-                {retour.numero}
+              <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2 text-gray-900 dark:text-white">
+                <DocumentTextIcon className="w-6 h-6 sm:w-8 sm:h-8" />
+                <span className="break-words">Bon de retour {retour.numero}</span>
               </h1>
               <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                 Créé le{' '}
@@ -187,8 +187,8 @@ export default function ViewReturnPage() {
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
                 Lignes de retour
               </h2>
-              <div className="overflow-x-auto">
-                <table className="w-full">
+              <div className="hidden md:block overflow-x-auto border border-gray-200 dark:border-gray-700 rounded-xl">
+                <table className="w-full min-w-[640px]">
                   <thead className="bg-gray-100 dark:bg-gray-700 border-b-2 border-gray-300 dark:border-gray-600">
                     <tr>
                       <th className="px-4 py-3 text-left text-sm font-bold text-gray-700 dark:text-gray-200">
@@ -251,12 +251,60 @@ export default function ViewReturnPage() {
                   </tbody>
                 </table>
               </div>
+
+              {/* Mobile Cards */}
+              <div className="md:hidden space-y-3">
+                {retour.lignes.map((line, index) => {
+                  const remise = line.remisePct || 0;
+                  const prixHT = (line.prixUnitaireHT || 0) * (1 - remise / 100);
+                  const montantHT = prixHT * (line.quantite || 0);
+
+                  return (
+                    <div key={index} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 shadow-sm">
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="font-semibold text-gray-900 dark:text-white text-sm">{line.designation}</div>
+                        {line.uomCode && (
+                          <span className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-1 rounded">
+                            {line.uomCode}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-300 mb-3">
+                        <div>
+                          <span className="block text-gray-500 dark:text-gray-400">Qté</span>
+                          <span className="font-medium text-gray-900 dark:text-white">{line.quantite}</span>
+                        </div>
+                        <div>
+                          <span className="block text-gray-500 dark:text-gray-400">Prix Unitaire</span>
+                          <span className="font-medium text-gray-900 dark:text-white">{line.prixUnitaireHT?.toFixed(3)}</span>
+                        </div>
+                        <div>
+                          <span className="block text-gray-500 dark:text-gray-400">Remise</span>
+                          <span className="font-medium text-gray-900 dark:text-white">{remise}%</span>
+                        </div>
+                        <div>
+                          <span className="block text-gray-500 dark:text-gray-400">TVA</span>
+                          <span className="font-medium text-gray-900 dark:text-white">{line.tvaPct || 0}%</span>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-between items-center pt-3 border-t border-gray-100 dark:border-gray-700">
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Total HT</span>
+                        <span className="text-sm font-bold text-blue-600 dark:text-blue-400">
+                          {montantHT.toFixed(3)} {retour.devise || 'TND'}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
 
           {/* Totals */}
-          <div className="mt-6 flex justify-end">
-            <div className="w-80 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/50 rounded-lg p-4 space-y-3">
+          <div className="mt-6 flex justify-start sm:justify-end">
+            <div className="w-full sm:w-80 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/50 rounded-lg p-4 space-y-3">
               <div className="flex justify-between text-sm top-info-row">
                 <span className="text-gray-700 dark:text-gray-300">Total HT</span>
                 <span className="font-medium text-gray-900 dark:text-white">

@@ -598,50 +598,102 @@ export default function ViewInvoicePage() {
 
           {/* Lines Table */}
           {invoice.lignes && invoice.lignes.length > 0 && (
-            <div className="mt-4 sm:mt-6 overflow-x-auto">
-              <table className="w-full min-w-[600px]">
-                <thead className="bg-gray-100 dark:bg-gray-700 border-b-2 border-gray-300 dark:border-gray-600">
-                  <tr>
-                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs sm:text-sm font-bold text-gray-700 dark:text-gray-200">Produit</th>
-                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs sm:text-sm font-bold text-gray-700 dark:text-gray-200">Qté</th>
-                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs sm:text-sm font-bold text-gray-700 dark:text-gray-200">Prix HT</th>
-                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs sm:text-sm font-bold text-gray-700 dark:text-gray-200">Remise %</th>
-                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs sm:text-sm font-bold text-gray-700 dark:text-gray-200">TVA</th>
-                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs sm:text-sm font-bold text-gray-700 dark:text-gray-200">Total HT</th>
-                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs sm:text-sm font-bold text-gray-700 dark:text-gray-200">Total TTC</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                  {invoice.lignes.map((line: any, index: number) => {
-                    // If it's a service (estStocke = false), show description
-                    const displayText = line.estStocke === false && line.descriptionProduit
-                      ? line.descriptionProduit
-                      : line.designation;
+            <div className="mt-4 sm:mt-6">
+              {/* Desktop View */}
+              <div className="hidden md:block overflow-x-auto border border-gray-200 dark:border-gray-700 rounded-lg">
+                <table className="w-full min-w-[600px]">
+                  <thead className="bg-gray-100 dark:bg-gray-700 border-b-2 border-gray-300 dark:border-gray-600">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-sm font-bold text-gray-700 dark:text-gray-200">Produit</th>
+                      <th className="px-4 py-3 text-left text-sm font-bold text-gray-700 dark:text-gray-200">Qté</th>
+                      <th className="px-4 py-3 text-left text-sm font-bold text-gray-700 dark:text-gray-200">Prix HT</th>
+                      <th className="px-4 py-3 text-left text-sm font-bold text-gray-700 dark:text-gray-200">Remise %</th>
+                      <th className="px-4 py-3 text-left text-sm font-bold text-gray-700 dark:text-gray-200">TVA</th>
+                      <th className="px-4 py-3 text-left text-sm font-bold text-gray-700 dark:text-gray-200">Total HT</th>
+                      <th className="px-4 py-3 text-left text-sm font-bold text-gray-700 dark:text-gray-200">Total TTC</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                    {invoice.lignes.map((line: any, index: number) => {
+                      // If it's a service (estStocke = false), show description
+                      const displayText = line.estStocke === false && line.descriptionProduit
+                        ? line.descriptionProduit
+                        : line.designation;
 
-                    return (
-                      <tr key={index} className={index % 2 === 0 ? 'bg-blue-50 dark:bg-blue-900/10' : 'bg-pink-50 dark:bg-pink-900/10'}>
-                        <td className="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-900 dark:text-white">
+                      return (
+                        <tr key={index} className={index % 2 === 0 ? 'bg-blue-50 dark:bg-blue-900/10' : 'bg-pink-50 dark:bg-pink-900/10'}>
+                          <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                            {displayText ? (
+                              <div dangerouslySetInnerHTML={{ __html: displayText }} />
+                            ) : (
+                              line.designation
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-sm whitespace-nowrap text-gray-900 dark:text-white">{line.quantite}</td>
+                          <td className="px-4 py-3 text-sm whitespace-nowrap text-gray-900 dark:text-white">{line.prixUnitaireHT?.toFixed(3)} {invoice.devise}</td>
+                          <td className="px-4 py-3 text-sm whitespace-nowrap text-gray-900 dark:text-white">{line.remisePct || 0}%</td>
+                          <td className="px-4 py-3 text-sm whitespace-nowrap text-gray-900 dark:text-white">{line.tvaPct || 0}%</td>
+                          <td className="px-4 py-3 text-sm font-medium whitespace-nowrap text-gray-900 dark:text-white">
+                            {((line.quantite * line.prixUnitaireHT) * (1 - ((line.remisePct || 0) / 100))).toFixed(3)} {invoice.devise}
+                          </td>
+                          <td className="px-4 py-3 text-sm font-medium text-blue-600 dark:text-blue-400 whitespace-nowrap">
+                            {(((line.quantite * line.prixUnitaireHT) * (1 - ((line.remisePct || 0) / 100))) * (1 + (line.tvaPct || 0) / 100)).toFixed(3)} {invoice.devise}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile View */}
+              <div className="md:hidden space-y-4">
+                {invoice.lignes.map((line: any, index: number) => {
+                  const displayText = line.estStocke === false && line.descriptionProduit
+                    ? line.descriptionProduit
+                    : line.designation;
+
+                  return (
+                    <div key={index} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 shadow-sm">
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="text-sm font-semibold text-gray-900 dark:text-white">
                           {displayText ? (
                             <div dangerouslySetInnerHTML={{ __html: displayText }} />
                           ) : (
                             line.designation
                           )}
-                        </td>
-                        <td className="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm whitespace-nowrap text-gray-900 dark:text-white">{line.quantite}</td>
-                        <td className="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm whitespace-nowrap text-gray-900 dark:text-white">{line.prixUnitaireHT?.toFixed(3)} {invoice.devise}</td>
-                        <td className="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm whitespace-nowrap text-gray-900 dark:text-white">{line.remisePct || 0}%</td>
-                        <td className="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm whitespace-nowrap text-gray-900 dark:text-white">{line.tvaPct || 0}%</td>
-                        <td className="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm font-medium whitespace-nowrap text-gray-900 dark:text-white">
-                          {((line.quantite * line.prixUnitaireHT) * (1 - ((line.remisePct || 0) / 100))).toFixed(3)} {invoice.devise}
-                        </td>
-                        <td className="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm font-medium text-blue-600 dark:text-blue-400 whitespace-nowrap">
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-300 mb-3">
+                        <div>
+                          <span className="block text-gray-500 dark:text-gray-400">Qté</span>
+                          <span className="font-medium text-gray-900 dark:text-white">{line.quantite}</span>
+                        </div>
+                        <div>
+                          <span className="block text-gray-500 dark:text-gray-400">Prix Unitaire</span>
+                          <span className="font-medium text-gray-900 dark:text-white">{line.prixUnitaireHT?.toFixed(3)} {invoice.devise}</span>
+                        </div>
+                        <div>
+                          <span className="block text-gray-500 dark:text-gray-400">Remise</span>
+                          <span className="font-medium text-gray-900 dark:text-white">{line.remisePct || 0}%</span>
+                        </div>
+                        <div>
+                          <span className="block text-gray-500 dark:text-gray-400">TVA</span>
+                          <span className="font-medium text-gray-900 dark:text-white">{line.tvaPct || 0}%</span>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-between items-center pt-3 border-t border-gray-100 dark:border-gray-700">
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Total TTC</span>
+                        <span className="text-sm font-bold text-blue-600 dark:text-blue-400">
                           {(((line.quantite * line.prixUnitaireHT) * (1 - ((line.remisePct || 0) / 100))) * (1 + (line.tvaPct || 0) / 100)).toFixed(3)} {invoice.devise}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
 
