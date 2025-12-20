@@ -286,7 +286,10 @@ export default function ViewDeliveryPage() {
             <div className="sm:col-span-2 lg:col-span-4">
               <label className="text-sm text-gray-600 dark:text-gray-400">Client</label>
               {customer ? (
-                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/50 rounded-lg p-3 md:p-4 shadow-sm space-y-2 mt-1">
+                <div
+                  onClick={() => router.push(`/customers/${customer._id}`)}
+                  className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/50 rounded-lg p-3 md:p-4 shadow-sm space-y-2 mt-1 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
+                >
                   <p className="text-base md:text-lg font-semibold text-gray-900 dark:text-white leading-snug">
                     {customer.raisonSociale || `${customer.nom || ''} ${customer.prenom || ''}`.trim() || 'N/A'}
                   </p>

@@ -1011,6 +1011,9 @@ export default function QuotesPage() {
                       <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                         {new Date(quote.dateDoc).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                       </p>
+                      <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mt-1">
+                        {quote.customerName || '-'}
+                      </p>
                     </div>
                     <div className="flex gap-1">
                       <button

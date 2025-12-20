@@ -23,11 +23,44 @@ export async function GET(request: NextRequest) {
     const query: any = { tenantId, type: 'BC' };
     if (customerId) query.customerId = customerId;
 
-    const orders = await (Document as any).find(query)
-      .sort('-createdAt')
-      .skip((page - 1) * limit)
-      .limit(limit)
-      .lean();
+    const pipeline: any[] = [
+      { $match: query },
+      { $sort: { createdAt: -1 } },
+      { $skip: (page - 1) * limit },
+      { $limit: limit },
+      {
+        $addFields: {
+          customerObjId: { $toObjectId: "$customerId" }
+        }
+      },
+      {
+        $lookup: {
+          from: "customers",
+          localField: "customerObjId",
+          foreignField: "_id",
+          as: "customerData"
+        }
+      },
+      {
+        $unwind: {
+          path: "$customerData",
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
+        $addFields: {
+          customerId: "$customerData" // Overwrite with populated data
+        }
+      },
+      {
+        $project: {
+          customerObjId: 0,
+          customerData: 0
+        }
+      }
+    ];
+
+    const orders = await (Document as any).aggregate(pipeline);
 
     const total = await (Document as any).countDocuments(query);
 
@@ -59,7 +92,7 @@ export async function POST(request: NextRequest) {
       tenantId,
       type: 'BC',
       numero,
-      statut: 'confirme',
+      statut: 'VALIDEE',
       createdBy: session.user.email
     });
 
