@@ -49,6 +49,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showSearchResults, setShowSearchResults] = useState(false);
+  const [isFocused, setIsFocused] = useState(false); // State for full-width search mode
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -123,6 +124,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
 
       if (!isDesktopSearch && !isMobileSearch) {
         setShowSearchResults(false);
+        setIsFocused(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -301,93 +303,18 @@ export default function Header({ onMenuClick }: HeaderProps) {
 
   return (
     <div className="relative z-40 flex-shrink-0 flex h-16 bg-white dark:bg-gray-800 shadow dark:border-b dark:border-gray-700" style={{ overflow: 'visible' }}>
-      <button
-        type="button"
-        className="px-4 border-r border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500 lg:hidden relative z-50"
-        onClick={onMenuClick}
-      >
-        <Bars3Icon className="h-6 w-6" />
-      </button>
-
-      {/* Mobile Search Overlay */}
-      {mobileSearchOpen && (
-        <div className="absolute inset-0 z-[2000] bg-white dark:bg-gray-800 flex items-center px-4 border-b dark:border-gray-700">
-          <div className="relative w-full" ref={mobileSearchContainerRef}>
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-            <input
-              ref={mobileSearchInputRef}
-              type="search"
-              autoFocus
-              className="block w-full pl-10 pr-10 py-2 border-2 border-blue-500 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none"
-              placeholder="Rechercher..."
-              value={searchQuery}
-              onChange={handleSearchChange}
-            />
-            <button
-              onClick={() => {
-                setMobileSearchOpen(false);
-                setSearchQuery('');
-                setSearchResults([]);
-              }}
-              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400 p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full"
-            >
-              <XMarkIcon className="h-5 w-5" />
-            </button>
-
-            {/* Mobile Search Results */}
-            {showSearchResults && (
-              <div className="absolute top-full left-0 w-full mt-2 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 max-h-[60vh] overflow-y-auto">
-                {isSearching ? (
-                  <div className="p-4 flex justify-center items-center text-gray-500 dark:text-gray-400 text-sm">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600 mr-2"></div>
-                    Recherche en cours...
-                  </div>
-                ) : searchResults.length === 0 ? (
-                  <div className="p-4 text-center text-gray-500 dark:text-gray-400 text-sm">
-                    Aucun résultat trouvé
-                  </div>
-                ) : (
-                  <ul className="divide-y divide-gray-100 dark:divide-gray-700">
-                    {searchResults.map((result) => (
-                      <li key={`mobile-${result.type}-${result._id}`}>
-                        <div
-                          onClick={() => {
-                            router.push(result.url);
-                            setShowSearchResults(false);
-                            setMobileSearchOpen(false);
-                          }}
-                          className="block px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
-                        >
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase
-                                                      ${result.type === 'Client' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' :
-                                    result.type === 'Fournisseur' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300' :
-                                      'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}
-                                                  `}>{result.type}</span>
-                                <span className="text-sm font-medium text-gray-900 dark:text-white">
-                                  {result.title}
-                                </span>
-                              </div>
-                              <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 pl-1">
-                                {result.subtitle}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
+      {!isFocused && (
+        <button
+          type="button"
+          className="px-4 border-r border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500 lg:hidden relative z-50"
+          onClick={onMenuClick}
+        >
+          <Bars3Icon className="h-6 w-6" />
+        </button>
       )}
 
       <div className="flex-1 px-4 flex justify-between items-center" style={{ overflow: 'visible' }}>
-        <div className="hidden md:flex flex-1 max-w-xl mr-4">
+        <div className={`flex flex-1 ${isFocused ? '' : 'max-w-xl mr-4'} transition-all duration-300 ease-in-out`}>
           <div className="w-full flex md:ml-0" ref={searchContainerRef}>
             <div className="relative w-full text-gray-400 focus-within:text-gray-600">
               <div className="absolute inset-y-0 left-0 flex items-center pointer-events-none pl-2">
@@ -397,19 +324,35 @@ export default function Header({ onMenuClick }: HeaderProps) {
                 name="search"
                 id="search"
                 className="block w-full h-full pl-10 pr-3 py-2 border-transparent text-gray-900 placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-0 focus:border-transparent sm:text-sm dark:bg-gray-800 dark:text-white"
-                placeholder="Rechercher (Client, Fournisseur, Devis, Facture...)"
+                placeholder="Rechercher..."
                 type="search"
                 autoComplete="off"
                 value={searchQuery}
                 onChange={handleSearchChange}
-                onFocus={() => { if (searchQuery.length >= 2) setShowSearchResults(true); }}
+                onFocus={() => {
+                  setIsFocused(true);
+                  if (searchQuery.length >= 2) setShowSearchResults(true);
+                }}
               />
+              {isFocused && (
+                <button
+                  onClick={() => {
+                    setIsFocused(false);
+                    setSearchQuery('');
+                    setSearchResults([]);
+                    setShowSearchResults(false);
+                  }}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                >
+                  <span className="text-sm font-medium">Annuler</span>
+                </button>
+              )}
               {/* Search Results Dropdown */}
               {showSearchResults && (
                 <div className="absolute top-full left-0 w-full mt-1 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 max-h-96 overflow-y-auto z-50">
                   {isSearching ? (
                     <div className="p-4 flex justify-center items-center text-gray-500 dark:text-gray-400 text-sm">
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600 mr-2"></div>
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600 dark:border-blue-400 mr-2"></div>
                       Recherche en cours...
                     </div>
                   ) : searchResults.length === 0 ? (
@@ -458,291 +401,285 @@ export default function Header({ onMenuClick }: HeaderProps) {
           </div>
         </div>
       </div>
-      <div className="flex items-center gap-2 md:gap-4 ml-auto" style={{ overflow: 'visible', position: 'relative', zIndex: 1000 }}>
-        {/* Mobile Search Trigger */}
-        <button
-          type="button"
-          className="md:hidden p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg focus:outline-none"
-          onClick={() => setMobileSearchOpen(true)}
-        >
-          <MagnifyingGlassIcon className="h-6 w-6" />
-        </button>
-        {/* Home Icon - Only for admin */}
-        {isAdmin && (
-          <Link
-            href="/"
-            className="bg-white dark:bg-gray-700 p-1.5 rounded-full text-gray-400 hover:text-gray-500 dark:text-gray-300 dark:hover:text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex-shrink-0"
-            title="Retour à la page d'accueil"
-          >
-            <HomeIcon className="h-5 w-5" />
-          </Link>
-        )}
-
-        {/* Notifications - Only for admin */}
-        {isAdmin && (
-          <div className="relative flex-shrink-0" ref={notifRef}>
-            <button
-              type="button"
-              onClick={() =>
-                setNotifOpen((open) => {
-                  const next = !open;
-                  // When opening the panel, mark all as read so the red badge disappears
-                  if (!open && next && unreadCount > 0) {
-                    markAsRead();
-                  }
-                  return next;
-                })
-              }
-              className="bg-white dark:bg-gray-700 p-1.5 rounded-full text-gray-400 hover:text-gray-500 dark:text-gray-300 dark:hover:text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 relative"
+      {!isFocused && (
+        <div className="flex items-center gap-2 md:gap-4 ml-auto" style={{ overflow: 'visible', position: 'relative', zIndex: 1000 }}>
+          {/* Home Icon - Only for admin */}
+          {isAdmin && (
+            <Link
+              href="/"
+              className="bg-white dark:bg-gray-700 p-1.5 rounded-full text-gray-400 hover:text-gray-500 dark:text-gray-300 dark:hover:text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex-shrink-0"
+              title="Retour à la page d'accueil"
             >
-              <BellIcon className="h-5 w-5" />
-              {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 inline-flex items-center justify-center px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-red-500 text-white min-w-[18px]">
-                  {unreadCount > 9 ? '9+' : unreadCount}
-                </span>
-              )}
-            </button>
-            {notifOpen && (
-              <div className="origin-top-right absolute right-0 mt-2 w-80 rounded-lg shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 z-50">
-                <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
-                  <span className="text-sm font-semibold text-gray-800 dark:text-white">
-                    Notifications
+              <HomeIcon className="h-5 w-5" />
+            </Link>
+          )}
+
+          {/* Notifications - Only for admin */}
+          {isAdmin && (
+            <div className="relative flex-shrink-0" ref={notifRef}>
+              <button
+                type="button"
+                onClick={() =>
+                  setNotifOpen((open) => {
+                    const next = !open;
+                    // When opening the panel, mark all as read so the red badge disappears
+                    if (!open && next && unreadCount > 0) {
+                      markAsRead();
+                    }
+                    return next;
+                  })
+                }
+                className="bg-white dark:bg-gray-700 p-1.5 rounded-full text-gray-400 hover:text-gray-500 dark:text-gray-300 dark:hover:text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 relative"
+              >
+                <BellIcon className="h-5 w-5" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 inline-flex items-center justify-center px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-red-500 text-white min-w-[18px]">
+                    {unreadCount > 9 ? '9+' : unreadCount}
                   </span>
-                  {unreadCount > 0 && (
-                    <button
-                      onClick={() => markAsRead()}
-                      className="text-xs text-indigo-600 hover:text-indigo-800"
-                    >
-                      Tout marquer comme lu
-                    </button>
-                  )}
-                </div>
-                <div className="max-h-80 overflow-y-auto">
-                  {loadingNotifs ? (
-                    <div className="py-6 text-center text-gray-500 text-sm">
-                      Chargement...
-                    </div>
-                  ) : notifications.length === 0 ? (
-                    <div className="py-6 text-center text-gray-500 text-sm">
-                      Aucune notification
-                    </div>
-                  ) : (
-                    <ul className="divide-y divide-gray-100">
-                      {notifications.map((notif) => (
-                        <li
-                          key={notif._id}
-                          className={`px-4 py-3 text-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 ${notif.status === 'unread' ? 'bg-indigo-50 dark:bg-indigo-900/20' : ''
-                            }`}
-                          onClick={() =>
-                            markAsRead(notif._id, notif.link || undefined)
-                          }
-                        >
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1 pr-2">
-                              <p className="font-medium text-gray-900 dark:text-white">
-                                {notif.title}
-                              </p>
-                              <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5 line-clamp-2">
-                                {notif.message}
-                              </p>
-                              <p className="text-[11px] text-gray-400 mt-1">
-                                {formatDate(notif.createdAt)}
-                              </p>
+                )}
+              </button>
+              {notifOpen && (
+                <div className="origin-top-right absolute right-0 mt-2 w-80 rounded-lg shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 z-50">
+                  <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                    <span className="text-sm font-semibold text-gray-800 dark:text-white">
+                      Notifications
+                    </span>
+                    {unreadCount > 0 && (
+                      <button
+                        onClick={() => markAsRead()}
+                        className="text-xs text-indigo-600 hover:text-indigo-800"
+                      >
+                        Tout marquer comme lu
+                      </button>
+                    )}
+                  </div>
+                  <div className="max-h-80 overflow-y-auto">
+                    {loadingNotifs ? (
+                      <div className="py-6 text-center text-gray-500 text-sm">
+                        Chargement...
+                      </div>
+                    ) : notifications.length === 0 ? (
+                      <div className="py-6 text-center text-gray-500 text-sm">
+                        Aucune notification
+                      </div>
+                    ) : (
+                      <ul className="divide-y divide-gray-100">
+                        {notifications.map((notif) => (
+                          <li
+                            key={notif._id}
+                            className={`px-4 py-3 text-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 ${notif.status === 'unread' ? 'bg-indigo-50 dark:bg-indigo-900/20' : ''
+                              }`}
+                            onClick={() =>
+                              markAsRead(notif._id, notif.link || undefined)
+                            }
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1 pr-2">
+                                <p className="font-medium text-gray-900 dark:text-white">
+                                  {notif.title}
+                                </p>
+                                <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5 line-clamp-2">
+                                  {notif.message}
+                                </p>
+                                <p className="text-[11px] text-gray-400 mt-1">
+                                  {formatDate(notif.createdAt)}
+                                </p>
+                              </div>
+                              {notif.status === 'unread' && (
+                                <span className="mt-1 inline-flex h-2 w-2 rounded-full bg-indigo-500" />
+                              )}
                             </div>
-                            {notif.status === 'unread' && (
-                              <span className="mt-1 inline-flex h-2 w-2 rounded-full bg-indigo-500" />
-                            )}
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                  <div className="px-4 py-2 border-t border-gray-100 dark:border-gray-700 text-xs text-right">
+                    <Link
+                      href="/notifications"
+                      className="text-indigo-600 hover:text-indigo-800"
+                      onClick={() => setNotifOpen(false)}
+                    >
+                      Voir toutes les notifications
+                    </Link>
+                  </div>
                 </div>
-                <div className="px-4 py-2 border-t border-gray-100 dark:border-gray-700 text-xs text-right">
+              )}
+            </div>
+          )}
+
+          {/* Administration Dropdown - Only for admin@entreprise-demo.com */}
+          {isSystemAdmin && (
+            <div
+              ref={adminContainerRef}
+              className="relative flex-shrink-0"
+              style={{ zIndex: 1000, overflow: 'visible' }}
+              onMouseEnter={handleAdminMenuEnter}
+              onMouseLeave={handleAdminMenuLeave}
+            >
+              <button
+                type="button"
+                className="flex items-center space-x-1 text-gray-700 dark:text-gray-200 hover:text-indigo-600 dark:hover:text-indigo-400 px-3 py-2 text-sm font-medium transition-colors"
+              >
+                <span className="hidden sm:inline">Admin</span>
+                <span className="sm:hidden"><CogIcon className="h-5 w-5" /></span>
+                <ChevronDownIcon className="h-4 w-4" />
+              </button>
+              {adminMenuOpen && (
+                <div
+                  className="absolute right-0 bg-white dark:bg-gray-800 rounded-lg shadow-xl py-2 border border-gray-200 dark:border-gray-700"
+                  style={{
+                    top: 'calc(100% + 4px)',
+                    width: '240px',
+                    zIndex: 1001
+                  }}
+                  onMouseEnter={handleAdminMenuEnter}
+                  onMouseLeave={handleAdminMenuLeave}
+                >
                   <Link
-                    href="/notifications"
-                    className="text-indigo-600 hover:text-indigo-800"
-                    onClick={() => setNotifOpen(false)}
+                    href="/companies"
+                    className="block px-4 py-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-indigo-900/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                    onClick={() => setAdminMenuOpen(false)}
                   >
-                    Voir toutes les notifications
+                    <div className="flex items-center">
+                      <BuildingOfficeIcon className="h-5 w-5 mr-3 text-indigo-600" />
+                      <div>
+                        <div className="font-medium">Gérer les entreprises</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">Contrôler les inscriptions</div>
+                      </div>
+                    </div>
+                  </Link>
+                  <Link
+                    href="/subscriptions/manage"
+                    className="block px-4 py-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-indigo-900/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                    onClick={() => setAdminMenuOpen(false)}
+                  >
+                    <div className="flex items-center">
+                      <CreditCardIcon className="h-5 w-5 mr-3 text-indigo-600" />
+                      <div>
+                        <div className="font-medium">Gérer les abonnements</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">Approuver les demandes</div>
+                      </div>
+                    </div>
                   </Link>
                 </div>
-              </div>
-            )}
-          </div>
-        )}
+              )}
+            </div>
+          )}
 
-        {/* Administration Dropdown - Only for admin@entreprise-demo.com */}
-        {isSystemAdmin && (
+          {/* Back to Admin Button (Impersonation Mode) */}
+          {(session?.user as any)?.isImpersonating && (
+            <button
+              onClick={async () => {
+                try {
+                  const res = await fetch('/api/admin/unimpersonate', { method: 'POST' });
+                  if (res.ok) {
+                    const { impersonationToken } = await res.json();
+                    const { signIn } = await import('next-auth/react');
+                    await signIn('credentials', {
+                      impersonationToken,
+                      redirect: false
+                    });
+                    window.location.href = '/admin';
+                  }
+                } catch (e) {
+                  console.error(e);
+                }
+              }}
+              className="hidden md:flex items-center px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-sm font-medium hover:bg-amber-200 transition-colors border border-amber-300 shadow-sm animate-pulse flex-shrink-0"
+            >
+              <span className="mr-1">⚠️</span>
+              <span className="whitespace-nowrap">Retour Admin</span>
+            </button>
+          )}
+
+          {/* Theme Toggle */}
+          <button
+            onClick={toggleTheme}
+            className="bg-white dark:bg-gray-700 p-1.5 rounded-full text-gray-400 hover:text-gray-500 dark:text-gray-300 dark:hover:text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex-shrink-0"
+          >
+            {darkMode ? <SunIcon className="h-5 w-5" /> : <MoonIcon className="h-5 w-5" />}
+          </button>
+
           <div
-            ref={adminContainerRef}
+            ref={containerRef}
             className="relative flex-shrink-0"
-            style={{ zIndex: 1000, overflow: 'visible' }}
-            onMouseEnter={handleAdminMenuEnter}
-            onMouseLeave={handleAdminMenuLeave}
+            style={{ zIndex: 1000 }}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
           >
             <button
               type="button"
-              className="flex items-center space-x-1 text-gray-700 dark:text-gray-200 hover:text-indigo-600 dark:hover:text-indigo-400 px-3 py-2 text-sm font-medium transition-colors"
+              className="flex items-center space-x-2 text-gray-700 dark:text-gray-200 hover:text-indigo-600 dark:hover:text-indigo-400 px-1 py-1 text-sm font-medium transition-colors"
             >
-              <span className="hidden sm:inline">Admin</span>
-              <span className="sm:hidden"><CogIcon className="h-5 w-5" /></span>
-              <ChevronDownIcon className="h-4 w-4" />
+              {companySettings?.societe?.logoUrl ? (
+                <div className="relative w-8 h-8 rounded-full overflow-hidden flex-shrink-0 border border-gray-300 dark:border-gray-600">
+                  <Image
+                    src={companySettings.societe.logoUrl}
+                    alt="Company Logo"
+                    width={32}
+                    height={32}
+                    className="object-cover w-full h-full"
+                    priority
+                  />
+                </div>
+              ) : (
+                <UserCircleIcon className="h-8 w-8 text-gray-400" />
+              )}
+              <div className="hidden md:block text-left">
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-200 max-w-[100px] truncate">{session?.user?.name}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{session?.user?.role === 'admin' ? 'Admin' : (session?.user?.role || 'User')}</p>
+              </div>
             </button>
-            {adminMenuOpen && (
+            {userMenuOpen && (
               <div
                 className="absolute right-0 bg-white dark:bg-gray-800 rounded-lg shadow-xl py-2 border border-gray-200 dark:border-gray-700"
                 style={{
                   top: 'calc(100% + 4px)',
-                  width: '240px',
+                  width: '224px',
                   zIndex: 1001
                 }}
-                onMouseEnter={handleAdminMenuEnter}
-                onMouseLeave={handleAdminMenuLeave}
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={handleMouseLeave}
               >
+                <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-700">
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">{session?.user?.name}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{session?.user?.email}</p>
+
+                  {session?.user?.role === 'admin' && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800 mt-1">
+                      Admin Système
+                    </span>
+                  )}
+                </div>
                 <Link
-                  href="/companies"
-                  className="block px-4 py-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-indigo-900/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-                  onClick={() => setAdminMenuOpen(false)}
+                  href="/settings"
+                  className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-indigo-900/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                  onClick={() => setUserMenuOpen(false)}
                 >
                   <div className="flex items-center">
-                    <BuildingOfficeIcon className="h-5 w-5 mr-3 text-indigo-600" />
-                    <div>
-                      <div className="font-medium">Gérer les entreprises</div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">Contrôler les inscriptions</div>
-                    </div>
+                    <CogIcon className="h-5 w-5 mr-2" />
+                    Paramètres
                   </div>
                 </Link>
-                <Link
-                  href="/subscriptions/manage"
-                  className="block px-4 py-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-indigo-900/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-                  onClick={() => setAdminMenuOpen(false)}
+                <button
+                  onClick={async () => {
+                    await signOut({ redirect: false });
+                    router.push('/auth/signin');
+                    setUserMenuOpen(false);
+                  }}
+                  className="w-full text-left block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 transition-colors"
                 >
                   <div className="flex items-center">
-                    <CreditCardIcon className="h-5 w-5 mr-3 text-indigo-600" />
-                    <div>
-                      <div className="font-medium">Gérer les abonnements</div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">Approuver les demandes</div>
-                    </div>
+                    <ArrowRightOnRectangleIcon className="h-5 w-5 mr-2" />
+                    Déconnexion
                   </div>
-                </Link>
+                </button>
               </div>
             )}
           </div>
-        )}
-
-        {/* Back to Admin Button (Impersonation Mode) */}
-        {(session?.user as any)?.isImpersonating && (
-          <button
-            onClick={async () => {
-              try {
-                const res = await fetch('/api/admin/unimpersonate', { method: 'POST' });
-                if (res.ok) {
-                  const { impersonationToken } = await res.json();
-                  const { signIn } = await import('next-auth/react');
-                  await signIn('credentials', {
-                    impersonationToken,
-                    redirect: false
-                  });
-                  window.location.href = '/admin';
-                }
-              } catch (e) {
-                console.error(e);
-              }
-            }}
-            className="hidden md:flex items-center px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-sm font-medium hover:bg-amber-200 transition-colors border border-amber-300 shadow-sm animate-pulse flex-shrink-0"
-          >
-            <span className="mr-1">⚠️</span>
-            <span className="whitespace-nowrap">Retour Admin</span>
-          </button>
-        )}
-
-        {/* Theme Toggle */}
-        <button
-          onClick={toggleTheme}
-          className="bg-white dark:bg-gray-700 p-1.5 rounded-full text-gray-400 hover:text-gray-500 dark:text-gray-300 dark:hover:text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex-shrink-0"
-        >
-          {darkMode ? <SunIcon className="h-5 w-5" /> : <MoonIcon className="h-5 w-5" />}
-        </button>
-
-        <div
-          ref={containerRef}
-          className="relative flex-shrink-0"
-          style={{ zIndex: 1000 }}
-          onMouseEnter={handleMouseEnter}
-          onMouseLeave={handleMouseLeave}
-        >
-          <button
-            type="button"
-            className="flex items-center space-x-2 text-gray-700 dark:text-gray-200 hover:text-indigo-600 dark:hover:text-indigo-400 px-1 py-1 text-sm font-medium transition-colors"
-          >
-            {companySettings?.societe?.logoUrl ? (
-              <div className="relative w-8 h-8 rounded-full overflow-hidden flex-shrink-0 border border-gray-300 dark:border-gray-600">
-                <Image
-                  src={companySettings.societe.logoUrl}
-                  alt="Company Logo"
-                  width={32}
-                  height={32}
-                  className="object-cover w-full h-full"
-                  priority
-                />
-              </div>
-            ) : (
-              <UserCircleIcon className="h-8 w-8 text-gray-400" />
-            )}
-            <div className="hidden md:block text-left">
-              <p className="text-sm font-medium text-gray-700 dark:text-gray-200 max-w-[100px] truncate">{session?.user?.name}</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{session?.user?.role === 'admin' ? 'Admin' : (session?.user?.role || 'User')}</p>
-            </div>
-          </button>
-          {userMenuOpen && (
-            <div
-              className="absolute right-0 bg-white dark:bg-gray-800 rounded-lg shadow-xl py-2 border border-gray-200 dark:border-gray-700"
-              style={{
-                top: 'calc(100% + 4px)',
-                width: '224px',
-                zIndex: 1001
-              }}
-              onMouseEnter={handleMouseEnter}
-              onMouseLeave={handleMouseLeave}
-            >
-              <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-700">
-                <p className="text-sm font-medium text-gray-900 dark:text-white">{session?.user?.name}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">{session?.user?.email}</p>
-
-                {session?.user?.role === 'admin' && (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800 mt-1">
-                    Admin Système
-                  </span>
-                )}
-              </div>
-              <Link
-                href="/settings"
-                className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-indigo-900/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-                onClick={() => setUserMenuOpen(false)}
-              >
-                <div className="flex items-center">
-                  <CogIcon className="h-5 w-5 mr-2" />
-                  Paramètres
-                </div>
-              </Link>
-              <button
-                onClick={async () => {
-                  await signOut({ redirect: false });
-                  router.push('/auth/signin');
-                  setUserMenuOpen(false);
-                }}
-                className="w-full text-left block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 transition-colors"
-              >
-                <div className="flex items-center">
-                  <ArrowRightOnRectangleIcon className="h-5 w-5 mr-2" />
-                  Déconnexion
-                </div>
-              </button>
-            </div>
-          )}
         </div>
-      </div>
+      )}
     </div>
   );
 }
