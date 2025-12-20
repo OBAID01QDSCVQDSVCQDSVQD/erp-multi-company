@@ -241,7 +241,8 @@ export default function PendingInvoicesPage() {
           </div>
         ) : (
           <div className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-xl overflow-hidden shadow-sm">
-            <div className="overflow-x-auto">
+            {/* Desktop Table */}
+            <div className="hidden lg:block overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50 dark:bg-gray-700 border-b dark:border-gray-600">
                   <tr>
@@ -280,8 +281,8 @@ export default function PendingInvoicesPage() {
                       <td className="px-4 py-4 whitespace-nowrap">
                         <span
                           className={`px-2 py-1 text-xs font-medium rounded-full ${invoice.type === 'internal'
-                              ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
-                              : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                            ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+                            : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
                             }`}
                         >
                           {invoice.typeLabel}
@@ -324,10 +325,75 @@ export default function PendingInvoicesPage() {
                 </tbody>
               </table>
             </div>
+
+
+            {/* Mobile Card View */}
+            <div className="lg:hidden space-y-4 p-4">
+              {invoices.map((invoice) => (
+                <div key={invoice._id} className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg p-4 space-y-3 shadow-sm">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${invoice.type === 'internal'
+                          ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+                          : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                          }`}>
+                          {invoice.typeLabel}
+                        </span>
+                        <h3 className="font-semibold text-gray-900 dark:text-white">{invoice.numero}</h3>
+                      </div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        {formatDate(invoice.dateDoc)}
+                      </p>
+                    </div>
+                    <Link
+                      href={getInvoiceUrl(invoice)}
+                      className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                    >
+                      <ArrowRightIcon className="w-5 h-5" />
+                    </Link>
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500 dark:text-gray-400">Client:</span>
+                      <span className="font-medium text-gray-900 dark:text-white truncate max-w-[200px]">{invoice.customerName || 'N/A'}</span>
+                    </div>
+                    {invoice.projetName && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500 dark:text-gray-400">Projet:</span>
+                        <span className="font-medium text-gray-900 dark:text-white truncate max-w-[200px]">{invoice.projetName}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="border-t dark:border-gray-700 pt-3 space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600 dark:text-gray-400">Total TTC</span>
+                      <span className="font-medium text-gray-900 dark:text-white">
+                        {formatPrice(invoice.totalTTC, invoice.devise)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600 dark:text-gray-400">Déjà payé</span>
+                      <span className="text-green-600 dark:text-green-400 font-medium">
+                        {formatPrice(invoice.totalPaid, invoice.devise)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center bg-orange-50 dark:bg-orange-900/10 p-2 rounded text-sm font-semibold">
+                      <span className="text-orange-700 dark:text-orange-400">Reste à payer</span>
+                      <span className="text-orange-700 dark:text-orange-400">
+                        {formatPrice(invoice.remainingBalance, invoice.devise)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </DashboardLayout >
   );
 }
 

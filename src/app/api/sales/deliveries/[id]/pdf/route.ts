@@ -14,13 +14,13 @@ export async function GET(
 ) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }
 
     const tenantId = request.headers.get('X-Tenant-Id') || session.user.companyId;
-    
+
     if (!tenantId) {
       return NextResponse.json({ error: 'Tenant ID manquant' }, { status: 400 });
     }
@@ -130,7 +130,8 @@ export async function GET(
       modePaiement: delivery.modePaiement || '',
       notes: delivery.notes || '',
       lieuLivraison: delivery.lieuLivraison || '',
-      moyenTransport: delivery.moyenTransport || ''
+      moyenTransport: delivery.moyenTransport || '',
+      matriculeTransport: delivery.matriculeTransport || ''
     };
 
     // Generate PDF

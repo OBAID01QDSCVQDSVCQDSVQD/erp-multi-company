@@ -477,7 +477,8 @@ export default function CreditNotesPage() {
           </div>
         ) : (
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border dark:border-gray-700">
-            <div className="overflow-x-auto">
+            {/* Desktop Table View */}
+            <div className="hidden lg:block overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead className="bg-gray-50 dark:bg-gray-700">
                   <tr>
@@ -549,6 +550,70 @@ export default function CreditNotesPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+
+
+            {/* Mobile Card View */}
+            <div className="lg:hidden space-y-4 p-4">
+              {filteredCreditNotes.map((note) => (
+                <div key={note._id} className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg p-4 space-y-3 shadow-sm">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className="font-semibold text-gray-900 dark:text-white">{note.numero}</h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                        {formatDate(note.dateDoc)}
+                      </p>
+                    </div>
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => handleViewCreditNote(note)}
+                        className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                        title="Voir"
+                      >
+                        <EyeIcon className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => router.push(`/sales/credit-notes/${note._id}/edit`)}
+                        className="p-2 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
+                        title="Modifier"
+                      >
+                        <PencilSquareIcon className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500 dark:text-gray-400">Facture liée:</span>
+                      <span className="font-medium text-gray-900 dark:text-white">{note.referenceExterne || '-'}</span>
+                    </div>
+                  </div>
+
+                  <div className="border-t dark:border-gray-700 pt-3 flex justify-between items-center">
+                    <span className="text-gray-600 dark:text-gray-400 text-sm">Montant TTC</span>
+                    <span className="font-bold text-green-600 dark:text-green-400">
+                      {formatPrice(Math.abs(note.totalTTC || 0), note.devise)}
+                    </span>
+                  </div>
+
+                  <div className="flex gap-2 pt-2">
+                    <button
+                      onClick={() => handleDownloadPdf(note)}
+                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                    >
+                      <ArrowDownTrayIcon className="w-4 h-4" />
+                      PDF
+                    </button>
+                    <button
+                      onClick={() => handleDeleteCreditNote(note)}
+                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm text-red-600 border border-red-300 dark:border-red-700 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                    >
+                      <TrashIcon className="w-4 h-4" />
+                      Supprimer
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -794,7 +859,7 @@ export default function CreditNotesPage() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </DashboardLayout >
   );
 }
 

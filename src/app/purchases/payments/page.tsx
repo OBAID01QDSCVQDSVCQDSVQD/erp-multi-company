@@ -252,7 +252,8 @@ export default function PurchasePaymentsPage() {
           </div>
         ) : (
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
-            <div className="overflow-x-auto">
+            {/* Desktop Table */}
+            <div className="hidden lg:block overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead className="bg-blue-50 dark:bg-gray-700 border-b-2 border-blue-200 dark:border-gray-600">
                   <tr>
@@ -341,6 +342,91 @@ export default function PurchasePaymentsPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+
+            {/* Mobile Card View */}
+            <div className="lg:hidden space-y-4 p-4">
+              {filteredPayments.map((paiement) => (
+                <div key={paiement._id} className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg p-4 space-y-3 shadow-sm">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className="font-semibold text-gray-900 dark:text-white">{paiement.numero}</h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                        {new Date(paiement.datePaiement).toLocaleDateString('fr-FR')}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <span className="inline-block px-2 py-1 text-xs font-semibold bg-gray-100 text-gray-800 rounded-full">
+                        {paiement.modePaiement}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500 dark:text-gray-400">Fournisseur:</span>
+                      <span className="font-medium text-gray-900 dark:text-white">{paiement.fournisseurNom}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500 dark:text-gray-400">Référence:</span>
+                      <span className="text-gray-900 dark:text-white">{paiement.reference || '—'}</span>
+                    </div>
+                  </div>
+
+                  <div className="border-t dark:border-gray-700 pt-3 flex justify-between items-center">
+                    <span className="text-gray-600 dark:text-gray-400 text-sm">Montant</span>
+                    <span className="font-bold text-gray-900 dark:text-white text-lg">
+                      {paiement.montantTotal.toFixed(3)} DT
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between items-center pt-2 gap-2">
+                    {paiement.images && paiement.images.length > 0 ? (
+                      <button
+                        onClick={() => setSelectedPaymentImages({ paymentNumero: paiement.numero, images: paiement.images! })}
+                        className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded"
+                      >
+                        <PhotoIcon className="w-4 h-4" />
+                        {paiement.images.length} images
+                      </button>
+                    ) : (
+                      <span className="text-xs text-gray-400 italic">Aucune image</span>
+                    )}
+                  </div>
+
+
+                  <div className="flex justify-end gap-2 pt-2 border-t dark:border-gray-700">
+                    <button
+                      onClick={() => router.push(`/purchases/payments/${paiement._id}`)}
+                      className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                      title="Voir détails"
+                    >
+                      <EyeIcon className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={() => handleDownloadPdf(paiement._id)}
+                      className="p-2 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
+                      title="PDF"
+                    >
+                      <ArrowDownTrayIcon className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={() => handleAddImages(paiement)}
+                      className="p-2 text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors"
+                      title="Ajouter images"
+                    >
+                      <PlusCircleIcon className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(paiement._id)}
+                      className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                      title="Supprimer"
+                    >
+                      <TrashIcon className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}

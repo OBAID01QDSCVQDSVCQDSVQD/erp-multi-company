@@ -127,6 +127,7 @@ interface QuoteData {
   dateLivraisonReelle?: string; // For delivery notes
   lieuLivraison?: string; // For delivery notes
   moyenTransport?: string; // For delivery notes
+  matriculeTransport?: string; // For delivery notes
   statut?: string; // For internal invoices: BROUILLON, VALIDEE, ANNULEE, etc.
 }
 
@@ -354,6 +355,38 @@ function drawInfoBlocks(doc: jsPDF, quoteData: QuoteData, companyInfo: CompanyIn
   doc.setFont('helvetica', 'bold');
   doc.text(new Date(quoteData.dateDoc).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }), col2X, startY + 10);
   doc.setFont('helvetica', 'normal');
+
+  // Delivery Details (Transport, Matricule, Dates)
+  if (isDeliveryNote) {
+    let deliveryY = startY + 16;
+    doc.setFontSize(8);
+
+    if (quoteData.moyenTransport) {
+      doc.setFont('helvetica', 'normal');
+      doc.text('Transport :', col2X, deliveryY);
+      doc.setFont('helvetica', 'bold');
+      doc.text(quoteData.moyenTransport, col2X + 18, deliveryY);
+      deliveryY += 4;
+    }
+
+    if (quoteData.matriculeTransport) {
+      doc.setFont('helvetica', 'normal');
+      doc.text('Matricule :', col2X, deliveryY);
+      doc.setFont('helvetica', 'bold');
+      doc.text(quoteData.matriculeTransport, col2X + 18, deliveryY);
+      deliveryY += 4;
+    }
+
+    if (quoteData.dateLivraisonPrevue) {
+      doc.setFont('helvetica', 'normal');
+      doc.text('Livraison :', col2X, deliveryY);
+      doc.setFont('helvetica', 'bold');
+      doc.text(new Date(quoteData.dateLivraisonPrevue).toLocaleDateString('fr-FR'), col2X + 18, deliveryY);
+      deliveryY += 4;
+    }
+
+    doc.setFontSize(9);
+  }
 
   // Bloc client/fournisseur à droite
   // Delivery notes and quotes are for clients, purchase orders are for suppliers

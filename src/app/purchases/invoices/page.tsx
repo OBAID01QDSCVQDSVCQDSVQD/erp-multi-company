@@ -325,7 +325,8 @@ export default function PurchaseInvoicesPage() {
           </div>
         ) : (
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden sm:rounded-md flex flex-col">
-            <div className="overflow-x-auto">
+            {/* Desktop Table */}
+            <div className="hidden lg:block overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead className="bg-blue-50 dark:bg-gray-700 border-b-2 border-blue-200 dark:border-gray-600">
                   <tr>
@@ -415,6 +416,97 @@ export default function PurchaseInvoicesPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+
+            {/* Mobile Card View */}
+            <div className="lg:hidden space-y-4 p-4">
+              {filteredInvoices.map((invoice) => (
+                <div key={invoice._id} className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg p-4 space-y-3 shadow-sm">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className="font-semibold text-gray-900 dark:text-white">{invoice.numero}</h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                        {new Date(invoice.dateFacture).toLocaleDateString('fr-FR')}
+                      </p>
+                    </div>
+                    {getStatusBadge(invoice.statut)}
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500 dark:text-gray-400">Fournisseur:</span>
+                      <span className="font-medium text-gray-900 dark:text-white">{invoice.fournisseurNom}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500 dark:text-gray-400">Réf. Fournisseur:</span>
+                      <span className="text-gray-900 dark:text-white">{invoice.referenceFournisseur || '—'}</span>
+                    </div>
+                  </div>
+
+                  <div className="border-t dark:border-gray-700 pt-3 flex justify-between items-center">
+                    <span className="text-gray-600 dark:text-gray-400 text-sm">Total TTC</span>
+                    <span className="font-bold text-gray-900 dark:text-white">
+                      {invoice.totaux.totalTTC.toFixed(3)} {invoice.devise || 'TND'}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between items-center pt-2 gap-2">
+                    {invoice.images && invoice.images.length > 0 ? (
+                      <button
+                        onClick={() => setSelectedInvoiceImages({ invoiceNumero: invoice.numero, images: invoice.images! })}
+                        className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded"
+                      >
+                        <PhotoIcon className="w-4 h-4" />
+                        {invoice.images.length} images
+                      </button>
+                    ) : (
+                      <span className="text-xs text-gray-400 italic">Aucune image</span>
+                    )}
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-2 border-t dark:border-gray-700">
+                    <button
+                      onClick={() => router.push(`/purchases/invoices/${invoice._id}`)}
+                      className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                      title="Voir détails"
+                    >
+                      <EyeIcon className="w-5 h-5" />
+                    </button>
+                    {invoice.statut === 'BROUILLON' && (
+                      <>
+                        <button
+                          onClick={() => router.push(`/purchases/invoices/${invoice._id}/edit`)}
+                          className="p-2 text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors"
+                          title="Modifier"
+                        >
+                          <PencilIcon className="w-5 h-5" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(invoice._id)}
+                          className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                          title="Supprimer"
+                        >
+                          <TrashIcon className="w-5 h-5" />
+                        </button>
+                      </>
+                    )}
+                    <button
+                      onClick={() => handleDownloadPdf(invoice._id)}
+                      className="p-2 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
+                      title="PDF"
+                    >
+                      <ArrowDownTrayIcon className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={() => handleAddImages(invoice)}
+                      className="p-2 text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors"
+                      title="Ajouter images"
+                    >
+                      <PlusCircleIcon className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}

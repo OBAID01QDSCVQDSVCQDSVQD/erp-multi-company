@@ -407,27 +407,22 @@ export default function QuotesPage() {
         const quotes = data.items || [];
 
         // Fetch customer names for each quote
-        const quotesWithCustomers = await Promise.all(
-          quotes.map(async (quote: Quote) => {
-            if (quote.customerId) {
-              try {
-                const customerResponse = await fetch(`/api/customers/${quote.customerId}`, {
-                  headers: { 'X-Tenant-Id': tenantId }
-                });
-                if (customerResponse.ok) {
-                  const customer = await customerResponse.json();
-                  return {
-                    ...quote,
-                    customerName: customer.raisonSociale || `${customer.nom || ''} ${customer.prenom || ''}`.trim()
-                  };
-                }
-              } catch (err) {
-                console.error('Error fetching customer:', err);
-              }
-            }
-            return quote;
-          })
-        );
+        // Map quotes and extract customer name if available
+        const quotesWithCustomers = quotes.map((quote: any) => {
+          let customerName = quote.customerName || '';
+
+          // If customerId is populated as an object, extract name from it
+          if (quote.customerId && typeof quote.customerId === 'object') {
+            const c = quote.customerId;
+            customerName = c.raisonSociale || `${c.nom || ''} ${c.prenom || ''}`.trim();
+          }
+
+          return {
+            ...quote,
+            customerId: typeof quote.customerId === 'object' ? quote.customerId._id : quote.customerId, // Keep ID as string for interface consistency
+            customerName: customerName || '-'
+          };
+        });
 
         setQuotes(quotesWithCustomers);
       }
@@ -1020,14 +1015,14 @@ export default function QuotesPage() {
                     <div className="flex gap-1">
                       <button
                         onClick={() => handleView(quote)}
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+                        className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
                         title="Voir"
                       >
                         <EyeIcon className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleEdit(quote)}
-                        className="p-2 text-green-600 hover:bg-green-50 rounded-lg"
+                        className="p-2 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
                         title="Modifier"
                       >
                         <PencilIcon className="w-4 h-4" />
@@ -1041,14 +1036,14 @@ export default function QuotesPage() {
                   <div className="flex gap-2 pt-2">
                     <button
                       onClick={() => handleDownloadPDF(quote)}
-                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm border rounded-lg hover:bg-gray-50"
+                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                     >
                       <ArrowDownTrayIcon className="w-4 h-4" />
                       PDF
                     </button>
                     <button
                       onClick={() => handleDelete(quote._id)}
-                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm text-red-600 border border-red-300 rounded-lg hover:bg-red-50"
+                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm text-red-600 border border-red-300 dark:border-red-700 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                     >
                       <TrashIcon className="w-4 h-4" />
                       Supprimer

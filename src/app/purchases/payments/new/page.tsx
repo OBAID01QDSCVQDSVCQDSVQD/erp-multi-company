@@ -329,11 +329,11 @@ export default function NewPurchasePaymentPage() {
 
         <div className="space-y-6">
           {/* Section 1: Informations générales */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Informations générales</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Informations générales</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Fournisseur *
                 </label>
                 <div className="relative">
@@ -354,12 +354,12 @@ export default function NewPurchasePaymentPage() {
                     }}
                     onKeyDown={handleSupplierKeyDown}
                     placeholder="Rechercher un fournisseur..."
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                   />
                   {showSupplierDropdown && supplierDropdownPosition && filteredSuppliers.length > 0 && (
                     <div
                       data-supplier-dropdown="true"
-                      className="fixed z-[9999] bg-white border border-gray-200 rounded-lg shadow-xl max-h-60 overflow-y-auto"
+                      className="fixed z-[9999] bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl max-h-60 overflow-y-auto"
                       style={{
                         width: `${supplierDropdownPosition.width}px`,
                         top: `${supplierDropdownPosition.top}px`,
@@ -370,9 +370,8 @@ export default function NewPurchasePaymentPage() {
                         <div
                           key={supplier._id}
                           onClick={() => handleSelectSupplier(supplier)}
-                          className={`px-4 py-2 cursor-pointer hover:bg-gray-100 ${
-                            index === selectedSupplierIndex ? 'bg-blue-50' : ''
-                          }`}
+                          className={`px-4 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-900 dark:text-white ${index === selectedSupplierIndex ? 'bg-blue-50 dark:bg-blue-900/30' : ''
+                            }`}
                         >
                           {supplier.raisonSociale || `${supplier.nom || ''} ${supplier.prenom || ''}`}
                         </div>
@@ -383,7 +382,7 @@ export default function NewPurchasePaymentPage() {
               </div>
 
               <div>
-                <label htmlFor="datePaiement" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="datePaiement" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Date de paiement *
                 </label>
                 <input
@@ -391,20 +390,20 @@ export default function NewPurchasePaymentPage() {
                   id="datePaiement"
                   value={formData.datePaiement}
                   onChange={(e) => setFormData({ ...formData, datePaiement: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white dark:[color-scheme:dark]"
                   required
                 />
               </div>
 
               <div>
-                <label htmlFor="modePaiement" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="modePaiement" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Mode de paiement *
                 </label>
                 <select
                   id="modePaiement"
                   value={formData.modePaiement}
                   onChange={(e) => setFormData({ ...formData, modePaiement: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
                 >
                   <option value="Espèces">Espèces</option>
                   <option value="Virement">Virement</option>
@@ -415,7 +414,7 @@ export default function NewPurchasePaymentPage() {
               </div>
 
               <div>
-                <label htmlFor="reference" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="reference" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Référence
                 </label>
                 <input
@@ -423,13 +422,13 @@ export default function NewPurchasePaymentPage() {
                   id="reference"
                   value={formData.reference}
                   onChange={(e) => setFormData({ ...formData, reference: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                   placeholder="N° chèque, référence virement, etc."
                 />
               </div>
 
               <div className="md:col-span-2">
-                <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="notes" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Notes
                 </label>
                 <textarea
@@ -437,7 +436,7 @@ export default function NewPurchasePaymentPage() {
                   value={formData.notes}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                   placeholder="Notes additionnelles..."
                 />
               </div>
@@ -456,43 +455,43 @@ export default function NewPurchasePaymentPage() {
 
           {/* Section 2: Type de paiement */}
           {formData.fournisseurId && (
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Type de paiement</h2>
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Type de paiement</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                <label className="flex items-center p-4 border-2 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                <label className="flex items-center p-4 border-2 border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                   <input
                     type="radio"
                     name="paymentType"
                     value="invoices"
                     checked={paymentType === 'invoices'}
                     onChange={(e) => setPaymentType(e.target.value as 'invoices' | 'onAccount')}
-                    className="mr-3 h-4 w-4 text-blue-600 focus:ring-blue-500"
+                    className="mr-3 h-4 w-4 text-blue-600 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
                   />
                   <div>
-                    <div className="font-medium text-gray-900">Paiement sur factures</div>
-                    <div className="text-sm text-gray-500">Régler des factures spécifiques</div>
+                    <div className="font-medium text-gray-900 dark:text-white">Paiement sur factures</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">Régler des factures spécifiques</div>
                   </div>
                 </label>
-                <label className="flex items-center p-4 border-2 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                <label className="flex items-center p-4 border-2 border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                   <input
                     type="radio"
                     name="paymentType"
                     value="onAccount"
                     checked={paymentType === 'onAccount'}
                     onChange={(e) => setPaymentType(e.target.value as 'invoices' | 'onAccount')}
-                    className="mr-3 h-4 w-4 text-blue-600 focus:ring-blue-500"
+                    className="mr-3 h-4 w-4 text-blue-600 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
                   />
                   <div>
-                    <div className="font-medium text-gray-900">Paiement sur compte</div>
-                    <div className="text-sm text-gray-500">Payer sans facture spécifique</div>
+                    <div className="font-medium text-gray-900 dark:text-white">Paiement sur compte</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">Payer sans facture spécifique</div>
                   </div>
                 </label>
               </div>
 
               {/* Payment on Account */}
               {paymentType === 'onAccount' && (
-                <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <label htmlFor="montantOnAccount" className="block text-sm font-medium text-gray-700 mb-2">
+                <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                  <label htmlFor="montantOnAccount" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Montant du paiement sur compte *
                   </label>
                   <input
@@ -502,11 +501,11 @@ export default function NewPurchasePaymentPage() {
                     step="0.001"
                     value={montantOnAccount || ''}
                     onChange={(e) => setMontantOnAccount(parseFloat(e.target.value) || 0)}
-                    className="w-full md:w-64 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    className="w-full md:w-64 px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                     placeholder="0.000"
                     required
                   />
-                  <p className="mt-2 text-xs text-gray-600">
+                  <p className="mt-2 text-xs text-gray-600 dark:text-gray-400">
                     Ce montant sera déduit du solde du fournisseur sans être lié à une facture spécifique.
                   </p>
                 </div>
@@ -516,94 +515,161 @@ export default function NewPurchasePaymentPage() {
               {paymentType === 'invoices' && (
                 <>
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-900">Factures non payées</h3>
-                    <div className="text-xs text-gray-500 bg-blue-50 px-3 py-2 rounded-lg">
-                      <strong>💡 Explication:</strong> "Déjà Payé" = المبلغ المدفوع مسبقاً في دفعات سابقة لهذه الفاتورة
-                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Factures non payées</h3>
                   </div>
-              {loading ? (
-                <div className="flex items-center justify-center h-32">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                </div>
-              ) : unpaidInvoices.length === 0 ? (
-                <p className="text-gray-500 text-sm">Aucune facture impayée pour ce fournisseur</p>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sélection</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">N° Facture Fournisseur</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Montant Total</th>
-                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          <span title="المبلغ المدفوع مسبقاً في دفعات سابقة">Déjà Payé</span>
-                        </th>
-                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Solde Restant</th>
-                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Montant à Payer</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {unpaidInvoices.map((invoice) => {
-                        const isSelected = !!selectedInvoices[invoice._id];
-                        const selectedInvoice = selectedInvoices[invoice._id];
-                        return (
-                          <tr key={invoice._id} className={isSelected ? 'bg-blue-50' : ''}>
-                            <td className="px-4 py-3">
-                              <input
-                                type="checkbox"
-                                checked={isSelected}
-                                onChange={() => toggleInvoiceSelection(invoice)}
-                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                              />
-                            </td>
-                            <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                              {invoice.referenceFournisseur || invoice.numero || '—'}
-                            </td>
-                            <td className="px-4 py-3 text-sm text-gray-500">
-                              {new Date(invoice.dateFacture).toLocaleDateString('fr-FR')}
-                            </td>
-                            <td className="px-4 py-3 text-sm text-right text-gray-900">
-                              {invoice.montantTotal.toFixed(3)} DT
-                            </td>
-                            <td className="px-4 py-3 text-sm text-right text-gray-500">
-                              {invoice.montantPaye.toFixed(3)} DT
-                            </td>
-                            <td className="px-4 py-3 text-sm text-right font-medium text-gray-900">
-                              {invoice.soldeRestant.toFixed(3)} DT
-                            </td>
-                            <td className="px-4 py-3">
-                              {isSelected ? (
+                  {loading ? (
+                    <div className="flex items-center justify-center h-32">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 dark:border-blue-400"></div>
+                    </div>
+                  ) : unpaidInvoices.length === 0 ? (
+                    <p className="text-gray-500 dark:text-gray-400 text-sm">Aucune facture impayée pour ce fournisseur</p>
+                  ) : (
+                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+                      {/* Desktop Table */}
+                      <div className="hidden lg:block overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                          <thead className="bg-gray-50 dark:bg-gray-700">
+                            <tr>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Sélection</th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">N° Facture Fournisseur</th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Date</th>
+                              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Montant Total</th>
+                              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                <span title="المبلغ المدفوع مسبقاً في دفعات سابقة">Déjà Payé</span>
+                              </th>
+                              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Solde Restant</th>
+                              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Montant à Payer</th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                            {unpaidInvoices.map((invoice) => {
+                              const isSelected = !!selectedInvoices[invoice._id];
+                              const selectedInvoice = selectedInvoices[invoice._id];
+                              return (
+                                <tr key={invoice._id} className={`${isSelected ? 'bg-blue-50 dark:bg-blue-900/20' : ''} hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors`}>
+                                  <td className="px-4 py-3">
+                                    <input
+                                      type="checkbox"
+                                      checked={isSelected}
+                                      onChange={() => toggleInvoiceSelection(invoice)}
+                                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600"
+                                    />
+                                  </td>
+                                  <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">
+                                    {invoice.referenceFournisseur || invoice.numero || '—'}
+                                  </td>
+                                  <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
+                                    {new Date(invoice.dateFacture).toLocaleDateString('fr-FR')}
+                                  </td>
+                                  <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
+                                    {invoice.montantTotal.toFixed(3)} DT
+                                  </td>
+                                  <td className="px-4 py-3 text-sm text-right text-gray-500 dark:text-gray-400">
+                                    {invoice.montantPaye.toFixed(3)} DT
+                                  </td>
+                                  <td className="px-4 py-3 text-sm text-right font-medium text-gray-900 dark:text-white">
+                                    {invoice.soldeRestant.toFixed(3)} DT
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    {isSelected ? (
+                                      <input
+                                        type="number"
+                                        min="0"
+                                        max={invoice.soldeRestant}
+                                        step="0.001"
+                                        value={selectedInvoice.montantPayeInput || 0}
+                                        onChange={(e) => updatePaymentAmount(invoice._id, parseFloat(e.target.value) || 0)}
+                                        className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm text-right focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                                      />
+                                    ) : (
+                                      <span className="text-sm text-gray-400">—</span>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                          <tfoot className="bg-gray-50 dark:bg-gray-700">
+                            <tr>
+                              <td colSpan={6} className="px-4 py-3 text-right text-sm font-semibold text-gray-700 dark:text-gray-300">
+                                Total du paiement:
+                              </td>
+                              <td className="px-4 py-3 text-right text-sm font-bold text-blue-600 dark:text-blue-400">
+                                {total.toFixed(3)} DT
+                              </td>
+                            </tr>
+                          </tfoot>
+                        </table>
+                      </div>
+
+                      {/* Mobile Card View */}
+                      <div className="lg:hidden space-y-4 p-4">
+                        {unpaidInvoices.map((invoice) => {
+                          const isSelected = !!selectedInvoices[invoice._id];
+                          const selectedInvoice = selectedInvoices[invoice._id];
+                          return (
+                            <div key={invoice._id} className={`p-4 border rounded-lg shadow-sm space-y-3 ${isSelected ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'}`}>
+                              <div className="flex items-start gap-3">
                                 <input
-                                  type="number"
-                                  min="0"
-                                  max={invoice.soldeRestant}
-                                  step="0.001"
-                                  value={selectedInvoice.montantPayeInput || 0}
-                                  onChange={(e) => updatePaymentAmount(invoice._id, parseFloat(e.target.value) || 0)}
-                                  className="w-full px-2 py-1 border border-gray-300 rounded text-sm text-right focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={() => toggleInvoiceSelection(invoice)}
+                                  className="mt-1 h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600"
                                 />
-                              ) : (
-                                <span className="text-sm text-gray-400">—</span>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                    <tfoot className="bg-gray-50">
-                      <tr>
-                        <td colSpan={6} className="px-4 py-3 text-right text-sm font-semibold text-gray-700">
-                          Total du paiement:
-                        </td>
-                        <td className="px-4 py-3 text-right text-sm font-bold text-blue-600">
-                          {total.toFixed(3)} DT
-                        </td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
-              )}
+                                <div className="flex-1">
+                                  <div className="flex justify-between items-start">
+                                    <h3 className="font-semibold text-gray-900 dark:text-white whitespace-nowrap">
+                                      {invoice.referenceFournisseur || invoice.numero || '—'}
+                                    </h3>
+                                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                                      {new Date(invoice.dateFacture).toLocaleDateString('fr-FR')}
+                                    </span>
+                                  </div>
+
+                                  <div className="mt-3 space-y-2 text-sm">
+                                    <div className="flex justify-between items-center">
+                                      <span className="text-gray-500 dark:text-gray-400">Total</span>
+                                      <span className="font-medium text-gray-900 dark:text-white whitespace-nowrap">{invoice.montantTotal.toFixed(3)} DT</span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                      <span className="text-gray-500 dark:text-gray-400">Déjà payé</span>
+                                      <span className="text-gray-900 dark:text-white whitespace-nowrap">{invoice.montantPaye.toFixed(3)} DT</span>
+                                    </div>
+                                  </div>
+
+                                  <div className="mt-3 flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg border border-transparent dark:border-gray-700 gap-4">
+                                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">Reste à payer</span>
+                                    <span className="text-base font-bold text-gray-900 dark:text-white whitespace-nowrap">{invoice.soldeRestant.toFixed(3)} DT</span>
+                                  </div>
+
+                                  {isSelected && (
+                                    <div className="mt-3">
+                                      <label className="block text-xs font-medium text-blue-700 dark:text-blue-300 mb-1">Montant à payer</label>
+                                      <input
+                                        type="number"
+                                        min="0"
+                                        max={invoice.soldeRestant}
+                                        step="0.001"
+                                        value={selectedInvoice.montantPayeInput || 0}
+                                        onChange={(e) => updatePaymentAmount(invoice._id, parseFloat(e.target.value) || 0)}
+                                        className="w-full px-3 py-2 border border-blue-300 dark:border-blue-700 rounded-lg text-right font-medium focus:ring-2 focus:ring-blue-500 dark:bg-gray-900 dark:text-white dark:[color-scheme:dark]"
+                                      />
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+
+                        {/* Mobile Total */}
+                        <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg flex justify-between items-center border border-gray-200 dark:border-gray-700 shadow-sm">
+                          <span className="font-bold text-gray-700 dark:text-gray-200">Total sélectionné:</span>
+                          <span className="text-xl font-bold text-blue-600 dark:text-blue-400">{total.toFixed(3)} DT</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
             </div>
@@ -613,7 +679,7 @@ export default function NewPurchasePaymentPage() {
           <div className="flex justify-end gap-4">
             <button
               onClick={() => router.push('/purchases/payments')}
-              className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+              className="px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors"
             >
               Annuler
             </button>

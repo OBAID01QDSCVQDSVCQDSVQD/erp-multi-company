@@ -23,6 +23,7 @@ interface Delivery {
   devise?: string;
   lieuLivraison?: string;
   moyenTransport?: string;
+  matriculeTransport?: string;
   notes?: string;
   lignes?: any[];
 }
@@ -276,10 +277,10 @@ export default function ViewDeliveryPage() {
                 <p className="text-lg font-medium text-gray-900 dark:text-white">{delivery.lieuLivraison}</p>
               </div>
             )}
-            {delivery.moyenTransport && (
+            {delivery.matriculeTransport && (
               <div>
-                <label className="text-sm text-gray-600 dark:text-gray-400">Moyen de transport</label>
-                <p className="text-lg font-medium text-gray-900 dark:text-white">{delivery.moyenTransport}</p>
+                <label className="text-sm text-gray-600 dark:text-gray-400">Matricule camion</label>
+                <p className="text-lg font-medium text-gray-900 dark:text-white">{delivery.matriculeTransport}</p>
               </div>
             )}
             <div className="sm:col-span-2 lg:col-span-4">

@@ -27,6 +27,7 @@ interface Delivery {
   totalTTC: number;
   devise?: string;
   warehouseId?: string;
+  matriculeTransport?: string;
 }
 
 interface Customer {
@@ -92,7 +93,7 @@ export default function DeliveriesPage() {
     dateLivraisonPrevue: getDefaultDeliveryDate(),
     dateLivraisonReelle: getDefaultDeliveryDate(),
     lieuLivraison: '',
-    moyenTransport: '',
+    matriculeTransport: '',
     notes: ''
   });
 
@@ -637,7 +638,7 @@ export default function DeliveriesPage() {
           devise: formData.devise,
           modePaiement: formData.modePaiement || undefined,
           lieuLivraison: formData.lieuLivraison || undefined,
-          moyenTransport: formData.moyenTransport || undefined,
+          matriculeTransport: formData.matriculeTransport || undefined,
           notes: formData.notes,
           lignes: lignesData,
           timbreFiscal: 0
@@ -658,7 +659,7 @@ export default function DeliveriesPage() {
           dateLivraisonPrevue: getDefaultDeliveryDate(),
           dateLivraisonReelle: getDefaultDeliveryDate(),
           lieuLivraison: '',
-          moyenTransport: '',
+          matriculeTransport: '',
           notes: ''
         });
         setCustomerSearch('');
@@ -733,7 +734,7 @@ export default function DeliveriesPage() {
           dateLivraisonPrevue: fullDelivery.dateLivraisonPrevue?.split('T')[0] || getDefaultDeliveryDate(),
           dateLivraisonReelle: fullDelivery.dateLivraisonReelle?.split('T')[0] || getDefaultDeliveryDate(),
           lieuLivraison: fullDelivery.lieuLivraison || '',
-          moyenTransport: fullDelivery.moyenTransport || '',
+          matriculeTransport: fullDelivery.matriculeTransport || '',
           notes: fullDelivery.notes || ''
         });
 
@@ -1035,14 +1036,14 @@ export default function DeliveriesPage() {
                     <div className="flex gap-1">
                       <button
                         onClick={() => handleView(delivery)}
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+                        className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
                         title="Voir"
                       >
                         <EyeIcon className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleEdit(delivery)}
-                        className="p-2 text-green-600 hover:bg-green-50 rounded-lg"
+                        className="p-2 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
                         title="Modifier"
                       >
                         <PencilIcon className="w-4 h-4" />
@@ -1066,7 +1067,7 @@ export default function DeliveriesPage() {
                   <div className="flex gap-2 pt-2">
                     <button
                       onClick={() => handleDownloadPDF(delivery)}
-                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm border dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                     >
                       <ArrowDownTrayIcon className="w-4 h-4" />
                       PDF
@@ -1281,13 +1282,13 @@ export default function DeliveriesPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Moyen de transport
+                      Matricule camion
                     </label>
                     <input
                       type="text"
-                      value={formData.moyenTransport}
-                      onChange={(e) => setFormData({ ...formData, moyenTransport: e.target.value })}
-                      placeholder="Ex: Camion, Livraison express"
+                      value={formData.matriculeTransport}
+                      onChange={(e) => setFormData({ ...formData, matriculeTransport: e.target.value })}
+                      placeholder="Ex: 123 TN 4567"
                       className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                     />
                   </div>

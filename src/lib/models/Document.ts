@@ -64,6 +64,7 @@ export interface IDocument extends Document {
   tauxChange?: number;
   lieuLivraison?: string;
   moyenTransport?: string;
+  matriculeTransport?: string;
 
   // Payment
   modePaiement?: string;
@@ -133,6 +134,7 @@ const DocumentSchema = new (Schema as any)({
   tauxChange: { type: Number, default: 1 },
   lieuLivraison: { type: String },
   moyenTransport: { type: String },
+  matriculeTransport: { type: String },
 
   modePaiement: { type: String },
   conditionsPaiement: { type: String },

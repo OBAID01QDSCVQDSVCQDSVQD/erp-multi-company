@@ -377,7 +377,7 @@ export default function SuppliersPage() {
     <DashboardLayout>
       <div className="p-6 space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-3">
             <button
               onClick={() => router.back()}
@@ -390,7 +390,7 @@ export default function SuppliersPage() {
               <TruckIcon className="w-8 h-8" /> Fournisseurs
             </h1>
           </div>
-          <button onClick={handleNew} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+          <button onClick={handleNew} className="w-full sm:w-auto flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
             <PlusIcon className="w-5 h-5" /> Nouveau fournisseur
           </button>
         </div>
@@ -534,7 +534,7 @@ export default function SuppliersPage() {
 
               {/* Tabs */}
               <div className="px-6 pt-4 border-b dark:border-gray-700 sticky top-[73px] bg-white dark:bg-gray-800 z-10">
-                <div className="flex gap-4">
+                <div className="flex gap-4 overflow-x-auto pb-1">
                   {(['identite', 'adresse', 'paiement', 'banque', 'solde'] as const).map(tab => (
                     <button
                       key={tab}
@@ -544,7 +544,7 @@ export default function SuppliersPage() {
                           fetchBalanceData(viewingId);
                         }
                       }}
-                      className={`px-4 py-2 font-medium transition-colors ${activeTab === tab ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                      className={`px-4 py-2 font-medium transition-colors whitespace-nowrap ${activeTab === tab ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
                         }`}
                     >
                       {tab === 'identite' && 'Identité & TVA'}

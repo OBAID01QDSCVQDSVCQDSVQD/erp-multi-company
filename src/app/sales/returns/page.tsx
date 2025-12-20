@@ -173,7 +173,7 @@ export default function ReturnsPage() {
 
         {/* Table */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden border dark:border-gray-700">
-          <div className="overflow-x-auto">
+          <div className="hidden lg:block overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50 dark:bg-gray-700 border-b dark:border-gray-600">
                 <tr>
@@ -231,7 +231,6 @@ export default function ReturnsPage() {
                           >
                             <EyeIcon className="w-5 h-5" />
                           </button>
-                          {/* Pour le moment، نستخدم نفس صفحة التفاصيل كنافذة عرض وتعديل مبسّط */}
                           <button
                             onClick={() => router.push(`/sales/returns/${returnDoc._id}`)}
                             className="text-yellow-600 hover:text-yellow-900 dark:text-yellow-400 dark:hover:text-yellow-300"
@@ -253,6 +252,72 @@ export default function ReturnsPage() {
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile Card View */}
+          <div className="lg:hidden space-y-4 p-4">
+            {returns.length === 0 ? (
+              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                Aucun retour trouvé
+              </div>
+            ) : (
+              returns.map((returnDoc) => (
+                <div key={returnDoc._id} className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg shadow-sm p-4 space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className="font-semibold text-gray-900 dark:text-white">{returnDoc.numero}</h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                        {new Date(returnDoc.dateDoc).toLocaleDateString('fr-FR')}
+                      </p>
+                    </div>
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => router.push(`/sales/returns/${returnDoc._id}`)}
+                        className="p-2 text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors"
+                        title="Voir"
+                      >
+                        <EyeIcon className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => router.push(`/sales/returns/${returnDoc._id}`)}
+                        className="p-2 text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 rounded-lg transition-colors"
+                        title="Modifier"
+                      >
+                        <PencilIcon className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500 dark:text-gray-400">Client:</span>
+                      <span className="font-medium text-gray-900 dark:text-white">{getCustomerName(returnDoc.customerId)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500 dark:text-gray-400">BL Source:</span>
+                      <span className="font-medium text-gray-900 dark:text-white">{returnDoc.blNumero || 'N/A'}</span>
+                    </div>
+                  </div>
+
+                  <div className="border-t dark:border-gray-700 pt-3 flex justify-between items-center">
+                    <span className="text-gray-600 dark:text-gray-400 text-sm">Total TTC</span>
+                    <span className="font-bold text-gray-900 dark:text-white">
+                      {returnDoc.totalTTC?.toFixed(3)} {returnDoc.devise || 'TND'}
+                    </span>
+                  </div>
+
+                  <div className="pt-2">
+                    <button
+                      onClick={() => handleDelete(returnDoc._id)}
+                      className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-red-600 border border-red-300 dark:border-red-700 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                    >
+                      <TrashIcon className="w-4 h-4" />
+                      Supprimer
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>

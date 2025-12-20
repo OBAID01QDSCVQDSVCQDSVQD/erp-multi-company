@@ -43,6 +43,7 @@ interface DeliveryData {
   notes?: string;
   lieuLivraison?: string;
   moyenTransport?: string;
+  matriculeTransport?: string;
 }
 
 interface CompanyInfo {
@@ -85,9 +86,10 @@ export function generateDeliveryPdf(deliveryData: DeliveryData, companyInfo: Com
     dateLivraisonReelle: deliveryData.dateLivraisonReelle,
     lieuLivraison: deliveryData.lieuLivraison,
     moyenTransport: deliveryData.moyenTransport,
+    matriculeTransport: deliveryData.matriculeTransport,
     // Don't override with dateValidite or adresseLivraison for delivery notes
   };
-  
+
   // Use the same PDF generator but with documentType = 'BON DE LIVRAISON'
   return generateDevisPdf(quoteData, companyInfo);
 }

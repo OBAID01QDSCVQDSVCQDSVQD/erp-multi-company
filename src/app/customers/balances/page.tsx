@@ -214,8 +214,9 @@ export default function CustomerBalancesPage() {
               : 'Aucun client trouvé'}
           </div>
         ) : (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border dark:border-gray-700 overflow-hidden">
-            <div className="overflow-x-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border dark:border-gray-700">
+            {/* Desktop Table View */}
+            <div className="hidden lg:block overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50 dark:bg-gray-700 border-b dark:border-gray-600">
                   <tr>
@@ -309,6 +310,65 @@ export default function CustomerBalancesPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+
+            {/* Mobile Card View */}
+            <div className="lg:hidden space-y-4 p-4">
+              {filteredBalances.map((balance) => (
+                <div key={balance.customerId} className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg p-4 space-y-3 shadow-sm">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className="font-semibold text-gray-900 dark:text-white">{balance.customerNom}</h3>
+                      <div className="mt-1 flex items-center gap-2">
+                        <span className="text-sm text-gray-500 dark:text-gray-400">Solde dû:</span>
+                        <span className={`text-sm font-bold ${balance.soldeDu > 0
+                          ? 'text-red-600 dark:text-red-400'
+                          : balance.soldeDu < 0
+                            ? 'text-green-600 dark:text-green-400'
+                            : 'text-gray-600 dark:text-gray-400'
+                          }`}>
+                          {balance.soldeDu > 0 && '-'}
+                          {balance.soldeDu < 0 && '+'}
+                          {formatCurrency(Math.abs(balance.soldeDu))}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => router.push(`/customers/${balance.customerId}/details`)}
+                      className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                      title="Voir détails"
+                    >
+                      <EyeIcon className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  {/* Aging breakdown */}
+                  <div className="grid grid-cols-2 gap-2 text-xs border-t dark:border-gray-700 pt-3">
+                    <div className="flex flex-col">
+                      <span className="text-gray-500 dark:text-gray-400">0-30 jours</span>
+                      <span className="font-medium text-gray-900 dark:text-white">{formatCurrency(balance.aging['0-30'])}</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-gray-500 dark:text-gray-400">31-60 jours</span>
+                      <span className="font-medium text-gray-900 dark:text-white">{formatCurrency(balance.aging['31-60'])}</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-gray-500 dark:text-gray-400">61-90 jours</span>
+                      <span className="font-medium text-gray-900 dark:text-white">{formatCurrency(balance.aging['61-90'])}</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-gray-500 dark:text-gray-400">&gt;90 jours</span>
+                      <span className="font-medium text-gray-900 dark:text-white">{formatCurrency(balance.aging['>90'])}</span>
+                    </div>
+                  </div>
+
+                  {balance.netAdvanceBalance !== undefined && balance.netAdvanceBalance !== 0 && (
+                    <div className="bg-blue-50 dark:bg-blue-900/10 p-2 rounded text-xs text-blue-700 dark:text-blue-300">
+                      Solde avance disponible: {formatCurrency(balance.netAdvanceBalance)}
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           </div>
         )}
