@@ -78,7 +78,7 @@ export default function ReceptionDetailPage({ params }: { params: Promise<{ id: 
       const response = await fetch(`/api/purchases/receptions/${receptionId}`, {
         headers: { 'X-Tenant-Id': tenantId },
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         console.log('Reception data:', data);
@@ -88,7 +88,7 @@ export default function ReceptionDetailPage({ params }: { params: Promise<{ id: 
           console.log('First line remisePct:', data.lignes[0].remisePct);
         }
         setReception(data);
-        
+
         // Fetch Purchase Order number if purchaseOrderId exists
         if (data.purchaseOrderId) {
           try {
@@ -117,18 +117,18 @@ export default function ReceptionDetailPage({ params }: { params: Promise<{ id: 
 
   async function handleValidate() {
     if (!tenantId || !receptionId) return;
-    
+
     if (!confirm('Êtes-vous sûr de vouloir valider ce bon de réception ? Cela créera des mouvements de stock.')) {
       return;
     }
-    
+
     try {
       setValidating(true);
       const response = await fetch(`/api/purchases/receptions/${receptionId}/valider`, {
         method: 'POST',
         headers: { 'X-Tenant-Id': tenantId },
       });
-      
+
       if (response.ok) {
         toast.success('Bon de réception validé avec succès');
         await fetchReception();
@@ -146,18 +146,18 @@ export default function ReceptionDetailPage({ params }: { params: Promise<{ id: 
 
   async function handleCancel() {
     if (!tenantId || !receptionId) return;
-    
+
     if (!confirm('Êtes-vous sûr de vouloir annuler ce bon de réception ?')) {
       return;
     }
-    
+
     try {
       setCancelling(true);
       const response = await fetch(`/api/purchases/receptions/${receptionId}/annuler`, {
         method: 'POST',
         headers: { 'X-Tenant-Id': tenantId },
       });
-      
+
       if (response.ok) {
         toast.success('Bon de réception annulé');
         await fetchReception();
@@ -175,18 +175,18 @@ export default function ReceptionDetailPage({ params }: { params: Promise<{ id: 
 
   async function handleDelete() {
     if (!tenantId || !receptionId) return;
-    
+
     if (!confirm('Êtes-vous sûr de vouloir supprimer ce bon de réception ?')) {
       return;
     }
-    
+
     try {
       setDeleting(true);
       const response = await fetch(`/api/purchases/receptions/${receptionId}`, {
         method: 'DELETE',
         headers: { 'X-Tenant-Id': tenantId },
       });
-      
+
       if (response.ok) {
         toast.success('Bon de réception supprimé');
         router.push('/purchases/receptions');
@@ -276,8 +276,8 @@ export default function ReceptionDetailPage({ params }: { params: Promise<{ id: 
               <ArrowLeftIcon className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600" />
             </button>
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{reception.numero}</h1>
-              <p className="text-xs sm:text-sm text-gray-500 mt-1">
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">{reception.numero}</h1>
+              <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">
                 Date: {new Date(reception.dateDoc).toLocaleDateString('fr-FR')}
               </p>
             </div>
@@ -288,7 +288,7 @@ export default function ReceptionDetailPage({ params }: { params: Promise<{ id: 
             </span>
             <button
               onClick={() => router.push(`/purchases/receptions/${receptionId}/edit`)}
-              className="flex items-center gap-2 px-3 py-2 border rounded-lg hover:bg-gray-50 text-sm"
+              className="flex items-center gap-2 px-3 py-2 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-sm dark:text-gray-300 dark:border-gray-600"
             >
               <PencilIcon className="w-5 h-5" />
               <span className="hidden sm:inline">Modifier</span>
@@ -302,14 +302,14 @@ export default function ReceptionDetailPage({ params }: { params: Promise<{ id: 
 
                 try {
                   toast.loading('Génération du PDF en cours...', { id: 'pdf-download' });
-                  
+
                   const response = await fetch(`/api/purchases/receptions/${reception._id}/pdf`, {
                     headers: { 'X-Tenant-Id': tenantId },
                   });
 
                   // Check content type first
                   const contentType = response.headers.get('content-type');
-                  
+
                   // If it's a PDF, proceed even if status is not 200
                   if (contentType?.includes('application/pdf')) {
                     // It's a PDF, continue with download (same as internal invoices)
@@ -340,14 +340,14 @@ export default function ReceptionDetailPage({ params }: { params: Promise<{ id: 
                   a.click();
                   window.URL.revokeObjectURL(url);
                   document.body.removeChild(a);
-                  
+
                   toast.success('PDF téléchargé avec succès', { id: 'pdf-download' });
                 } catch (err: any) {
                   console.error('Error downloading PDF:', err);
                   toast.error(err.message || 'Erreur lors du téléchargement du PDF', { id: 'pdf-download' });
                 }
               }}
-              className="flex items-center gap-2 px-3 py-2 border rounded-lg hover:bg-gray-50 text-sm"
+              className="flex items-center gap-2 px-3 py-2 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-sm dark:text-gray-300 dark:border-gray-600"
             >
               <ArrowDownTrayIcon className="w-5 h-5" />
               <span className="hidden sm:inline">PDF</span>
@@ -356,153 +356,153 @@ export default function ReceptionDetailPage({ params }: { params: Promise<{ id: 
         </div>
 
         {/* Info Card */}
-        <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 sm:p-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="text-xs text-gray-500">Fournisseur</label>
-              <p className="text-sm font-medium text-gray-900">{reception.fournisseurNom}</p>
+              <label className="text-xs text-gray-500 dark:text-gray-400">Fournisseur</label>
+              <p className="text-sm font-medium text-gray-900 dark:text-white">{reception.fournisseurNom}</p>
             </div>
             {reception.purchaseOrderId && (
               <div>
-                <label className="text-xs text-gray-500">Bon de commande</label>
-                <p className="text-sm font-medium text-gray-900">
+                <label className="text-xs text-gray-500 dark:text-gray-400">Bon de commande</label>
+                <p className="text-sm font-medium text-gray-900 dark:text-white">
                   {purchaseOrderNumero ? (
                     <button
                       onClick={() => router.push(`/purchases/orders/${reception.purchaseOrderId}`)}
-                      className="text-blue-600 hover:underline"
+                      className="text-blue-600 dark:text-blue-400 hover:underline"
                     >
                       {purchaseOrderNumero}
                     </button>
                   ) : (
-                    <span className="text-gray-400">Chargement...</span>
+                    <span className="text-gray-400 dark:text-gray-500">Chargement...</span>
                   )}
                 </p>
               </div>
             )}
           </div>
 
-              {/* FODEC and TVA Info */}
-              {((reception.fodecActif !== undefined || reception.timbreActif !== undefined) || (reception.lignes && reception.lignes.length > 0)) && (
-                <div className="mt-4 pt-4 border-t">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {/* FODEC - Only show if active */}
-                    {reception.fodecActif && (
-                      <div>
-                        <label className="text-xs text-gray-500">FODEC</label>
-                        <p className="text-sm font-medium text-gray-900">
-                          {reception.tauxFodec || 1}%
-                          <span className="text-green-600 ml-2">(activé)</span>
-                          {(reception.totaux?.fodec !== undefined) && (
-                            <span className="text-gray-600 ml-2">- {reception.totaux.fodec.toFixed(3)} DT</span>
-                          )}
-                        </p>
-                      </div>
-                    )}
-                    
-                    {/* TIMBRE - Always show if field exists */}
-                    {(reception.timbreActif !== undefined || reception.totaux?.timbre !== undefined) && (
-                      <div>
-                        <label className="text-xs text-gray-500">Timbre fiscal</label>
-                        <p className="text-sm font-medium text-gray-900">
-                          {reception.montantTimbre || 1.000} DT
-                          {reception.timbreActif ? (
-                            <span className="text-green-600 ml-2">(activé)</span>
-                          ) : (
-                            <span className="text-gray-500 ml-2">(non activé)</span>
-                          )}
-                          {(reception.totaux?.timbre !== undefined) && (
-                            <span className="text-gray-600 ml-2">- {reception.totaux.timbre.toFixed(3)} DT</span>
-                          )}
-                        </p>
-                      </div>
-                    )}
-                    
-                    {/* TVA Rates */}
-                    {reception.lignes && reception.lignes.length > 0 && (() => {
-                      const tvaRates = Array.from(new Set(
-                        reception.lignes
-                          .filter((l: any) => l && l.tvaPct !== undefined && l.tvaPct !== null && l.tvaPct > 0)
-                          .map((l: any) => l.tvaPct)
-                          .filter((rate: any): rate is number => typeof rate === 'number' && rate > 0)
-                      )).sort((a, b) => a - b);
-                      
-                      if (tvaRates.length > 0) {
-                        return (
-                          <div>
-                            <label className="text-xs text-gray-500">Taux TVA appliqués</label>
-                            <p className="text-sm font-medium text-gray-900">
-                              {tvaRates.map((rate, idx) => (
-                                <span key={idx}>
-                                  {rate}%{idx < tvaRates.length - 1 ? ', ' : ''}
-                                </span>
-                              ))}
-                            </p>
-                          </div>
-                        );
-                      }
-                      return null;
-                    })()}
+          {/* FODEC and TVA Info */}
+          {((reception.fodecActif !== undefined || reception.timbreActif !== undefined) || (reception.lignes && reception.lignes.length > 0)) && (
+            <div className="mt-4 pt-4 border-t dark:border-gray-700">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* FODEC - Only show if active */}
+                {reception.fodecActif && (
+                  <div>
+                    <label className="text-xs text-gray-500 dark:text-gray-400">FODEC</label>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">
+                      {reception.tauxFodec || 1}%
+                      <span className="text-green-600 dark:text-green-400 ml-2">(activé)</span>
+                      {(reception.totaux?.fodec !== undefined) && (
+                        <span className="text-gray-600 dark:text-gray-400 ml-2">- {reception.totaux.fodec.toFixed(3)} DT</span>
+                      )}
+                    </p>
                   </div>
-                </div>
-              )}
-          
+                )}
+
+                {/* TIMBRE - Always show if field exists */}
+                {(reception.timbreActif !== undefined || reception.totaux?.timbre !== undefined) && (
+                  <div>
+                    <label className="text-xs text-gray-500 dark:text-gray-400">Timbre fiscal</label>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">
+                      {reception.montantTimbre || 1.000} DT
+                      {reception.timbreActif ? (
+                        <span className="text-green-600 dark:text-green-400 ml-2">(activé)</span>
+                      ) : (
+                        <span className="text-gray-500 dark:text-gray-500 ml-2">(non activé)</span>
+                      )}
+                      {(reception.totaux?.timbre !== undefined) && (
+                        <span className="text-gray-600 dark:text-gray-400 ml-2">- {reception.totaux.timbre.toFixed(3)} DT</span>
+                      )}
+                    </p>
+                  </div>
+                )}
+
+                {/* TVA Rates */}
+                {reception.lignes && reception.lignes.length > 0 && (() => {
+                  const tvaRates = Array.from(new Set(
+                    reception.lignes
+                      .filter((l: any) => l && l.tvaPct !== undefined && l.tvaPct !== null && l.tvaPct > 0)
+                      .map((l: any) => l.tvaPct)
+                      .filter((rate: any): rate is number => typeof rate === 'number' && rate > 0)
+                  )).sort((a, b) => a - b);
+
+                  if (tvaRates.length > 0) {
+                    return (
+                      <div>
+                        <label className="text-xs text-gray-500 dark:text-gray-400">Taux TVA appliqués</label>
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">
+                          {tvaRates.map((rate, idx) => (
+                            <span key={idx}>
+                              {rate}%{idx < tvaRates.length - 1 ? ', ' : ''}
+                            </span>
+                          ))}
+                        </p>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
+              </div>
+            </div>
+          )}
+
           {reception.notes && (
-            <div className="mt-4 pt-4 border-t">
-              <label className="text-xs text-gray-500">Notes</label>
-              <p className="text-sm text-gray-900 mt-1">{reception.notes}</p>
+            <div className="mt-4 pt-4 border-t dark:border-gray-700">
+              <label className="text-xs text-gray-500 dark:text-gray-400">Notes</label>
+              <p className="text-sm text-gray-900 dark:text-gray-300 mt-1">{reception.notes}</p>
             </div>
           )}
         </div>
 
         {/* Lines Table */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
           {/* Desktop table */}
           <div className="hidden md:block overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-blue-50 border-b-2 border-blue-200">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+              <thead className="bg-blue-50 dark:bg-blue-900/20 border-b-2 border-blue-200 dark:border-blue-800">
                 <tr>
-                  <th className="px-4 sm:px-6 py-3 text-left text-sm font-bold text-gray-800 whitespace-nowrap">Réf</th>
-                  <th className="px-4 sm:px-6 py-3 text-left text-sm font-bold text-gray-800">Désignation</th>
-                  <th className="px-3 sm:px-4 py-3 text-right text-sm font-bold text-gray-800 whitespace-nowrap">Qté commandée</th>
-                  <th className="px-3 sm:px-4 py-3 text-right text-sm font-bold text-gray-800 whitespace-nowrap">Qté reçue</th>
-                  <th className="px-3 sm:px-4 py-3 text-center text-sm font-bold text-gray-800 whitespace-nowrap">Unité</th>
-                  <th className="px-3 sm:px-4 py-3 text-right text-sm font-bold text-gray-800 whitespace-nowrap">Prix HT</th>
-                  <th className="px-3 sm:px-4 py-3 text-right text-sm font-bold text-gray-800 whitespace-nowrap">Remise %</th>
-                  <th className="px-3 sm:px-4 py-3 text-right text-sm font-bold text-gray-800 whitespace-nowrap">TVA %</th>
-                  <th className="px-3 sm:px-4 py-3 text-right text-sm font-bold text-gray-800 whitespace-nowrap">Total HT</th>
+                  <th className="px-4 sm:px-6 py-3 text-left text-sm font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">Réf</th>
+                  <th className="px-4 sm:px-6 py-3 text-left text-sm font-bold text-gray-800 dark:text-gray-200">Désignation</th>
+                  <th className="px-3 sm:px-4 py-3 text-right text-sm font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">Qté commandée</th>
+                  <th className="px-3 sm:px-4 py-3 text-right text-sm font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">Qté reçue</th>
+                  <th className="px-3 sm:px-4 py-3 text-center text-sm font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">Unité</th>
+                  <th className="px-3 sm:px-4 py-3 text-right text-sm font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">Prix HT</th>
+                  <th className="px-3 sm:px-4 py-3 text-right text-sm font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">Remise %</th>
+                  <th className="px-3 sm:px-4 py-3 text-right text-sm font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">TVA %</th>
+                  <th className="px-3 sm:px-4 py-3 text-right text-sm font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">Total HT</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                 {reception.lignes.map((line, index) => (
                   <tr key={index}>
-                    <td className="px-4 sm:px-6 py-4 text-sm text-gray-900">{line.reference || '—'}</td>
-                    <td className="px-4 sm:px-6 py-4 text-sm text-gray-900">{line.designation || '—'}</td>
-                    <td className="px-3 sm:px-4 py-4 whitespace-nowrap text-sm text-right text-gray-900">{line.qteCommandee || '—'}</td>
-                    <td className="px-3 sm:px-4 py-4 whitespace-nowrap text-sm text-right font-medium text-gray-900">{line.qteRecue}</td>
-                    <td className="px-3 sm:px-4 py-4 whitespace-nowrap text-sm text-center text-gray-900">{line.uom || 'PCE'}</td>
-                    <td className="px-3 sm:px-4 py-4 whitespace-nowrap text-sm text-right text-gray-900">{line.prixUnitaireHT ? line.prixUnitaireHT.toFixed(3) : '—'}</td>
-                    <td className="px-3 sm:px-4 py-4 whitespace-nowrap text-sm text-right text-gray-900">
-                      {(line.remisePct !== undefined && line.remisePct !== null && line.remisePct > 0) 
-                        ? `${Number(line.remisePct).toFixed(2)} %` 
+                    <td className="px-4 sm:px-6 py-4 text-sm text-gray-900 dark:text-gray-300">{line.reference || '—'}</td>
+                    <td className="px-4 sm:px-6 py-4 text-sm text-gray-900 dark:text-gray-300">{line.designation || '—'}</td>
+                    <td className="px-3 sm:px-4 py-4 whitespace-nowrap text-sm text-right text-gray-900 dark:text-gray-300">{line.qteCommandee || '—'}</td>
+                    <td className="px-3 sm:px-4 py-4 whitespace-nowrap text-sm text-right font-medium text-gray-900 dark:text-white">{line.qteRecue}</td>
+                    <td className="px-3 sm:px-4 py-4 whitespace-nowrap text-sm text-center text-gray-900 dark:text-gray-300">{line.uom || 'PCE'}</td>
+                    <td className="px-3 sm:px-4 py-4 whitespace-nowrap text-sm text-right text-gray-900 dark:text-gray-300">{line.prixUnitaireHT ? line.prixUnitaireHT.toFixed(3) : '—'}</td>
+                    <td className="px-3 sm:px-4 py-4 whitespace-nowrap text-sm text-right text-gray-900 dark:text-gray-300">
+                      {(line.remisePct !== undefined && line.remisePct !== null && line.remisePct > 0)
+                        ? `${Number(line.remisePct).toFixed(2)} %`
                         : '—'}
                     </td>
-                    <td className="px-3 sm:px-4 py-4 whitespace-nowrap text-sm text-right text-gray-900">{line.tvaPct ? `${line.tvaPct} %` : '—'}</td>
-                    <td className="px-3 sm:px-4 py-4 whitespace-nowrap text-sm text-right font-medium text-gray-900">{line.totalLigneHT ? line.totalLigneHT.toFixed(3) : '—'}</td>
+                    <td className="px-3 sm:px-4 py-4 whitespace-nowrap text-sm text-right text-gray-900 dark:text-gray-300">{line.tvaPct ? `${line.tvaPct} %` : '—'}</td>
+                    <td className="px-3 sm:px-4 py-4 whitespace-nowrap text-sm text-right font-medium text-gray-900 dark:text-white">{line.totalLigneHT ? line.totalLigneHT.toFixed(3) : '—'}</td>
                   </tr>
                 ))}
               </tbody>
-              <tfoot className="bg-gray-50">
+              <tfoot className="bg-gray-50 dark:bg-gray-800 border-t dark:border-gray-700">
                 {(() => {
                   // Calculate remise amounts for display (same logic as backend)
                   let totalHTBeforeDiscount = 0;
                   let totalHTAfterLineDiscount = 0;
-                  
+
                   reception.lignes.forEach((line) => {
                     if (line.prixUnitaireHT && line.qteRecue > 0) {
                       // Calculate before discount
                       const lineHTBeforeDiscount = line.prixUnitaireHT * line.qteRecue;
                       totalHTBeforeDiscount += lineHTBeforeDiscount;
-                      
+
                       // Apply line remise if exists
                       let prixAvecRemise = line.prixUnitaireHT;
                       const remisePct = line.remisePct || 0;
@@ -518,39 +518,39 @@ export default function ReceptionDetailPage({ params }: { params: Promise<{ id: 
                       totalHTAfterLineDiscount += line.totalLigneHT;
                     }
                   });
-                  
+
                   const remiseFromLines = totalHTBeforeDiscount - totalHTAfterLineDiscount;
                   const remiseGlobalePct = reception.remiseGlobalePct || 0;
-                  const remiseGlobale = remiseGlobalePct > 0 
+                  const remiseGlobale = remiseGlobalePct > 0
                     ? totalHTAfterLineDiscount * (remiseGlobalePct / 100)
                     : 0;
-                  
+
                   // Verify: totalHT should equal totalHTAfterLineDiscount - remiseGlobale
                   const calculatedTotalHT = totalHTAfterLineDiscount - remiseGlobale;
                   const actualTotalHT = reception.totaux.totalHT;
-                  
+
                   // Use calculated values, but ensure they match totaux
                   const finalRemiseFromLines = Math.abs(remiseFromLines) > 0.001 ? remiseFromLines : 0;
                   const finalRemiseGlobale = Math.abs(remiseGlobale) > 0.001 ? remiseGlobale : 0;
-                  
+
                   return (
                     <>
                       {finalRemiseFromLines > 0 && (
                         <tr>
-                          <td colSpan={9} className="px-4 sm:px-6 py-3 text-right text-sm font-semibold text-gray-700">
+                          <td colSpan={9} className="px-4 sm:px-6 py-3 text-right text-sm font-semibold text-gray-700 dark:text-gray-300">
                             Remise lignes:
                           </td>
-                          <td className="px-2 sm:px-4 py-3 text-right text-sm font-bold text-red-600">
+                          <td className="px-2 sm:px-4 py-3 text-right text-sm font-bold text-red-600 dark:text-red-400">
                             -{finalRemiseFromLines.toFixed(3)} DT
                           </td>
                         </tr>
                       )}
                       {finalRemiseGlobale > 0 && (
                         <tr>
-                          <td colSpan={9} className="px-4 sm:px-6 py-3 text-right text-sm font-semibold text-gray-700">
+                          <td colSpan={9} className="px-4 sm:px-6 py-3 text-right text-sm font-semibold text-gray-700 dark:text-gray-300">
                             Remise globale ({remiseGlobalePct}%):
                           </td>
-                          <td className="px-2 sm:px-4 py-3 text-right text-sm font-bold text-red-600">
+                          <td className="px-2 sm:px-4 py-3 text-right text-sm font-bold text-red-600 dark:text-red-400">
                             -{finalRemiseGlobale.toFixed(3)} DT
                           </td>
                         </tr>
@@ -559,48 +559,48 @@ export default function ReceptionDetailPage({ params }: { params: Promise<{ id: 
                   );
                 })()}
                 <tr>
-                  <td colSpan={9} className="px-4 sm:px-6 py-3 text-right text-sm font-semibold text-gray-700">
+                  <td colSpan={9} className="px-4 sm:px-6 py-3 text-right text-sm font-semibold text-gray-700 dark:text-gray-300">
                     Total HT:
                   </td>
-                  <td className="px-2 sm:px-4 py-3 text-right text-sm font-bold text-gray-900">
+                  <td className="px-2 sm:px-4 py-3 text-right text-sm font-bold text-gray-900 dark:text-white">
                     {reception.totaux.totalHT.toFixed(3)} DT
                   </td>
                 </tr>
                 {/* Only show FODEC if active */}
                 {reception.fodecActif && (
                   <tr>
-                    <td colSpan={9} className="px-4 sm:px-6 py-3 text-right text-sm font-semibold text-gray-700">
+                    <td colSpan={9} className="px-4 sm:px-6 py-3 text-right text-sm font-semibold text-gray-700 dark:text-gray-300">
                       FODEC ({reception.tauxFodec || 1}%):
                     </td>
-                    <td className="px-2 sm:px-4 py-3 text-right text-sm font-bold text-gray-900">
+                    <td className="px-2 sm:px-4 py-3 text-right text-sm font-bold text-gray-900 dark:text-white">
                       {(reception.totaux?.fodec || 0).toFixed(3)} DT
                     </td>
                   </tr>
                 )}
                 <tr>
-                  <td colSpan={9} className="px-4 sm:px-6 py-3 text-right text-sm font-semibold text-gray-700">
+                  <td colSpan={9} className="px-4 sm:px-6 py-3 text-right text-sm font-semibold text-gray-700 dark:text-gray-300">
                     Total TVA:
                   </td>
-                  <td className="px-2 sm:px-4 py-3 text-right text-sm font-bold text-gray-900">
+                  <td className="px-2 sm:px-4 py-3 text-right text-sm font-bold text-gray-900 dark:text-white">
                     {reception.totaux.totalTVA.toFixed(3)} DT
                   </td>
                 </tr>
                 {/* Always show TIMBRE if field exists */}
                 {(reception.timbreActif !== undefined || reception.totaux?.timbre !== undefined) && (
                   <tr>
-                    <td colSpan={9} className="px-4 sm:px-6 py-3 text-right text-sm font-semibold text-gray-700">
+                    <td colSpan={9} className="px-4 sm:px-6 py-3 text-right text-sm font-semibold text-gray-700 dark:text-gray-300">
                       Timbre fiscal{reception.timbreActif ? '' : ' (non activé)'}:
                     </td>
-                    <td className="px-2 sm:px-4 py-3 text-right text-sm font-bold text-gray-900">
+                    <td className="px-2 sm:px-4 py-3 text-right text-sm font-bold text-gray-900 dark:text-white">
                       {(reception.totaux?.timbre || 0).toFixed(3)} DT
                     </td>
                   </tr>
                 )}
                 <tr>
-                  <td colSpan={9} className="px-4 sm:px-6 py-3 text-right text-sm font-semibold text-blue-600">
+                  <td colSpan={9} className="px-4 sm:px-6 py-3 text-right text-sm font-semibold text-blue-600 dark:text-blue-400">
                     Total TTC:
                   </td>
-                  <td className="px-2 sm:px-4 py-3 text-right text-sm font-bold text-blue-600">
+                  <td className="px-2 sm:px-4 py-3 text-right text-sm font-bold text-blue-600 dark:text-blue-400">
                     {reception.totaux.totalTTC.toFixed(3)} DT
                   </td>
                 </tr>
@@ -609,33 +609,33 @@ export default function ReceptionDetailPage({ params }: { params: Promise<{ id: 
           </div>
 
           {/* Mobile cards */}
-          <div className="md:hidden divide-y divide-gray-200">
+          <div className="md:hidden divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
             {reception.lignes.map((line, index) => (
               <div key={index} className="p-4">
                 <div className="flex justify-between items-start mb-2">
                   <div>
-                    <div className="text-sm font-medium text-gray-900">
+                    <div className="text-sm font-medium text-gray-900 dark:text-white">
                       {line.designation || '—'}
                     </div>
                     {line.reference && (
-                      <div className="text-xs text-gray-500 mt-1">
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                         Réf: {line.reference}
                       </div>
                     )}
                   </div>
-                  <div className="text-sm font-semibold text-gray-900 text-right">
+                  <div className="text-sm font-semibold text-gray-900 dark:text-white text-right">
                     {line.qteRecue} {line.uom || 'PCE'}
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
+                <div className="grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-400">
                   <div>
-                    <div className="text-gray-500">Qté commandée</div>
+                    <div className="text-gray-500 dark:text-gray-500">Qté commandée</div>
                     <div className="font-medium">
                       {line.qteCommandee ?? '—'}
                     </div>
                   </div>
                   <div>
-                    <div className="text-gray-500">Prix HT</div>
+                    <div className="text-gray-500 dark:text-gray-500">Prix HT</div>
                     <div className="font-medium">
                       {line.prixUnitaireHT
                         ? `${line.prixUnitaireHT.toFixed(3)} DT`
@@ -643,7 +643,7 @@ export default function ReceptionDetailPage({ params }: { params: Promise<{ id: 
                     </div>
                   </div>
                   <div>
-                    <div className="text-gray-500">Remise %</div>
+                    <div className="text-gray-500 dark:text-gray-500">Remise %</div>
                     <div className="font-medium">
                       {line.remisePct && line.remisePct > 0
                         ? `${Number(line.remisePct).toFixed(2)} %`
@@ -651,14 +651,14 @@ export default function ReceptionDetailPage({ params }: { params: Promise<{ id: 
                     </div>
                   </div>
                   <div>
-                    <div className="text-gray-500">TVA %</div>
+                    <div className="text-gray-500 dark:text-gray-500">TVA %</div>
                     <div className="font-medium">
                       {line.tvaPct ? `${line.tvaPct} %` : '—'}
                     </div>
                   </div>
                   <div className="col-span-2">
-                    <div className="text-gray-500">Total HT</div>
-                    <div className="font-semibold text-gray-900">
+                    <div className="text-gray-500 dark:text-gray-500">Total HT</div>
+                    <div className="font-semibold text-gray-900 dark:text-white">
                       {line.totalLigneHT
                         ? `${line.totalLigneHT.toFixed(3)} DT`
                         : '—'}
@@ -675,7 +675,7 @@ export default function ReceptionDetailPage({ params }: { params: Promise<{ id: 
           <div className="flex flex-col sm:flex-row gap-3">
             <button
               onClick={() => router.push(`/purchases/receptions/${receptionId}/edit`)}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 border rounded-lg hover:bg-gray-50 text-sm"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-sm dark:border-gray-600 dark:text-gray-200"
             >
               <PencilIcon className="w-5 h-5" />
               Modifier
@@ -699,7 +699,7 @@ export default function ReceptionDetailPage({ params }: { params: Promise<{ id: 
             <button
               onClick={handleDelete}
               disabled={deleting}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 disabled:opacity-50 text-sm"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 border border-red-300 dark:border-red-900/50 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50 text-sm"
             >
               <TrashIcon className="w-5 h-5" />
               {deleting ? 'Suppression...' : 'Supprimer'}

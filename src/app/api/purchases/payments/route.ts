@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
           ...paiement,
           images: paiement.images || [], // Ensure images array is always present
         };
-        
+
         if (paiement.lignes && paiement.lignes.length > 0) {
           const enrichedLignes = await Promise.all(
             paiement.lignes.map(async (ligne: any) => {
@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
                   _id: ligne.factureId,
                   societeId: new mongoose.Types.ObjectId(tenantId),
                 }).select('referenceFournisseur').lean();
-                
+
                 if (invoice && invoice.referenceFournisseur) {
                   ligne.referenceFournisseur = invoice.referenceFournisseur;
                 }
@@ -108,11 +108,11 @@ export async function POST(request: NextRequest) {
       if (!numero) return null;
       const numericMatch = numero.match(/(\d+)$/);
       if (!numericMatch) return null;
-      
+
       const number = parseInt(numericMatch[1], 10);
       const prefix = numero.substring(0, numero.length - numericMatch[1].length);
       const padding = numericMatch[1].length;
-      
+
       return { number, prefix, padding };
     };
 
@@ -123,10 +123,10 @@ export async function POST(request: NextRequest) {
         const allPayments = await (PaiementFournisseur as any).find({
           societeId: new mongoose.Types.ObjectId(tenantId)
         })
-        .select('numero')
-        .sort({ numero: -1 }) // Sort descending to get highest number first
-        .limit(100) // Limit to last 100 payments for performance
-        .lean();
+          .select('numero')
+          .sort({ numero: -1 }) // Sort descending to get highest number first
+          .limit(500) // Increased limit for better accuracy
+          .lean();
 
         let maxNumber = 0;
         let maxNumeroFormat = '';
@@ -152,7 +152,7 @@ export async function POST(request: NextRequest) {
           console.log(`Generated payment number: ${newNumero} (from max: ${maxNumeroFormat}, next: ${nextNumber})`);
           return newNumero;
         }
-        
+
         // No payments found, use NumberingService to generate first number
         const fallbackNumero = await NumberingService.next(tenantId, 'pafo');
         console.log(`Using NumberingService for first payment: ${fallbackNumero}`);
@@ -179,6 +179,11 @@ export async function POST(request: NextRequest) {
       }
       // If we can't parse, return empty string to trigger regeneration
       return '';
+    };
+
+    // Helper to escape regex special characters
+    const escapeRegExp = (string: string) => {
+      return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     };
 
     // Get supplier name if not provided
@@ -259,46 +264,46 @@ export async function POST(request: NextRequest) {
             });
           }
         });
-        
+
         // Round to 3 decimal places to avoid floating point precision issues
         montantPayeAvant = Math.round(montantPayeAvant * 1000) / 1000;
 
         const montantFacture = invoice.totaux.totalTTC || 0;
         const montantPaye = parseFloat(line.montantPaye) || 0;
-        
+
         // Calculate remaining balance BEFORE this payment
         const soldeRestantAvant = montantFacture - montantPayeAvant;
-        
+
         // Round values to 3 decimal places to avoid floating point precision issues
         const roundedMontantFacture = Math.round(montantFacture * 1000) / 1000;
         const roundedMontantPayeAvant = Math.round(montantPayeAvant * 1000) / 1000;
         const roundedMontantPaye = Math.round(montantPaye * 1000) / 1000;
         const roundedSoldeRestantAvant = Math.round(soldeRestantAvant * 1000) / 1000;
-        
+
         // Validate: the payment amount should not exceed the remaining balance
         // Allow payment if amount equals or is less than remaining balance
         // Use a small tolerance (0.001) to handle floating point precision issues
         if (roundedMontantPaye > roundedSoldeRestantAvant + 0.001) {
           return NextResponse.json(
-            { 
-              error: `Le montant payé (${roundedMontantPaye.toFixed(3)}) dépasse le solde restant (${roundedSoldeRestantAvant.toFixed(3)}) de la facture ${invoice.numero}` 
+            {
+              error: `Le montant payé (${roundedMontantPaye.toFixed(3)}) dépasse le solde restant (${roundedSoldeRestantAvant.toFixed(3)}) de la facture ${invoice.numero}`
             },
             { status: 400 }
           );
         }
-        
+
         // Also validate: total paid should not exceed invoice total (safety check)
         // Allow if total equals invoice total (full payment) or is less
         // Use a small tolerance (0.001) to handle floating point precision issues
         if (roundedMontantPayeAvant + roundedMontantPaye > roundedMontantFacture + 0.001) {
           return NextResponse.json(
-            { 
-              error: `Le montant total payé (${(roundedMontantPayeAvant + roundedMontantPaye).toFixed(3)}) dépasse le montant de la facture (${roundedMontantFacture.toFixed(3)}) ${invoice.numero}` 
+            {
+              error: `Le montant total payé (${(roundedMontantPayeAvant + roundedMontantPaye).toFixed(3)}) dépasse le montant de la facture (${roundedMontantFacture.toFixed(3)}) ${invoice.numero}`
             },
             { status: 400 }
           );
         }
-        
+
         const soldeRestant = roundedSoldeRestantAvant - roundedMontantPaye;
 
         lignes.push({
@@ -355,11 +360,42 @@ export async function POST(request: NextRequest) {
 
     // Generate initial payment number
     let numero = await generateNextPaymentNumber();
-    
+
     // Retry logic for handling duplicate key errors
     let paiement: any = null;
     let retryCount = 0;
-    const maxRetries = 20; // Increased retries
+    const maxRetries = 50; // Increased retries
+
+    // Function to handle collision (find max with same prefix and jump)
+    const jumpToMaxNumber = async (currentNumero: string): Promise<string | null> => {
+      const extracted = extractNumericPart(currentNumero);
+      if (!extracted) return null;
+
+      const { prefix, padding } = extracted;
+      try {
+        // Find the absolute highest number with this prefix
+        const highestPayment = await (PaiementFournisseur as any).findOne({
+          societeId: new mongoose.Types.ObjectId(tenantId),
+          numero: { $regex: `^${escapeRegExp(prefix)}` }
+        })
+          .sort({ numero: -1 }) // Strict desc sort on string is mostly correct for padded numbers
+          .lean();
+
+        if (highestPayment && highestPayment.numero) {
+          const highestExtracted = extractNumericPart(highestPayment.numero);
+          if (highestExtracted && highestExtracted.number >= extracted.number) {
+            // Found a higher number, increment from THAT
+            const nextNum = highestExtracted.number + 1;
+            const nextStr = prefix + nextNum.toString().padStart(padding, '0');
+            console.log(`Collision detected on ${currentNumero}. Jumped to ${nextStr} (found max: ${highestPayment.numero})`);
+            return nextStr;
+          }
+        }
+      } catch (e) {
+        console.error("Error in jumpToMaxNumber", e);
+      }
+      return null;
+    };
 
     while (retryCount < maxRetries) {
       try {
@@ -370,26 +406,25 @@ export async function POST(request: NextRequest) {
         }).lean();
 
         if (existingPayment) {
-          // Number exists, increment and try again
+          // Number exists
           retryCount++;
-          
+
           if (retryCount >= maxRetries) {
-            return NextResponse.json(
-              { error: 'Impossible de générer un numéro unique après plusieurs tentatives. Veuillez réessayer.' },
-              { status: 500 }
-            );
+            break; // Will trigger error response below
           }
-          
-          const incremented = incrementPaymentNumber(numero);
-          if (incremented) {
-            numero = incremented;
+
+          // Try to jump to the max number to avoid step-by-step increments
+          const nextNum = await jumpToMaxNumber(numero);
+          if (nextNum) {
+            numero = nextNum;
           } else {
-            // If we can't increment, generate a completely new one
-            numero = await generateNextPaymentNumber();
+            // Fallback to simple increment
+            const incremented = incrementPaymentNumber(numero);
+            numero = incremented || await generateNextPaymentNumber();
           }
-          
-          // Small delay to avoid rapid retries
-          await new Promise(resolve => setTimeout(resolve, 100));
+
+          // Small delay
+          await new Promise(resolve => setTimeout(resolve, 50));
           continue; // Skip to next iteration
         }
 
@@ -435,7 +470,7 @@ export async function POST(request: NextRequest) {
 
         // Save with validation
         await paiement.save({ validateBeforeSave: true });
-        
+
         // Success! Exit retry loop
         break;
       } catch (saveError: any) {
@@ -443,41 +478,22 @@ export async function POST(request: NextRequest) {
         if (saveError.code === 11000 && saveError.keyPattern && saveError.keyPattern.numero) {
           // Duplicate key error on numero field
           retryCount++;
-          
+
           if (retryCount >= maxRetries) {
-            console.error(`Failed to generate unique payment number after ${maxRetries} attempts. Last attempted number: ${numero}`);
-            return NextResponse.json(
-              { error: 'Impossible de générer un numéro unique après plusieurs tentatives. Veuillez réessayer.' },
-              { status: 500 }
-            );
+            break;
           }
-          
-          // Generate new number and try again
-          // First try to increment the current number
-          const incremented = incrementPaymentNumber(numero);
-          if (incremented && incremented !== numero) {
-            // Check if incremented number doesn't exist
-            const exists = await (PaiementFournisseur as any).findOne({
-              societeId: new mongoose.Types.ObjectId(tenantId),
-              numero: incremented
-            }).lean();
-            
-            if (!exists) {
-              numero = incremented;
-              console.log(`Incremented payment number to: ${numero}`);
-            } else {
-              // Incremented number also exists, regenerate from scratch
-              console.log(`Incremented number ${incremented} also exists, regenerating...`);
-              numero = await generateNextPaymentNumber();
-            }
+
+          // Try to jump to max number
+          const nextNum = await jumpToMaxNumber(numero);
+          if (nextNum) {
+            numero = nextNum;
           } else {
-            // If we can't increment, generate a completely new one
-            console.log(`Cannot increment ${numero}, regenerating...`);
-            numero = await generateNextPaymentNumber();
+            const incremented = incrementPaymentNumber(numero);
+            numero = incremented || await generateNextPaymentNumber();
           }
-          
-          // Small delay to avoid rapid retries
-          await new Promise(resolve => setTimeout(resolve, 100));
+
+          // Small delay
+          await new Promise(resolve => setTimeout(resolve, 50));
         } else {
           // Different error, re-throw it
           throw saveError;
@@ -497,7 +513,7 @@ export async function POST(request: NextRequest) {
     // The netAdvanceBalance is calculated as: totalPaymentsOnAccount - totalAdvanceUsed
     // We DON'T create a new payment on account for the remaining balance, as that would double-count.
     // The remaining balance is automatically calculated when we compute netAdvanceBalance.
-    
+
     // Note: We no longer create a payment on account for the remaining advance.
     // The calculation of netAdvanceBalance in /api/suppliers/[id]/balance will automatically
     // show the correct remaining balance by subtracting advanceUsed from totalPaymentsOnAccount.
@@ -513,7 +529,7 @@ export async function POST(request: NextRequest) {
 
           if (invoice) {
             const totalPaye = (line.montantPayeAvant || 0) + line.montantPaye;
-            
+
             if (totalPaye >= (line.montantFacture || 0)) {
               invoice.statut = 'PAYEE';
             } else if (totalPaye > 0) {

@@ -713,30 +713,30 @@ export default function NewReceptionPage() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => router.back()}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               title="Retour"
             >
-              <ArrowLeftIcon className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600" />
+              <ArrowLeftIcon className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600 dark:text-gray-300" />
             </button>
-            <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
+            <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2 text-gray-900 dark:text-white">
               <ClipboardDocumentCheckIcon className="w-6 h-6 sm:w-8 sm:h-8" />
               <span>Nouveau bon de réception</span>
             </h1>
           </div>
           <button
             onClick={() => router.back()}
-            className="px-4 py-2 border rounded-lg hover:bg-gray-50 text-sm sm:text-base"
+            className="px-4 py-2 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-sm sm:text-base border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300"
           >
             Annuler
           </button>
         </div>
 
         {/* Form */}
-        <div className="bg-white rounded-lg shadow p-4 sm:p-6 space-y-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 sm:p-6 space-y-6">
           {/* Basic Info */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Bon de commande (optionnel)
               </label>
               <select
@@ -745,7 +745,7 @@ export default function NewReceptionPage() {
                   setSelectedPurchaseOrderId(e.target.value);
                   setFormData(prev => ({ ...prev, purchaseOrderId: e.target.value }));
                 }}
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
               >
                 <option value="">— Sans bon de commande —</option>
                 {purchaseOrders.map((po) => (
@@ -757,7 +757,7 @@ export default function NewReceptionPage() {
             </div>
 
             <div className="relative">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Fournisseur *
               </label>
               <div className="relative">
@@ -778,7 +778,7 @@ export default function NewReceptionPage() {
                   }}
                   onKeyDown={handleSupplierKeyDown}
                   placeholder="Rechercher un fournisseur..."
-                  className="w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:text-gray-500"
                   disabled={!!formData.purchaseOrderId}
                 />
               </div>
@@ -786,7 +786,7 @@ export default function NewReceptionPage() {
               {showSupplierDropdown && filteredSuppliers.length > 0 && supplierDropdownPosition && (
                 <div
                   data-supplier-dropdown="true"
-                  className="fixed z-[9999] bg-white border border-gray-200 rounded-lg shadow-xl max-h-60 overflow-y-auto"
+                  className="fixed z-[9999] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl max-h-60 overflow-y-auto"
                   style={{
                     top: `${supplierDropdownPosition.top}px`,
                     left: `${supplierDropdownPosition.left}px`,
@@ -800,11 +800,11 @@ export default function NewReceptionPage() {
                         key={supplier._id}
                         onClick={() => handleSelectSupplier(supplier)}
                         className={`px-4 py-3 cursor-pointer transition-colors ${index === selectedSupplierIndex
-                          ? 'bg-blue-50 border-l-2 border-blue-500'
-                          : 'hover:bg-gray-50'
+                          ? 'bg-blue-50 dark:bg-blue-900/30 border-l-2 border-blue-500'
+                          : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'
                           }`}
                       >
-                        <div className="font-medium text-gray-900">{name}</div>
+                        <div className="font-medium text-gray-900 dark:text-gray-100">{name}</div>
                       </div>
                     );
                   })}
@@ -813,26 +813,26 @@ export default function NewReceptionPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Date de réception *
               </label>
               <input
                 type="date"
                 value={formData.dateDoc}
                 onChange={(e) => setFormData(prev => ({ ...prev, dateDoc: e.target.value }))}
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
               />
             </div>
 
             {multiWarehouseEnabled && warehouses.length > 0 && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Entrepôt de réception
                 </label>
                 <select
                   value={selectedWarehouseId}
                   onChange={(e) => setSelectedWarehouseId(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                 >
                   {warehouses.map((wh) => (
                     <option key={wh._id} value={wh._id}>
@@ -846,14 +846,14 @@ export default function NewReceptionPage() {
 
           {/* Notes */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Notes
             </label>
             <textarea
               value={formData.notes}
               onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
               rows={3}
-              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
               placeholder="Notes additionnelles..."
             />
           </div>
@@ -861,11 +861,11 @@ export default function NewReceptionPage() {
           {/* Lines Table */}
           <div>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Lignes</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Lignes</h3>
               {!formData.purchaseOrderId && (
                 <button
                   onClick={addLine}
-                  className="flex items-center gap-2 px-3 py-2 text-sm text-blue-600 hover:text-blue-700 font-medium"
+                  className="flex items-center gap-2 px-3 py-2 text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
                 >
                   <PlusIcon className="w-5 h-5" />
                   Ajouter une ligne
@@ -874,27 +874,27 @@ export default function NewReceptionPage() {
             </div>
 
             {lines.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
+              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                 Aucune ligne ajoutée
               </div>
             ) : (
-              <div className="border rounded-lg overflow-x-auto">
+              <div className="border rounded-lg overflow-x-auto dark:border-gray-700">
                 <table className="w-full min-w-[900px]">
-                  <thead className="bg-blue-50 border-b-2 border-blue-200">
+                  <thead className="bg-blue-50 dark:bg-blue-900/20 border-b-2 border-blue-200 dark:border-blue-800">
                     <tr>
-                      <th className="px-4 py-3 text-left text-sm font-bold text-gray-800 whitespace-nowrap">Réf</th>
-                      <th className="px-4 py-3 text-left text-sm font-bold text-gray-800">Désignation</th>
-                      <th className="px-3 py-3 text-right text-sm font-bold text-gray-800 whitespace-nowrap">Qté commandée</th>
-                      <th className="px-3 py-3 text-right text-sm font-bold text-gray-800 whitespace-nowrap">Qté reçue *</th>
-                      <th className="px-3 py-3 text-center text-sm font-bold text-gray-800 whitespace-nowrap">Unité</th>
-                      <th className="px-3 py-3 text-right text-sm font-bold text-gray-800 whitespace-nowrap">Prix HT</th>
-                      <th className="px-3 py-3 text-right text-sm font-bold text-gray-800 whitespace-nowrap">Remise %</th>
-                      <th className="px-3 py-3 text-right text-sm font-bold text-gray-800 whitespace-nowrap">TVA %</th>
-                      <th className="px-3 py-3 text-right text-sm font-bold text-gray-800 whitespace-nowrap">Total HT</th>
+                      <th className="px-4 py-3 text-left text-sm font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">Réf</th>
+                      <th className="px-4 py-3 text-left text-sm font-bold text-gray-800 dark:text-gray-200">Désignation</th>
+                      <th className="px-3 py-3 text-right text-sm font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">Qté commandée</th>
+                      <th className="px-3 py-3 text-right text-sm font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">Qté reçue *</th>
+                      <th className="px-3 py-3 text-center text-sm font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">Unité</th>
+                      <th className="px-3 py-3 text-right text-sm font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">Prix HT</th>
+                      <th className="px-3 py-3 text-right text-sm font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">Remise %</th>
+                      <th className="px-3 py-3 text-right text-sm font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">TVA %</th>
+                      <th className="px-3 py-3 text-right text-sm font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">Total HT</th>
                       {!formData.purchaseOrderId && <th className="px-2 py-3"></th>}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                     {lines.map((line, index) => (
                       <tr key={index}>
                         <td className="px-4 py-3">
@@ -902,7 +902,7 @@ export default function NewReceptionPage() {
                             type="text"
                             value={line.reference || ''}
                             onChange={(e) => updateLine(index, 'reference', e.target.value)}
-                            className="w-full px-2 py-1.5 border rounded text-sm"
+                            className="w-full px-2 py-1.5 border rounded text-sm bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                             disabled={!!formData.purchaseOrderId}
                           />
                         </td>
@@ -911,7 +911,7 @@ export default function NewReceptionPage() {
                             <input
                               type="text"
                               value={line.designation || ''}
-                              className="w-full px-2 py-1.5 border rounded text-sm bg-gray-50"
+                              className="w-full px-2 py-1.5 border rounded text-sm bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-300"
                               readOnly
                             />
                           ) : (
@@ -934,7 +934,7 @@ export default function NewReceptionPage() {
                                     handleOpenProductModal(index);
                                   }}
                                   placeholder="Rechercher un produit..."
-                                  className="px-3 py-1.5 pr-8 border rounded text-sm cursor-pointer focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                  className="px-3 py-1.5 pr-8 border rounded text-sm cursor-pointer focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                                   readOnly
                                   style={{
                                     minWidth: '150px',
@@ -967,7 +967,7 @@ export default function NewReceptionPage() {
                           <input
                             type="number"
                             value={line.qteCommandee || ''}
-                            className="w-full px-2 py-1.5 border rounded text-sm bg-gray-50 text-right"
+                            className="w-full px-2 py-1.5 border rounded text-sm bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-300 text-right"
                             readOnly
                           />
                         </td>
@@ -981,7 +981,7 @@ export default function NewReceptionPage() {
                             }}
                             min="0"
                             step="0.01"
-                            className="w-full px-2 py-1.5 border rounded text-sm text-right"
+                            className="w-full px-2 py-1.5 border rounded text-sm text-right bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                             required
                           />
                         </td>
@@ -990,7 +990,7 @@ export default function NewReceptionPage() {
                             type="text"
                             value={line.uom || ''}
                             onChange={(e) => updateLine(index, 'uom', e.target.value)}
-                            className="w-full px-2 py-1.5 border rounded text-sm text-center"
+                            className="w-full px-2 py-1.5 border rounded text-sm text-center bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                             disabled={!!formData.purchaseOrderId}
                           />
                         </td>
@@ -1001,7 +1001,7 @@ export default function NewReceptionPage() {
                             onChange={(e) => updateLine(index, 'prixUnitaireHT', parseFloat(e.target.value) || 0)}
                             min="0"
                             step="0.01"
-                            className="w-full px-2 py-1.5 border rounded text-sm text-right"
+                            className="w-full px-2 py-1.5 border rounded text-sm text-right bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                             disabled={!!formData.purchaseOrderId}
                           />
                         </td>
@@ -1013,7 +1013,7 @@ export default function NewReceptionPage() {
                             min="0"
                             max="100"
                             step="0.01"
-                            className="w-full px-2 py-1.5 border rounded text-sm text-right"
+                            className="w-full px-2 py-1.5 border rounded text-sm text-right bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                             disabled={!!formData.purchaseOrderId}
                           />
                         </td>
@@ -1025,7 +1025,7 @@ export default function NewReceptionPage() {
                             min="0"
                             max="100"
                             step="0.01"
-                            className="w-full px-2 py-1.5 border rounded text-sm text-right"
+                            className="w-full px-2 py-1.5 border rounded text-sm text-right bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                             disabled={!!formData.purchaseOrderId}
                           />
                         </td>
@@ -1033,7 +1033,7 @@ export default function NewReceptionPage() {
                           <input
                             type="text"
                             value={(line.totalLigneHT || 0).toFixed(3)}
-                            className="w-full px-2 py-1.5 border rounded text-sm bg-gray-50 text-right font-medium"
+                            className="w-full px-2 py-1.5 border rounded text-sm bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-right font-medium text-gray-900 dark:text-gray-100"
                             readOnly
                           />
                         </td>
@@ -1050,68 +1050,68 @@ export default function NewReceptionPage() {
                       </tr>
                     ))}
                   </tbody>
-                  <tfoot className="bg-gray-50 border-t">
+                  <tfoot className="bg-gray-50 dark:bg-gray-800 border-t dark:border-gray-700">
                     {totals.remiseFromLines > 0 && (
                       <tr>
-                        <td colSpan={8} className="px-4 py-3 text-right font-semibold text-gray-700">
+                        <td colSpan={8} className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">
                           Remise lignes:
                         </td>
-                        <td className="px-2 py-3 font-bold text-red-600">
+                        <td className="px-2 py-3 font-bold text-red-600 dark:text-red-400">
                           -{totals.remiseFromLines.toFixed(3)} DT
                         </td>
                       </tr>
                     )}
                     {totals.remiseGlobale > 0 && (
                       <tr>
-                        <td colSpan={8} className="px-4 py-3 text-right font-semibold text-gray-700">
+                        <td colSpan={8} className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">
                           Remise globale ({formData.remiseGlobalePct}%):
                         </td>
-                        <td className="px-2 py-3 font-bold text-red-600">
+                        <td className="px-2 py-3 font-bold text-red-600 dark:text-red-400">
                           -{totals.remiseGlobale.toFixed(3)} DT
                         </td>
                       </tr>
                     )}
                     <tr>
-                      <td colSpan={8} className="px-4 py-3 text-right font-semibold text-gray-700">
+                      <td colSpan={8} className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">
                         Total HT:
                       </td>
-                      <td className="px-2 py-3 font-bold text-gray-900">
+                      <td className="px-2 py-3 font-bold text-gray-900 dark:text-white">
                         {totals.totalHT.toFixed(3)} DT
                       </td>
                     </tr>
                     {formData.fodecActif && (
                       <tr>
-                        <td colSpan={8} className="px-4 py-3 text-right font-semibold text-gray-700">
+                        <td colSpan={8} className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">
                           FODEC ({formData.tauxFodec}%):
                         </td>
-                        <td className="px-2 py-3 font-bold text-gray-900">
+                        <td className="px-2 py-3 font-bold text-gray-900 dark:text-white">
                           {totals.fodec.toFixed(3)} DT
                         </td>
                       </tr>
                     )}
                     <tr>
-                      <td colSpan={8} className="px-4 py-3 text-right font-semibold text-gray-700">
+                      <td colSpan={8} className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">
                         Total TVA:
                       </td>
-                      <td className="px-2 py-3 font-bold text-gray-900">
+                      <td className="px-2 py-3 font-bold text-gray-900 dark:text-white">
                         {totals.totalTVA.toFixed(3)} DT
                       </td>
                     </tr>
                     {formData.timbreActif && totals.timbre > 0 && (
                       <tr>
-                        <td colSpan={8} className="px-4 py-3 text-right font-semibold text-gray-700">
+                        <td colSpan={8} className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">
                           Timbre fiscal:
                         </td>
-                        <td className="px-2 py-3 font-bold text-gray-900">
+                        <td className="px-2 py-3 font-bold text-gray-900 dark:text-white">
                           {totals.timbre.toFixed(3)} DT
                         </td>
                       </tr>
                     )}
                     <tr>
-                      <td colSpan={8} className="px-4 py-3 text-right font-semibold text-blue-600">
+                      <td colSpan={8} className="px-4 py-3 text-right font-semibold text-blue-600 dark:text-blue-400">
                         Total TTC:
                       </td>
-                      <td className="px-2 py-3 font-bold text-blue-600">
+                      <td className="px-2 py-3 font-bold text-blue-600 dark:text-blue-400">
                         {totals.totalTTC.toFixed(3)} DT
                       </td>
                     </tr>
@@ -1122,119 +1122,124 @@ export default function NewReceptionPage() {
           </div>
 
           {/* Totaux Section */}
-          <div className="bg-white rounded-lg shadow p-4 sm:p-6 border-t">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Totaux</h3>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 sm:p-6 border-t dark:border-gray-700">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Totaux</h3>
 
-            <div className="space-y-4">
-              {/* Remise globale */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Remise globale (%)
-                </label>
-                <input
-                  type="number"
-                  value={formData.remiseGlobalePct}
-                  onChange={(e) => setFormData(prev => ({ ...prev, remiseGlobalePct: parseFloat(e.target.value) || 0 }))}
-                  min="0"
-                  max="100"
-                  step="0.01"
-                  className="w-full sm:w-48 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
-                  placeholder="0"
-                />
-              </div>
-
-              {/* FODEC and TIMBRE */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-                <div className="space-y-3">
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={formData.fodecActif}
-                      onChange={(e) => setFormData(prev => ({ ...prev, fodecActif: e.target.checked }))}
-                      className="rounded"
-                    />
-                    <span className="text-sm font-medium text-gray-700">FODEC</span>
+            <div className="flex flex-col lg:flex-row gap-8 justify-between">
+              {/* Controls */}
+              <div className="flex-1 space-y-6">
+                {/* Remise globale */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Remise globale (%)
                   </label>
-                  {formData.fodecActif && (
-                    <div>
-                      <label className="block text-xs text-gray-600 mb-1">Taux FODEC (%)</label>
-                      <input
-                        type="number"
-                        value={formData.tauxFodec}
-                        onChange={(e) => setFormData(prev => ({ ...prev, tauxFodec: parseFloat(e.target.value) || 1 }))}
-                        min="0"
-                        max="100"
-                        step="0.01"
-                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
-                      />
-                    </div>
-                  )}
+                  <input
+                    type="number"
+                    value={formData.remiseGlobalePct}
+                    onChange={(e) => setFormData(prev => ({ ...prev, remiseGlobalePct: parseFloat(e.target.value) || 0 }))}
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    className="w-full sm:w-48 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white text-sm"
+                    placeholder="0"
+                  />
                 </div>
-                <div className="space-y-3">
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={formData.timbreActif}
-                      onChange={(e) => setFormData(prev => ({ ...prev, timbreActif: e.target.checked }))}
-                      className="rounded"
-                    />
-                    <span className="text-sm font-medium text-gray-700">Timbre fiscal</span>
-                  </label>
-                  {formData.timbreActif && (
-                    <div>
-                      <label className="block text-xs text-gray-600 mb-1">Montant Timbre (TND)</label>
+
+                {/* FODEC and TIMBRE */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div className="space-y-3">
+                    <label className="flex items-center gap-2">
                       <input
-                        type="number"
-                        value={formData.montantTimbre}
-                        onChange={(e) => setFormData(prev => ({ ...prev, montantTimbre: parseFloat(e.target.value) || 1.000 }))}
-                        min="0"
-                        step="0.001"
-                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                        type="checkbox"
+                        checked={formData.fodecActif}
+                        onChange={(e) => setFormData(prev => ({ ...prev, fodecActif: e.target.checked }))}
+                        className="rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 dark:bg-gray-700"
                       />
-                    </div>
-                  )}
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">FODEC</span>
+                    </label>
+                    {formData.fodecActif && (
+                      <div>
+                        <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Taux FODEC (%)</label>
+                        <input
+                          type="number"
+                          value={formData.tauxFodec}
+                          onChange={(e) => setFormData(prev => ({ ...prev, tauxFodec: parseFloat(e.target.value) || 1 }))}
+                          min="0"
+                          max="100"
+                          step="0.01"
+                          className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white text-sm"
+                        />
+                      </div>
+                    )}
+                  </div>
+                  <div className="space-y-3">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={formData.timbreActif}
+                        onChange={(e) => setFormData(prev => ({ ...prev, timbreActif: e.target.checked }))}
+                        className="rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 dark:bg-gray-700"
+                      />
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Timbre fiscal</span>
+                    </label>
+                    {formData.timbreActif && (
+                      <div>
+                        <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Montant Timbre (TND)</label>
+                        <input
+                          type="number"
+                          value={formData.montantTimbre}
+                          onChange={(e) => setFormData(prev => ({ ...prev, montantTimbre: parseFloat(e.target.value) || 1.000 }))}
+                          min="0"
+                          step="0.001"
+                          className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white text-sm"
+                        />
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
               {/* Summary Box */}
-              <div className="bg-gray-50 rounded-lg p-4 border">
-                <div className="space-y-2">
-                  {totals.remiseFromLines > 0 && (
+              <div className="w-full lg:w-96">
+                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 border dark:border-gray-600">
+                  <div className="space-y-3">
+                    {totals.remiseFromLines > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-700 dark:text-gray-300">Remise lignes:</span>
+                        <span className="font-semibold text-red-600 dark:text-red-400">-{totals.remiseFromLines.toFixed(3)} DT</span>
+                      </div>
+                    )}
+                    {totals.remiseGlobale > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-700 dark:text-gray-300">Remise globale ({formData.remiseGlobalePct}%):</span>
+                        <span className="font-semibold text-red-600 dark:text-red-400">-{totals.remiseGlobale.toFixed(3)} DT</span>
+                      </div>
+                    )}
                     <div className="flex justify-between text-sm">
-                      <span className="text-gray-700">Remise lignes:</span>
-                      <span className="font-semibold text-red-600">-{totals.remiseFromLines.toFixed(3)} DT</span>
+                      <span className="text-gray-700 dark:text-gray-300 font-semibold">Total HT:</span>
+                      <span className="font-bold text-gray-900 dark:text-white">{totals.totalHT.toFixed(3)} DT</span>
                     </div>
-                  )}
-                  {totals.remiseGlobale > 0 && (
+                    {formData.fodecActif && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-700 dark:text-gray-300">FODEC ({formData.tauxFodec}%):</span>
+                        <span className="font-semibold text-gray-900 dark:text-white">{totals.fodec.toFixed(3)} DT</span>
+                      </div>
+                    )}
                     <div className="flex justify-between text-sm">
-                      <span className="text-gray-700">Remise globale ({formData.remiseGlobalePct}%):</span>
-                      <span className="font-semibold text-red-600">-{totals.remiseGlobale.toFixed(3)} DT</span>
+                      <span className="text-gray-700 dark:text-gray-300 font-semibold">Total TVA:</span>
+                      <span className="font-bold text-gray-900 dark:text-white">{totals.totalTVA.toFixed(3)} DT</span>
                     </div>
-                  )}
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-700 font-semibold">Total HT:</span>
-                    <span className="font-bold text-gray-900">{totals.totalHT.toFixed(3)} DT</span>
-                  </div>
-                  {formData.fodecActif && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-700">FODEC ({formData.tauxFodec}%):</span>
-                      <span className="font-semibold text-gray-900">{totals.fodec.toFixed(3)} DT</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-700 font-semibold">Total TVA:</span>
-                    <span className="font-bold text-gray-900">{totals.totalTVA.toFixed(3)} DT</span>
-                  </div>
-                  {formData.timbreActif && totals.timbre > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-700">Timbre fiscal:</span>
-                      <span className="font-semibold text-gray-900">{totals.timbre.toFixed(3)} DT</span>
-                    </div>
-                  )}
-                  <div className="border-t pt-2 mt-2">
-                    <div className="flex justify-between">
-                      <span className="text-base font-semibold text-blue-600">Total TTC:</span>
-                      <span className="text-lg font-bold text-blue-600">{totals.totalTTC.toFixed(3)} DT</span>
+                    {formData.timbreActif && totals.timbre > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-700 dark:text-gray-300">Timbre fiscal:</span>
+                        <span className="font-semibold text-gray-900 dark:text-white">{totals.timbre.toFixed(3)} DT</span>
+                      </div>
+                    )}
+                    <div className="border-t dark:border-gray-600 pt-3 mt-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-base font-bold text-blue-600 dark:text-blue-400">Total TTC:</span>
+                        <span className="text-xl font-bold text-blue-600 dark:text-blue-400">{totals.totalTTC.toFixed(3)} DT</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1243,10 +1248,10 @@ export default function NewReceptionPage() {
           </div>
 
           {/* Actions */}
-          <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t">
+          <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t dark:border-gray-700">
             <button
               onClick={() => router.back()}
-              className="w-full sm:w-auto px-4 py-2 border rounded-lg hover:bg-gray-50 text-sm sm:text-base"
+              className="w-full sm:w-auto px-4 py-2 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-sm sm:text-base border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300"
             >
               Annuler
             </button>

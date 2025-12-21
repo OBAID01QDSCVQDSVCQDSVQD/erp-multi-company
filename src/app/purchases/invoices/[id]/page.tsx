@@ -98,7 +98,7 @@ export default function PurchaseInvoiceDetailPage() {
       if (response.ok) {
         const data = await response.json();
         const payments = data.items || [];
-        
+
         // Filter payments that contain this invoice and collect images
         const allImages: ImageItem[] = [];
         const invoiceId = params.id.toString();
@@ -108,13 +108,13 @@ export default function PurchaseInvoiceDetailPage() {
               const ligneFactureId = ligne.factureId?.toString();
               return ligneFactureId === invoiceId;
             });
-            
+
             if (hasInvoice && payment.images && Array.isArray(payment.images) && payment.images.length > 0) {
               allImages.push(...payment.images);
             }
           }
         });
-        
+
         setPaymentImages(allImages);
       }
     } catch (error) {
@@ -132,7 +132,7 @@ export default function PurchaseInvoiceDetailPage() {
         // Store the current remaining balance
         const roundedRemaining = Math.round(remaining * 1000) / 1000;
         setSoldeRestantActuel(roundedRemaining);
-        
+
         setPaymentData(prev => {
           // If using advance, set amount to min of advance balance and remaining
           if (prev.useAdvance && advanceBalance > 0) {
@@ -223,7 +223,7 @@ export default function PurchaseInvoiceDetailPage() {
 
     const remaining = await calculateRemainingAmount();
     const totalToPay = paymentData.montantPaye;
-    
+
     if (totalToPay <= 0) {
       toast.error('Le montant payé doit être supérieur à zéro');
       return;
@@ -233,7 +233,7 @@ export default function PurchaseInvoiceDetailPage() {
     // Round both values to 3 decimal places for comparison to avoid floating point issues
     const roundedTotalToPay = Math.round(totalToPay * 1000) / 1000;
     const roundedRemaining = Math.round(remaining * 1000) / 1000;
-    
+
     if (roundedTotalToPay > roundedRemaining) {
       toast.error(`Le montant payé (${roundedTotalToPay.toFixed(3)}) ne peut pas être supérieur au solde restant (${roundedRemaining.toFixed(3)})`);
       return;
@@ -277,7 +277,7 @@ export default function PurchaseInvoiceDetailPage() {
 
       // When using advance, the payment amount should be the advance amount
       const paymentAmount = paymentData.useAdvance ? advanceToUse : totalToPay;
-      
+
       const paymentPayload: any = {
         fournisseurId: invoice.fournisseurId,
         datePaiement: paymentData.datePaiement,
@@ -323,7 +323,7 @@ export default function PurchaseInvoiceDetailPage() {
         } else {
           toast.success('Paiement ajouté avec succès');
         }
-        
+
         setShowPaymentModal(false);
         // Refresh invoice data to update montantRestant
         await fetchInvoice();
@@ -363,7 +363,7 @@ export default function PurchaseInvoiceDetailPage() {
       if (response.ok) {
         const data = await response.json();
         setInvoice(data);
-        
+
         // Calculate remaining amount to pay
         if (data.fournisseurId) {
           try {
@@ -445,7 +445,7 @@ export default function PurchaseInvoiceDetailPage() {
 
   async function handleStatusChange(newStatus: string) {
     if (!tenantId || !invoice) return;
-    
+
     try {
       // Validate status transition
       if (invoice.statut === 'VALIDEE' && newStatus === 'BROUILLON') {
@@ -543,21 +543,21 @@ export default function PurchaseInvoiceDetailPage() {
         <div className="mb-6">
           <button
             onClick={() => router.back()}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4"
+            className="flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white mb-4"
           >
             <ArrowLeftIcon className="w-5 h-5" />
             <span className="text-sm">Retour</span>
           </button>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Facture d'achat</h1>
-              <span className="text-lg sm:text-xl font-bold text-blue-600">{invoice.numero}</span>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Facture d'achat</h1>
+              <span className="text-lg sm:text-xl font-bold text-blue-600 dark:text-blue-400">{invoice.numero}</span>
               {getStatusBadge(invoice.statut)}
               <div className="relative inline-block">
                 <select
                   value={invoice.statut}
                   onChange={(e) => handleStatusChange(e.target.value)}
-                  className="appearance-none bg-white border border-gray-300 rounded px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer"
+                  className="appearance-none bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer"
                   disabled={invoice.statut === 'PAYEE' || invoice.statut === 'ANNULEE'}
                 >
                   <option value="BROUILLON">Brouillon</option>
@@ -568,7 +568,7 @@ export default function PurchaseInvoiceDetailPage() {
                     <option value="ANNULEE">Annulée</option>
                   )}
                 </select>
-                <ChevronDownIcon className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
+                <ChevronDownIcon className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500 dark:text-gray-300 pointer-events-none" />
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -624,154 +624,154 @@ export default function PurchaseInvoiceDetailPage() {
 
         <div className="space-y-6">
           {/* Informations générales */}
-          <div className="bg-white rounded-lg shadow p-4 sm:p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Informations générales</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 sm:p-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Informations générales</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
-                <label className="text-xs text-gray-500">Date de facture</label>
-                <p className="text-sm font-medium text-gray-900 mt-1">
+                <label className="text-xs text-gray-500 dark:text-gray-400">Date de facture</label>
+                <p className="text-sm font-medium text-gray-900 dark:text-white mt-1">
                   {new Date(invoice.dateFacture).toLocaleDateString('fr-FR')}
                 </p>
               </div>
               <div>
-                <label className="text-xs text-gray-500">N° facture fournisseur</label>
-                <p className="text-sm font-medium text-gray-900 mt-1">
+                <label className="text-xs text-gray-500 dark:text-gray-400">N° facture fournisseur</label>
+                <p className="text-sm font-medium text-gray-900 dark:text-white mt-1">
                   {invoice.referenceFournisseur || '—'}
                 </p>
               </div>
               <div>
-                <label className="text-xs text-gray-500">Fournisseur</label>
-                <p className="text-sm font-medium text-gray-900 mt-1">{invoice.fournisseurNom}</p>
+                <label className="text-xs text-gray-500 dark:text-gray-400">Fournisseur</label>
+                <p className="text-sm font-medium text-gray-900 dark:text-white mt-1">{invoice.fournisseurNom}</p>
               </div>
               <div>
-                <label className="text-xs text-gray-500">Devise</label>
-                <p className="text-sm font-medium text-gray-900 mt-1">{invoice.devise}</p>
+                <label className="text-xs text-gray-500 dark:text-gray-400">Devise</label>
+                <p className="text-sm font-medium text-gray-900 dark:text-white mt-1">{invoice.devise}</p>
               </div>
               {invoice.conditionsPaiement && (
                 <div>
-                  <label className="text-xs text-gray-500">Conditions de paiement</label>
-                  <p className="text-sm font-medium text-gray-900 mt-1">{invoice.conditionsPaiement}</p>
+                  <label className="text-xs text-gray-500 dark:text-gray-400">Conditions de paiement</label>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white mt-1">{invoice.conditionsPaiement}</p>
                 </div>
               )}
               {invoice.fodec.enabled && (
                 <div>
-                  <label className="text-xs text-gray-500">FODEC</label>
-                  <p className="text-sm font-medium text-gray-900 mt-1">
+                  <label className="text-xs text-gray-500 dark:text-gray-400">FODEC</label>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white mt-1">
                     {invoice.fodec.tauxPct}% - {invoice.fodec.montant?.toFixed(3) || 0} {invoice.devise}
                   </p>
                 </div>
               )}
               {invoice.timbre.enabled && (
                 <div>
-                  <label className="text-xs text-gray-500">Timbre fiscal</label>
-                  <p className="text-sm font-medium text-gray-900 mt-1">
+                  <label className="text-xs text-gray-500 dark:text-gray-400">Timbre fiscal</label>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white mt-1">
                     {invoice.timbre.montant?.toFixed(3) || 1.000} {invoice.devise}
                   </p>
                 </div>
               )}
             </div>
             {invoice.notes && (
-              <div className="mt-4 pt-4 border-t">
-                <label className="text-xs text-gray-500">Notes</label>
-                <p className="text-sm text-gray-900 mt-1">{invoice.notes}</p>
+              <div className="mt-4 pt-4 border-t dark:border-gray-700">
+                <label className="text-xs text-gray-500 dark:text-gray-400">Notes</label>
+                <p className="text-sm text-gray-900 dark:text-white mt-1">{invoice.notes}</p>
               </div>
             )}
           </div>
 
           {/* Lignes */}
-          <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-blue-50 border-b-2 border-blue-200">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead className="bg-blue-50 dark:bg-blue-900/20 border-b-2 border-blue-200 dark:border-blue-800">
                   <tr>
-                    <th className="px-4 sm:px-6 py-3 text-left text-sm font-bold text-gray-800">Désignation</th>
-                    <th className="px-3 sm:px-4 py-3 text-right text-sm font-bold text-gray-800 whitespace-nowrap">Quantité</th>
-                    <th className="px-3 sm:px-4 py-3 text-right text-sm font-bold text-gray-800 whitespace-nowrap">Prix HT</th>
-                    <th className="px-3 sm:px-4 py-3 text-right text-sm font-bold text-gray-800 whitespace-nowrap">Remise %</th>
-                    <th className="px-3 sm:px-4 py-3 text-right text-sm font-bold text-gray-800 whitespace-nowrap">TVA %</th>
-                    <th className="px-3 sm:px-4 py-3 text-right text-sm font-bold text-gray-800 whitespace-nowrap">Total HT</th>
+                    <th className="px-4 sm:px-6 py-3 text-left text-sm font-bold text-gray-800 dark:text-gray-200">Désignation</th>
+                    <th className="px-3 sm:px-4 py-3 text-right text-sm font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">Quantité</th>
+                    <th className="px-3 sm:px-4 py-3 text-right text-sm font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">Prix HT</th>
+                    <th className="px-3 sm:px-4 py-3 text-right text-sm font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">Remise %</th>
+                    <th className="px-3 sm:px-4 py-3 text-right text-sm font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">TVA %</th>
+                    <th className="px-3 sm:px-4 py-3 text-right text-sm font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">Total HT</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                   {invoice.lignes.map((line, index) => (
                     <tr key={index}>
-                      <td className="px-4 sm:px-6 py-4 text-sm text-gray-900">{line.designation}</td>
-                      <td className="px-3 sm:px-4 py-4 whitespace-nowrap text-sm text-right text-gray-900">{line.quantite}</td>
-                      <td className="px-3 sm:px-4 py-4 whitespace-nowrap text-sm text-right text-gray-900">
+                      <td className="px-4 sm:px-6 py-4 text-sm text-gray-900 dark:text-gray-300">{line.designation}</td>
+                      <td className="px-3 sm:px-4 py-4 whitespace-nowrap text-sm text-right text-gray-900 dark:text-gray-300">{line.quantite}</td>
+                      <td className="px-3 sm:px-4 py-4 whitespace-nowrap text-sm text-right text-gray-900 dark:text-gray-300">
                         {line.prixUnitaireHT.toFixed(3)} {invoice.devise}
                       </td>
-                      <td className="px-3 sm:px-4 py-4 whitespace-nowrap text-sm text-right text-gray-900">
+                      <td className="px-3 sm:px-4 py-4 whitespace-nowrap text-sm text-right text-gray-900 dark:text-gray-300">
                         {line.remisePct ? `${line.remisePct} %` : '—'}
                       </td>
-                      <td className="px-3 sm:px-4 py-4 whitespace-nowrap text-sm text-right text-gray-900">
+                      <td className="px-3 sm:px-4 py-4 whitespace-nowrap text-sm text-right text-gray-900 dark:text-gray-300">
                         {line.tvaPct ? `${line.tvaPct} %` : '—'}
                       </td>
-                      <td className="px-3 sm:px-4 py-4 whitespace-nowrap text-sm text-right font-medium text-gray-900">
+                      <td className="px-3 sm:px-4 py-4 whitespace-nowrap text-sm text-right font-medium text-gray-900 dark:text-white">
                         {line.totalLigneHT?.toFixed(3) || '0.000'} {invoice.devise}
                       </td>
                     </tr>
                   ))}
                 </tbody>
-                <tfoot className="bg-gray-50">
+                <tfoot className="bg-gray-50 dark:bg-gray-800/50 border-t dark:border-gray-700">
                   {invoice.totaux.totalRemise && invoice.totaux.totalRemise > 0 && (
                     <tr>
-                      <td colSpan={5} className="px-4 sm:px-6 py-3 text-right text-sm font-semibold text-gray-700">
+                      <td colSpan={5} className="px-4 sm:px-6 py-3 text-right text-sm font-semibold text-gray-700 dark:text-gray-400">
                         Total Remise:
                       </td>
-                      <td className="px-3 sm:px-4 py-3 text-right text-sm font-bold text-red-600">
+                      <td className="px-3 sm:px-4 py-3 text-right text-sm font-bold text-red-600 dark:text-red-400">
                         -{invoice.totaux.totalRemise.toFixed(3)} {invoice.devise}
                       </td>
                     </tr>
                   )}
                   <tr>
-                    <td colSpan={5} className="px-4 sm:px-6 py-3 text-right text-sm font-semibold text-gray-700">
+                    <td colSpan={5} className="px-4 sm:px-6 py-3 text-right text-sm font-semibold text-gray-700 dark:text-gray-400">
                       Total HT:
                     </td>
-                    <td className="px-3 sm:px-4 py-3 text-right text-sm font-bold text-gray-900">
+                    <td className="px-3 sm:px-4 py-3 text-right text-sm font-bold text-gray-900 dark:text-white">
                       {invoice.totaux.totalHT.toFixed(3)} {invoice.devise}
                     </td>
                   </tr>
                   {invoice.fodec.enabled && (
                     <tr>
-                      <td colSpan={5} className="px-4 sm:px-6 py-3 text-right text-sm font-semibold text-gray-700">
+                      <td colSpan={5} className="px-4 sm:px-6 py-3 text-right text-sm font-semibold text-gray-700 dark:text-gray-400">
                         FODEC ({invoice.fodec.tauxPct}%):
                       </td>
-                      <td className="px-3 sm:px-4 py-3 text-right text-sm font-bold text-gray-900">
+                      <td className="px-3 sm:px-4 py-3 text-right text-sm font-bold text-gray-900 dark:text-white">
                         {(invoice.totaux.totalFodec || 0).toFixed(3)} {invoice.devise}
                       </td>
                     </tr>
                   )}
                   <tr>
-                    <td colSpan={5} className="px-4 sm:px-6 py-3 text-right text-sm font-semibold text-gray-700">
+                    <td colSpan={5} className="px-4 sm:px-6 py-3 text-right text-sm font-semibold text-gray-700 dark:text-gray-400">
                       Total TVA:
                     </td>
-                    <td className="px-3 sm:px-4 py-3 text-right text-sm font-bold text-gray-900">
+                    <td className="px-3 sm:px-4 py-3 text-right text-sm font-bold text-gray-900 dark:text-white">
                       {invoice.totaux.totalTVA.toFixed(3)} {invoice.devise}
                     </td>
                   </tr>
                   {invoice.timbre.enabled && (
                     <tr>
-                      <td colSpan={5} className="px-4 sm:px-6 py-3 text-right text-sm font-semibold text-gray-700">
+                      <td colSpan={5} className="px-4 sm:px-6 py-3 text-right text-sm font-semibold text-gray-700 dark:text-gray-400">
                         Timbre fiscal:
                       </td>
-                      <td className="px-3 sm:px-4 py-3 text-right text-sm font-bold text-gray-900">
+                      <td className="px-3 sm:px-4 py-3 text-right text-sm font-bold text-gray-900 dark:text-white">
                         {(invoice.totaux.totalTimbre || 0).toFixed(3)} {invoice.devise}
                       </td>
                     </tr>
                   )}
                   <tr>
-                    <td colSpan={5} className="px-4 sm:px-6 py-3 text-right text-sm font-semibold text-blue-600">
+                    <td colSpan={5} className="px-4 sm:px-6 py-3 text-right text-sm font-semibold text-blue-600 dark:text-blue-400">
                       Total TTC:
                     </td>
-                    <td className="px-3 sm:px-4 py-3 text-right text-sm font-bold text-blue-600">
+                    <td className="px-3 sm:px-4 py-3 text-right text-sm font-bold text-blue-600 dark:text-blue-400">
                       {invoice.totaux.totalTTC.toFixed(3)} {invoice.devise}
                     </td>
                   </tr>
                   <tr>
-                    <td colSpan={5} className="px-4 sm:px-6 py-3 text-right text-sm font-semibold text-orange-600">
+                    <td colSpan={5} className="px-4 sm:px-6 py-3 text-right text-sm font-semibold text-orange-600 dark:text-orange-400">
                       Montant à payer:
                     </td>
-                    <td className="px-3 sm:px-4 py-3 text-right text-sm font-bold text-orange-600">
+                    <td className="px-3 sm:px-4 py-3 text-right text-sm font-bold text-orange-600 dark:text-orange-400">
                       {montantRestant.toFixed(3)} {invoice.devise}
                     </td>
                   </tr>
@@ -794,9 +794,9 @@ export default function PurchaseInvoiceDetailPage() {
         {/* Payment Modal */}
         {showPaymentModal && invoice && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between p-6 border-b">
-                <h2 className="text-xl font-bold text-gray-900">Ajouter un paiement</h2>
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between p-6 border-b dark:border-gray-700">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Ajouter un paiement</h2>
                 <button
                   onClick={() => {
                     setShowPaymentModal(false);
@@ -810,7 +810,7 @@ export default function PurchaseInvoiceDetailPage() {
                       advanceAmount: 0,
                     });
                   }}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-gray-400 dark:text-gray-300 hover:text-gray-600 dark:hover:text-white"
                 >
                   <XMarkIcon className="w-6 h-6" />
                 </button>
@@ -818,16 +818,16 @@ export default function PurchaseInvoiceDetailPage() {
 
               <div className="p-6 space-y-6">
                 {/* Invoice Info */}
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h3 className="text-sm font-semibold text-gray-700 mb-2">Informations de la facture</h3>
+                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Informations de la facture</h3>
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
-                      <span className="text-gray-600">Facture:</span>
-                      <span className="ml-2 font-medium text-gray-900">{invoice.numero}</span>
+                      <span className="text-gray-600 dark:text-gray-300">Facture:</span>
+                      <span className="ml-2 font-medium text-gray-900 dark:text-white">{invoice.numero}</span>
                     </div>
                     <div>
-                      <span className="text-gray-600">Montant total:</span>
-                      <span className="ml-2 font-medium text-gray-900">
+                      <span className="text-gray-600 dark:text-gray-300">Montant total:</span>
+                      <span className="ml-2 font-medium text-gray-900 dark:text-white">
                         {invoice.totaux.totalTTC.toFixed(3)} {invoice.devise}
                       </span>
                     </div>
@@ -836,13 +836,13 @@ export default function PurchaseInvoiceDetailPage() {
 
                 {/* Advance Balance Info */}
                 {loadingBalance ? (
-                  <div className="text-center py-4">Chargement du solde...</div>
+                  <div className="text-center py-4 text-gray-500 dark:text-gray-400">Chargement du solde...</div>
                 ) : advanceBalance > 0 && (
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <h3 className="text-sm font-semibold text-green-800">Solde avance disponible</h3>
-                        <p className="text-2xl font-bold text-green-700 mt-1">
+                        <h3 className="text-sm font-semibold text-green-800 dark:text-green-300">Solde avance disponible</h3>
+                        <p className="text-2xl font-bold text-green-700 dark:text-green-400 mt-1">
                           {advanceBalance.toFixed(3)} {invoice.devise}
                         </p>
                       </div>
@@ -878,14 +878,14 @@ export default function PurchaseInvoiceDetailPage() {
                               }
                             });
                           }}
-                          className="w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                          className="w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500 bg-white dark:bg-gray-700 dark:border-gray-600"
                         />
-                        <span className="ml-2 text-sm font-medium text-green-800">Utiliser l'avance</span>
+                        <span className="ml-2 text-sm font-medium text-green-800 dark:text-green-300">Utiliser l'avance</span>
                       </label>
                     </div>
                     {paymentData.useAdvance && (
-                      <div className="mt-4 p-3 bg-green-100 rounded-lg">
-                        <p className="text-sm text-green-800">
+                      <div className="mt-4 p-3 bg-green-100 dark:bg-green-900/40 rounded-lg">
+                        <p className="text-sm text-green-800 dark:text-green-200">
                           <span className="font-semibold">Montant à payer</span> sera défini automatiquement à {Math.min(advanceBalance, invoice.totaux.totalTTC).toFixed(3)} {invoice.devise}
                         </p>
                       </div>
@@ -896,26 +896,26 @@ export default function PurchaseInvoiceDetailPage() {
                 {/* Payment Form */}
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Date de paiement <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="date"
                       value={paymentData.datePaiement}
                       onChange={(e) => setPaymentData(prev => ({ ...prev, datePaiement: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                       required
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Mode de paiement <span className="text-red-500">*</span>
                     </label>
                     <select
                       value={paymentData.modePaiement}
                       onChange={(e) => setPaymentData(prev => ({ ...prev, modePaiement: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                       required
                     >
                       <option value="Espèces">Espèces</option>
@@ -927,7 +927,7 @@ export default function PurchaseInvoiceDetailPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Référence
                     </label>
                     <input
@@ -935,12 +935,12 @@ export default function PurchaseInvoiceDetailPage() {
                       value={paymentData.reference}
                       onChange={(e) => setPaymentData(prev => ({ ...prev, reference: e.target.value }))}
                       placeholder="N° chèque, référence virement..."
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Montant à payer <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -993,38 +993,39 @@ export default function PurchaseInvoiceDetailPage() {
                       }}
                       disabled={paymentData.useAdvance}
                       readOnly={paymentData.useAdvance}
-                      className={`w-full px-3 py-2 text-base border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                        paymentData.useAdvance ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'
-                      }`}
+                      className={`w-full px-3 py-2 text-base border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${paymentData.useAdvance
+                          ? 'bg-gray-100 dark:bg-gray-800 cursor-not-allowed text-gray-500 dark:text-gray-400'
+                          : 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white'
+                        }`}
                       placeholder="0.000"
                       required
                     />
-                    <p className="mt-1 text-xs text-gray-500">
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                       Solde restant: {soldeRestantActuel.toFixed(3)} {invoice.devise}
                     </p>
                     {paymentData.useAdvance && (
-                      <p className="mt-1 text-xs text-green-600 font-medium">
+                      <p className="mt-1 text-xs text-green-600 dark:text-green-400 font-medium">
                         Le montant provient de l'avance disponible
                       </p>
                     )}
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Notes
                     </label>
                     <textarea
                       value={paymentData.notes}
                       onChange={(e) => setPaymentData(prev => ({ ...prev, notes: e.target.value }))}
                       rows={3}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                       placeholder="Notes additionnelles..."
                     />
                   </div>
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-3 p-6 border-t bg-gray-50">
+              <div className="flex items-center justify-end gap-3 p-6 border-t dark:border-gray-700 bg-gray-50 dark:bg-gray-800/80">
                 <button
                   onClick={() => {
                     setShowPaymentModal(false);
@@ -1038,7 +1039,7 @@ export default function PurchaseInvoiceDetailPage() {
                       advanceAmount: 0,
                     });
                   }}
-                  className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="px-4 py-2 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                 >
                   Annuler
                 </button>
