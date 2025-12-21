@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
-import { PlusIcon, XMarkIcon, MagnifyingGlassIcon, ArrowLeftIcon, ClipboardDocumentCheckIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, XMarkIcon, MagnifyingGlassIcon, ArrowLeftIcon, ClipboardDocumentCheckIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { useTenantId } from '@/hooks/useTenantId';
 import toast from 'react-hot-toast';
 import ImageUploader, { ImageData } from '@/components/common/ImageUploader';
@@ -55,6 +55,7 @@ interface Reception {
   fournisseurId: string;
   fournisseurNom: string;
   purchaseOrderId?: string;
+  remiseGlobalePct?: number;
   statut?: string;
   lignes: Array<{
     productId?: string;
@@ -120,6 +121,7 @@ export default function NewPurchaseInvoicePage() {
     devise: 'TND',
     tauxChange: 1,
     conditionsPaiement: '',
+    remiseGlobalePct: 0,
     fodec: { enabled: false, tauxPct: 1 },
     timbre: { enabled: true, montant: 1.000 },
     notes: '',
@@ -334,6 +336,7 @@ export default function NewPurchaseInvoicePage() {
           ...prev,
           fournisseurId: br.fournisseurId,
           fournisseurNom: br.fournisseurNom || '',
+          remiseGlobalePct: br.remiseGlobalePct || 0,
         }));
         setSupplierSearch(br.fournisseurNom || '');
 
@@ -555,6 +558,7 @@ export default function NewPurchaseInvoicePage() {
     let totalTVA = 0;
     let totalHTAvantRemise = 0;
 
+    // 1. Calculate TotalHT (sum of lines with line remise applied)
     lines.forEach((line) => {
       if (line.prixUnitaireHT && line.quantite > 0) {
         const prixUnitaire = line.prixUnitaireHT;
@@ -586,36 +590,61 @@ export default function NewPurchaseInvoicePage() {
       }
     });
 
-    const fodec = formData.fodec.enabled ? totalHT * (formData.fodec.tauxPct / 100) : 0;
+    // 2. Apply Global Discount (Remise Globale)
+    const remiseGlobalePct = formData.remiseGlobalePct || 0;
+    let remiseGlobale = 0;
+    let totalHTAfterGlobalDiscount = totalHT;
 
+    if (remiseGlobalePct > 0) {
+      remiseGlobale = totalHT * (remiseGlobalePct / 100);
+      totalHTAfterGlobalDiscount = totalHT - remiseGlobale;
+    }
+
+    // 3. Calculate FODEC if enabled
+    const fodecEnabled = formData.fodec.enabled;
+    const tauxFodec = formData.fodec.tauxPct || 1;
+    const fodec = fodecEnabled ? totalHTAfterGlobalDiscount * (tauxFodec / 100) : 0;
+
+    // 4. Calculate TVA
     lines.forEach((line) => {
-      if (line.prixUnitaireHT && line.quantite > 0 && line.tvaPct) {
+      let lineHT = 0;
+
+      if (line.prixUnitaireHT && line.quantite > 0) {
         let prixAvecRemise = line.prixUnitaireHT;
         const remisePct = line.remisePct || 0;
         if (remisePct > 0) {
           prixAvecRemise = prixAvecRemise * (1 - remisePct / 100);
         }
-        const ligneHT = prixAvecRemise * line.quantite;
-        const ligneFodec = formData.fodec.enabled ? ligneHT * (formData.fodec.tauxPct / 100) : 0;
-        const ligneBaseTVA = ligneHT + ligneFodec;
-        const ligneTVA = ligneBaseTVA * (line.tvaPct / 100);
-        totalTVA += ligneTVA;
-      } else if (line.totalLigneHT && line.tvaPct) {
-        const ligneHT = line.totalLigneHT;
-        const ligneFodec = formData.fodec.enabled ? ligneHT * (formData.fodec.tauxPct / 100) : 0;
-        const ligneBaseTVA = ligneHT + ligneFodec;
+        lineHT = prixAvecRemise * line.quantite;
+      } else if (line.totalLigneHT) {
+        lineHT = line.totalLigneHT;
+      }
+
+      if (lineHT > 0 && line.tvaPct) {
+        // Apply Global Discount share to this line for TVA calculation
+        const lineHTNet = remiseGlobalePct > 0 ? lineHT * (1 - remiseGlobalePct / 100) : lineHT;
+
+        // FODEC share
+        const lineFodec = fodecEnabled ? lineHTNet * (tauxFodec / 100) : 0;
+
+        const ligneBaseTVA = lineHTNet + lineFodec;
         const ligneTVA = ligneBaseTVA * (line.tvaPct / 100);
         totalTVA += ligneTVA;
       }
+      // Note: If line has no TVA but global discount is applied, it just reduces the base.
     });
 
+    // 5. Calculate TIMBRE
     const timbre = formData.timbre.enabled ? formData.timbre.montant : 0;
-    const totalTTC = totalHT + fodec + totalTVA + timbre;
+
+    // 6. Calculate TTC
+    const totalTTC = totalHTAfterGlobalDiscount + fodec + totalTVA + timbre;
 
     return {
       totalHTAvantRemise,
       totalRemise,
-      totalHT,
+      remiseGlobale,
+      totalHT: totalHTAfterGlobalDiscount, // Net HT
       fodec,
       totalTVA,
       timbre,
@@ -765,24 +794,24 @@ export default function NewPurchaseInvoicePage() {
         <div className="mb-6">
           <button
             onClick={() => router.back()}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4"
+            className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-4"
           >
             <ArrowLeftIcon className="w-5 h-5" />
             <span className="text-sm">Retour</span>
           </button>
           <div className="flex items-center gap-3">
-            <ClipboardDocumentCheckIcon className="w-8 h-8 text-blue-600" />
-            <h1 className="text-2xl font-bold text-gray-900">Nouvelle facture d'achat</h1>
+            <ClipboardDocumentCheckIcon className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Nouvelle facture d'achat</h1>
           </div>
         </div>
 
         <div className="space-y-6">
           {/* Section 1: Informations générales */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Informations générales</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Informations générales</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Charger depuis
                 </label>
                 <div className="flex flex-col sm:flex-row gap-3">
@@ -800,11 +829,12 @@ export default function NewPurchaseInvoicePage() {
                           ...prev,
                           fournisseurId: '',
                           fournisseurNom: '',
+                          remiseGlobalePct: 0,
                         }));
                         setSupplierSearch('');
                       }
                     }}
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   >
                     <option value="none">Aucun document</option>
                     <option value="ca">Commande d'achat (CA)</option>
@@ -815,7 +845,7 @@ export default function NewPurchaseInvoicePage() {
                     <select
                       value={selectedCAId}
                       onChange={(e) => setSelectedCAId(e.target.value)}
-                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                      className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     >
                       <option value="">Sélectionner une commande d'achat</option>
                       {purchaseOrders.map((po) => (
@@ -830,7 +860,7 @@ export default function NewPurchaseInvoicePage() {
                     <select
                       value={selectedBRId}
                       onChange={(e) => setSelectedBRId(e.target.value)}
-                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                      className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     >
                       <option value="">Sélectionner un bon de réception</option>
                       {receptions.map((br) => (
@@ -842,7 +872,7 @@ export default function NewPurchaseInvoicePage() {
                   )}
                 </div>
                 {(selectedDocumentType === 'ca' || selectedDocumentType === 'br') && (
-                  <p className="mt-2 text-xs text-gray-500">
+                  <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
                     {selectedDocumentType === 'ca'
                       ? 'Les données de la commande d\'achat seront chargées automatiquement'
                       : 'Les données du bon de réception seront chargées automatiquement'}
@@ -851,7 +881,7 @@ export default function NewPurchaseInvoicePage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Fournisseur *
                 </label>
                 <div className="relative">
@@ -877,13 +907,13 @@ export default function NewPurchaseInvoicePage() {
                     onKeyDown={selectedDocumentType === 'none' ? handleSupplierKeyDown : undefined}
                     placeholder="Rechercher un fournisseur..."
                     readOnly={selectedDocumentType !== 'none'}
-                    className={`w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm ${selectedDocumentType !== 'none' ? 'bg-gray-50 cursor-not-allowed' : ''
+                    className={`w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 ${selectedDocumentType !== 'none' ? 'bg-gray-50 dark:bg-gray-600 cursor-not-allowed' : ''
                       }`}
                   />
                   {showSupplierDropdown && supplierDropdownPosition && filteredSuppliers.length > 0 && (
                     <div
                       data-supplier-dropdown="true"
-                      className="fixed z-[9999] bg-white border border-gray-200 rounded-lg shadow-xl max-h-60 overflow-y-auto"
+                      className="fixed z-[9999] bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl max-h-60 overflow-y-auto"
                       style={{
                         width: `${supplierDropdownPosition.width}px`,
                         top: `${supplierDropdownPosition.top}px`,
@@ -894,10 +924,10 @@ export default function NewPurchaseInvoicePage() {
                         <div
                           key={supplier._id}
                           onClick={() => handleSelectSupplier(supplier)}
-                          className={`px-4 py-2 cursor-pointer hover:bg-gray-50 ${index === selectedSupplierIndex ? 'bg-blue-50' : ''
+                          className={`px-4 py-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-600 ${index === selectedSupplierIndex ? 'bg-blue-50 dark:bg-blue-900/30' : ''
                             }`}
                         >
-                          <div className="text-sm font-medium text-gray-900">
+                          <div className="text-sm font-medium text-gray-900 dark:text-white">
                             {supplier.raisonSociale || `${supplier.nom || ''} ${supplier.prenom || ''}`.trim()}
                           </div>
                         </div>
@@ -908,26 +938,26 @@ export default function NewPurchaseInvoicePage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Date de facture *
                 </label>
                 <input
                   type="date"
                   value={formData.dateFacture}
                   onChange={(e) => setFormData({ ...formData, dateFacture: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 />
               </div>
 
               {multiWarehouseEnabled && warehouses.length > 0 && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Entrepôt de réception
                   </label>
                   <select
                     value={selectedWarehouseId}
                     onChange={(e) => setSelectedWarehouseId(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   >
                     {warehouses.map((wh) => (
                       <option key={wh._id} value={wh._id}>
@@ -939,7 +969,7 @@ export default function NewPurchaseInvoicePage() {
               )}
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   N° facture interne
                 </label>
                 <input
@@ -947,12 +977,12 @@ export default function NewPurchaseInvoicePage() {
                   value={formData.numero}
                   onChange={(e) => setFormData({ ...formData, numero: e.target.value })}
                   placeholder="Laisser vide pour génération automatique"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   N° facture fournisseur
                 </label>
                 <input
@@ -960,18 +990,18 @@ export default function NewPurchaseInvoicePage() {
                   value={formData.referenceFournisseur}
                   onChange={(e) => setFormData({ ...formData, referenceFournisseur: e.target.value })}
                   placeholder="Référence externe"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Devise
                 </label>
                 <select
                   value={formData.devise}
                   onChange={(e) => setFormData({ ...formData, devise: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 >
                   <option value="TND">TND</option>
                   <option value="EUR">EUR</option>
@@ -981,7 +1011,7 @@ export default function NewPurchaseInvoicePage() {
 
               {formData.devise !== 'TND' && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Taux de change (1 {formData.devise} = ? TND)
                   </label>
                   <input
@@ -990,17 +1020,17 @@ export default function NewPurchaseInvoicePage() {
                     min="0"
                     value={formData.tauxChange}
                     onChange={(e) => setFormData({ ...formData, tauxChange: parseFloat(e.target.value) || 1 })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     placeholder="Ex: 3.25"
                   />
-                  <p className="mt-1 text-xs text-gray-500">
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                     Taux de change utilisé pour convertir les montants en TND dans les rapports
                   </p>
                 </div>
               )}
 
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Conditions de paiement
                 </label>
                 <input
@@ -1008,19 +1038,19 @@ export default function NewPurchaseInvoicePage() {
                   value={formData.conditionsPaiement}
                   onChange={(e) => setFormData({ ...formData, conditionsPaiement: e.target.value })}
                   placeholder="Ex: Paiement à 30 jours"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                 />
               </div>
 
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Notes
                 </label>
                 <textarea
                   value={formData.notes}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                   rows={3}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                   placeholder="Notes additionnelles..."
                 />
               </div>
@@ -1039,12 +1069,12 @@ export default function NewPurchaseInvoicePage() {
           </div>
 
           {/* Section 2: Lignes */}
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Lignes</h2>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Lignes</h2>
               <button
                 onClick={addLine}
-                className="flex items-center gap-2 px-3 py-2 text-sm text-blue-600 hover:text-blue-700 font-medium"
+                className="flex items-center gap-2 px-3 py-2 text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
               >
                 <PlusIcon className="w-5 h-5" />
                 Ajouter une ligne
@@ -1052,144 +1082,258 @@ export default function NewPurchaseInvoicePage() {
             </div>
 
             {lines.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
+              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                 Aucune ligne ajoutée
               </div>
             ) : (
-              <div className="border rounded-lg overflow-x-auto">
-                <table className="w-full min-w-[900px]">
-                  <thead className="bg-blue-50 border-b-2 border-blue-200">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-sm font-bold text-gray-800">Désignation</th>
-                      <th className="px-3 py-3 text-right text-sm font-bold text-gray-800 whitespace-nowrap">Quantité</th>
-                      <th className="px-3 py-3 text-right text-sm font-bold text-gray-800 whitespace-nowrap">Prix HT</th>
-                      <th className="px-3 py-3 text-right text-sm font-bold text-gray-800 whitespace-nowrap">Remise %</th>
-                      <th className="px-3 py-3 text-right text-sm font-bold text-gray-800 whitespace-nowrap">TVA %</th>
-                      <th className="px-3 py-3 text-right text-sm font-bold text-gray-800 whitespace-nowrap">Total HT</th>
-                      <th className="px-2 py-3"></th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {lines.map((line, index) => (
-                      <tr key={index}>
-                        <td className="px-4 py-3" style={{ width: 'auto', maxWidth: 'none' }}>
-                          <div className="flex items-center gap-2">
-                            <div className="relative inline-block">
-                              <input
-                                type="text"
-                                value={productSearches[index] || line.designation || ''}
-                                onChange={(e) => {
-                                  updateLine(index, 'designation', e.target.value);
-                                  setProductSearches({ ...productSearches, [index]: e.target.value });
-                                }}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  e.preventDefault();
-                                  handleOpenProductModal(index);
-                                }}
-                                onFocus={(e) => {
-                                  e.stopPropagation();
-                                  handleOpenProductModal(index);
-                                }}
-                                placeholder="Rechercher un produit..."
-                                className="px-3 py-1.5 pr-8 border rounded text-sm cursor-pointer focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                readOnly
-                                style={{
-                                  minWidth: '150px',
-                                  width: line.designation ? `${Math.max(150, Math.min(500, (line.designation.length * 8) + 50))}px` : '150px',
-                                  maxWidth: '500px',
-                                }}
-                              />
-                              <MagnifyingGlassIcon className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-                            </div>
-                            {line.designation && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  updateLine(index, 'designation', '');
-                                  updateLine(index, 'produitId', undefined);
-                                  setProductSearches({ ...productSearches, [index]: '' });
-                                }}
-                                className="p-1 text-gray-400 hover:text-red-600 transition-colors flex-shrink-0"
-                                title="Effacer"
-                                type="button"
-                              >
-                                <XMarkIcon className="w-4 h-4" />
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-3 py-3">
+              <>
+                {/* Mobile View (Cards) */}
+                <div className="space-y-4 md:hidden">
+                  {lines.map((line, index) => (
+                    <div key={index} className="bg-white dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg p-4 space-y-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Désignation</label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={productSearches[index] || line.designation || ''}
+                            onChange={(e) => {
+                              updateLine(index, 'designation', e.target.value);
+                              setProductSearches({ ...productSearches, [index]: e.target.value });
+                            }}
+                            onClick={() => handleOpenProductModal(index)}
+                            onFocus={() => handleOpenProductModal(index)}
+                            placeholder="Rechercher..."
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                          />
+                          {line.designation && (
+                            <button
+                              onClick={() => {
+                                updateLine(index, 'designation', '');
+                                updateLine(index, 'produitId', undefined);
+                                setProductSearches({ ...productSearches, [index]: '' });
+                              }}
+                              className="p-2 text-gray-400 hover:text-red-600"
+                            >
+                              <XMarkIcon className="w-5 h-5" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Quantité</label>
                           <input
                             type="number"
                             value={line.quantite || ''}
                             onChange={(e) => updateLine(index, 'quantite', parseFloat(e.target.value) || 0)}
-                            min="0"
-                            step="0.01"
-                            className="w-full px-2 py-1.5 border rounded text-sm text-right"
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded text-sm text-right bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                           />
-                        </td>
-                        <td className="px-3 py-3">
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Prix HT</label>
                           <input
                             type="number"
                             value={line.prixUnitaireHT || ''}
                             onChange={(e) => updateLine(index, 'prixUnitaireHT', parseFloat(e.target.value) || 0)}
-                            min="0"
-                            step="0.01"
-                            className="w-full px-2 py-1.5 border rounded text-sm text-right"
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded text-sm text-right bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                           />
-                        </td>
-                        <td className="px-3 py-3">
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Remise %</label>
                           <input
                             type="number"
                             value={line.remisePct || ''}
                             onChange={(e) => updateLine(index, 'remisePct', parseFloat(e.target.value) || 0)}
-                            min="0"
-                            max="100"
-                            step="0.01"
-                            className="w-full px-2 py-1.5 border rounded text-sm text-right"
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded text-sm text-right bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                           />
-                        </td>
-                        <td className="px-3 py-3">
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">TVA %</label>
                           <input
                             type="number"
                             value={line.tvaPct || ''}
                             onChange={(e) => updateLine(index, 'tvaPct', parseFloat(e.target.value) || 0)}
-                            min="0"
-                            max="100"
-                            step="0.01"
-                            className="w-full px-2 py-1.5 border rounded text-sm text-right"
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded text-sm text-right bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                           />
-                        </td>
-                        <td className="px-3 py-3">
-                          <input
-                            type="text"
-                            value={(line.totalLigneHT || 0).toFixed(3)}
-                            className="w-full px-2 py-1.5 border rounded text-sm bg-gray-50 text-right font-medium"
-                            readOnly
-                          />
-                        </td>
-                        <td className="px-2 py-3">
-                          <button
-                            onClick={() => removeLine(index)}
-                            className="text-red-600 hover:text-red-800"
-                          >
-                            <XMarkIcon className="w-5 h-5" />
-                          </button>
-                        </td>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-gray-600">
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Total HT</span>
+                        <span className="text-sm font-bold text-gray-900 dark:text-white">{(line.totalLigneHT || 0).toFixed(3)}</span>
+                      </div>
+
+                      <button
+                        onClick={() => removeLine(index)}
+                        className="w-full py-2 flex items-center justify-center gap-2 text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-lg transition-colors text-sm font-medium"
+                      >
+                        <TrashIcon className="w-4 h-4" />
+                        Supprimer la ligne
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Desktop View (Table) */}
+                <div className="hidden md:block border border-gray-200 dark:border-gray-700 rounded-lg overflow-x-auto">
+                  <table className="w-full min-w-[900px]">
+                    <thead className="bg-blue-50 dark:bg-blue-900/20 border-b-2 border-blue-200 dark:border-blue-800">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-sm font-bold text-gray-800 dark:text-gray-200">Désignation</th>
+                        <th className="px-3 py-3 text-right text-sm font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">Quantité</th>
+                        <th className="px-3 py-3 text-right text-sm font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">Prix HT</th>
+                        <th className="px-3 py-3 text-right text-sm font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">Remise %</th>
+                        <th className="px-3 py-3 text-right text-sm font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">TVA %</th>
+                        <th className="px-3 py-3 text-right text-sm font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">Total HT</th>
+                        <th className="px-2 py-3"></th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                      {lines.map((line, index) => (
+                        <tr key={index}>
+                          <td className="px-4 py-3" style={{ width: 'auto', maxWidth: 'none' }}>
+                            <div className="flex items-center gap-2">
+                              <div className="relative inline-block">
+                                <input
+                                  type="text"
+                                  value={productSearches[index] || line.designation || ''}
+                                  onChange={(e) => {
+                                    updateLine(index, 'designation', e.target.value);
+                                    setProductSearches({ ...productSearches, [index]: e.target.value });
+                                  }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                    handleOpenProductModal(index);
+                                  }}
+                                  onFocus={(e) => {
+                                    e.stopPropagation();
+                                    handleOpenProductModal(index);
+                                  }}
+                                  placeholder="Rechercher un produit..."
+                                  className="px-3 py-1.5 pr-8 border border-gray-300 dark:border-gray-600 rounded text-sm cursor-pointer focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                                  readOnly
+                                  style={{
+                                    minWidth: '150px',
+                                    width: line.designation ? `${Math.max(150, Math.min(500, (line.designation.length * 8) + 50))}px` : '150px',
+                                    maxWidth: '500px',
+                                  }}
+                                />
+                                <MagnifyingGlassIcon className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                              </div>
+                              {line.designation && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    updateLine(index, 'designation', '');
+                                    updateLine(index, 'produitId', undefined);
+                                    setProductSearches({ ...productSearches, [index]: '' });
+                                  }}
+                                  className="p-1 text-gray-400 hover:text-red-600 transition-colors flex-shrink-0"
+                                  title="Effacer"
+                                  type="button"
+                                >
+                                  <XMarkIcon className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-3 py-3">
+                            <input
+                              type="number"
+                              value={line.quantite || ''}
+                              onChange={(e) => updateLine(index, 'quantite', parseFloat(e.target.value) || 0)}
+                              min="0"
+                              step="0.01"
+                              className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded text-sm text-right bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            />
+                          </td>
+                          <td className="px-3 py-3">
+                            <input
+                              type="number"
+                              value={line.prixUnitaireHT || ''}
+                              onChange={(e) => updateLine(index, 'prixUnitaireHT', parseFloat(e.target.value) || 0)}
+                              min="0"
+                              step="0.01"
+                              className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded text-sm text-right bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            />
+                          </td>
+                          <td className="px-3 py-3">
+                            <input
+                              type="number"
+                              value={line.remisePct || ''}
+                              onChange={(e) => updateLine(index, 'remisePct', parseFloat(e.target.value) || 0)}
+                              min="0"
+                              max="100"
+                              step="0.01"
+                              className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded text-sm text-right bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            />
+                          </td>
+                          <td className="px-3 py-3">
+                            <input
+                              type="number"
+                              value={line.tvaPct || ''}
+                              onChange={(e) => updateLine(index, 'tvaPct', parseFloat(e.target.value) || 0)}
+                              min="0"
+                              max="100"
+                              step="0.01"
+                              className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded text-sm text-right bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            />
+                          </td>
+                          <td className="px-3 py-3">
+                            <input
+                              type="text"
+                              value={(line.totalLigneHT || 0).toFixed(3)}
+                              className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded text-sm bg-gray-50 dark:bg-gray-600 text-right font-medium text-gray-900 dark:text-white"
+                              readOnly
+                            />
+                          </td>
+                          <td className="px-2 py-3">
+                            <button
+                              onClick={() => removeLine(index)}
+                              className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+                            >
+                              <XMarkIcon className="w-5 h-5" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )}
           </div>
 
           {/* Section 3: Totaux */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Totaux</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Totaux</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-full">
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Remise globale (%)</label>
+                    <input
+                      type="number"
+                      value={formData.remiseGlobalePct}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        remiseGlobalePct: parseFloat(e.target.value) || 0
+                      })}
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      placeholder="%"
+                    />
+                  </div>
+                </div>
+
                 <div className="flex items-center gap-3">
                   <input
                     type="checkbox"
@@ -1198,13 +1342,13 @@ export default function NewPurchaseInvoicePage() {
                       ...formData,
                       fodec: { ...formData.fodec, enabled: e.target.checked }
                     })}
-                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    className="w-4 h-4 text-blue-600 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500 bg-white dark:bg-gray-700"
                   />
-                  <label className="text-sm font-medium text-gray-700">FODEC</label>
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">FODEC</label>
                 </div>
                 {formData.fodec.enabled && (
                   <div className="ml-7">
-                    <label className="block text-xs text-gray-600 mb-1">Taux FODEC (%)</label>
+                    <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Taux FODEC (%)</label>
                     <input
                       type="number"
                       value={formData.fodec.tauxPct}
@@ -1215,7 +1359,7 @@ export default function NewPurchaseInvoicePage() {
                       min="0"
                       max="100"
                       step="0.01"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     />
                   </div>
                 )}
@@ -1228,13 +1372,13 @@ export default function NewPurchaseInvoicePage() {
                       ...formData,
                       timbre: { ...formData.timbre, enabled: e.target.checked }
                     })}
-                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    className="w-4 h-4 text-blue-600 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500 bg-white dark:bg-gray-700"
                   />
-                  <label className="text-sm font-medium text-gray-700">Timbre fiscal</label>
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Timbre fiscal</label>
                 </div>
                 {formData.timbre.enabled && (
                   <div className="ml-7">
-                    <label className="block text-xs text-gray-600 mb-1">Montant Timbre</label>
+                    <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Montant Timbre</label>
                     <input
                       type="number"
                       value={formData.timbre.montant}
@@ -1244,56 +1388,64 @@ export default function NewPurchaseInvoicePage() {
                       })}
                       min="0"
                       step="0.001"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     />
                   </div>
                 )}
               </div>
 
-              <div className="bg-gray-50 rounded-lg p-4">
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
                 <table className="w-full">
                   <tbody className="space-y-2">
                     {totals.totalRemise > 0 && (
                       <tr>
-                        <td className="py-2 text-right text-sm font-semibold text-gray-700">Total Remise:</td>
-                        <td className="py-2 text-right text-sm font-bold text-red-600 pl-4">
+                        <td className="py-2 text-right text-sm font-semibold text-gray-700 dark:text-gray-300">Total Remise Lignes:</td>
+                        <td className="py-2 text-right text-sm font-bold text-red-600 dark:text-red-400 pl-4">
                           -{totals.totalRemise.toFixed(3)} DT
                         </td>
                       </tr>
                     )}
+                    {totals.remiseGlobale > 0 && (
+                      <tr>
+                        <td className="py-2 text-right text-sm font-semibold text-gray-700 dark:text-gray-300">Remise Globale ({formData.remiseGlobalePct}%):</td>
+                        <td className="py-2 text-right text-sm font-bold text-red-600 dark:text-red-400 pl-4">
+                          -{totals.remiseGlobale.toFixed(3)} DT
+                        </td>
+                      </tr>
+                    )}
                     <tr>
-                      <td className="py-2 text-right text-sm font-semibold text-gray-700">Total HT:</td>
-                      <td className="py-2 text-right text-sm font-bold text-gray-900 pl-4">
+                      <td className="py-2 text-right text-sm font-semibold text-gray-700 dark:text-gray-300">Total HT:</td>
+                      <td className="py-2 text-right text-sm font-bold text-gray-900 dark:text-white pl-4">
                         {totals.totalHT.toFixed(3)} DT
                       </td>
                     </tr>
                     {formData.fodec.enabled && (
                       <tr>
-                        <td className="py-2 text-right text-sm font-semibold text-gray-700">
+                        <td className="py-2 text-right text-sm font-semibold text-gray-700 dark:text-gray-300">
                           FODEC ({formData.fodec.tauxPct}%):
                         </td>
-                        <td className="py-2 text-right text-sm font-bold text-gray-900 pl-4">
+                        <td className="py-2 text-right text-sm font-bold text-gray-900 dark:text-white pl-4">
                           {totals.fodec.toFixed(3)} DT
                         </td>
                       </tr>
                     )}
                     <tr>
-                      <td className="py-2 text-right text-sm font-semibold text-gray-700">Total TVA:</td>
-                      <td className="py-2 text-right text-sm font-bold text-gray-900 pl-4">
+                      <td className="py-2 text-right text-sm font-semibold text-gray-700 dark:text-gray-300">Total TVA:</td>
+                      <td className="py-2 text-right text-sm font-bold text-gray-900 dark:text-white pl-4">
                         {totals.totalTVA.toFixed(3)} DT
                       </td>
                     </tr>
                     {formData.timbre.enabled && (
                       <tr>
-                        <td className="py-2 text-right text-sm font-semibold text-gray-700">Timbre fiscal:</td>
-                        <td className="py-2 text-right text-sm font-bold text-gray-900 pl-4">
+                        <td className="py-2 text-right text-sm font-semibold text-gray-700 dark:text-gray-300">Timbre fiscal:</td>
+                        <td className="py-2 text-right text-sm font-bold text-gray-900 dark:text-white pl-4">
                           {totals.timbre.toFixed(3)} DT
                         </td>
                       </tr>
                     )}
-                    <tr className="border-t-2 border-gray-300">
-                      <td className="py-2 text-right text-sm font-semibold text-blue-600">Total TTC:</td>
-                      <td className="py-2 text-right text-sm font-bold text-blue-600 pl-4">
+                    <tr className="border-t-2 border-gray-300 dark:border-gray-600">
+                      <td className="py-2 text-right text-sm font-semibold text-blue-600 dark:text-blue-400">Total TTC:</td>
+                      <td className="py-2 text-right text-sm font-bold text-blue-600 dark:text-blue-400 pl-4">
                         {totals.totalTTC.toFixed(3)} DT
                       </td>
                     </tr>
@@ -1307,21 +1459,21 @@ export default function NewPurchaseInvoicePage() {
           <div className="flex flex-col sm:flex-row gap-3 justify-end">
             <button
               onClick={() => router.back()}
-              className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors text-sm font-medium"
+              className="px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-sm font-medium"
             >
               Annuler
             </button>
             <button
               onClick={handleSave}
               disabled={saving}
-              className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm font-medium disabled:opacity-50"
+              className="px-6 py-2 bg-gray-600 dark:bg-gray-700 text-white rounded-lg hover:bg-gray-700 dark:hover:bg-gray-600 transition-colors text-sm font-medium disabled:opacity-50"
             >
               {saving ? 'Enregistrement...' : 'Enregistrer en brouillon'}
             </button>
             <button
               onClick={handleValidate}
               disabled={saving}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-50"
+              className="px-6 py-2 bg-blue-600 dark:bg-blue-600 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-50"
             >
               {saving ? 'Validation...' : 'Valider la facture'}
             </button>

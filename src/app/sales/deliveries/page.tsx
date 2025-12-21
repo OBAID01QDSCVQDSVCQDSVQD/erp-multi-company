@@ -1305,163 +1305,330 @@ export default function DeliveriesPage() {
                       + Ajouter une ligne
                     </button>
                   </div>
-                  <div className="border dark:border-gray-700 rounded-lg overflow-visible">
+                  <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-x-auto">
                     {lines.length === 0 ? (
-                      <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                      <div className="text-center py-8 sm:py-12 text-gray-500 dark:text-gray-400 text-sm sm:text-base">
                         Aucune ligne ajoutée
                       </div>
                     ) : (
-                      <table className="w-full">
-                        <thead className="bg-gray-50 dark:bg-gray-700 border-b dark:border-gray-600">
-                          <tr>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300">Produit</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300">Qté</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300">Unité</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300">Prix HT</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300">TVA %</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300">Total HT</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300">Total TVA</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300">Total TTC</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300"></th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                      <>
+                        {/* Mobile View (Cards) */}
+                        <div className="space-y-4 md:hidden p-1">
                           {lines.map((line, index) => (
-                            <tr key={index}>
-                              <td className="px-2 sm:px-4 py-3" style={{ width: 'auto', maxWidth: 'none' }}>
-                                <div className="flex items-center gap-2">
-                                  <div className="relative inline-block">
-                                    <input
-                                      type="text"
-                                      value={productSearches[index] || line.designation || ''}
-                                      onChange={(e) => {
-                                        const updatedLines = [...lines];
-                                        updatedLines[index] = { ...updatedLines[index], designation: e.target.value };
-                                        setLines(updatedLines);
-                                        setProductSearches({ ...productSearches, [index]: e.target.value });
-                                      }}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        e.preventDefault();
-                                        handleOpenProductModal(index);
-                                      }}
-                                      onFocus={(e) => {
-                                        e.stopPropagation();
-                                        handleOpenProductModal(index);
-                                      }}
-                                      placeholder="Rechercher un produit..."
-                                      className="px-3 py-2 pr-8 border rounded-lg text-sm cursor-pointer focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
-                                      readOnly
-                                      style={{
-                                        minWidth: '150px',
-                                        width: line.designation ? `${Math.max(150, Math.min(500, (line.designation.length * 8) + 50))}px` : '150px',
-                                        maxWidth: '500px',
-                                      }}
-                                    />
-                                    <MagnifyingGlassIcon className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                            <div key={index} className="bg-white dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg p-4 space-y-3">
+                              {/* Product/Designation */}
+                              <div>
+                                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Produit / Désignation</label>
+                                <div className="space-y-2">
+                                  <div className="flex items-center gap-2">
+                                    <div className="relative inline-block w-full">
+                                      <input
+                                        type="text"
+                                        value={productSearches[index] || line.designation || ''}
+                                        onChange={(e) => {
+                                          const updatedLines = [...lines];
+                                          updatedLines[index] = { ...updatedLines[index], designation: e.target.value };
+                                          setLines(updatedLines);
+                                          setProductSearches({ ...productSearches, [index]: e.target.value });
+                                        }}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          e.preventDefault();
+                                          handleOpenProductModal(index);
+                                        }}
+                                        onFocus={(e) => {
+                                          e.stopPropagation();
+                                          handleOpenProductModal(index);
+                                        }}
+                                        placeholder="Rechercher..."
+                                        className="w-full px-3 py-2 pr-8 border dark:border-gray-600 rounded-lg text-sm cursor-pointer focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                                        readOnly
+                                      />
+                                      <MagnifyingGlassIcon className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                                    </div>
+                                    {line.designation && (
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          const updatedLines = [...lines];
+                                          updatedLines[index] = { ...updatedLines[index], designation: '', productId: '' };
+                                          setLines(updatedLines);
+                                          setProductSearches({ ...productSearches, [index]: '' });
+                                        }}
+                                        className="p-2 text-gray-400 hover:text-red-600"
+                                      >
+                                        <XMarkIcon className="w-5 h-5" />
+                                      </button>
+                                    )}
                                   </div>
-                                  {line.designation && (
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        const updatedLines = [...lines];
-                                        updatedLines[index] = { ...updatedLines[index], designation: '', productId: '' };
-                                        setLines(updatedLines);
-                                        setProductSearches({ ...productSearches, [index]: '' });
-                                      }}
-                                      className="p-1 text-gray-400 hover:text-red-600 transition-colors flex-shrink-0"
-                                      title="Effacer"
-                                      type="button"
-                                    >
-                                      <XMarkIcon className="w-4 h-4" />
-                                    </button>
-                                  )}
                                 </div>
-                              </td>
-                              <td className="px-4 py-3">
-                                <div className="flex flex-col">
+                              </div>
+
+                              {/* Quantité & Unité */}
+                              <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Quantité</label>
+                                  <div className="flex flex-col">
+                                    <input
+                                      type="number"
+                                      value={line.quantite || ''}
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        const updatedLines = [...lines];
+                                        updatedLines[index] = { ...updatedLines[index], quantite: parseFloat(val) || 0 };
+                                        setLines(updatedLines);
+                                      }}
+                                      className={`w-full px-3 py-2 border rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${line.productId && productStocks[line.productId] !== undefined &&
+                                        (line.quantite || 0) > productStocks[line.productId]
+                                        ? 'border-red-500 dark:border-red-500' : 'dark:border-gray-600'
+                                        }`}
+                                      placeholder="0"
+                                    />
+                                    {line.productId && productStocks[line.productId] !== undefined &&
+                                      (line.quantite || 0) > productStocks[line.productId] && (
+                                        <span className="text-xs text-red-600 dark:text-red-400 mt-1">
+                                          Stock disp: {productStocks[line.productId]}
+                                        </span>
+                                      )}
+                                  </div>
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Unité</label>
                                   <input
                                     type="text"
-                                    value={line.quantite || ''}
+                                    value={line.uomCode || ''}
+                                    readOnly
+                                    className="w-full px-3 py-2 border dark:border-gray-600 rounded text-sm bg-gray-50 dark:bg-gray-600 text-gray-700 dark:text-gray-300"
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Prix & TVA */}
+                              <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Prix HT</label>
+                                  <input
+                                    type="number"
+                                    value={line.prixUnitaireHT || ''}
                                     onChange={(e) => {
                                       const val = e.target.value;
                                       const updatedLines = [...lines];
-                                      updatedLines[index] = { ...updatedLines[index], quantite: parseFloat(val) || 0 };
+                                      updatedLines[index] = { ...updatedLines[index], prixUnitaireHT: parseFloat(val) || 0 };
                                       setLines(updatedLines);
                                     }}
-                                    className={`w-20 px-2 py-1 border rounded text-sm bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white ${line.productId && productStocks[line.productId] !== undefined &&
-                                      (line.quantite || 0) > productStocks[line.productId]
-                                      ? 'border-red-500' : ''
-                                      }`}
-                                    placeholder="0"
+                                    className="w-full px-3 py-2 border dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                    placeholder="0.000"
                                   />
-                                  {line.productId && productStocks[line.productId] !== undefined &&
-                                    (line.quantite || 0) > productStocks[line.productId] && (
-                                      <span className="text-xs text-red-600 mt-1">
-                                        Stock disponible: {productStocks[line.productId]}
-                                      </span>
-                                    )}
                                 </div>
-                              </td>
-                              <td className="px-4 py-3">
-                                <input
-                                  type="text"
-                                  value={line.uomCode || ''}
-                                  readOnly
-                                  className="w-20 px-2 py-1 border rounded text-sm bg-gray-50 dark:bg-gray-800 dark:border-gray-600 text-gray-900 dark:text-white"
-                                />
-                              </td>
-                              <td className="px-4 py-3">
-                                <input
-                                  type="text"
-                                  value={line.prixUnitaireHT || ''}
-                                  onChange={(e) => {
-                                    const val = e.target.value;
-                                    const updatedLines = [...lines];
-                                    updatedLines[index] = { ...updatedLines[index], prixUnitaireHT: parseFloat(val) || 0 };
-                                    setLines(updatedLines);
-                                  }}
-                                  className="w-24 px-2 py-1 border rounded text-sm bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
-                                  placeholder="0.000"
-                                />
-                              </td>
-                              <td className="px-4 py-3">
-                                <input
-                                  type="text"
-                                  value={line.tvaPct ?? ''}
-                                  onChange={(e) => {
-                                    const val = e.target.value;
-                                    const updatedLines = [...lines];
-                                    updatedLines[index] = { ...updatedLines[index], tvaPct: parseFloat(val) || 0 };
-                                    setLines(updatedLines);
-                                  }}
-                                  className="w-20 px-2 py-1 border rounded text-sm bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
-                                  placeholder="0%"
-                                />
-                                <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{line.taxCode || ''}</div>
-                              </td>
-                              <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">
-                                {(((line.quantite || 0) * (line.prixUnitaireHT || 0)) * (1 - ((line.remisePct || 0) / 100))).toFixed(3)} {formData.devise}
-                              </td>
-                              <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">
-                                {((((line.quantite || 0) * (line.prixUnitaireHT || 0)) * (1 - ((line.remisePct || 0) / 100))) * ((line.tvaPct || 0) / 100)).toFixed(3)} {formData.devise}
-                              </td>
-                              <td className="px-4 py-3 text-sm font-medium text-blue-600 dark:text-blue-400">
-                                {(((line.quantite || 0) * (line.prixUnitaireHT || 0) * (1 - ((line.remisePct || 0) / 100))) * (1 + (line.tvaPct || 0) / 100)).toFixed(3)} {formData.devise}
-                              </td>
-                              <td className="px-4 py-3">
-                                <button
-                                  onClick={() => removeLine(index)}
-                                  className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                                  title="Supprimer"
-                                >
-                                  <TrashIcon className="w-4 h-4" />
-                                </button>
-                              </td>
-                            </tr>
+                                <div>
+                                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">TVA %</label>
+                                  <div className="flex flex-col">
+                                    <input
+                                      type="number"
+                                      value={line.tvaPct ?? ''}
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        const updatedLines = [...lines];
+                                        updatedLines[index] = { ...updatedLines[index], tvaPct: parseFloat(val) || 0 };
+                                        setLines(updatedLines);
+                                      }}
+                                      className="w-full px-3 py-2 border dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                      placeholder="0%"
+                                    />
+                                    {line.taxCode && <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">{line.taxCode}</span>}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Totals Summary */}
+                              <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded text-sm space-y-1">
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600 dark:text-gray-400">Total HT:</span>
+                                  <span className="font-medium text-gray-900 dark:text-white">{(((line.quantite || 0) * (line.prixUnitaireHT || 0)) * (1 - ((line.remisePct || 0) / 100))).toFixed(3)} {formData.devise}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600 dark:text-gray-400">Total TVA:</span>
+                                  <span className="font-medium text-gray-900 dark:text-white">{((((line.quantite || 0) * (line.prixUnitaireHT || 0)) * (1 - ((line.remisePct || 0) / 100))) * ((line.tvaPct || 0) / 100)).toFixed(3)} {formData.devise}</span>
+                                </div>
+                                <div className="flex justify-between border-t dark:border-gray-700 pt-1 mt-1">
+                                  <span className="font-bold text-gray-900 dark:text-white">Total TTC:</span>
+                                  <span className="font-bold text-blue-600 dark:text-blue-400">{(((line.quantite || 0) * (line.prixUnitaireHT || 0) * (1 - ((line.remisePct || 0) / 100))) * (1 + (line.tvaPct || 0) / 100)).toFixed(3)} {formData.devise}</span>
+                                </div>
+                              </div>
+
+                              <button
+                                onClick={() => removeLine(index)}
+                                className="w-full py-2 flex items-center justify-center gap-2 text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-lg transition-colors text-sm font-medium"
+                              >
+                                <TrashIcon className="w-4 h-4" />
+                                Supprimer la ligne
+                              </button>
+                              <button
+                                onClick={addLine}
+                                className="w-full mt-2 py-2 flex items-center justify-center gap-2 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/40 rounded-lg transition-colors text-sm font-medium"
+                              >
+                                <PlusIcon className="w-4 h-4" />
+                                Ajouter une ligne
+                              </button>
+                            </div>
                           ))}
-                        </tbody>
-                      </table>
+                        </div>
+
+                        {/* Desktop View (Table) */}
+                        <div className="hidden md:block min-w-full">
+                          <table className="w-full">
+                            <thead className="bg-gray-50 dark:bg-gray-700 border-b dark:border-gray-600">
+                              <tr>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">Produit</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">Qté</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">Unité</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">Prix HT</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">TVA %</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">Total HT</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">Total TVA</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">Total TTC</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200"></th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                              {lines.map((line, index) => (
+                                <tr key={index}>
+                                  <td className="px-2 sm:px-4 py-3" style={{ width: 'auto', maxWidth: 'none' }}>
+                                    <div className="flex items-center gap-2">
+                                      <div className="relative inline-block w-full">
+                                        <input
+                                          type="text"
+                                          value={productSearches[index] || line.designation || ''}
+                                          onChange={(e) => {
+                                            const updatedLines = [...lines];
+                                            updatedLines[index] = { ...updatedLines[index], designation: e.target.value };
+                                            setLines(updatedLines);
+                                            setProductSearches({ ...productSearches, [index]: e.target.value });
+                                          }}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            e.preventDefault();
+                                            handleOpenProductModal(index);
+                                          }}
+                                          onFocus={(e) => {
+                                            e.stopPropagation();
+                                            handleOpenProductModal(index);
+                                          }}
+                                          placeholder="Rechercher un produit..."
+                                          className="w-full px-3 py-2 pr-8 border dark:border-gray-600 rounded-lg text-sm cursor-pointer focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                                          readOnly
+                                          style={{
+                                            minWidth: '150px',
+                                            width: line.designation ? `${Math.max(150, Math.min(500, (line.designation.length * 8) + 50))}px` : '150px',
+                                            maxWidth: '500px',
+                                          }}
+                                        />
+                                        <MagnifyingGlassIcon className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                                      </div>
+                                      {line.designation && (
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            const updatedLines = [...lines];
+                                            updatedLines[index] = { ...updatedLines[index], designation: '', productId: '' };
+                                            setLines(updatedLines);
+                                            setProductSearches({ ...productSearches, [index]: '' });
+                                          }}
+                                          className="p-1 text-gray-400 hover:text-red-600 transition-colors flex-shrink-0"
+                                          title="Effacer"
+                                          type="button"
+                                        >
+                                          <XMarkIcon className="w-4 h-4" />
+                                        </button>
+                                      )}
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <div className="flex flex-col">
+                                      <input
+                                        type="text"
+                                        value={line.quantite || ''}
+                                        onChange={(e) => {
+                                          const val = e.target.value;
+                                          const updatedLines = [...lines];
+                                          updatedLines[index] = { ...updatedLines[index], quantite: parseFloat(val) || 0 };
+                                          setLines(updatedLines);
+                                        }}
+                                        className={`w-20 px-2 py-1 border rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${line.productId && productStocks[line.productId] !== undefined &&
+                                          (line.quantite || 0) > productStocks[line.productId]
+                                          ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'
+                                          }`}
+                                        placeholder="0"
+                                      />
+                                      {line.productId && productStocks[line.productId] !== undefined &&
+                                        (line.quantite || 0) > productStocks[line.productId] && (
+                                          <span className="text-xs text-red-600 dark:text-red-400 mt-1">
+                                            Stock: {productStocks[line.productId]}
+                                          </span>
+                                        )}
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <input
+                                      type="text"
+                                      value={line.uomCode || ''}
+                                      readOnly
+                                      className="w-20 px-2 py-1 border dark:border-gray-600 rounded text-sm bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white"
+                                    />
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <input
+                                      type="text"
+                                      value={line.prixUnitaireHT || ''}
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        const updatedLines = [...lines];
+                                        updatedLines[index] = { ...updatedLines[index], prixUnitaireHT: parseFloat(val) || 0 };
+                                        setLines(updatedLines);
+                                      }}
+                                      className="w-24 px-2 py-1 border dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                      placeholder="0.000"
+                                    />
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <input
+                                      type="text"
+                                      value={line.tvaPct ?? ''}
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        const updatedLines = [...lines];
+                                        updatedLines[index] = { ...updatedLines[index], tvaPct: parseFloat(val) || 0 };
+                                        setLines(updatedLines);
+                                      }}
+                                      className="w-20 px-2 py-1 border dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                      placeholder="0%"
+                                    />
+                                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{line.taxCode || ''}</div>
+                                  </td>
+                                  <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">
+                                    {(((line.quantite || 0) * (line.prixUnitaireHT || 0)) * (1 - ((line.remisePct || 0) / 100))).toFixed(3)} {formData.devise}
+                                  </td>
+                                  <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">
+                                    {((((line.quantite || 0) * (line.prixUnitaireHT || 0)) * (1 - ((line.remisePct || 0) / 100))) * ((line.tvaPct || 0) / 100)).toFixed(3)} {formData.devise}
+                                  </td>
+                                  <td className="px-4 py-3 text-sm font-medium text-blue-600 dark:text-blue-400">
+                                    {(((line.quantite || 0) * (line.prixUnitaireHT || 0) * (1 - ((line.remisePct || 0) / 100))) * (1 + (line.tvaPct || 0) / 100)).toFixed(3)} {formData.devise}
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <button
+                                      onClick={() => removeLine(index)}
+                                      className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                      title="Supprimer"
+                                    >
+                                      <TrashIcon className="w-4 h-4" />
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </>
                     )}
                   </div>
                 </div>

@@ -732,74 +732,179 @@ export default function OrdersPage() {
                     <button onClick={addLine} className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 font-medium">+ Ajouter produit</button>
                   </div>
 
-                  <div className="overflow-x-auto border dark:border-gray-700 rounded-lg">
-                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                      <thead className="bg-gray-50 dark:bg-gray-800">
-                        <tr>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Produit</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-24">Qté</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-28">Prix HT</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-20">Rem %</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-20">TVA %</th>
-                          <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Total HT</th>
-                          <th className="px-4 py-3 w-10"></th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white dark:bg-gray-700 divide-y divide-gray-200 dark:divide-gray-600">
-                        {lines.length === 0 && (
-                          <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">Aucun produit ajouté</td></tr>
-                        )}
-                        {lines.map((line, idx) => (
-                          <tr key={idx}>
-                            <td className="px-4 py-2">
-                              <div
-                                onClick={() => {
-                                  setCurrentProductLineIndex(idx);
-                                  setShowProductModal({ ...showProductModal, [idx]: true });
-                                }}
-                                className="w-full min-w-[180px] px-3 py-2 border dark:border-gray-600 rounded bg-gray-50 dark:bg-gray-800 cursor-pointer text-sm text-gray-900 dark:text-white truncate"
-                              >
-                                {line.designation || 'Sélectionner un produit...'}
+                  <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-x-auto">
+                    {lines.length === 0 ? (
+                      <div className="text-center py-8 sm:py-12 text-gray-500 dark:text-gray-400 text-sm sm:text-base">
+                        Aucun produit ajouté
+                      </div>
+                    ) : (
+                      <>
+                        {/* Mobile View (Cards) */}
+                        <div className="space-y-4 md:hidden p-1">
+                          {lines.map((line, idx) => (
+                            <div key={idx} className="bg-white dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg p-4 space-y-3">
+                              {/* Product */}
+                              <div>
+                                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Produit</label>
+                                <div
+                                  onClick={() => {
+                                    setCurrentProductLineIndex(idx);
+                                    setShowProductModal({ ...showProductModal, [idx]: true });
+                                  }}
+                                  className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-800 cursor-pointer text-sm text-gray-900 dark:text-white flex items-center justify-between"
+                                >
+                                  <span className="truncate">{line.designation || 'Sélectionner un produit...'}</span>
+                                  <MagnifyingGlassIcon className="w-4 h-4 text-gray-400 flex-shrink-0 ml-2" />
+                                </div>
                               </div>
-                            </td>
-                            <td className="px-4 py-2">
-                              <input type="number" min="0" value={line.quantite}
-                                onChange={(e) => updateLine(idx, 'quantite', parseFloat(e.target.value) || 0)}
-                                className="w-full px-2 py-1 border rounded text-sm dark:bg-gray-800 dark:border-gray-600 dark:text-white"
-                              />
-                            </td>
-                            <td className="px-4 py-2">
-                              <input type="number" min="0" step="0.001" value={line.prixUnitaireHT}
-                                onChange={(e) => updateLine(idx, 'prixUnitaireHT', parseFloat(e.target.value) || 0)}
-                                className="w-full px-2 py-1 border rounded text-sm dark:bg-gray-800 dark:border-gray-600 dark:text-white"
-                              />
-                            </td>
-                            <td className="px-4 py-2">
-                              <input type="number" min="0" max="100" value={line.remisePct}
-                                onChange={(e) => updateLine(idx, 'remisePct', parseFloat(e.target.value) || 0)}
-                                className="w-full px-2 py-1 border rounded text-sm dark:bg-gray-800 dark:border-gray-600 dark:text-white"
-                              />
-                            </td>
-                            <td className="px-4 py-2">
-                              <select value={line.tvaPct} onChange={(e) => updateLine(idx, 'tvaPct', parseFloat(e.target.value))}
-                                className="w-full px-1 py-1 border rounded text-sm dark:bg-gray-800 dark:border-gray-600 dark:text-white"
+
+                              {/* Quantité & Prix */}
+                              <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Quantité</label>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    value={line.quantite}
+                                    onChange={(e) => updateLine(idx, 'quantite', parseFloat(e.target.value) || 0)}
+                                    className="w-full px-3 py-2 border dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Prix HT</label>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="0.001"
+                                    value={line.prixUnitaireHT}
+                                    onChange={(e) => updateLine(idx, 'prixUnitaireHT', parseFloat(e.target.value) || 0)}
+                                    className="w-full px-3 py-2 border dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Remise & TVA */}
+                              <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Remise %</label>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    value={line.remisePct}
+                                    onChange={(e) => updateLine(idx, 'remisePct', parseFloat(e.target.value) || 0)}
+                                    className="w-full px-3 py-2 border dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">TVA %</label>
+                                  <select
+                                    value={line.tvaPct}
+                                    onChange={(e) => updateLine(idx, 'tvaPct', parseFloat(e.target.value))}
+                                    className="w-full px-3 py-2 border dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                  >
+                                    {Array.isArray(taxRates) && taxRates.map(t => <option key={t.code} value={t.tauxPct}>{t.tauxPct}%</option>)}
+                                    <option value={0}>0%</option>
+                                  </select>
+                                </div>
+                              </div>
+
+                              {/* Totals Summary */}
+                              <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded text-sm">
+                                <div className="flex justify-between items-center">
+                                  <span className="text-gray-600 dark:text-gray-400">Total HT:</span>
+                                  <span className="font-medium text-gray-900 dark:text-white">{((line.quantite * line.prixUnitaireHT) * (1 - ((line.remisePct || 0) / 100))).toFixed(3)} {formData.devise}</span>
+                                </div>
+                              </div>
+
+                              <button
+                                onClick={() => setLines(lines.filter((_, i) => i !== idx))}
+                                className="w-full py-2 flex items-center justify-center gap-2 text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-lg transition-colors text-sm font-medium"
                               >
-                                {Array.isArray(taxRates) && taxRates.map(t => <option key={t.code} value={t.tauxPct}>{t.tauxPct}%</option>)}
-                                <option value={0}>0%</option>
-                              </select>
-                            </td>
-                            <td className="px-4 py-2 text-right text-sm text-gray-900 dark:text-white font-medium">
-                              {((line.quantite * line.prixUnitaireHT) * (1 - ((line.remisePct || 0) / 100))).toFixed(3)}
-                            </td>
-                            <td className="px-4 py-2 text-center">
-                              <button onClick={() => setLines(lines.filter((_, i) => i !== idx))} className="text-red-500 hover:text-red-700">
                                 <TrashIcon className="w-4 h-4" />
+                                Supprimer la ligne
                               </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                              <button
+                                onClick={addLine}
+                                className="w-full mt-2 py-2 flex items-center justify-center gap-2 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/40 rounded-lg transition-colors text-sm font-medium"
+                              >
+                                <PlusIcon className="w-4 h-4" />
+                                Ajouter une ligne
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Desktop View (Table) */}
+                        <div className="hidden md:block min-w-full">
+                          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                            <thead className="bg-gray-50 dark:bg-gray-800">
+                              <tr>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Produit</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-24">Qté</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-28">Prix HT</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-20">Rem %</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-20">TVA %</th>
+                                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Total HT</th>
+                                <th className="px-4 py-3 w-10"></th>
+                              </tr>
+                            </thead>
+                            <tbody className="bg-white dark:bg-gray-700 divide-y divide-gray-200 dark:divide-gray-600">
+                              {lines.map((line, idx) => (
+                                <tr key={idx}>
+                                  <td className="px-4 py-2">
+                                    <div
+                                      onClick={() => {
+                                        setCurrentProductLineIndex(idx);
+                                        setShowProductModal({ ...showProductModal, [idx]: true });
+                                      }}
+                                      className="w-full min-w-[180px] px-3 py-2 border dark:border-gray-600 rounded bg-gray-50 dark:bg-gray-800 cursor-pointer text-sm text-gray-900 dark:text-white truncate flex items-center justify-between"
+                                    >
+                                      <span className="truncate">{line.designation || 'Sélectionner un produit...'}</span>
+                                      <MagnifyingGlassIcon className="w-4 h-4 text-gray-400 ml-2 flex-shrink-0" />
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-2">
+                                    <input type="number" min="0" value={line.quantite}
+                                      onChange={(e) => updateLine(idx, 'quantite', parseFloat(e.target.value) || 0)}
+                                      className="w-full px-2 py-1 border rounded text-sm dark:bg-gray-800 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-blue-500"
+                                    />
+                                  </td>
+                                  <td className="px-4 py-2">
+                                    <input type="number" min="0" step="0.001" value={line.prixUnitaireHT}
+                                      onChange={(e) => updateLine(idx, 'prixUnitaireHT', parseFloat(e.target.value) || 0)}
+                                      className="w-full px-2 py-1 border rounded text-sm dark:bg-gray-800 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-blue-500"
+                                    />
+                                  </td>
+                                  <td className="px-4 py-2">
+                                    <input type="number" min="0" max="100" value={line.remisePct}
+                                      onChange={(e) => updateLine(idx, 'remisePct', parseFloat(e.target.value) || 0)}
+                                      className="w-full px-2 py-1 border rounded text-sm dark:bg-gray-800 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-blue-500"
+                                    />
+                                  </td>
+                                  <td className="px-4 py-2">
+                                    <select value={line.tvaPct} onChange={(e) => updateLine(idx, 'tvaPct', parseFloat(e.target.value))}
+                                      className="w-full px-1 py-1 border rounded text-sm dark:bg-gray-800 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-blue-500"
+                                    >
+                                      {Array.isArray(taxRates) && taxRates.map(t => <option key={t.code} value={t.tauxPct}>{t.tauxPct}%</option>)}
+                                      <option value={0}>0%</option>
+                                    </select>
+                                  </td>
+                                  <td className="px-4 py-2 text-right text-sm text-gray-900 dark:text-white font-medium">
+                                    {((line.quantite * line.prixUnitaireHT) * (1 - ((line.remisePct || 0) / 100))).toFixed(3)}
+                                  </td>
+                                  <td className="px-4 py-2 text-center">
+                                    <button onClick={() => setLines(lines.filter((_, i) => i !== idx))} className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300">
+                                      <TrashIcon className="w-4 h-4" />
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
 

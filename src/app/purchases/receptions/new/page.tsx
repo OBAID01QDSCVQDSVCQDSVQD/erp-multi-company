@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
-import { PlusIcon, XMarkIcon, MagnifyingGlassIcon, ClipboardDocumentCheckIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, XMarkIcon, MagnifyingGlassIcon, ClipboardDocumentCheckIcon, ArrowLeftIcon, TrashIcon } from '@heroicons/react/24/outline';
 import ProductSearchModal from '@/components/common/ProductSearchModal';
 import { useTenantId } from '@/hooks/useTenantId';
 import toast from 'react-hot-toast';
@@ -878,100 +878,58 @@ export default function NewReceptionPage() {
                 Aucune ligne ajoutée
               </div>
             ) : (
-              <div className="border rounded-lg overflow-x-auto dark:border-gray-700">
-                <table className="w-full min-w-[900px]">
-                  <thead className="bg-blue-50 dark:bg-blue-900/20 border-b-2 border-blue-200 dark:border-blue-800">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-sm font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">Réf</th>
-                      <th className="px-4 py-3 text-left text-sm font-bold text-gray-800 dark:text-gray-200">Désignation</th>
-                      <th className="px-3 py-3 text-right text-sm font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">Qté commandée</th>
-                      <th className="px-3 py-3 text-right text-sm font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">Qté reçue *</th>
-                      <th className="px-3 py-3 text-center text-sm font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">Unité</th>
-                      <th className="px-3 py-3 text-right text-sm font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">Prix HT</th>
-                      <th className="px-3 py-3 text-right text-sm font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">Remise %</th>
-                      <th className="px-3 py-3 text-right text-sm font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">TVA %</th>
-                      <th className="px-3 py-3 text-right text-sm font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">Total HT</th>
-                      {!formData.purchaseOrderId && <th className="px-2 py-3"></th>}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                    {lines.map((line, index) => (
-                      <tr key={index}>
-                        <td className="px-4 py-3">
+              <>
+                {/* Mobile View (Cards) */}
+                <div className="space-y-4 md:hidden">
+                  {lines.map((line, index) => (
+                    <div key={index} className="bg-white dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg p-4 space-y-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Réf</label>
+                        <input
+                          type="text"
+                          value={line.reference || ''}
+                          onChange={(e) => updateLine(index, 'reference', e.target.value)}
+                          className="w-full px-3 py-2 border rounded text-sm bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
+                          disabled={!!formData.purchaseOrderId}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Désignation</label>
+                        <div className="flex items-center gap-2">
                           <input
                             type="text"
-                            value={line.reference || ''}
-                            onChange={(e) => updateLine(index, 'reference', e.target.value)}
-                            className="w-full px-2 py-1.5 border rounded text-sm bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
-                            disabled={!!formData.purchaseOrderId}
+                            value={productSearches[index] || line.designation || ''}
+                            onChange={(e) => {
+                              updateLine(index, 'designation', e.target.value);
+                              setProductSearches({ ...productSearches, [index]: e.target.value });
+                            }}
+                            onClick={() => !formData.purchaseOrderId && handleOpenProductModal(index)}
+                            onFocus={() => !formData.purchaseOrderId && handleOpenProductModal(index)}
+                            placeholder="Rechercher..."
+                            className={`w-full px-3 py-2 border rounded text-sm ${formData.purchaseOrderId
+                              ? 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+                              : 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600'
+                              }`}
+                            readOnly={!!formData.purchaseOrderId}
                           />
-                        </td>
-                        <td className="px-4 py-3 overflow-visible">
-                          {formData.purchaseOrderId ? (
-                            <input
-                              type="text"
-                              value={line.designation || ''}
-                              className="w-full px-2 py-1.5 border rounded text-sm bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-300"
-                              readOnly
-                            />
-                          ) : (
-                            <div className="flex items-center gap-2" style={{ width: 'auto', maxWidth: 'none' }}>
-                              <div className="relative inline-block">
-                                <input
-                                  type="text"
-                                  value={productSearches[index] || line.designation || ''}
-                                  onChange={(e) => {
-                                    updateLine(index, 'designation', e.target.value);
-                                    setProductSearches({ ...productSearches, [index]: e.target.value });
-                                  }}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    e.preventDefault();
-                                    handleOpenProductModal(index);
-                                  }}
-                                  onFocus={(e) => {
-                                    e.stopPropagation();
-                                    handleOpenProductModal(index);
-                                  }}
-                                  placeholder="Rechercher un produit..."
-                                  className="px-3 py-1.5 pr-8 border rounded text-sm cursor-pointer focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
-                                  readOnly
-                                  style={{
-                                    minWidth: '150px',
-                                    width: line.designation ? `${Math.max(150, Math.min(500, (line.designation.length * 8) + 50))}px` : '150px',
-                                    maxWidth: '500px',
-                                  }}
-                                />
-                                <MagnifyingGlassIcon className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-                              </div>
-                              {line.designation && (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    const updatedLines = [...lines];
-                                    updatedLines[index] = { ...updatedLines[index], designation: '', productId: '' };
-                                    setLines(updatedLines);
-                                    setProductSearches({ ...productSearches, [index]: '' });
-                                  }}
-                                  className="p-1 text-gray-400 hover:text-red-600 transition-colors flex-shrink-0"
-                                  title="Effacer"
-                                  type="button"
-                                >
-                                  <XMarkIcon className="w-4 h-4" />
-                                </button>
-                              )}
-                            </div>
+                          {!formData.purchaseOrderId && line.designation && (
+                            <button
+                              onClick={() => {
+                                updateLine(index, 'designation', '');
+                                updateLine(index, 'productId', undefined);
+                                setProductSearches({ ...productSearches, [index]: '' });
+                              }}
+                              className="p-2 text-gray-400 hover:text-red-600"
+                            >
+                              <XMarkIcon className="w-5 h-5" />
+                            </button>
                           )}
-                        </td>
-                        <td className="px-3 py-3">
-                          <input
-                            type="number"
-                            value={line.qteCommandee || ''}
-                            className="w-full px-2 py-1.5 border rounded text-sm bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-300 text-right"
-                            readOnly
-                          />
-                        </td>
-                        <td className="px-3 py-3">
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Qté reçue</label>
                           <input
                             type="number"
                             value={line.qteRecue || ''}
@@ -979,145 +937,304 @@ export default function NewReceptionPage() {
                               const value = e.target.value === '' ? 0 : parseFloat(e.target.value);
                               updateLine(index, 'qteRecue', isNaN(value) ? 0 : value);
                             }}
-                            min="0"
-                            step="0.01"
-                            className="w-full px-2 py-1.5 border rounded text-sm text-right bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
-                            required
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded text-sm text-right bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                           />
-                        </td>
-                        <td className="px-3 py-3">
-                          <input
-                            type="text"
-                            value={line.uom || ''}
-                            onChange={(e) => updateLine(index, 'uom', e.target.value)}
-                            className="w-full px-2 py-1.5 border rounded text-sm text-center bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
-                            disabled={!!formData.purchaseOrderId}
-                          />
-                        </td>
-                        <td className="px-3 py-3">
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Prix HT</label>
                           <input
                             type="number"
                             value={line.prixUnitaireHT || ''}
                             onChange={(e) => updateLine(index, 'prixUnitaireHT', parseFloat(e.target.value) || 0)}
-                            min="0"
-                            step="0.01"
-                            className="w-full px-2 py-1.5 border rounded text-sm text-right bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded text-sm text-right bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                             disabled={!!formData.purchaseOrderId}
                           />
-                        </td>
-                        <td className="px-3 py-3">
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Remise %</label>
                           <input
                             type="number"
                             value={line.remisePct || ''}
                             onChange={(e) => updateLine(index, 'remisePct', parseFloat(e.target.value) || 0)}
-                            min="0"
-                            max="100"
-                            step="0.01"
-                            className="w-full px-2 py-1.5 border rounded text-sm text-right bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded text-sm text-right bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                             disabled={!!formData.purchaseOrderId}
                           />
-                        </td>
-                        <td className="px-3 py-3">
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">TVA %</label>
                           <input
                             type="number"
                             value={line.tvaPct || ''}
                             onChange={(e) => updateLine(index, 'tvaPct', parseFloat(e.target.value) || 0)}
-                            min="0"
-                            max="100"
-                            step="0.01"
-                            className="w-full px-2 py-1.5 border rounded text-sm text-right bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded text-sm text-right bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                             disabled={!!formData.purchaseOrderId}
                           />
-                        </td>
-                        <td className="px-3 py-3">
-                          <input
-                            type="text"
-                            value={(line.totalLigneHT || 0).toFixed(3)}
-                            className="w-full px-2 py-1.5 border rounded text-sm bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-right font-medium text-gray-900 dark:text-gray-100"
-                            readOnly
-                          />
-                        </td>
-                        {!formData.purchaseOrderId && (
-                          <td className="px-2 py-3">
-                            <button
-                              onClick={() => removeLine(index)}
-                              className="text-red-600 hover:text-red-800"
-                            >
-                              <XMarkIcon className="w-5 h-5" />
-                            </button>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-gray-600">
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Total HT</span>
+                        <span className="text-sm font-bold text-gray-900 dark:text-white">{(line.totalLigneHT || 0).toFixed(3)}</span>
+                      </div>
+
+                      {!formData.purchaseOrderId && (
+                        <button
+                          onClick={() => removeLine(index)}
+                          className="w-full py-2 flex items-center justify-center gap-2 text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-lg transition-colors text-sm font-medium"
+                        >
+                          <TrashIcon className="w-4 h-4" />
+                          Supprimer la ligne
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Desktop View (Table) */}
+                <div className="hidden md:block border rounded-lg overflow-x-auto dark:border-gray-700">
+                  <table className="w-full min-w-[900px]">
+                    <thead className="bg-blue-50 dark:bg-blue-900/20 border-b-2 border-blue-200 dark:border-blue-800">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-sm font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">Réf</th>
+                        <th className="px-4 py-3 text-left text-sm font-bold text-gray-800 dark:text-gray-200">Désignation</th>
+                        <th className="px-3 py-3 text-right text-sm font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">Qté commandée</th>
+                        <th className="px-3 py-3 text-right text-sm font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">Qté reçue *</th>
+                        <th className="px-3 py-3 text-center text-sm font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">Unité</th>
+                        <th className="px-3 py-3 text-right text-sm font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">Prix HT</th>
+                        <th className="px-3 py-3 text-right text-sm font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">Remise %</th>
+                        <th className="px-3 py-3 text-right text-sm font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">TVA %</th>
+                        <th className="px-3 py-3 text-right text-sm font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">Total HT</th>
+                        {!formData.purchaseOrderId && <th className="px-2 py-3"></th>}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                      {lines.map((line, index) => (
+                        <tr key={index}>
+                          <td className="px-4 py-3">
+                            <input
+                              type="text"
+                              value={line.reference || ''}
+                              onChange={(e) => updateLine(index, 'reference', e.target.value)}
+                              className="w-full px-2 py-1.5 border rounded text-sm bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
+                              disabled={!!formData.purchaseOrderId}
+                            />
                           </td>
-                        )}
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot className="bg-gray-50 dark:bg-gray-800 border-t dark:border-gray-700">
-                    {totals.remiseFromLines > 0 && (
+                          <td className="px-4 py-3 overflow-visible">
+                            {formData.purchaseOrderId ? (
+                              <input
+                                type="text"
+                                value={line.designation || ''}
+                                className="w-full px-2 py-1.5 border rounded text-sm bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-300"
+                                readOnly
+                              />
+                            ) : (
+                              <div className="flex items-center gap-2" style={{ width: 'auto', maxWidth: 'none' }}>
+                                <div className="relative inline-block">
+                                  <input
+                                    type="text"
+                                    value={productSearches[index] || line.designation || ''}
+                                    onChange={(e) => {
+                                      updateLine(index, 'designation', e.target.value);
+                                      setProductSearches({ ...productSearches, [index]: e.target.value });
+                                    }}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      e.preventDefault();
+                                      handleOpenProductModal(index);
+                                    }}
+                                    onFocus={(e) => {
+                                      e.stopPropagation();
+                                      handleOpenProductModal(index);
+                                    }}
+                                    placeholder="Rechercher un produit..."
+                                    className="px-3 py-1.5 pr-8 border rounded text-sm cursor-pointer focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
+                                    readOnly
+                                    style={{
+                                      minWidth: '150px',
+                                      width: line.designation ? `${Math.max(150, Math.min(500, (line.designation.length * 8) + 50))}px` : '150px',
+                                      maxWidth: '500px',
+                                    }}
+                                  />
+                                  <MagnifyingGlassIcon className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                                </div>
+                                {line.designation && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const updatedLines = [...lines];
+                                      updatedLines[index] = { ...updatedLines[index], designation: '', productId: '' };
+                                      setLines(updatedLines);
+                                      setProductSearches({ ...productSearches, [index]: '' });
+                                    }}
+                                    className="p-1 text-gray-400 hover:text-red-600 transition-colors flex-shrink-0"
+                                    title="Effacer"
+                                    type="button"
+                                  >
+                                    <XMarkIcon className="w-4 h-4" />
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-3 py-3">
+                            <input
+                              type="number"
+                              value={line.qteCommandee || ''}
+                              className="w-full px-2 py-1.5 border rounded text-sm bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-300 text-right"
+                              readOnly
+                            />
+                          </td>
+                          <td className="px-3 py-3">
+                            <input
+                              type="number"
+                              value={line.qteRecue || ''}
+                              onChange={(e) => {
+                                const value = e.target.value === '' ? 0 : parseFloat(e.target.value);
+                                updateLine(index, 'qteRecue', isNaN(value) ? 0 : value);
+                              }}
+                              min="0"
+                              step="0.01"
+                              className="w-full px-2 py-1.5 border rounded text-sm text-right bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
+                              required
+                            />
+                          </td>
+                          <td className="px-3 py-3">
+                            <input
+                              type="text"
+                              value={line.uom || ''}
+                              onChange={(e) => updateLine(index, 'uom', e.target.value)}
+                              className="w-full px-2 py-1.5 border rounded text-sm text-center bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
+                              disabled={!!formData.purchaseOrderId}
+                            />
+                          </td>
+                          <td className="px-3 py-3">
+                            <input
+                              type="number"
+                              value={line.prixUnitaireHT || ''}
+                              onChange={(e) => updateLine(index, 'prixUnitaireHT', parseFloat(e.target.value) || 0)}
+                              min="0"
+                              step="0.01"
+                              className="w-full px-2 py-1.5 border rounded text-sm text-right bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
+                              disabled={!!formData.purchaseOrderId}
+                            />
+                          </td>
+                          <td className="px-3 py-3">
+                            <input
+                              type="number"
+                              value={line.remisePct || ''}
+                              onChange={(e) => updateLine(index, 'remisePct', parseFloat(e.target.value) || 0)}
+                              min="0"
+                              max="100"
+                              step="0.01"
+                              className="w-full px-2 py-1.5 border rounded text-sm text-right bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
+                              disabled={!!formData.purchaseOrderId}
+                            />
+                          </td>
+                          <td className="px-3 py-3">
+                            <input
+                              type="number"
+                              value={line.tvaPct || ''}
+                              onChange={(e) => updateLine(index, 'tvaPct', parseFloat(e.target.value) || 0)}
+                              min="0"
+                              max="100"
+                              step="0.01"
+                              className="w-full px-2 py-1.5 border rounded text-sm text-right bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
+                              disabled={!!formData.purchaseOrderId}
+                            />
+                          </td>
+                          <td className="px-3 py-3">
+                            <input
+                              type="text"
+                              value={(line.totalLigneHT || 0).toFixed(3)}
+                              className="w-full px-2 py-1.5 border rounded text-sm bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-right font-medium text-gray-900 dark:text-gray-100"
+                              readOnly
+                            />
+                          </td>
+                          {!formData.purchaseOrderId && (
+                            <td className="px-2 py-3">
+                              <button
+                                onClick={() => removeLine(index)}
+                                className="text-red-600 hover:text-red-800"
+                              >
+                                <XMarkIcon className="w-5 h-5" />
+                              </button>
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="bg-gray-50 dark:bg-gray-800 border-t dark:border-gray-700">
+                      {totals.remiseFromLines > 0 && (
+                        <tr>
+                          <td colSpan={8} className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">
+                            Remise lignes:
+                          </td>
+                          <td className="px-2 py-3 font-bold text-red-600 dark:text-red-400">
+                            -{totals.remiseFromLines.toFixed(3)} DT
+                          </td>
+                        </tr>
+                      )}
+                      {totals.remiseGlobale > 0 && (
+                        <tr>
+                          <td colSpan={8} className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">
+                            Remise globale ({formData.remiseGlobalePct}%):
+                          </td>
+                          <td className="px-2 py-3 font-bold text-red-600 dark:text-red-400">
+                            -{totals.remiseGlobale.toFixed(3)} DT
+                          </td>
+                        </tr>
+                      )}
                       <tr>
                         <td colSpan={8} className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">
-                          Remise lignes:
-                        </td>
-                        <td className="px-2 py-3 font-bold text-red-600 dark:text-red-400">
-                          -{totals.remiseFromLines.toFixed(3)} DT
-                        </td>
-                      </tr>
-                    )}
-                    {totals.remiseGlobale > 0 && (
-                      <tr>
-                        <td colSpan={8} className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">
-                          Remise globale ({formData.remiseGlobalePct}%):
-                        </td>
-                        <td className="px-2 py-3 font-bold text-red-600 dark:text-red-400">
-                          -{totals.remiseGlobale.toFixed(3)} DT
-                        </td>
-                      </tr>
-                    )}
-                    <tr>
-                      <td colSpan={8} className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">
-                        Total HT:
-                      </td>
-                      <td className="px-2 py-3 font-bold text-gray-900 dark:text-white">
-                        {totals.totalHT.toFixed(3)} DT
-                      </td>
-                    </tr>
-                    {formData.fodecActif && (
-                      <tr>
-                        <td colSpan={8} className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">
-                          FODEC ({formData.tauxFodec}%):
+                          Total HT:
                         </td>
                         <td className="px-2 py-3 font-bold text-gray-900 dark:text-white">
-                          {totals.fodec.toFixed(3)} DT
+                          {totals.totalHT.toFixed(3)} DT
                         </td>
                       </tr>
-                    )}
-                    <tr>
-                      <td colSpan={8} className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">
-                        Total TVA:
-                      </td>
-                      <td className="px-2 py-3 font-bold text-gray-900 dark:text-white">
-                        {totals.totalTVA.toFixed(3)} DT
-                      </td>
-                    </tr>
-                    {formData.timbreActif && totals.timbre > 0 && (
+                      {formData.fodecActif && (
+                        <tr>
+                          <td colSpan={8} className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">
+                            FODEC ({formData.tauxFodec}%):
+                          </td>
+                          <td className="px-2 py-3 font-bold text-gray-900 dark:text-white">
+                            {totals.fodec.toFixed(3)} DT
+                          </td>
+                        </tr>
+                      )}
                       <tr>
                         <td colSpan={8} className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">
-                          Timbre fiscal:
+                          Total TVA:
                         </td>
                         <td className="px-2 py-3 font-bold text-gray-900 dark:text-white">
-                          {totals.timbre.toFixed(3)} DT
+                          {totals.totalTVA.toFixed(3)} DT
                         </td>
                       </tr>
-                    )}
-                    <tr>
-                      <td colSpan={8} className="px-4 py-3 text-right font-semibold text-blue-600 dark:text-blue-400">
-                        Total TTC:
-                      </td>
-                      <td className="px-2 py-3 font-bold text-blue-600 dark:text-blue-400">
-                        {totals.totalTTC.toFixed(3)} DT
-                      </td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
+                      {formData.timbreActif && totals.timbre > 0 && (
+                        <tr>
+                          <td colSpan={8} className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">
+                            Timbre fiscal:
+                          </td>
+                          <td className="px-2 py-3 font-bold text-gray-900 dark:text-white">
+                            {totals.timbre.toFixed(3)} DT
+                          </td>
+                        </tr>
+                      )}
+                      <tr>
+                        <td colSpan={8} className="px-4 py-3 text-right font-semibold text-blue-600 dark:text-blue-400">
+                          Total TTC:
+                        </td>
+                        <td className="px-2 py-3 font-bold text-blue-600 dark:text-blue-400">
+                          {totals.totalTTC.toFixed(3)} DT
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </>
             )}
           </div>
 

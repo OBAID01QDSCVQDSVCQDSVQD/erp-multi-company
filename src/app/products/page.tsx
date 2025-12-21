@@ -619,8 +619,8 @@ export default function ProductsPage() {
                       <input value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} placeholder="Ex : Clavier mécanique" className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500" disabled={viewing} />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Référence client</label>
-                      <input value={form.referenceClient || ''} onChange={(e) => setForm({ ...form, referenceClient: e.target.value })} placeholder="Ex : REF-CL-2025" className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500" disabled={viewing} />
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Référence produit</label>
+                      <input value={form.referenceClient || ''} onChange={(e) => setForm({ ...form, referenceClient: e.target.value })} placeholder="Ex : REF-PROD-2025" className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500" disabled={viewing} />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Code SKU</label>

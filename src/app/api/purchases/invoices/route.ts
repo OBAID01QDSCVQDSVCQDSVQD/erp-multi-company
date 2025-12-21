@@ -197,11 +197,13 @@ export async function POST(request: NextRequest) {
       statut: body.statut || 'BROUILLON',
       warehouseId,
       lignes,
+      remiseGlobalePct: body.remiseGlobalePct || 0,
       fodec,
       timbre,
       totaux: {
         totalHT: 0,
         totalRemise: 0,
+        remiseGlobale: 0,
         totalFodec: 0,
         totalTVA: 0,
         totalTimbre: 0,

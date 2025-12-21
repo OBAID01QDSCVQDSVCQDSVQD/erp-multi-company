@@ -1120,28 +1120,15 @@ export default function PurchaseOrdersPage() {
                         Aucune ligne ajoutée
                       </div>
                     ) : (
-                      <div className="min-w-full">
-                        <table className="w-full min-w-[800px]">
-                          <thead className="bg-gray-50 dark:bg-gray-700 border-b dark:border-gray-600">
-                            <tr>
-                              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 w-80">Produit</th>
-                              <th className="px-2 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 w-24">Référence</th>
-                              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200" style={{ minWidth: '200px' }}>Désignation</th>
-                              <th className="px-2 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 w-16">Qté</th>
-                              <th className="px-2 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 w-16">Unité</th>
-                              <th className="px-2 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 w-24">Prix HT</th>
-                              <th className="px-2 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 w-20">Remise %</th>
-                              <th className="px-2 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 w-20">TVA %</th>
-                              <th className="px-2 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 w-24">Total HT</th>
-                              <th className="px-2 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 w-24">Total TVA</th>
-                              <th className="px-2 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 w-24">Total TTC</th>
-                              <th className="px-2 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 w-16"></th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                            {lines.map((line, index) => (
-                              <tr key={index}>
-                                <td className="px-4 py-3 w-80" style={{ width: 'auto', maxWidth: 'none' }}>
+                      <>
+                        {/* Mobile View (Cards) */}
+                        <div className="space-y-4 md:hidden p-1">
+                          {lines.map((line, index) => (
+                            <div key={index} className="bg-white dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg p-4 space-y-3">
+                              {/* Product/Designation */}
+                              <div>
+                                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Produit / Désignation</label>
+                                <div className="space-y-2">
                                   <div className="flex items-center gap-2">
                                     <div className="relative inline-block w-full">
                                       <input
@@ -1164,14 +1151,9 @@ export default function PurchaseOrdersPage() {
                                           setCurrentProductLineIndex(index);
                                           setShowProductModal({ ...showProductModal, [index]: true });
                                         }}
-                                        placeholder="Rechercher un produit..."
+                                        placeholder="Rechercher..."
                                         className="w-full px-3 py-2 pr-8 border dark:border-gray-600 rounded text-sm cursor-pointer focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                                         readOnly
-                                        style={{
-                                          minWidth: '150px',
-                                          width: line.designation ? `${Math.max(150, Math.min(500, (line.designation.length * 8) + 50))}px` : '150px',
-                                          maxWidth: '500px',
-                                        }}
                                       />
                                       <MagnifyingGlassIcon className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
                                     </div>
@@ -1184,42 +1166,40 @@ export default function PurchaseOrdersPage() {
                                           setLines(updatedLines);
                                           setProductSearches({ ...productSearches, [index]: '' });
                                         }}
-                                        className="p-1 text-gray-400 hover:text-red-600 transition-colors flex-shrink-0"
-                                        title="Effacer"
-                                        type="button"
+                                        className="p-2 text-gray-400 hover:text-red-600"
                                       >
-                                        <XMarkIcon className="w-4 h-4" />
+                                        <XMarkIcon className="w-5 h-5" />
                                       </button>
                                     )}
                                   </div>
-                                </td>
-                                <td className="px-2 py-3">
-                                  <input
-                                    type="text"
-                                    value={line.reference || ''}
-                                    onChange={(e) => updateLine(index, 'reference', e.target.value)}
-                                    className="w-full px-1 py-1 border dark:border-gray-600 rounded text-xs bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                                    placeholder="Réf"
-                                  />
-                                </td>
-                                <td className="px-4 py-3" style={{ minWidth: '200px' }}>
                                   <textarea
                                     value={line.designation || ''}
                                     onChange={(e) => updateLine(index, 'designation', e.target.value)}
-                                    className="w-full px-2 py-1 border dark:border-gray-600 rounded text-sm resize-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                                    placeholder="Désignation"
-                                    rows={1}
-                                    style={{ minWidth: '180px' }}
-                                    onInput={(e) => {
-                                      const target = e.target as HTMLTextAreaElement;
-                                      target.style.height = 'auto';
-                                      target.style.height = target.scrollHeight + 'px';
-                                    }}
+                                    className="w-full px-3 py-2 border dark:border-gray-600 rounded text-sm resize-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                    placeholder="Désignation détaillée"
+                                    rows={2}
                                   />
-                                </td>
-                                <td className="px-2 py-3">
+                                </div>
+                              </div>
+
+                              {/* Reference */}
+                              <div>
+                                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Référence</label>
+                                <input
+                                  type="text"
+                                  value={line.reference || ''}
+                                  onChange={(e) => updateLine(index, 'reference', e.target.value)}
+                                  className="w-full px-3 py-2 border dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                  placeholder="Réf"
+                                />
+                              </div>
+
+                              {/* Quantité & Unité */}
+                              <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Quantité</label>
                                   <input
-                                    type="text"
+                                    type="number"
                                     value={line.quantite || ''}
                                     onChange={(e) => {
                                       const val = e.target.value;
@@ -1227,21 +1207,27 @@ export default function PurchaseOrdersPage() {
                                       updatedLines[index] = { ...updatedLines[index], quantite: parseFloat(val) || 0 };
                                       setLines(updatedLines);
                                     }}
-                                    className="w-full px-1 py-1 border dark:border-gray-600 rounded text-xs bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                    className="w-full px-3 py-2 border dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                                     placeholder="0"
                                   />
-                                </td>
-                                <td className="px-2 py-3">
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Unité</label>
                                   <input
                                     type="text"
                                     value={line.unite || ''}
                                     readOnly
-                                    className="w-full px-1 py-1 border dark:border-gray-600 rounded text-xs bg-gray-50 dark:bg-gray-600 text-gray-700 dark:text-gray-300"
+                                    className="w-full px-3 py-2 border dark:border-gray-600 rounded text-sm bg-gray-50 dark:bg-gray-600 text-gray-700 dark:text-gray-300"
                                   />
-                                </td>
-                                <td className="px-2 py-3">
+                                </div>
+                              </div>
+
+                              {/* Prix & Remise */}
+                              <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Prix HT</label>
                                   <input
-                                    type="text"
+                                    type="number"
                                     value={line.prixUnitaireHT || ''}
                                     onChange={(e) => {
                                       const val = e.target.value;
@@ -1249,13 +1235,14 @@ export default function PurchaseOrdersPage() {
                                       updatedLines[index] = { ...updatedLines[index], prixUnitaireHT: parseFloat(val) || 0 };
                                       setLines(updatedLines);
                                     }}
-                                    className="w-full px-1 py-1 border dark:border-gray-600 rounded text-xs bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                    className="w-full px-3 py-2 border dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                                     placeholder="0.000"
                                   />
-                                </td>
-                                <td className="px-2 py-3">
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Remise %</label>
                                   <input
-                                    type="text"
+                                    type="number"
                                     value={line.remisePct ?? ''}
                                     onChange={(e) => {
                                       const val = e.target.value;
@@ -1263,47 +1250,242 @@ export default function PurchaseOrdersPage() {
                                       updatedLines[index] = { ...updatedLines[index], remisePct: parseFloat(val) || 0 };
                                       setLines(updatedLines);
                                     }}
-                                    className="w-full px-1 py-1 border dark:border-gray-600 rounded text-xs bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                    className="w-full px-3 py-2 border dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                                     placeholder="0%"
                                   />
-                                </td>
-                                <td className="px-2 py-3">
-                                  <input
-                                    type="text"
-                                    value={line.tvaPct ?? ''}
-                                    onChange={(e) => {
-                                      const val = e.target.value;
-                                      const updatedLines = [...lines];
-                                      updatedLines[index] = { ...updatedLines[index], tvaPct: parseFloat(val) || 0 };
-                                      setLines(updatedLines);
-                                    }}
-                                    className="w-full px-1 py-1 border dark:border-gray-600 rounded text-xs bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                                    placeholder="0%"
-                                  />
-                                </td>
-                                <td className="px-2 py-3 text-xs font-medium whitespace-nowrap text-gray-900 dark:text-white">
-                                  {(((line.quantite || 0) * (line.prixUnitaireHT || 0)) * (1 - ((line.remisePct || 0) / 100))).toFixed(3)} {formData.devise}
-                                </td>
-                                <td className="px-2 py-3 text-xs font-medium whitespace-nowrap text-gray-900 dark:text-white">
-                                  {((((line.quantite || 0) * (line.prixUnitaireHT || 0)) * (1 - ((line.remisePct || 0) / 100))) * ((line.tvaPct || 0) / 100)).toFixed(3)} {formData.devise}
-                                </td>
-                                <td className="px-2 py-3 text-xs font-medium text-blue-600 dark:text-blue-400 whitespace-nowrap">
-                                  {(((line.quantite || 0) * (line.prixUnitaireHT || 0) * (1 - ((line.remisePct || 0) / 100))) * (1 + (line.tvaPct || 0) / 100)).toFixed(3)} {formData.devise}
-                                </td>
-                                <td className="px-2 py-3">
-                                  <button
-                                    onClick={() => removeLine(index)}
-                                    className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                                    title="Supprimer"
-                                  >
-                                    <TrashIcon className="w-4 h-4" />
-                                  </button>
-                                </td>
+                                </div>
+                              </div>
+
+                              {/* TVA */}
+                              <div>
+                                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">TVA %</label>
+                                <input
+                                  type="number"
+                                  value={line.tvaPct ?? ''}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    const updatedLines = [...lines];
+                                    updatedLines[index] = { ...updatedLines[index], tvaPct: parseFloat(val) || 0 };
+                                    setLines(updatedLines);
+                                  }}
+                                  className="w-full px-3 py-2 border dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                  placeholder="0%"
+                                />
+                              </div>
+
+                              {/* Totals Summary */}
+                              <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded text-sm space-y-1">
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600 dark:text-gray-400">Total HT:</span>
+                                  <span className="font-medium text-gray-900 dark:text-white">{(((line.quantite || 0) * (line.prixUnitaireHT || 0)) * (1 - ((line.remisePct || 0) / 100))).toFixed(3)} {formData.devise}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600 dark:text-gray-400">Total TVA:</span>
+                                  <span className="font-medium text-gray-900 dark:text-white">{((((line.quantite || 0) * (line.prixUnitaireHT || 0)) * (1 - ((line.remisePct || 0) / 100))) * ((line.tvaPct || 0) / 100)).toFixed(3)} {formData.devise}</span>
+                                </div>
+                                <div className="flex justify-between border-t dark:border-gray-700 pt-1 mt-1">
+                                  <span className="font-bold text-gray-900 dark:text-white">Total TTC:</span>
+                                  <span className="font-bold text-blue-600 dark:text-blue-400">{(((line.quantite || 0) * (line.prixUnitaireHT || 0) * (1 - ((line.remisePct || 0) / 100))) * (1 + (line.tvaPct || 0) / 100)).toFixed(3)} {formData.devise}</span>
+                                </div>
+                              </div>
+
+                              <button
+                                onClick={() => removeLine(index)}
+                                className="w-full py-2 flex items-center justify-center gap-2 text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-lg transition-colors text-sm font-medium"
+                              >
+                                <TrashIcon className="w-4 h-4" />
+                                Supprimer la ligne
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Desktop View (Table) */}
+                        <div className="hidden md:block min-w-full">
+                          <table className="w-full min-w-[800px]">
+                            <thead className="bg-gray-50 dark:bg-gray-700 border-b dark:border-gray-600">
+                              <tr>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 w-80">Produit</th>
+                                <th className="px-2 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 w-24">Référence</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200" style={{ minWidth: '200px' }}>Désignation</th>
+                                <th className="px-2 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 w-16">Qté</th>
+                                <th className="px-2 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 w-16">Unité</th>
+                                <th className="px-2 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 w-24">Prix HT</th>
+                                <th className="px-2 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 w-20">Remise %</th>
+                                <th className="px-2 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 w-20">TVA %</th>
+                                <th className="px-2 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 w-24">Total HT</th>
+                                <th className="px-2 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 w-24">Total TVA</th>
+                                <th className="px-2 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 w-24">Total TTC</th>
+                                <th className="px-2 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 w-16"></th>
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                              {lines.map((line, index) => (
+                                <tr key={index}>
+                                  <td className="px-4 py-3 w-80" style={{ width: 'auto', maxWidth: 'none' }}>
+                                    <div className="flex items-center gap-2">
+                                      <div className="relative inline-block w-full">
+                                        <input
+                                          type="text"
+                                          value={productSearches[index] || line.designation || ''}
+                                          onChange={(e) => {
+                                            const updatedLines = [...lines];
+                                            updatedLines[index] = { ...updatedLines[index], designation: e.target.value };
+                                            setLines(updatedLines);
+                                            setProductSearches({ ...productSearches, [index]: e.target.value });
+                                          }}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            e.preventDefault();
+                                            setCurrentProductLineIndex(index);
+                                            setShowProductModal({ ...showProductModal, [index]: true });
+                                          }}
+                                          onFocus={(e) => {
+                                            e.stopPropagation();
+                                            setCurrentProductLineIndex(index);
+                                            setShowProductModal({ ...showProductModal, [index]: true });
+                                          }}
+                                          placeholder="Rechercher un produit..."
+                                          className="w-full px-3 py-2 pr-8 border dark:border-gray-600 rounded text-sm cursor-pointer focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                                          readOnly
+                                          style={{
+                                            minWidth: '150px',
+                                            width: line.designation ? `${Math.max(150, Math.min(500, (line.designation.length * 8) + 50))}px` : '150px',
+                                            maxWidth: '500px',
+                                          }}
+                                        />
+                                        <MagnifyingGlassIcon className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                                      </div>
+                                      {line.designation && (
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            const updatedLines = [...lines];
+                                            updatedLines[index] = { ...updatedLines[index], designation: '', productId: '' };
+                                            setLines(updatedLines);
+                                            setProductSearches({ ...productSearches, [index]: '' });
+                                          }}
+                                          className="p-1 text-gray-400 hover:text-red-600 transition-colors flex-shrink-0"
+                                          title="Effacer"
+                                          type="button"
+                                        >
+                                          <XMarkIcon className="w-4 h-4" />
+                                        </button>
+                                      )}
+                                    </div>
+                                  </td>
+                                  <td className="px-2 py-3">
+                                    <input
+                                      type="text"
+                                      value={line.reference || ''}
+                                      onChange={(e) => updateLine(index, 'reference', e.target.value)}
+                                      className="w-full px-1 py-1 border dark:border-gray-600 rounded text-xs bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                      placeholder="Réf"
+                                    />
+                                  </td>
+                                  <td className="px-4 py-3" style={{ minWidth: '200px' }}>
+                                    <textarea
+                                      value={line.designation || ''}
+                                      onChange={(e) => updateLine(index, 'designation', e.target.value)}
+                                      className="w-full px-2 py-1 border dark:border-gray-600 rounded text-sm resize-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                      placeholder="Désignation"
+                                      rows={1}
+                                      style={{ minWidth: '180px' }}
+                                      onInput={(e) => {
+                                        const target = e.target as HTMLTextAreaElement;
+                                        target.style.height = 'auto';
+                                        target.style.height = target.scrollHeight + 'px';
+                                      }}
+                                    />
+                                  </td>
+                                  <td className="px-2 py-3">
+                                    <input
+                                      type="text"
+                                      value={line.quantite || ''}
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        const updatedLines = [...lines];
+                                        updatedLines[index] = { ...updatedLines[index], quantite: parseFloat(val) || 0 };
+                                        setLines(updatedLines);
+                                      }}
+                                      className="w-full px-1 py-1 border dark:border-gray-600 rounded text-xs bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                      placeholder="0"
+                                    />
+                                  </td>
+                                  <td className="px-2 py-3">
+                                    <input
+                                      type="text"
+                                      value={line.unite || ''}
+                                      readOnly
+                                      className="w-full px-1 py-1 border dark:border-gray-600 rounded text-xs bg-gray-50 dark:bg-gray-600 text-gray-700 dark:text-gray-300"
+                                    />
+                                  </td>
+                                  <td className="px-2 py-3">
+                                    <input
+                                      type="text"
+                                      value={line.prixUnitaireHT || ''}
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        const updatedLines = [...lines];
+                                        updatedLines[index] = { ...updatedLines[index], prixUnitaireHT: parseFloat(val) || 0 };
+                                        setLines(updatedLines);
+                                      }}
+                                      className="w-full px-1 py-1 border dark:border-gray-600 rounded text-xs bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                      placeholder="0.000"
+                                    />
+                                  </td>
+                                  <td className="px-2 py-3">
+                                    <input
+                                      type="text"
+                                      value={line.remisePct ?? ''}
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        const updatedLines = [...lines];
+                                        updatedLines[index] = { ...updatedLines[index], remisePct: parseFloat(val) || 0 };
+                                        setLines(updatedLines);
+                                      }}
+                                      className="w-full px-1 py-1 border dark:border-gray-600 rounded text-xs bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                      placeholder="0%"
+                                    />
+                                  </td>
+                                  <td className="px-2 py-3">
+                                    <input
+                                      type="text"
+                                      value={line.tvaPct ?? ''}
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        const updatedLines = [...lines];
+                                        updatedLines[index] = { ...updatedLines[index], tvaPct: parseFloat(val) || 0 };
+                                        setLines(updatedLines);
+                                      }}
+                                      className="w-full px-1 py-1 border dark:border-gray-600 rounded text-xs bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                      placeholder="0%"
+                                    />
+                                  </td>
+                                  <td className="px-2 py-3 text-xs font-medium whitespace-nowrap text-gray-900 dark:text-white">
+                                    {(((line.quantite || 0) * (line.prixUnitaireHT || 0)) * (1 - ((line.remisePct || 0) / 100))).toFixed(3)} {formData.devise}
+                                  </td>
+                                  <td className="px-2 py-3 text-xs font-medium whitespace-nowrap text-gray-900 dark:text-white">
+                                    {((((line.quantite || 0) * (line.prixUnitaireHT || 0)) * (1 - ((line.remisePct || 0) / 100))) * ((line.tvaPct || 0) / 100)).toFixed(3)} {formData.devise}
+                                  </td>
+                                  <td className="px-2 py-3 text-xs font-medium text-blue-600 dark:text-blue-400 whitespace-nowrap">
+                                    {(((line.quantite || 0) * (line.prixUnitaireHT || 0) * (1 - ((line.remisePct || 0) / 100))) * (1 + (line.tvaPct || 0) / 100)).toFixed(3)} {formData.devise}
+                                  </td>
+                                  <td className="px-2 py-3">
+                                    <button
+                                      onClick={() => removeLine(index)}
+                                      className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                      title="Supprimer"
+                                    >
+                                      <TrashIcon className="w-4 h-4" />
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </>
                     )}
                   </div>
                 </div>

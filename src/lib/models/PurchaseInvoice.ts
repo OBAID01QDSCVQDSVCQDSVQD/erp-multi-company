@@ -25,6 +25,7 @@ export interface IPurchaseInvoiceTimbre {
 export interface IPurchaseInvoiceTotaux {
   totalHT: number;
   totalRemise?: number;
+  remiseGlobale?: number;
   totalFodec?: number;
   totalTVA: number;
   totalTimbre?: number;
@@ -50,6 +51,7 @@ export interface IPurchaseInvoice extends Document {
   conditionsPaiement?: string;
   statut: 'BROUILLON' | 'VALIDEE' | 'PARTIELLEMENT_PAYEE' | 'PAYEE' | 'ANNULEE';
   lignes: IPurchaseInvoiceLine[];
+  remiseGlobalePct?: number;
   fodec: IPurchaseInvoiceFodec;
   timbre: IPurchaseInvoiceTimbre;
   totaux: IPurchaseInvoiceTotaux;
@@ -105,6 +107,7 @@ const PurchaseInvoiceTimbreSchema = new Schema({
 const PurchaseInvoiceTotauxSchema = new Schema({
   totalHT: { type: Number, default: 0, min: 0 },
   totalRemise: { type: Number, default: 0, min: 0 },
+  remiseGlobale: { type: Number, default: 0, min: 0 },
   totalFodec: { type: Number, default: 0, min: 0 },
   totalTVA: { type: Number, default: 0, min: 0 },
   totalTimbre: { type: Number, default: 0, min: 0 },
@@ -147,9 +150,10 @@ const PurchaseInvoiceSchema = new Schema({
       message: 'La facture doit contenir au moins une ligne',
     },
   },
+  remiseGlobalePct: { type: Number, default: 0, min: 0, max: 100 },
   fodec: { type: PurchaseInvoiceFodecSchema, default: () => ({ enabled: false, tauxPct: 1, montant: 0 }) },
   timbre: { type: PurchaseInvoiceTimbreSchema, default: () => ({ enabled: true, montant: 1.000 }) },
-  totaux: { type: PurchaseInvoiceTotauxSchema, default: () => ({ totalHT: 0, totalFodec: 0, totalTVA: 0, totalTimbre: 0, totalTTC: 0 }) },
+  totaux: { type: PurchaseInvoiceTotauxSchema, default: () => ({ totalHT: 0, totalRemise: 0, remiseGlobale: 0, totalFodec: 0, totalTVA: 0, totalTimbre: 0, totalTTC: 0 }) },
   bonsReceptionIds: [{ type: Schema.Types.ObjectId, ref: 'Reception' }],
   fichiers: [{ type: String }], // للحفاظ على التوافق مع البيانات القديمة
   images: [{
@@ -179,11 +183,11 @@ PurchaseInvoiceSchema.index({ societeId: 1, warehouseId: 1 });
 PurchaseInvoiceSchema.pre('save', function (next) {
   if (this.lignes && this.lignes.length > 0) {
     let totalHT = 0;
-    let totalRemise = 0;
-    let totalHTAvantRemise = 0;
+    let totalRemiseLignes = 0;
+    let totalHTAvantRemiseLignes = 0;
     let totalTVA = 0;
 
-    // Calculate TotalHT (sum of lines with remise applied) and totalRemise
+    // 1. Calculate TotalHT (sum of lines with line remise applied)
     this.lignes.forEach((ligne) => {
       if (ligne.prixUnitaireHT && ligne.quantite > 0) {
         const prixUnitaire = ligne.prixUnitaireHT;
@@ -191,13 +195,13 @@ PurchaseInvoiceSchema.pre('save', function (next) {
         const remisePct = ligne.remisePct || 0;
 
         const htAvantRemiseLigne = prixUnitaire * quantite;
-        totalHTAvantRemise += htAvantRemiseLigne;
+        totalHTAvantRemiseLignes += htAvantRemiseLigne;
 
         let prixAvecRemise = prixUnitaire;
         if (remisePct > 0) {
           prixAvecRemise = prixUnitaire * (1 - remisePct / 100);
           const remiseLigne = htAvantRemiseLigne - (prixAvecRemise * quantite);
-          totalRemise += remiseLigne;
+          totalRemiseLignes += remiseLigne;
         }
 
         const ligneHT = prixAvecRemise * quantite;
@@ -208,47 +212,70 @@ PurchaseInvoiceSchema.pre('save', function (next) {
       }
     });
 
-    // Calculate FODEC if enabled
+    // 2. Apply Global Discount (Remise Globale)
+    const remiseGlobalePct = this.remiseGlobalePct || 0;
+    let remiseGlobale = 0;
+    let totalHTAfterGlobalDiscount = totalHT;
+
+    if (remiseGlobalePct > 0) {
+      remiseGlobale = totalHT * (remiseGlobalePct / 100);
+      totalHTAfterGlobalDiscount = totalHT - remiseGlobale;
+    }
+
+    // 3. Calculate FODEC if enabled
     const fodecEnabled = this.fodec?.enabled || false;
     const tauxFodec = this.fodec?.tauxPct || 1;
-    const fodecMontant = fodecEnabled ? totalHT * (tauxFodec / 100) : 0;
+    // FODEC applies to the NET HT (after global discount)
+    const fodecMontant = fodecEnabled ? totalHTAfterGlobalDiscount * (tauxFodec / 100) : 0;
     if (this.fodec) {
       this.fodec.montant = fodecMontant;
     }
 
-    // Calculate TVA (base includes FODEC if enabled)
+    // 4. Calculate TVA
+    // TVA Base = HT (after global discount) + FODEC
+    // We need to distribute global discount proportionally or apply to base?
+    // Simplified: We iterate lines to get weighted TVA, BUT we need to adjust for global discount.
+    // However, if different lines have different TVA rates, applying global discount to the total HT is tricky for TVA calculation.
+    // The standard way if multiple TVA rates exist is that Global Discount reduces the base of each line proportionally.
+    // Or simpler: TVA is calculated on (Total HT Net + Fodec) IF uniform TVA.
+    // Since lines can have different TVA, we technically must reduce each line's HT by the global discount pct before calculating TVA.
+
+    // Re-iterating lines to calculate TVA with Global Discount effect
     this.lignes.forEach((ligne) => {
       if (ligne.prixUnitaireHT && ligne.quantite > 0 && ligne.tvaPct) {
-        // Apply remise if exists
-        let prixAvecRemise = ligne.prixUnitaireHT;
-        const remisePct = ligne.remisePct || 0;
-        if (remisePct > 0) {
-          prixAvecRemise = prixAvecRemise * (1 - remisePct / 100);
-        }
-        const ligneHT = prixAvecRemise * ligne.quantite;
+        // Line HT already includes line discount
+        const lineHT = ligne.totalLigneHT || 0;
 
-        // Calculate FODEC for this line if enabled
-        const ligneFodec = fodecEnabled ? ligneHT * (tauxFodec / 100) : 0;
-        const ligneBaseTVA = ligneHT + ligneFodec;
-        const ligneTVA = ligneBaseTVA * (ligne.tvaPct / 100);
-        totalTVA += ligneTVA;
+        // Apply Global Discount share to this line
+        const lineHTNet = remiseGlobalePct > 0 ? lineHT * (1 - remiseGlobalePct / 100) : lineHT;
+
+        // FODEC share
+        const lineFodec = fodecEnabled ? lineHTNet * (tauxFodec / 100) : 0;
+
+        // Base TVA
+        const lineBaseTVA = lineHTNet + lineFodec;
+
+        const lineTVA = lineBaseTVA * (ligne.tvaPct / 100);
+        totalTVA += lineTVA;
       }
     });
 
-    // Calculate TIMBRE if enabled
+    // 5. Calculate TIMBRE if enabled
     const timbreEnabled = this.timbre?.enabled || false;
     const montantTimbre = timbreEnabled ? (this.timbre?.montant || 1.000) : 0;
 
-    // Calculate TotalTTC
-    const totalTTC = totalHT + fodecMontant + totalTVA + montantTimbre;
+    // 6. Calculate TotalTTC
+    // TTC = Total HT Net + Fodec + Total TVA + Timbre
+    const totalTTC = totalHTAfterGlobalDiscount + fodecMontant + totalTVA + montantTimbre;
 
     this.totaux = {
-      totalHT,
-      totalRemise,
+      totalHT: totalHT, // Sum of lines after line discount
+      totalRemise: totalRemiseLignes, // Sum of line discounts
+      remiseGlobale: remiseGlobale,
       totalFodec: fodecMontant,
-      totalTVA,
+      totalTVA: totalTVA,
       totalTimbre: montantTimbre,
-      totalTTC,
+      totalTTC: totalTTC,
     };
   }
 

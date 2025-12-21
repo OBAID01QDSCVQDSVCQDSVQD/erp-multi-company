@@ -28,6 +28,7 @@ interface PurchaseInvoice {
     fodecPct?: number;
     totalLigneHT?: number;
   }>;
+  remiseGlobalePct?: number;
   fodec: {
     enabled: boolean;
     tauxPct?: number;
@@ -40,6 +41,7 @@ interface PurchaseInvoice {
   totaux: {
     totalHT: number;
     totalRemise?: number;
+    remiseGlobale?: number;
     totalFodec?: number;
     totalTVA: number;
     totalTimbre?: number;
@@ -548,35 +550,43 @@ export default function PurchaseInvoiceDetailPage() {
             <ArrowLeftIcon className="w-5 h-5" />
             <span className="text-sm">Retour</span>
           </button>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Facture d'achat</h1>
-              <span className="text-lg sm:text-xl font-bold text-blue-600 dark:text-blue-400">{invoice.numero}</span>
-              {getStatusBadge(invoice.statut)}
-              <div className="relative inline-block">
-                <select
-                  value={invoice.statut}
-                  onChange={(e) => handleStatusChange(e.target.value)}
-                  className="appearance-none bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer"
-                  disabled={invoice.statut === 'PAYEE' || invoice.statut === 'ANNULEE'}
-                >
-                  <option value="BROUILLON">Brouillon</option>
-                  <option value="VALIDEE">Validée</option>
-                  <option value="PARTIELLEMENT_PAYEE">Partiellement payée</option>
-                  <option value="PAYEE">Payée</option>
-                  {invoice.statut !== 'PAYEE' && (
-                    <option value="ANNULEE">Annulée</option>
-                  )}
-                </select>
-                <ChevronDownIcon className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500 dark:text-gray-300 pointer-events-none" />
+          <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 sm:gap-6">
+            {/* Title and Status Section */}
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Facture d'achat</h1>
+                <span className="text-lg sm:text-xl font-bold text-blue-600 dark:text-blue-400">{invoice.numero}</span>
+              </div>
+
+              <div className="flex items-center gap-3">
+                {getStatusBadge(invoice.statut)}
+                <div className="relative inline-block">
+                  <select
+                    value={invoice.statut}
+                    onChange={(e) => handleStatusChange(e.target.value)}
+                    className="appearance-none bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 pr-8 text-sm font-medium text-gray-700 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer shadow-sm transition-colors"
+                    disabled={invoice.statut === 'PAYEE' || invoice.statut === 'ANNULEE'}
+                  >
+                    <option value="BROUILLON">Brouillon</option>
+                    <option value="VALIDEE">Validée</option>
+                    <option value="PARTIELLEMENT_PAYEE">Partiellement payée</option>
+                    <option value="PAYEE">Payée</option>
+                    {invoice.statut !== 'PAYEE' && (
+                      <option value="ANNULEE">Annulée</option>
+                    )}
+                  </select>
+                  <ChevronDownIcon className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500 dark:text-gray-400 pointer-events-none" />
+                </div>
               </div>
             </div>
-            <div className="flex flex-wrap gap-2">
+
+            {/* Action Buttons Section */}
+            <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
               {invoice.statut === 'BROUILLON' && (
                 <>
                   <button
                     onClick={handleValidate}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                    className="flex justify-center items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium w-full sm:w-auto"
                   >
                     <CheckCircleIcon className="w-5 h-5" />
                     Valider
@@ -584,7 +594,7 @@ export default function PurchaseInvoiceDetailPage() {
                   <button
                     onClick={handleDelete}
                     disabled={deleting}
-                    className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium disabled:opacity-50"
+                    className="flex justify-center items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium disabled:opacity-50 w-full sm:w-auto"
                   >
                     <TrashIcon className="w-5 h-5" />
                     Supprimer
@@ -596,7 +606,7 @@ export default function PurchaseInvoiceDetailPage() {
                   onClick={() => {
                     router.push(`/purchases/invoices/${invoice._id}/edit`);
                   }}
-                  className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm font-medium"
+                  className="flex justify-center items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm font-medium w-full sm:w-auto"
                 >
                   <PencilIcon className="w-5 h-5" />
                   Modifier
@@ -605,7 +615,7 @@ export default function PurchaseInvoiceDetailPage() {
               {(invoice.statut === 'VALIDEE' || invoice.statut === 'PARTIELLEMENT_PAYEE') && (
                 <button
                   onClick={() => setShowPaymentModal(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                  className="flex justify-center items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium w-full sm:w-auto"
                 >
                   <BanknotesIcon className="w-5 h-5" />
                   Ajouter paiement
@@ -613,7 +623,7 @@ export default function PurchaseInvoiceDetailPage() {
               )}
               <button
                 onClick={() => window.open(`/api/purchases/invoices/${invoice._id}/pdf`, '_blank')}
-                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
+                className="flex justify-center items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium w-full sm:w-auto"
               >
                 <ArrowDownTrayIcon className="w-5 h-5" />
                 Télécharger PDF
@@ -679,7 +689,96 @@ export default function PurchaseInvoiceDetailPage() {
           </div>
 
           {/* Lignes */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+          {/* Lines & Totals - Responsive View */}
+          {/* Mobile Card View */}
+          <div className="md:hidden space-y-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Éléments de la facture</h3>
+            {invoice.lignes.map((line, index) => (
+              <div key={index} className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                <div className="mb-3">
+                  <p className="font-medium text-gray-900 dark:text-white">{line.designation}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div className="bg-gray-50 dark:bg-gray-700/50 p-2 rounded">
+                    <span className="text-xs text-gray-500 dark:text-gray-400 block">Quantité</span>
+                    <span className="font-medium text-gray-900 dark:text-white">{line.quantite}</span>
+                  </div>
+                  <div className="bg-gray-50 dark:bg-gray-700/50 p-2 rounded">
+                    <span className="text-xs text-gray-500 dark:text-gray-400 block">Prix HT</span>
+                    <span className="font-medium text-gray-900 dark:text-white">{line.prixUnitaireHT.toFixed(3)} {invoice.devise}</span>
+                  </div>
+                  <div className="bg-gray-50 dark:bg-gray-700/50 p-2 rounded">
+                    <span className="text-xs text-gray-500 dark:text-gray-400 block">Remise</span>
+                    <span className="font-medium text-gray-900 dark:text-white">{line.remisePct ? `${line.remisePct}%` : '-'}</span>
+                  </div>
+                  <div className="bg-gray-50 dark:bg-gray-700/50 p-2 rounded">
+                    <span className="text-xs text-gray-500 dark:text-gray-400 block">TVA</span>
+                    <span className="font-medium text-gray-900 dark:text-white">{line.tvaPct ? `${line.tvaPct}%` : '-'}</span>
+                  </div>
+                </div>
+                <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700 flex justify-between items-center">
+                  <span className="font-medium text-gray-700 dark:text-gray-300">Total HT</span>
+                  <span className="font-bold text-gray-900 dark:text-white">{line.totalLigneHT?.toFixed(3) || '0.000'} {invoice.devise}</span>
+                </div>
+              </div>
+            ))}
+
+            {/* Mobile Totals Card */}
+            <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 space-y-3">
+              <h3 className="font-semibold text-gray-900 dark:text-white border-b border-gray-100 dark:border-gray-700 pb-2">Récapitulatif</h3>
+
+              {invoice.totaux.totalRemise && invoice.totaux.totalRemise > 0 && (
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-600 dark:text-gray-400">Total Remise Lignes</span>
+                  <span className="font-bold text-red-600 dark:text-red-400">-{invoice.totaux.totalRemise.toFixed(3)} {invoice.devise}</span>
+                </div>
+              )}
+              {invoice.totaux.remiseGlobale && invoice.totaux.remiseGlobale > 0 && (
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-600 dark:text-gray-400">Remise Globale ({invoice.remiseGlobalePct}%)</span>
+                  <span className="font-bold text-red-600 dark:text-red-400">-{invoice.totaux.remiseGlobale.toFixed(3)} {invoice.devise}</span>
+                </div>
+              )}
+
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-gray-600 dark:text-gray-400">Total HT</span>
+                <span className="font-bold text-gray-900 dark:text-white">{invoice.totaux.totalHT.toFixed(3)} {invoice.devise}</span>
+              </div>
+
+              {invoice.fodec.enabled && (
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-600 dark:text-gray-400">FODEC ({invoice.fodec.tauxPct}%)</span>
+                  <span className="font-bold text-gray-900 dark:text-white">{(invoice.totaux.totalFodec || 0).toFixed(3)} {invoice.devise}</span>
+                </div>
+              )}
+
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-gray-600 dark:text-gray-400">Total TVA</span>
+                <span className="font-bold text-gray-900 dark:text-white">{invoice.totaux.totalTVA.toFixed(3)} {invoice.devise}</span>
+              </div>
+
+              {invoice.timbre.enabled && (
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-600 dark:text-gray-400">Timbre fiscal</span>
+                  <span className="font-bold text-gray-900 dark:text-white">{(invoice.totaux.totalTimbre || 0).toFixed(3)} {invoice.devise}</span>
+                </div>
+              )}
+
+              <div className="pt-3 border-t border-gray-100 dark:border-gray-700">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="font-bold text-blue-600 dark:text-blue-400">Total TTC</span>
+                  <span className="font-bold text-xl text-blue-600 dark:text-blue-400">{invoice.totaux.totalTTC.toFixed(3)} {invoice.devise}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="font-medium text-orange-600 dark:text-orange-400">Reste à payer</span>
+                  <span className="font-bold text-lg text-orange-600 dark:text-orange-400">{montantRestant.toFixed(3)} {invoice.devise}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Desktop Table View */}
+          <div className="hidden md:block bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead className="bg-blue-50 dark:bg-blue-900/20 border-b-2 border-blue-200 dark:border-blue-800">
@@ -716,10 +815,20 @@ export default function PurchaseInvoiceDetailPage() {
                   {invoice.totaux.totalRemise && invoice.totaux.totalRemise > 0 && (
                     <tr>
                       <td colSpan={5} className="px-4 sm:px-6 py-3 text-right text-sm font-semibold text-gray-700 dark:text-gray-400">
-                        Total Remise:
+                        Total Remise Lignes:
                       </td>
                       <td className="px-3 sm:px-4 py-3 text-right text-sm font-bold text-red-600 dark:text-red-400">
                         -{invoice.totaux.totalRemise.toFixed(3)} {invoice.devise}
+                      </td>
+                    </tr>
+                  )}
+                  {invoice.totaux.remiseGlobale && invoice.totaux.remiseGlobale > 0 && (
+                    <tr>
+                      <td colSpan={5} className="px-4 sm:px-6 py-3 text-right text-sm font-semibold text-gray-700 dark:text-gray-400">
+                        Remise Globale ({invoice.remiseGlobalePct}%):
+                      </td>
+                      <td className="px-3 sm:px-4 py-3 text-right text-sm font-bold text-red-600 dark:text-red-400">
+                        -{invoice.totaux.remiseGlobale.toFixed(3)} {invoice.devise}
                       </td>
                     </tr>
                   )}
@@ -994,8 +1103,8 @@ export default function PurchaseInvoiceDetailPage() {
                       disabled={paymentData.useAdvance}
                       readOnly={paymentData.useAdvance}
                       className={`w-full px-3 py-2 text-base border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${paymentData.useAdvance
-                          ? 'bg-gray-100 dark:bg-gray-800 cursor-not-allowed text-gray-500 dark:text-gray-400'
-                          : 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white'
+                        ? 'bg-gray-100 dark:bg-gray-800 cursor-not-allowed text-gray-500 dark:text-gray-400'
+                        : 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white'
                         }`}
                       placeholder="0.000"
                       required
@@ -1055,7 +1164,7 @@ export default function PurchaseInvoiceDetailPage() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </DashboardLayout >
   );
 }
 

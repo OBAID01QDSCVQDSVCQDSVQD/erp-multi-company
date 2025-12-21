@@ -668,6 +668,95 @@ export default function ReceptionDetailPage({ params }: { params: Promise<{ id: 
               </div>
             ))}
           </div>
+
+          {/* Mobile Totals Summary */}
+          <div className="md:hidden bg-gray-50 dark:bg-gray-800/50 p-4 border-t border-gray-200 dark:border-gray-700 space-y-2 text-sm">
+            {(() => {
+              // Calculate remise amounts for display (same logic as desktop)
+              let totalHTBeforeDiscount = 0;
+              let totalHTAfterLineDiscount = 0;
+
+              reception.lignes.forEach((line) => {
+                const linePrice = line.prixUnitaireHT || 0;
+                const lineQty = line.qteRecue || 0;
+
+                if (linePrice && lineQty > 0) {
+                  // Calculate before discount
+                  const lineHTBeforeDiscount = linePrice * lineQty;
+                  totalHTBeforeDiscount += lineHTBeforeDiscount;
+
+                  // Apply line remise if exists
+                  let prixAvecRemise = linePrice;
+                  const remisePct = line.remisePct || 0;
+                  if (remisePct > 0) {
+                    prixAvecRemise = prixAvecRemise * (1 - remisePct / 100);
+                  }
+                  const ligneHT = prixAvecRemise * lineQty;
+                  totalHTAfterLineDiscount += ligneHT;
+                } else if (line.totalLigneHT !== undefined && line.totalLigneHT !== null) {
+                  // Use stored totalLigneHT if available, but recalculate before discount approximation
+                  const lineHTBeforeDiscount = (line.prixUnitaireHT || 0) * (line.qteRecue || 0);
+                  totalHTBeforeDiscount += lineHTBeforeDiscount;
+                  totalHTAfterLineDiscount += line.totalLigneHT;
+                }
+              });
+
+              const remiseFromLines = totalHTBeforeDiscount - totalHTAfterLineDiscount;
+              const remiseGlobalePct = reception.remiseGlobalePct || 0;
+              const remiseGlobale = remiseGlobalePct > 0
+                ? totalHTAfterLineDiscount * (remiseGlobalePct / 100)
+                : 0;
+
+              const finalRemiseFromLines = Math.abs(remiseFromLines) > 0.001 ? remiseFromLines : 0;
+              const finalRemiseGlobale = Math.abs(remiseGlobale) > 0.001 ? remiseGlobale : 0;
+
+              return (
+                <>
+                  {finalRemiseFromLines > 0 && (
+                    <div className="flex justify-between items-center text-gray-700 dark:text-gray-300">
+                      <span>Remise lignes</span>
+                      <span className="font-bold text-red-600 dark:text-red-400">-{finalRemiseFromLines.toFixed(3)} DT</span>
+                    </div>
+                  )}
+                  {finalRemiseGlobale > 0 && (
+                    <div className="flex justify-between items-center text-gray-700 dark:text-gray-300">
+                      <span>Remise globale ({remiseGlobalePct}%)</span>
+                      <span className="font-bold text-red-600 dark:text-red-400">-{finalRemiseGlobale.toFixed(3)} DT</span>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+
+            <div className="flex justify-between items-center text-gray-700 dark:text-gray-300">
+              <span className="font-medium">Total HT</span>
+              <span className="font-bold text-gray-900 dark:text-white">{reception.totaux.totalHT.toFixed(3)} DT</span>
+            </div>
+
+            {reception.fodecActif && (
+              <div className="flex justify-between items-center text-gray-700 dark:text-gray-300">
+                <span>FODEC ({reception.tauxFodec || 1}%)</span>
+                <span className="font-bold text-gray-900 dark:text-white">{(reception.totaux?.fodec || 0).toFixed(3)} DT</span>
+              </div>
+            )}
+
+            <div className="flex justify-between items-center text-gray-700 dark:text-gray-300">
+              <span>Total TVA</span>
+              <span className="font-bold text-gray-900 dark:text-white">{reception.totaux.totalTVA.toFixed(3)} DT</span>
+            </div>
+
+            {(reception.timbreActif !== undefined || reception.totaux?.timbre !== undefined) && (
+              <div className="flex justify-between items-center text-gray-700 dark:text-gray-300">
+                <span>Timbre fiscal{reception.timbreActif ? '' : ' (non activé)'}</span>
+                <span className="font-bold text-gray-900 dark:text-white">{(reception.totaux?.timbre || 0).toFixed(3)} DT</span>
+              </div>
+            )}
+
+            <div className="pt-2 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
+              <span className="font-bold text-lg text-blue-600 dark:text-blue-400">Total TTC</span>
+              <span className="font-bold text-lg text-blue-600 dark:text-blue-400">{reception.totaux.totalTTC.toFixed(3)} DT</span>
+            </div>
+          </div>
         </div>
 
         {/* Actions */}
