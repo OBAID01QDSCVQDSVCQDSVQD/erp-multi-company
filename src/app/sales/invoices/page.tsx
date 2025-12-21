@@ -1201,12 +1201,20 @@ export default function InvoicesPage() {
             return;
           }
         } else {
-          toast.error(error.error || error.message || 'Erreur lors de la sauvegarde');
+          // Improve error message display
+          let errorMessage = error.error || error.message || 'Erreur lors de la sauvegarde';
+
+          // If message is generic "Erreur serveur", try to show details
+          if (errorMessage === 'Erreur serveur' && error.details) {
+            errorMessage = error.details;
+          }
+
+          toast.error(errorMessage);
         }
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error saving invoice:', err);
-      toast.error('Erreur inattendue');
+      toast.error(err.message || 'Erreur inattendue');
     } finally {
       // Only stop loading if we are NOT retrying recursively
       if (!skipStockValidation) {
@@ -1858,13 +1866,13 @@ export default function InvoicesPage() {
                                       key={customer._id}
                                       onClick={() => handleSelectCustomer(customer)}
                                       className={`px-4 py-3 cursor-pointer transition-colors ${index === selectedCustomerIndex
-                                        ? 'bg-blue-50 border-l-2 border-blue-500'
-                                        : 'hover:bg-gray-50'
+                                        ? 'bg-blue-50 dark:bg-blue-900/30 border-l-2 border-blue-500'
+                                        : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'
                                         }`}
                                     >
-                                      <div className="font-medium text-gray-900">{displayName}</div>
+                                      <div className="font-medium text-gray-900 dark:text-gray-100">{displayName}</div>
                                       {secondaryInfo && (
-                                        <div className="text-sm text-gray-500">{secondaryInfo}</div>
+                                        <div className="text-sm text-gray-500 dark:text-gray-400">{secondaryInfo}</div>
                                       )}
                                     </div>
                                   );
@@ -1991,13 +1999,13 @@ export default function InvoicesPage() {
                       + Ajouter une ligne
                     </button>
                   </div>
-                  <div className="border rounded-lg overflow-visible dark:border-gray-700">
+                  <div className="border rounded-lg overflow-x-auto dark:border-gray-700">
                     {lines.length === 0 ? (
                       <div className="text-center py-12 text-gray-500">
                         Aucune ligne ajoutée
                       </div>
                     ) : (
-                      <table className="w-full">
+                      <table className="w-full min-w-[1000px]">
                         <thead className="bg-gray-50 dark:bg-gray-700 border-b dark:border-gray-600">
                           <tr>
                             <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300">Produit</th>
@@ -2174,7 +2182,7 @@ export default function InvoicesPage() {
                 {/* Totals */}
                 <div className="bg-gray-50 dark:bg-gray-700/30 rounded-lg p-6 border-2 border-gray-200 dark:border-gray-700">
                   <div className="flex justify-end">
-                    <div className="w-80 space-y-3">
+                    <div className="w-full sm:w-80 space-y-3">
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-600 dark:text-gray-400">Sous-total HT</span>
                         <span className="font-medium text-gray-900 dark:text-white">{totals.totalHTBeforeDiscount.toFixed(3)} {formData.devise}</span>

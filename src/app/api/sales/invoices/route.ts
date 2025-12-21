@@ -113,30 +113,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: limitCheck.error }, { status: 403 });
     }
 
-    let numero =
-      typeof body.numero === 'string' && body.numero.trim().length > 0
-        ? body.numero.trim()
-        : '';
-
-    if (numero) {
-      const exists = await (Document as any).findOne({
-        tenantId,
-        type: 'FAC',
-        numero,
-      });
-
-      if (exists) {
-        // If the number exists, instead of failing, we intelligently generate the NEXT valid number.
-        // This handles race conditions where two users create an invoice at the same time,
-        // or if the frontend sent an outdated 'next number'.
-        console.log(`[Invoice] Number ${numero} already exists. Auto-generating next number...`);
-        numero = await NumberingService.next(tenantId, 'fac');
-      }
-    } else {
-      // No number provided, generate one
-      numero = await NumberingService.next(tenantId, 'fac');
-    }
-
     // === WAREHOUSE RESOLUTION ===
     let warehouseId = body.warehouseId;
     if (!warehouseId) {
@@ -151,18 +127,85 @@ export async function POST(request: NextRequest) {
     }
     const warehouseIdStr = warehouseId ? warehouseId.toString() : undefined;
 
-    const invoice = new Document({
-      ...body,
-      tenantId,
-      type: 'FAC',
-      numero,
-      statut: 'BROUILLON',
-      warehouseId: warehouseIdStr,
-      createdBy: session.user.email
-    });
+    let invoice;
+    let retries = 5;
+    let finalNumero = '';
 
-    calculateDocumentTotals(invoice);
-    await (invoice as any).save();
+    while (retries > 0) {
+      try {
+        let numeroToUse = '';
+
+        // Only use body number on first try if provided
+        if (retries === 5 && typeof body.numero === 'string' && body.numero.trim().length > 0) {
+          numeroToUse = body.numero.trim();
+          // Check if provided number exists
+          const exists = await (Document as any).findOne({ tenantId, type: 'FAC', numero: numeroToUse });
+          if (exists) {
+            console.log(`[Invoice] Number ${numeroToUse} already exists. Auto-generating next number...`);
+            numeroToUse = await NumberingService.next(tenantId, 'fac');
+          }
+        } else {
+          // On retries or empty body, always generate new number
+          numeroToUse = await NumberingService.next(tenantId, 'fac');
+        }
+
+        finalNumero = numeroToUse;
+
+        invoice = new Document({
+          ...body,
+          tenantId,
+          type: 'FAC',
+          numero: finalNumero,
+          statut: 'BROUILLON',
+          warehouseId: warehouseIdStr,
+          createdBy: session.user.email
+        });
+
+        calculateDocumentTotals(invoice);
+        await (invoice as any).save();
+
+        break; // Success, exit loop
+
+      } catch (error: any) {
+        if (error.code === 11000 && retries > 1) {
+          console.warn(`Duplicate key error for invoice ${finalNumero}, retrying... (${retries} retries left)`);
+
+          try {
+            // Self-healing: Find global max to jump ahead
+            const latestDoc = await (Document as any).findOne({
+              tenantId,
+              type: 'FAC',
+              numero: { $regex: /^FAC-/ }
+            }).sort({ numero: -1 }).select('numero').lean();
+
+            if (latestDoc && latestDoc.numero) {
+              console.log(`Self-healing: Found max existing invoice ${latestDoc.numero}`);
+              const match = latestDoc.numero.match(/(\d+)$/);
+              if (match) {
+                const maxSeq = parseInt(match[1], 10);
+                if (!isNaN(maxSeq)) {
+                  console.log(`Self-healing: Advancing counter to ${maxSeq}`);
+                  await NumberingService.ensureSequenceAhead(tenantId, 'fac', maxSeq);
+                }
+              }
+            } else {
+              // Fallback
+              const match = finalNumero.match(/(\d+)$/);
+              if (match) {
+                const seq = parseInt(match[1], 10);
+                await NumberingService.ensureSequenceAhead(tenantId, 'fac', seq);
+              }
+            }
+          } catch (healError) {
+            console.error("Error during invoice numbering self-healing:", healError);
+          }
+
+          retries--;
+          continue;
+        }
+        throw error;
+      }
+    }
 
     // Create stock movements for all products
     // Check if invoice is created from BL - if so, do NOT create stock movements
