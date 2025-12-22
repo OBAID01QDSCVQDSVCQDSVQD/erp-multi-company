@@ -124,11 +124,12 @@ export const authOptions: NextAuthOptions = {
         // Check verification status
         // Only enforce check if checking 'isVerified' is explicitly false
         // AND a verification token exists (meaning they went through the new flow).
-        // Or if we want strict enforcement for everyone, we'd need to migrate data.
-        // For now, strict enforcement on isVerified === false is safest for new users.
+        // For now, disabling strict enforcement to allow existing users (legacy) to login without email verification.
+        /* 
         if (userRaw.isVerified === false) {
           throw new Error("Veuillez vérifier votre email avant de vous connecter.");
-        }
+        } 
+        */
 
         // Check Maintenance Mode
         try {
