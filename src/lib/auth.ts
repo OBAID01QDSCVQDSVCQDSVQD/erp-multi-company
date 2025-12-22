@@ -261,32 +261,48 @@ export const authOptions: NextAuthOptions = {
           // We need to import otplib. Since it might not be installed yet, we wrap in try/catch or assume it is.
           // Dynamically import to avoid crash if not installed? No, user needs to install it.
           const { authenticator } = await import('otplib');
-          let isValidToken = authenticator.check(twoFactorCode, user.twoFactorSecret);
+          const inputCode = twoFactorCode || '';
 
-          // If standard TOTP fails, check backup codes
+          // 1. Try TOTP (Standard 6-digit code)
+          // Clean non-digits for TOTP check implies user might type spaces or dashes
+          const cleanTotp = inputCode.replace(/\D/g, '');
+          let isValidToken = false;
+
+          if (cleanTotp.length === 6) {
+            isValidToken = authenticator.check(cleanTotp, user.twoFactorSecret);
+            if (isValidToken) {
+              console.log(`User ${user.email} logged in using TOTP`);
+            }
+          }
+
+          // 2. If standard TOTP fails, check backup codes
           if (!isValidToken && user.twoFactorBackupCodes && user.twoFactorBackupCodes.length > 0) {
+            // Backup codes are stored hashed. We need to normalize input to Uppercase (as generated).
+            const normalizedInput = inputCode.trim().toUpperCase();
+
             for (const backup of user.twoFactorBackupCodes) {
               if (backup.used) continue;
 
-              const isMatch = await bcrypt.compare(twoFactorCode, backup.code);
+              // Compare normalized input with stored hash
+              const isMatch = await bcrypt.compare(normalizedInput, backup.code);
               if (isMatch) {
                 isValidToken = true;
-                // Mark code as used being careful with Mongoose/Mongo syntax
+                // Mark code as used
                 await (User as any).updateOne(
                   { _id: user._id, "twoFactorBackupCodes.code": backup.code },
                   { $set: { "twoFactorBackupCodes.$.used": true } }
                 );
-                console.log(`User ${user.email} used a backup code`);
+                console.log(`User ${user.email} logged in using a BACKUP CODE`);
                 break;
               }
             }
           }
 
           if (!isValidToken) {
+            console.log(`Failed 2FA attempt for ${user.email}. Input: ${inputCode}`);
             // Log failed attempt due to bad 2FA
             const attempts = (user.failedLoginAttempts || 0) + 1;
             // ... same locking logic ...
-            // Ideally reuse the locking logic function, but for now duplicate or keep simple
             await (User as any).findByIdAndUpdate(user._id, {
               failedLoginAttempts: attempts
             });
