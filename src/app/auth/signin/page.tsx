@@ -34,10 +34,37 @@ export default function SignInPage() {
     register,
     handleSubmit,
     setValue,
+    getValues,
     formState: { errors },
   } = useForm<SignInForm>({
     resolver: zodResolver(signInSchema),
   });
+
+  const sendEmailCode = async () => {
+    const email = getValues('email');
+    if (!email) {
+      toast.error('Email manquant');
+      return;
+    }
+    const toastId = toast.loading('Envoi du code...');
+    try {
+      const res = await fetch('/api/auth/2fa/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(data.message, { id: toastId });
+      } else {
+        toast.error(data.message || 'Erreur d\'envoi', { id: toastId });
+      }
+    } catch (e) {
+      toast.error('Erreur de connexion', { id: toastId });
+    }
+  };
+
+  // ... (keep onSubmit) ...
 
   const onSubmit = async (data: SignInForm) => {
     setIsLoading(true);
@@ -192,6 +219,15 @@ export default function SignInPage() {
                       placeholder="000000 ou XXXX-XXXX"
                       autoFocus
                     />
+                  </div>
+                  <div className="mt-2 text-right">
+                    <button
+                      type="button"
+                      onClick={sendEmailCode}
+                      className="text-sm text-indigo-600 hover:text-indigo-500 font-medium"
+                    >
+                      Envoyer le code par email
+                    </button>
                   </div>
                 </div>
               )}

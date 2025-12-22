@@ -14,6 +14,8 @@ export interface IUser extends Document {
   twoFactorSecret?: string;
   isTwoFactorEnabled?: boolean;
   twoFactorBackupCodes?: { code: string; used: boolean }[];
+  emailTwoFactorCode?: string;
+  emailTwoFactorCodeExpires?: Date;
   verificationToken?: string;
   verificationTokenExpires?: Date;
   failedLoginAttempts: number;
@@ -80,6 +82,12 @@ const UserSchema = new (Schema as any)({
     code: { type: String, required: true },
     used: { type: Boolean, default: false }
   }],
+  emailTwoFactorCode: {
+    type: String,
+  },
+  emailTwoFactorCodeExpires: {
+    type: Date,
+  },
   verificationToken: {
     type: String,
   },

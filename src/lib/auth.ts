@@ -277,8 +277,15 @@ export const authOptions: NextAuthOptions = {
 
           // 2. If standard TOTP fails, check backup codes
           if (!isValidToken && user.twoFactorBackupCodes && user.twoFactorBackupCodes.length > 0) {
-            // Backup codes are stored hashed. We need to normalize input to Uppercase (as generated).
-            const normalizedInput = inputCode.trim().toUpperCase();
+            // Backup codes are stored hashed. We need to normalize input.
+            // Remove dashes/spaces and uppercase it first.
+            let normalizedInput = inputCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+
+            // If user entered 8 chars (e.g. AABBCCDD), assume format XXXX-XXXX
+            // because that's how we generated and hashed them.
+            if (normalizedInput.length === 8) {
+              normalizedInput = `${normalizedInput.slice(0, 4)}-${normalizedInput.slice(4)}`;
+            }
 
             for (const backup of user.twoFactorBackupCodes) {
               if (backup.used) continue;
@@ -294,6 +301,28 @@ export const authOptions: NextAuthOptions = {
                 );
                 console.log(`User ${user.email} logged in using a BACKUP CODE`);
                 break;
+              }
+            }
+          }
+
+          // 3. Check Email OTP
+          if (!isValidToken && user.emailTwoFactorCode && user.emailTwoFactorCodeExpires) {
+            const now = new Date();
+            if (now < new Date(user.emailTwoFactorCodeExpires)) {
+              const isEmailMatch = await bcrypt.compare(inputCode.trim(), user.emailTwoFactorCode);
+              if (isEmailMatch) {
+                isValidToken = true;
+                console.log(`User ${user.email} logged in using EMAIL OTP`);
+                // Clear the code so it cannot be reused
+                await (User as any).updateOne(
+                  { _id: user._id },
+                  {
+                    $unset: {
+                      emailTwoFactorCode: "",
+                      emailTwoFactorCodeExpires: ""
+                    }
+                  }
+                );
               }
             }
           }
