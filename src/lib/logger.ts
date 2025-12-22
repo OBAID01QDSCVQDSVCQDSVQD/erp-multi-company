@@ -24,6 +24,26 @@ export async function logAction(
         // Usually IP is extracted from request headers in the route handler.
         const ipAddress = metadata?.ip || 'Unknown';
 
+        // Fetch location info if IP is available
+        let location = 'Inconnu';
+        if (ipAddress && ipAddress !== 'Unknown' && ipAddress !== '::1' && ipAddress !== '127.0.0.1') {
+            try {
+                // Using ip-api.com (Free for non-commercial, rate limited 45/min)
+                // In production, consider a paid service or local DB like geoip-lite
+                const geoRes = await fetch(`http://ip-api.com/json/${ipAddress}`);
+                if (geoRes.ok) {
+                    const geoData = await geoRes.json();
+                    if (geoData.status === 'success') {
+                        location = `${geoData.city}, ${geoData.country}`;
+                    }
+                }
+            } catch (err) {
+                // Ignore geo fetch errors
+            }
+        } else if (ipAddress === '::1' || ipAddress === '127.0.0.1') {
+            location = 'Localhost';
+        }
+
         await (AuditLog as any).create({
             userId: session.user.id,
             userName: session.user.name,
@@ -32,6 +52,7 @@ export async function logAction(
             resource,
             details,
             ipAddress,
+            location,
             metadata
         });
     } catch (error) {

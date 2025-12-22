@@ -652,16 +652,30 @@ export default function Header({ onMenuClick }: HeaderProps) {
                     </span>
                   )}
                 </div>
-                <Link
-                  href="/settings"
-                  className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-indigo-900/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-                  onClick={() => setUserMenuOpen(false)}
-                >
-                  <div className="flex items-center">
-                    <CogIcon className="h-5 w-5 mr-2" />
-                    Paramètres
-                  </div>
-                </Link>
+                {isAdmin && (
+                  <>
+                    <Link
+                      href="/profile"
+                      className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-indigo-900/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                      onClick={() => setUserMenuOpen(false)}
+                    >
+                      <div className="flex items-center">
+                        <UserCircleIcon className="h-5 w-5 mr-2" />
+                        Mon Profil
+                      </div>
+                    </Link>
+                    <Link
+                      href="/settings"
+                      className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-indigo-900/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                      onClick={() => setUserMenuOpen(false)}
+                    >
+                      <div className="flex items-center">
+                        <CogIcon className="h-5 w-5 mr-2" />
+                        Paramètres
+                      </div>
+                    </Link>
+                  </>
+                )}
                 <button
                   onClick={async () => {
                     await signOut({ redirect: false });

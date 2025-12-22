@@ -1,38 +1,40 @@
-import { NextRequest, NextResponse } from 'next/server';
-import jwt from 'jsonwebtoken';
 
-export async function POST(request: NextRequest) {
+import { NextRequest, NextResponse } from 'next/server';
+import dbConnect from '@/lib/mongodb';
+import User from '@/lib/models/User';
+
+export async function GET(req: NextRequest) {
   try {
-    const { token } = await request.json();
-    
+    const { searchParams } = new URL(req.url);
+    const token = searchParams.get('token');
+
     if (!token) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Token manquant' 
-      }, { status: 401 });
+      return NextResponse.json(
+        { message: 'Token manquant' },
+        { status: 400 }
+      );
     }
-    
-    const decoded = jwt.verify(
-      token, 
-      process.env.NEXTAUTH_SECRET || 'fallback-secret'
-    ) as any;
-    
-    return NextResponse.json({
-      success: true,
-      user: {
-        id: decoded.id,
-        email: decoded.email,
-        role: decoded.role,
-        companyId: decoded.companyId,
-      }
-    });
-    
+
+    await dbConnect();
+
+    const user = await User.findOne({ verificationToken: token });
+
+    if (!user) {
+      // Redirect to error page or login with error
+      return NextResponse.redirect(new URL('/auth/signin?error=VerificationLinkInvalid', req.url));
+    }
+
+    user.isVerified = true;
+    user.verificationToken = undefined;
+    await user.save();
+
+    return NextResponse.redirect(new URL('/auth/signin?success=EmailVerified', req.url));
+
   } catch (error) {
-    console.error('Token verification error:', error);
-    return NextResponse.json({ 
-      success: false, 
-      error: 'Token invalide' 
-    }, { status: 401 });
+    console.error('Verification error:', error);
+    return NextResponse.json(
+      { message: 'Erreur serveur' },
+      { status: 500 }
+    );
   }
 }
-

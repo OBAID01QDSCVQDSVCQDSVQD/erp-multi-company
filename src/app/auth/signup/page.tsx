@@ -5,10 +5,10 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { 
-  BuildingOfficeIcon, 
-  EnvelopeIcon, 
-  LockClosedIcon, 
+import {
+  BuildingOfficeIcon,
+  EnvelopeIcon,
+  LockClosedIcon,
   UserIcon,
   PhoneIcon,
   MapPinIcon,
@@ -30,12 +30,17 @@ const signUpSchema = z.object({
   companyCountry: z.string().optional(),
   taxNumber: z.string().optional(),
   registrationNumber: z.string().optional(),
-  
+
   // Admin Info
   adminFirstName: z.string().min(2, 'Le prénom doit contenir au moins 2 caractères'),
   adminLastName: z.string().min(2, 'Le nom doit contenir au moins 2 caractères'),
   adminEmail: z.string().email('Email invalide'),
-  adminPassword: z.string().min(6, 'Le mot de passe doit contenir au moins 6 caractères'),
+  adminPassword: z.string()
+    .min(8, 'Le mot de passe doit contenir au moins 8 caractères')
+    .regex(/[A-Z]/, 'Au moins une majuscule')
+    .regex(/[a-z]/, 'Au moins une minuscule')
+    .regex(/[0-9]/, 'Au moins un chiffre')
+    .regex(/[\W_]/, 'Au moins un caractère spécial'),
   confirmPassword: z.string(),
 }).refine((data) => data.adminPassword === data.confirmPassword, {
   message: 'Les mots de passe ne correspondent pas',
@@ -54,10 +59,13 @@ export default function SignUpPage() {
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors },
   } = useForm<SignUpForm>({
     resolver: zodResolver(signUpSchema),
   });
+
+  const passwordValue = watch('adminPassword', '');
 
   const onSubmit = async (data: SignUpForm) => {
     setIsLoading(true);
@@ -116,11 +124,11 @@ export default function SignUpPage() {
 
       setSuccess(true);
       toast.success('Entreprise créée avec succès !');
-      
-      setTimeout(() => {
-        router.push('/auth/signin');
-      }, 2000);
 
+      setSuccess(true);
+      toast.success('Compte créé ! Veuillez vérifier votre email.');
+
+      // Removed auto-redirect to allow user to read the verification message
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Une erreur est survenue';
       toast.error(errorMessage);
@@ -134,21 +142,26 @@ export default function SignUpPage() {
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-md w-full">
           <div className="bg-white py-12 px-8 shadow-2xl rounded-2xl text-center border border-gray-100">
-            <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-6">
-              <CheckCircleIcon className="h-10 w-10 text-green-600" />
+            <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-blue-100 mb-6">
+              <EnvelopeIcon className="h-10 w-10 text-blue-600" />
             </div>
             <h2 className="text-3xl font-bold text-gray-900 mb-4">
-              Félicitations !
+              Vérifiez votre email
             </h2>
-            <p className="text-lg text-gray-600 mb-2">
-              Votre entreprise et votre compte administrateur ont été créés avec succès.
+            <p className="text-lg text-gray-600 mb-6">
+              Votre compte a été créé avec succès. Un email de confirmation a été envoyé à votre adresse.
             </p>
-            <p className="text-sm text-gray-500 mb-8">
-              Redirection vers la page de connexion...
-            </p>
-            <div className="flex justify-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 mb-8 text-left">
+              <p className="text-sm text-blue-800">
+                <strong>Important :</strong> Vous devez cliquer sur le lien dans l'email pour activer votre compte avant de pouvoir vous connecter.
+              </p>
             </div>
+            <Link
+              href="/auth/signin"
+              className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 w-full transition-colors"
+            >
+              Aller à la connexion
+            </Link>
           </div>
         </div>
       </div>
@@ -430,6 +443,32 @@ export default function SignUpPage() {
                 {errors.adminPassword && (
                   <p className="mt-2 text-sm text-red-600">{errors.adminPassword.message}</p>
                 )}
+                {/* Visual Password Strength Indicator */}
+                <div className="mt-2 w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                  <div
+                    className={`h-full transition-all duration-300 ${(() => {
+                      let strength = 0;
+                      if (!passwordValue) return 'w-0';
+                      if (passwordValue.length >= 8) strength++;
+                      if (/[A-Z]/.test(passwordValue)) strength++;
+                      if (/[a-z]/.test(passwordValue)) strength++;
+                      if (/[0-9]/.test(passwordValue)) strength++;
+                      if (/[^a-zA-Z0-9]/.test(passwordValue)) strength++;
+
+                      if (strength <= 2) return 'w-[20%] bg-red-500';
+                      if (strength <= 3) return 'w-[50%] bg-yellow-500';
+                      if (strength <= 4) return 'w-[75%] bg-blue-500';
+                      return 'w-full bg-green-500';
+                    })()}`}
+                  />
+                </div>
+                <div className="mt-1 flex flex-wrap gap-2">
+                  <span className={`text-xs ${passwordValue.length >= 8 ? 'text-green-600' : 'text-gray-400'}`}>• 8 caract.</span>
+                  <span className={`text-xs ${/[A-Z]/.test(passwordValue) ? 'text-green-600' : 'text-gray-400'}`}>• Majuscule</span>
+                  <span className={`text-xs ${/[a-z]/.test(passwordValue) ? 'text-green-600' : 'text-gray-400'}`}>• Minuscule</span>
+                  <span className={`text-xs ${/[0-9]/.test(passwordValue) ? 'text-green-600' : 'text-gray-400'}`}>• Chiffre</span>
+                  <span className={`text-xs ${/[^a-zA-Z0-9]/.test(passwordValue) ? 'text-green-600' : 'text-gray-400'}`}>• Symbole</span>
+                </div>
               </div>
 
               {/* Confirm Password */}

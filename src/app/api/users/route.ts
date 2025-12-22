@@ -4,20 +4,22 @@ import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import User from '@/lib/models/User';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
+import { sendVerificationEmail } from '@/lib/email';
 
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }
 
     await connectDB();
-    
-    const users = await (User as any).find({ 
+
+    const users = await (User as any).find({
       companyId: session.user.companyId,
-      isActive: true 
+      isActive: true
     })
       .select('-password -__v')
       .populate('companyId', 'name')
@@ -38,31 +40,39 @@ export async function POST(request: NextRequest) {
     const session = await getServerSession(authOptions);
     const body = await request.json();
     const { email, password, firstName, lastName, role, permissions, companyId } = body;
-    
+
     await connectDB();
-    
+
     // Vérifier si c'est une création depuis setup (première installation)
     const isSetupMode = !session && companyId;
-    
+
     if (!isSetupMode) {
       // Mode normal: nécessite une session
-    if (!session) {
-      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+      if (!session) {
+        return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+      }
+
+      // Vérifier que l'utilisateur est admin
+      if (session.user.role !== 'admin') {
+        return NextResponse.json({ error: 'Accès refusé. Seuls les administrateurs peuvent créer des utilisateurs.' }, { status: 403 });
+      }
     }
 
-    // Vérifier que l'utilisateur est admin
-    if (session.user.role !== 'admin') {
-      return NextResponse.json({ error: 'Accès refusé. Seuls les administrateurs peuvent créer des utilisateurs.' }, { status: 403 });
-    }
-    }
-    
     if (!email || !password || !firstName || !lastName) {
       return NextResponse.json(
         { error: 'Tous les champs sont requis' },
         { status: 400 }
       );
     }
-    
+
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
+    if (!passwordRegex.test(password)) {
+      return NextResponse.json(
+        { error: 'Le mot de passe doit contenir au moins 8 caractères, une majuscule, une minuscule, un chiffre et un caractère spécial.' },
+        { status: 400 }
+      );
+    }
+
     // Vérifier si l'utilisateur existe déjà
     const existingUser = await (User as any).findOne({ email: email.toLowerCase().trim() });
     if (existingUser) {
@@ -78,6 +88,9 @@ export async function POST(request: NextRequest) {
     // Utiliser companyId du body si en mode setup, sinon de la session
     const finalCompanyId = isSetupMode ? companyId : session.user.companyId;
 
+    // Generate verification token
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+
     const user = new (User as any)({
       email: email.toLowerCase().trim(),
       password: hashedPassword,
@@ -87,9 +100,20 @@ export async function POST(request: NextRequest) {
       permissions: permissions || [],
       companyId: finalCompanyId,
       isActive: true,
+      isVerified: false,
+      verificationToken,
     });
 
     await (user as any).save();
+
+    // Send verification email
+    try {
+      await sendVerificationEmail(user.email, verificationToken);
+    } catch (emailError) {
+      console.error('Failed to send verification email:', emailError);
+      // We don't block registration if email fails, but it's problematic if verification is required.
+      // Ideally we might want to let them know.
+    }
 
     // Retourner l'utilisateur sans le mot de passe
     const userResponse = await (User as any).findById(user._id)

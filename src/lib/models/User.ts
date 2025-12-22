@@ -10,7 +10,16 @@ export interface IUser extends Document {
   companyId: mongoose.Types.ObjectId;
   permissions: string[];
   isActive: boolean;
+  isVerified: boolean;
+  twoFactorSecret?: string;
+  isTwoFactorEnabled?: boolean;
+  verificationToken?: string;
+  verificationTokenExpires?: Date;
+  failedLoginAttempts: number;
+  lockoutUntil?: Date;
   lastLogin?: Date;
+  resetPasswordToken?: string;
+  resetPasswordExpires?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -55,7 +64,37 @@ const UserSchema = new (Schema as any)({
     type: Boolean,
     default: true,
   },
+  isVerified: {
+    type: Boolean,
+    default: false,
+  },
+  twoFactorSecret: {
+    type: String,
+  },
+  isTwoFactorEnabled: {
+    type: Boolean,
+    default: false,
+  },
+  verificationToken: {
+    type: String,
+  },
+  verificationTokenExpires: {
+    type: Date,
+  },
+  failedLoginAttempts: {
+    type: Number,
+    default: 0,
+  },
+  lockoutUntil: {
+    type: Date,
+  },
   lastLogin: {
+    type: Date,
+  },
+  resetPasswordToken: {
+    type: String,
+  },
+  resetPasswordExpires: {
     type: Date,
   },
 }, {

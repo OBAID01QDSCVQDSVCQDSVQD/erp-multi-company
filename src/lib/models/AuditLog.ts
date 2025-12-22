@@ -20,6 +20,7 @@ const AuditLogSchema = new mongoose.Schema({
         type: String, // Readable description
     },
     ipAddress: String,
+    location: String, // Store City, Country
     metadata: {
         type: mongoose.Schema.Types.Mixed // Flexible object for diffs or IDs
     }

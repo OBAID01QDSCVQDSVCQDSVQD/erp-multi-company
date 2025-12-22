@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import Providers from '@/components/Providers';
 import { Toaster } from 'react-hot-toast';
+import SecurityEnforcer from '@/components/auth/SecurityEnforcer';
 
 export const metadata: Metadata = {
   title: 'ERP Multi-Entreprises',
@@ -17,6 +18,7 @@ export default function RootLayout({
     <html lang="fr">
       <body>
         <Providers>
+          <SecurityEnforcer />
           {children}
           <Toaster position="top-right" />
         </Providers>

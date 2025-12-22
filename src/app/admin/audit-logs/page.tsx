@@ -19,6 +19,7 @@ interface AuditLog {
     resource: string;
     details: string;
     ipAddress: string;
+    location?: string;
     createdAt: string;
     metadata?: any;
 }
@@ -66,6 +67,8 @@ export default function AuditLogsPage() {
         if (action.includes('DELETE')) return 'bg-red-100 text-red-800';
         if (action.includes('CREATE')) return 'bg-green-100 text-green-800';
         if (action.includes('UPDATE')) return 'bg-blue-100 text-blue-800';
+        if (action.includes('LOGIN_FAILED') || action === 'LOGIN_BLOCKED') return 'bg-orange-100 text-orange-800';
+        if (action.includes('ACCOUNT_LOCKED')) return 'bg-red-100 text-red-800';
         if (action.includes('LOGIN')) return 'bg-purple-100 text-purple-800';
         if (action.includes('IMPERSONATE')) return 'bg-amber-100 text-amber-800';
         return 'bg-gray-100 text-gray-800';
@@ -103,6 +106,9 @@ export default function AuditLogsPage() {
                         >
                             <option value="all">Toutes les actions</option>
                             <option value="LOGIN">Connexions</option>
+                            <option value="LOGIN_FAILED">Échec Connexion</option>
+                            <option value="ACCOUNT_LOCKED">Compte Bloqué</option>
+                            <option value="LOGIN_BLOCKED">Tentative pendant blocage</option>
                             <option value="CREATE_COMPANY">Création Entreprise</option>
                             <option value="DELETE_COMPANY">Suppression Entreprise</option>
                             <option value="IMPERSONATE">Impersonation</option>
@@ -128,6 +134,7 @@ export default function AuditLogsPage() {
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date & Heure</th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Utilisateur</th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">IP / Lieu</th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Détails</th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Resource</th>
                                     </tr>
@@ -150,6 +157,12 @@ export default function AuditLogsPage() {
                                                     {log.action}
                                                 </span>
                                             </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">
+                                                <div className="flex flex-col">
+                                                    <span className="font-mono">{log.ipAddress}</span>
+                                                    {log.location && <span className="text-indigo-600">{log.location}</span>}
+                                                </div>
+                                            </td>
                                             <td className="px-6 py-4 text-sm text-gray-500 max-w-md truncate" title={log.details}>
                                                 {log.details}
                                             </td>
@@ -163,7 +176,7 @@ export default function AuditLogsPage() {
                                     ))}
                                     {logs.length === 0 && (
                                         <tr>
-                                            <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
+                                            <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
                                                 Aucun historique trouvé.
                                             </td>
                                         </tr>
