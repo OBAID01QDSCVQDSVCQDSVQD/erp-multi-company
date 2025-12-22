@@ -261,7 +261,26 @@ export const authOptions: NextAuthOptions = {
           // We need to import otplib. Since it might not be installed yet, we wrap in try/catch or assume it is.
           // Dynamically import to avoid crash if not installed? No, user needs to install it.
           const { authenticator } = await import('otplib');
-          const isValidToken = authenticator.check(twoFactorCode, user.twoFactorSecret);
+          let isValidToken = authenticator.check(twoFactorCode, user.twoFactorSecret);
+
+          // If standard TOTP fails, check backup codes
+          if (!isValidToken && user.twoFactorBackupCodes && user.twoFactorBackupCodes.length > 0) {
+            for (const backup of user.twoFactorBackupCodes) {
+              if (backup.used) continue;
+
+              const isMatch = await bcrypt.compare(twoFactorCode, backup.code);
+              if (isMatch) {
+                isValidToken = true;
+                // Mark code as used being careful with Mongoose/Mongo syntax
+                await (User as any).updateOne(
+                  { _id: user._id, "twoFactorBackupCodes.code": backup.code },
+                  { $set: { "twoFactorBackupCodes.$.used": true } }
+                );
+                console.log(`User ${user.email} used a backup code`);
+                break;
+              }
+            }
+          }
 
           if (!isValidToken) {
             // Log failed attempt due to bad 2FA

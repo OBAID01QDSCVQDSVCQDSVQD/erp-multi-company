@@ -31,6 +31,8 @@ export default function SecuriteTab({ tenantId }: SecuriteTabProps) {
   const [qrCodeUrl, setQrCodeUrl] = useState('');
   const [secret, setSecret] = useState('');
   const [token, setToken] = useState('');
+  const [backupCodes, setBackupCodes] = useState<string[]>([]);
+  const [showBackupCodes, setShowBackupCodes] = useState(false);
 
   useEffect(() => {
     if (session?.user) {
@@ -366,6 +368,96 @@ export default function SecuriteTab({ tenantId }: SecuriteTabProps) {
                 </div>
               </div>
             </div>
+          </div>
+        )}
+
+        {is2FAEnabled && (
+          <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+            <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">Codes de Secours (Backup Codes)</h4>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+              Ces codes vous permettent d'accéder à votre compte si vous perdez votre téléphone. <br />
+              Chaque code ne peut être utilisé qu'une seule fois.
+              <br />
+              <span className="text-xs text-indigo-600 dark:text-indigo-400 mt-1 block">
+                (Hédhom les codes ykhalouk todkhel l compte mta3ek kén dhaya3t telifounek. Kol code tnjm testaa3mlou mara bark.)
+              </span>
+            </p>
+
+            {!showBackupCodes ? (
+              <button
+                onClick={async () => {
+                  if (!confirm("Attention: Cela va invalider tous vos anciens codes de secours. Voulez-vous continuer ?")) return;
+                  setLoading(true);
+                  try {
+                    const res = await fetch('/api/auth/2fa/backup-codes', { method: 'POST' });
+                    if (res.ok) {
+                      const data = await res.json();
+                      setBackupCodes(data.codes);
+                      setShowBackupCodes(true);
+                      toast.success("Nouveaux codes générés");
+                    } else {
+                      toast.error("Erreur lors de la génération");
+                    }
+                  } catch (e) {
+                    toast.error("Erreur connexion");
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+                disabled={loading}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white dark:bg-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              >
+                🔄 Générer de nouveaux codes
+              </button>
+            ) : (
+              <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700 animate-fade-in user-select-none">
+                <div className="flex justify-between items-center mb-3">
+                  <span className="text-xs font-bold text-red-600 dark:text-red-400 uppercase tracking-wider">
+                    Codes actifs
+                  </span>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        const element = document.createElement("a");
+                        const file = new Blob([
+                          `CODES DE SECOURS (BACKUP CODES)\n\n` +
+                          `Généré le: ${new Date().toLocaleString()}\n` +
+                          `Conservez ces codes dans un endroit sûr.\n\n` +
+                          backupCodes.join("\n")
+                        ], { type: 'text/plain' });
+                        element.href = URL.createObjectURL(file);
+                        element.download = "backup-codes.txt";
+                        document.body.appendChild(element);
+                        element.click();
+                        document.body.removeChild(element);
+                      }}
+                      className="text-xs text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 flex items-center gap-1"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-3 h-3">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                      </svg>
+                      TXT
+                    </button>
+                    <button
+                      onClick={() => setShowBackupCodes(false)}
+                      className="text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                    >
+                      Masquer
+                    </button>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 font-mono text-sm text-center">
+                  {backupCodes.map((code, idx) => (
+                    <div key={idx} className="bg-white dark:bg-gray-700 p-2 rounded border border-gray-100 dark:border-gray-500 select-all text-gray-800 dark:text-gray-100 shadow-sm">
+                      {code}
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-500 mt-3 text-center">
+                  ⚠️ Sauvegardez ces codes maintenant. Vous ne pourrez plus les voir ici une fois masqués.
+                </p>
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -12,14 +12,15 @@ export default function Setup2FAPage() {
     const [qrCodeUrl, setQrCodeUrl] = useState('');
     const [secret, setSecret] = useState('');
     const [token, setToken] = useState('');
-    const [step, setStep] = useState<'intro' | 'setup'>('intro');
+    const [step, setStep] = useState<'intro' | 'setup' | 'backup'>('intro');
+    const [backupCodes, setBackupCodes] = useState<string[]>([]);
 
     useEffect(() => {
-        // If already enabled, kick them out
-        if ((session?.user as any)?.isTwoFactorEnabled) {
+        // If already enabled, kick them out (only if not viewing backup codes)
+        if ((session?.user as any)?.isTwoFactorEnabled && step !== 'backup') {
             router.replace('/dashboard');
         }
-    }, [session, router]);
+    }, [session, router, step]);
 
     const startSetup = async () => {
         setLoading(true);
@@ -50,9 +51,23 @@ export default function Setup2FAPage() {
             });
 
             if (res.ok) {
-                toast.success('2FA Configuré avec succès !');
-                await update({ isTwoFactorEnabled: true });
-                router.replace('/dashboard'); // Release from jail
+                toast.success('2FA Configuré ! Génération des codes de secours...');
+
+                // Fetch backup codes
+                const backupRes = await fetch('/api/auth/2fa/backup-codes', { method: 'POST' });
+                if (backupRes.ok) {
+                    const data = await backupRes.json();
+                    setBackupCodes(data.codes);
+                    await update({ isTwoFactorEnabled: true });
+                    setStep('backup');
+                } else {
+                    toast.error("Erreur génération codes secours, contactez admin.");
+                    // Fallback to dashboard if backup gen fails? No, keep them here or retry?
+                    // Let's force them to retry or just redirect.
+                    // Better redirects if fails to avoid sticking.
+                    await update({ isTwoFactorEnabled: true });
+                    router.replace('/dashboard');
+                }
             } else {
                 const data = await res.json();
                 toast.error(data.message || 'Code incorrect');
@@ -72,9 +87,11 @@ export default function Setup2FAPage() {
                 <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900 dark:text-white">
                     Sécurité Obligatoire 🔒
                 </h2>
-                <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
-                    Lazmek tactivi l'authentification à deux facteurs (2FA) bech tnjm tkml tekhdm.
-                </p>
+                {step !== 'backup' && (
+                    <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
+                        Lazmek tactivi l'authentification à deux facteurs (2FA) bech tnjm tkml tekhdm.
+                    </p>
+                )}
             </div>
 
             <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
@@ -166,8 +183,53 @@ export default function Setup2FAPage() {
                         </div>
                     )}
 
+                    {step === 'backup' && (
+                        <div className="space-y-6">
+                            <div className="rounded-md bg-green-50 dark:bg-green-900/20 p-4">
+                                <div className="flex">
+                                    <div className="flex-shrink-0">
+                                        <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                        </svg>
+                                    </div>
+                                    <div className="ml-3">
+                                        <h3 className="text-sm font-medium text-green-800 dark:text-green-300">
+                                            Mabrouk! 2FA mrigel tawa. 🎉
+                                        </h3>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <h3 className="text-lg font-medium leading-6 text-gray-900 dark:text-white">
+                                    Codes de Secours (Sauvegarde)
+                                </h3>
+                                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                    Hédhom <strong>très important</strong>! Khabiihom f blasa makhbiya (imprimihom wala sajélhom).
+                                    Kén ydhaya3 telifounek, tnjm todkhel kén bihom.
+                                </p>
+                            </div>
+
+                            <div className="bg-gray-100 dark:bg-gray-900 p-4 rounded-lg grid grid-cols-2 gap-4 text-center font-mono text-sm border dark:border-gray-700">
+                                {backupCodes.map((code, i) => (
+                                    <div key={i} className="bg-white dark:bg-gray-800 p-1 rounded shadow-sm text-gray-800 dark:text-gray-200 select-all">
+                                        {code}
+                                    </div>
+                                ))}
+                            </div>
+
+                            <button
+                                onClick={() => router.replace('/dashboard')}
+                                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                            >
+                                C bon khabithom, nkemlou 👍
+                            </button>
+                        </div>
+                    )}
+
                 </div>
             </div>
+
         </div>
     );
 }

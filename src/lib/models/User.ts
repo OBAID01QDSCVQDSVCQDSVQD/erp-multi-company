@@ -13,6 +13,7 @@ export interface IUser extends Document {
   isVerified: boolean;
   twoFactorSecret?: string;
   isTwoFactorEnabled?: boolean;
+  twoFactorBackupCodes?: { code: string; used: boolean }[];
   verificationToken?: string;
   verificationTokenExpires?: Date;
   failedLoginAttempts: number;
@@ -75,6 +76,10 @@ const UserSchema = new (Schema as any)({
     type: Boolean,
     default: false,
   },
+  twoFactorBackupCodes: [{
+    code: { type: String, required: true },
+    used: { type: Boolean, default: false }
+  }],
   verificationToken: {
     type: String,
   },

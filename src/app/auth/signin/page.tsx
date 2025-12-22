@@ -179,7 +179,7 @@ export default function SignInPage() {
               {step === '2fa' && (
                 <div>
                   <label htmlFor="twoFactorCode" className="block text-sm font-medium text-gray-700 mb-2">
-                    Code de vérification (6 chiffres)
+                    Code de vérification (Appli) ou Code de secours
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -188,9 +188,8 @@ export default function SignInPage() {
                     <input
                       {...register('twoFactorCode')}
                       type="text"
-                      maxLength={6}
-                      className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors sm:text-sm tracking-widest text-center text-lg"
-                      placeholder="000000"
+                      className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors sm:text-sm tracking-widest text-center text-lg uppercase"
+                      placeholder="000000 ou XXXX-XXXX"
                       autoFocus
                     />
                   </div>
