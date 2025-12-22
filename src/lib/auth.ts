@@ -16,7 +16,34 @@ export const authOptions: NextAuthOptions = {
         twoFactorCode: { label: '2FA Code', type: 'text' },
         impersonationToken: { label: 'Impersonation Token', type: 'text' }
       },
-      async authorize(credentials) {
+      async authorize(credentials, req) {
+        await connectDB();
+
+        // ... (existing code, I can't replace the whole function easily, so I'll rely on the fact that I'm editing the outer block or I need to be careful).
+        // Actually, replacing line 19 is easy. But catching the logic flow deeper is hard with one block.
+        // Let's do it in chunks.
+        // First chunk: Update signature.
+
+        // Wait, I can't update just the signature and use `req` later if I don't replace the whole thing.
+        // I'll assume I can access `req` if I update the signature in the same file update operation? No, tool calls are atomic but applied sequentially.
+        // I will use `replace_file_content` to replace the whole authorize function/logic block? No that's too big (300 lines).
+        // I'll update the signature first, then the logic.
+
+        // ACTUALLY, I can't change the signature in one step and use the variable in another step effectively if the file is invalid in between? TypeScript might complain but it's fine.
+        // But better:
+        // I will locate the `authorize` line and change it.
+        // Then I will locate the place where I calculate `isValidToken` and capture the method.
+        // Then I will locate the DB update.
+
+        // Let's try to capture the method first.
+        // 2FA check starts around line 253.
+        // I need to introduce a variable `loginMethod = 'password'` before 2FA check.
+        // Then update it inside the 2FA blocks.
+
+        // Since I cannot inject valid code that relies on `req` without `req` being defined, I MUST update the signature first.
+
+        // Let's UPDATE the signature now.
+
         await connectDB();
 
         // --- IMPERSONATION FLOW ---
@@ -250,6 +277,7 @@ export const authOptions: NextAuthOptions = {
         }
 
         // --- 2FA CHECK ---
+        let loginMethod = 'password';
         if (user.isTwoFactorEnabled) {
           const twoFactorCode = credentials.twoFactorCode;
 
@@ -272,6 +300,7 @@ export const authOptions: NextAuthOptions = {
             isValidToken = authenticator.check(cleanTotp, user.twoFactorSecret);
             if (isValidToken) {
               console.log(`User ${user.email} logged in using TOTP`);
+              loginMethod = '2fa_app';
             }
           }
 
@@ -300,6 +329,7 @@ export const authOptions: NextAuthOptions = {
                   { $set: { "twoFactorBackupCodes.$.used": true } }
                 );
                 console.log(`User ${user.email} logged in using a BACKUP CODE`);
+                loginMethod = 'backup_code';
                 break;
               }
             }
@@ -312,6 +342,7 @@ export const authOptions: NextAuthOptions = {
               const isEmailMatch = await bcrypt.compare(inputCode.trim(), user.emailTwoFactorCode);
               if (isEmailMatch) {
                 isValidToken = true;
+                loginMethod = '2fa_email';
                 console.log(`User ${user.email} logged in using EMAIL OTP`);
                 // Clear the code so it cannot be reused
                 await (User as any).updateOne(
@@ -341,10 +372,25 @@ export const authOptions: NextAuthOptions = {
         }
 
         // Mettre à jour la dernière connexion et reset attempts
+        // Extract IP and UA safely (req can be IncomingMessage or Request)
+        const ip = (req?.headers as any)?.['x-forwarded-for'] || (req as any)?.connection?.remoteAddress || 'Unknown IP';
+        const userAgent = (req?.headers as any)?.['user-agent'] || (req?.headers as any)?.get?.('user-agent') || 'Unknown Agent';
+
         await (User as any).findByIdAndUpdate(user._id, {
           lastLogin: new Date(),
           failedLoginAttempts: 0,
-          lockoutUntil: undefined
+          lockoutUntil: undefined,
+          $push: {
+            loginHistory: {
+              $each: [{
+                timestamp: new Date(),
+                ip: Array.isArray(ip) ? ip[0] : ip,
+                userAgent: userAgent,
+                method: loginMethod
+              }],
+              $slice: -20 // Store last 20 entries
+            }
+          }
         });
 
         const payload = {

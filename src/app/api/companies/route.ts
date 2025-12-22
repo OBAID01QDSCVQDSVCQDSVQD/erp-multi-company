@@ -8,35 +8,35 @@ import mongoose from 'mongoose';
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }
 
     await connectDB();
-    
+
     // Si on demande la company courante
     const { searchParams } = new URL(request.url);
     if (searchParams.get('current') === 'true') {
       console.log('=== API: GET COMPANY CURRENT ===');
       console.log('Session user:', JSON.stringify(session.user, null, 2));
-      
+
       const companyIdString = session.user.companyId;
       console.log('Company ID from session:', companyIdString);
-      
+
       // Convertir companyId en ObjectId si c'est une string
-      const companyId = typeof companyIdString === 'string' 
+      const companyId = typeof companyIdString === 'string'
         ? new mongoose.Types.ObjectId(companyIdString)
         : companyIdString;
-      
+
       console.log('Company ID (ObjectId):', companyId);
-      
+
       const company = await (Company as any).findById(companyId)
         .select('-__v')
         .lean();
-      
+
       console.log('Company found in database:', company ? 'YES' : 'NO');
-      
+
       if (!company) {
         console.log('ERROR: Company not found in database');
         return NextResponse.json(
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
           { status: 404 }
         );
       }
-      
+
       // تحويل البيانات إلى البنية المتوقعة
       const formattedCompany = {
         _id: company._id,
@@ -91,13 +91,13 @@ export async function GET(request: NextRequest) {
         createdAt: company.createdAt,
         updatedAt: company.updatedAt,
       };
-      
+
       console.log('Company data to return (formatted):', JSON.stringify(formattedCompany, null, 2));
       console.log('================================');
-      
+
       return NextResponse.json(formattedCompany);
     }
-    
+
     const companies = await (Company as any).find({ isActive: true })
       .select('-__v')
       .sort({ createdAt: -1 });
@@ -115,35 +115,35 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    
+
     await connectDB();
-    
+
     // Vérifier si une entreprise existe déjà
-    const existingCompany = await (Company as any).findOne({ 
+    const existingCompany = await (Company as any).findOne({
       $or: [
         { name: body.name },
         { 'contact.email': body.contact?.email || body.email }
       ]
     });
-    
+
     if (existingCompany) {
       return NextResponse.json(
         { error: 'Une entreprise avec ce nom ou cet email existe déjà' },
         { status: 400 }
       );
     }
-    
+
     // Générer un code unique pour l'entreprise
     let companyCode = body.code || body.name.substring(0, 3).toUpperCase().replace(/[^A-Z0-9]/g, '');
     if (companyCode.length < 3) {
       companyCode = companyCode.padEnd(3, 'X');
     }
-    
+
     // Vérifier si le code existe déjà et générer un nouveau code unique
     let codeExists = true;
     let counter = 1;
     let finalCode = companyCode;
-    
+
     while (codeExists) {
       const existingCode = await (Company as any).findOne({ code: finalCode });
       if (!existingCode) {
@@ -160,7 +160,7 @@ export async function POST(request: NextRequest) {
         }
       }
     }
-    
+
     // Créer un objet company avec les champs requis
     const companyData = {
       name: body.name,
@@ -189,14 +189,47 @@ export async function POST(request: NextRequest) {
       },
       isActive: true,
     };
-    
+
     const company = new (Company as any)(companyData);
     await (company as any).save();
+
+    // Create default CompanySettings
+    const CompanySettings = (await import('@/lib/models/CompanySettings')).default;
+    await (CompanySettings as any).create({
+      tenantId: company._id,
+      societe: {
+        nom: companyData.name,
+        adresse: {
+          rue: companyData.address.street,
+          ville: companyData.address.city,
+          codePostal: companyData.address.postalCode,
+          pays: companyData.address.country
+        },
+        // 'tva' field in societe schema (string, required) - likely Tax ID or VAT ID
+        tva: companyData.fiscal.vatNumber || companyData.fiscal.taxNumber || 'N/A',
+        enTete: {
+          email: companyData.contact.email,
+          telephone: companyData.contact.phone,
+          siteWeb: companyData.contact.website,
+          matriculeFiscal: companyData.fiscal.taxNumber,
+          registreCommerce: companyData.fiscal.registrationNumber
+        }
+      },
+      // Initialize all required sub-documents to trigger Mongoose defaults
+      numerotation: {},
+      ventes: {},
+      achats: {},
+      depenses: {},
+      stock: {},
+      securite: {},
+      systeme: {},
+      tva: {} // This is the TVA settings object (ITVA), distinct from societe.tva string
+    });
 
     return NextResponse.json(company, { status: 201 });
   } catch (error: any) {
     console.error('Erreur lors de la création de l\'entreprise:', error);
-    
+
     // Gérer les erreurs de validation Mongoose
     if (error.name === 'ValidationError') {
       const validationErrors: Record<string, string> = {};
@@ -204,7 +237,7 @@ export async function POST(request: NextRequest) {
         validationErrors[key] = error.errors[key].message;
       });
       return NextResponse.json(
-        { 
+        {
           error: 'Erreur de validation',
           validationErrors,
           message: Object.values(validationErrors).join(', ')
@@ -212,19 +245,19 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    
+
     // Gérer les erreurs de clé dupliquée MongoDB
     if (error.code === 11000) {
       const field = Object.keys(error.keyPattern || {})[0];
       return NextResponse.json(
-        { 
+        {
           error: `Une entreprise avec ce ${field === 'code' ? 'code' : field} existe déjà`,
           field
         },
         { status: 400 }
       );
     }
-    
+
     return NextResponse.json(
       { error: error.message || 'Erreur serveur' },
       { status: 500 }
@@ -235,14 +268,14 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }
 
     const body = await request.json();
     await connectDB();
-    
+
     // Vérifier que l'utilisateur est admin
     if (session.user.role !== 'admin') {
       return NextResponse.json(
@@ -252,15 +285,15 @@ export async function PUT(request: NextRequest) {
     }
 
     const companyIdString = session.user.companyId;
-    
+
     // Convertir companyId en ObjectId si c'est une string
-    const companyId = typeof companyIdString === 'string' 
+    const companyId = typeof companyIdString === 'string'
       ? new mongoose.Types.ObjectId(companyIdString)
       : companyIdString;
-    
+
     console.log('Updating company:', companyId);
     console.log('Update data:', JSON.stringify(body, null, 2));
-    
+
     // Vérifier si le nom ou l'email existe déjà pour une autre entreprise
     const emailToCheck = body.contact?.email || body.email;
     if (body.name || emailToCheck) {
@@ -271,7 +304,7 @@ export async function PUT(request: NextRequest) {
           ...(emailToCheck ? [{ 'contact.email': emailToCheck }] : [])
         ]
       });
-      
+
       if (existingCompany) {
         return NextResponse.json(
           { error: 'Une entreprise avec ce nom ou cet email existe déjà' },
@@ -293,14 +326,14 @@ export async function PUT(request: NextRequest) {
     // أولاً: استخدام القيمة المرسلة إذا كانت موجودة وغير فارغة
     // ثانياً: استخدام القيمة الحالية من قاعدة البيانات
     // ثالثاً: إذا كانت كلاهما فارغة، نرجع خطأ واضح
-    
+
     let emailValue = '';
     let phoneValue = '';
-    
+
     // للبريد الإلكتروني
     const sentEmail = body.contact?.email?.trim() || '';
     const currentEmail = currentCompany.contact?.email?.trim() || '';
-    
+
     if (sentEmail !== '') {
       emailValue = sentEmail;
     } else if (currentEmail !== '') {
@@ -312,11 +345,11 @@ export async function PUT(request: NextRequest) {
         { status: 400 }
       );
     }
-    
+
     // للهاتف
     const sentPhone = body.contact?.phone?.trim() || '';
     const currentPhone = currentCompany.contact?.phone?.trim() || '';
-    
+
     if (sentPhone !== '') {
       phoneValue = sentPhone;
     } else if (currentPhone !== '') {
@@ -390,7 +423,7 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json(updatedCompany);
   } catch (error: any) {
     console.error('Erreur lors de la mise à jour de l\'entreprise:', error);
-    
+
     // Gérer les erreurs de validation Mongoose
     if (error.name === 'ValidationError') {
       const validationErrors: Record<string, string> = {};
@@ -398,7 +431,7 @@ export async function PUT(request: NextRequest) {
         validationErrors[key] = error.errors[key].message;
       });
       return NextResponse.json(
-        { 
+        {
           error: 'Erreur de validation',
           validationErrors,
           message: Object.values(validationErrors).join(', ')
@@ -406,7 +439,7 @@ export async function PUT(request: NextRequest) {
         { status: 400 }
       );
     }
-    
+
     return NextResponse.json(
       { error: error.message || 'Erreur serveur' },
       { status: 500 }

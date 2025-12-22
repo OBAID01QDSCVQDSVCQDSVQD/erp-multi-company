@@ -130,7 +130,7 @@ export default function Sidebar({ sidebarOpen: externalSidebarOpen, setSidebarOp
         .then((data) => setCompanySettings(data))
         .catch((err) => console.error('Error fetching company settings:', err));
     }
-  }, [tenantId]);
+  }, [tenantId, pathname]);
 
   const hasMultiWarehouse = companySettings?.stock?.multiEntrepots === true;
 

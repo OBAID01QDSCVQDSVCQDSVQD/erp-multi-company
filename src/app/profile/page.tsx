@@ -551,7 +551,154 @@ export default function ProfilePage() {
                         </form>
                     </div>
                 </div>
+
+                {/* Login History Card */}
+                <LoginHistorySection />
             </div>
         </DashboardLayout>
+    );
+}
+
+function LoginHistorySection() {
+    const [history, setHistory] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [copiedState, setCopiedState] = useState<{ index: number, field: string } | null>(null);
+
+    const handleCopy = (text: string, index: number, field: string) => {
+        if (!text) return;
+        navigator.clipboard.writeText(text);
+        setCopiedState({ index, field });
+        setTimeout(() => setCopiedState(null), 2000);
+    };
+
+    useEffect(() => {
+        fetch('/api/user/login-history')
+            .then(res => res.json())
+            .then(data => {
+                if (data.history) setHistory(data.history);
+            })
+            .catch(err => console.error(err))
+            .finally(() => setLoading(false));
+    }, []);
+
+    const getMethodLabel = (method: string) => {
+        switch (method) {
+            case 'password': return 'Mot de passe';
+            case '2fa_app': return 'Appli 2FA';
+            case '2fa_email': return 'Email 2FA';
+            case 'backup_code': return 'Code de secours';
+            default: return 'Inconnue';
+        }
+    };
+
+    return (
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+                <h2 className="text-lg font-medium text-gray-900 dark:text-white flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-indigo-500">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Historique de connexion
+                </h2>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    Vos dernières connexions récentes. Si vous voyez une activité suspecte, changez votre mot de passe immédiatement.
+                </p>
+            </div>
+            <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead className="bg-gray-50 dark:bg-gray-700/50">
+                        <tr>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                Date & Heure
+                            </th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                Méthode
+                            </th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                IP
+                            </th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                Appareil (User Agent)
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                        {loading ? (
+                            <tr>
+                                <td colSpan={4} className="px-6 py-4 text-center text-sm text-gray-500">
+                                    Chargement...
+                                </td>
+                            </tr>
+                        ) : history.length === 0 ? (
+                            <tr>
+                                <td colSpan={4} className="px-6 py-4 text-center text-sm text-gray-500">
+                                    Aucun historique disponible.
+                                </td>
+                            </tr>
+                        ) : (
+                            history.map((entry, idx) => (
+                                <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
+                                        {new Date(entry.timestamp).toLocaleString('fr-FR')}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${entry.method?.includes('2fa') || entry.method?.includes('backup')
+                                            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                                            : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                                            }`}>
+                                            {getMethodLabel(entry.method || 'password')}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 font-mono">
+                                        <div className="flex items-center gap-2">
+                                            <span>{entry.ip || 'Inconnue'}</span>
+                                            {entry.ip && entry.ip !== 'Inconnue' && (
+                                                <button
+                                                    onClick={() => handleCopy(entry.ip, idx, 'ip')}
+                                                    className="text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors focus:outline-none"
+                                                    title="Copier l'IP"
+                                                >
+                                                    {copiedState?.index === idx && copiedState?.field === 'ip' ? (
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-500" viewBox="0 0 20 20" fill="currentColor">
+                                                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                                        </svg>
+                                                    ) : (
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                                        </svg>
+                                                    )}
+                                                </button>
+                                            )}
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 max-w-xs truncate" title={entry.userAgent}>
+                                        <div className="flex items-center gap-2">
+                                            <span className="truncate max-w-[200px]">{entry.userAgent || 'Inconnu'}</span>
+                                            {entry.userAgent && (
+                                                <button
+                                                    onClick={() => handleCopy(entry.userAgent, idx, 'ua')}
+                                                    className="text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors focus:outline-none flex-shrink-0"
+                                                    title="Copier User Agent"
+                                                >
+                                                    {copiedState?.index === idx && copiedState?.field === 'ua' ? (
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-500" viewBox="0 0 20 20" fill="currentColor">
+                                                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                                        </svg>
+                                                    ) : (
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                                        </svg>
+                                                    )}
+                                                </button>
+                                            )}
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))
+                        )}
+                    </tbody>
+                </table>
+            </div>
+        </div>
     );
 }
