@@ -47,12 +47,13 @@ export default function SignInPage() {
       const result = await signIn('credentials', {
         email: data.email,
         password: data.password,
-        twoFactorCode: data.twoFactorCode, // Send if present
+        // Force empty if not in 2fa step to ensure backend throws 2FA_REQUIRED
+        twoFactorCode: step === '2fa' ? data.twoFactorCode : '',
         redirect: false,
       });
 
       if (result?.error) {
-        if (result.error === '2FA_REQUIRED') {
+        if (result.error.includes('2FA_REQUIRED')) {
           setStep('2fa');
           setValue('twoFactorCode', ''); // Reset code
           toast.success("Veuillez entrer votre code d'authentification");
