@@ -9,7 +9,7 @@ export interface IMouvementStock extends Document {
   type: 'ENTREE' | 'SORTIE' | 'INVENTAIRE';
   qte: number;
   date: Date;
-  source: 'BR' | 'BL' | 'FAC' | 'INV' | 'AJUST' | 'TRANSFERT' | 'AUTRE' | 'RETOUR' | 'INT_FAC' | 'INT_FAC_BROUILLON';
+  source: 'BR' | 'BL' | 'FAC' | 'INV' | 'AJUST' | 'TRANSFERT' | 'AUTRE' | 'RETOUR' | 'INT_FAC' | 'INT_FAC_BROUILLON' | 'RETOUR_ACHAT';
   sourceId?: string;
   notes?: string;
   createdBy?: string;
@@ -62,7 +62,7 @@ const MouvementStockSchema = new Schema({
   },
   source: {
     type: String,
-    enum: ['BR', 'BL', 'FAC', 'INV', 'AJUST', 'TRANSFERT', 'AUTRE', 'RETOUR', 'INT_FAC', 'INT_FAC_BROUILLON'],
+    enum: ['BR', 'BL', 'FAC', 'INV', 'AJUST', 'TRANSFERT', 'AUTRE', 'RETOUR', 'INT_FAC', 'INT_FAC_BROUILLON', 'RETOUR_ACHAT'],
     required: true,
   },
   sourceId: {

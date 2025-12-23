@@ -113,8 +113,8 @@ export default function StockPage() {
   });
 
   const getStockStatus = (stock: number, min?: number) => {
-    if (min === undefined || min === null) return 'normal';
     if (stock <= 0) return 'out';
+    if (min === undefined || min === null) return 'normal';
     if (stock <= min) return 'low';
     return 'normal';
   };

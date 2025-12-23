@@ -253,9 +253,22 @@ async function updateBLForReturn(returnDoc: any, blId: string, tenantId: string,
     ).join(', ');
 
     // تنبيه واضح داخل BL يشرح أن كميات من هذا BL رجعت إلى الستوك من Bon de retour معين
+    // Get warehouse name if available
+    let warehouseName = '';
+    if (returnDoc.warehouseId) {
+      try {
+        const Warehouse = (await import('@/lib/models/Warehouse')).default;
+        const warehouse = await (Warehouse as any).findOne({ _id: returnDoc.warehouseId }).select('name').lean();
+        if (warehouse) warehouseName = warehouse.name;
+      } catch (e) {
+        console.error('Error fetching warehouse name for return note:', e);
+      }
+    }
+
+    // تنبيه واضح داخل BL يشرح أن كميات من هذا BL رجعت إلى الستوك من Bon de retour معين
     const returnNote =
       `\n[⚠️ Ce BL a fait l'objet d'un BON DE RETOUR ${returnDoc.numero} le ${returnDate} ` +
-      `– Quantités retournées vers le stock: ${returnLinesSummary}]`;
+      `– Quantités retournées vers le stock${warehouseName ? ` (${warehouseName})` : ''}: ${returnLinesSummary}]`;
 
     const updatedNotes = (bl.notes || '') + returnNote;
 

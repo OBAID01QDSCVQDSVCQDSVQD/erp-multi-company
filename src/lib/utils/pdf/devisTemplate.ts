@@ -249,8 +249,75 @@ function drawHeader(doc: jsPDF, companyInfo: CompanyInfo): number {
     doc.text(`Matricule : ${companyInfo.enTete.matriculeFiscal}`, rightX, topY + 15);
   }
 
-  // Retourner la position Y dispo après le header
   return 10 + 32 + 4;
+}
+
+function drawNotes(doc: jsPDF, notes: string | undefined, startY: number): number {
+  if (!notes) return startY;
+
+  doc.setFontSize(9);
+
+  // Clean raw notes string
+  let cleanNotes = notes.trim();
+
+  // Check if it's a return warning (starts with [)
+  if (cleanNotes.startsWith('[')) {
+    // Replace emojis and clean up text for PDF standard fonts
+    // ⚠️ is often followed by a variation selector, so we handle that.
+    cleanNotes = cleanNotes
+      .replace(/⚠️/g, 'ATTENTION :')
+      .replace(/[^\x20-\x7E\xA0-\xFF\u0100-\u017F\u20AC]/g, '') // Keep basic Latin, accents, Euro sign
+      .replace(/\[\s*/, '') // Remove opening bracket
+      .replace(/\s*\]$/, ''); // Remove closing bracket
+
+    // Alert Style
+    const splitNotes = doc.splitTextToSize(cleanNotes, 170); // Margin 20 (more padding)
+    const lineHeight = 5;
+    const padding = 4;
+    const height = (splitNotes.length * lineHeight) + (padding * 2);
+
+    // Draw light background for alert
+    doc.setFillColor(255, 247, 237); // Orange-50
+    doc.setDrawColor(249, 115, 22);  // Orange-500
+    doc.roundedRect(10, startY, 190, height, 2, 2, 'FD');
+
+    // Draw Icon (exclamation mark in a circle manually drawn)
+    doc.setFillColor(249, 115, 22); // Orange-500
+    doc.circle(16, startY + (height / 2), 2.5, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.text('!', 16, startY + (height / 2) + 1, { align: 'center' });
+
+    // Text Color & Content
+    doc.setTextColor(194, 65, 12); // Orange-700
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+
+    splitNotes.forEach((line: string, i: number) => {
+      // Offset text by 12mm to make room for icon
+      doc.text(line, 22, startY + padding + 3.5 + (i * lineHeight));
+    });
+
+    // Reset styles
+    doc.setTextColor(0, 0, 0);
+    doc.setFont('helvetica', 'normal');
+
+    return startY + height + 6;
+  } else {
+    // Normal Notes
+    const label = 'Notes :';
+    doc.setFont('helvetica', 'bold');
+    doc.text(label, 10, startY + 4);
+
+    doc.setFont('helvetica', 'normal');
+    const splitNotes = doc.splitTextToSize(cleanNotes, 190);
+    splitNotes.forEach((line: string, i: number) => {
+      doc.text(line, 10, startY + 9 + (i * 5));
+    });
+
+    return startY + 9 + (splitNotes.length * 5) + 4;
+  }
 }
 
 function drawDevisTitle(doc: jsPDF, documentType?: string): number {
@@ -864,6 +931,9 @@ export function generateDevisPdf(quoteData: QuoteData, companyInfo: CompanyInfo)
   let y = drawHeader(doc, companyInfo);
   y = drawDevisTitle(doc, quoteData.documentType);
   y = drawInfoBlocks(doc, quoteData, companyInfo, y);
+
+  // Draw Notes (Alerts/Warnings) before table
+  y = drawNotes(doc, quoteData.notes, y);
 
   // رسم الجدول مع تحديد الحد الأقصى للمحتوى
   const tableEndY = drawLinesTable(doc, quoteData, y, maxContentY);

@@ -176,6 +176,7 @@ export async function GET(request: NextRequest) {
           m.source === 'BL' ||
           (m.source === 'FAC' && m.type === 'SORTIE') ||
           m.source === 'RETOUR' ||
+          m.source === 'RETOUR_ACHAT' ||
           m.source === 'INT_FAC' ||
           m.source === 'INT_FAC_BROUILLON' ||
           // Avoir génère un mouvement d'entrée source FAC mais type document = AVOIR
@@ -196,7 +197,7 @@ export async function GET(request: NextRequest) {
         .map((m: any) => m.sourceId)
     ));
 
-    // Fetch documents (BL, BR, FAC sales, INT_FAC, INT_FAC_BROUILLON, RETOUR)
+    // Fetch documents (BL, BR, FAC sales, INT_FAC, INT_FAC_BROUILLON, RETOUR, RETOUR_ACHAT)
     const documents = documentSourceIds.length > 0 ? await (Document as any).find({
       _id: {
         $in: documentSourceIds.map((id: string) => {
@@ -204,8 +205,8 @@ export async function GET(request: NextRequest) {
         })
       },
       tenantId,
-      // Inclure AVOIR حتى نتمكن من إظهار اسم العميل في référence
-      type: { $in: ['BL', 'FAC', 'INT_FAC', 'RETOUR', 'AVOIR'] },
+      // Inclure AVOIR et RETOUR_ACHAT
+      type: { $in: ['BL', 'FAC', 'INT_FAC', 'RETOUR', 'AVOIR', 'RETOUR_ACHAT'] },
     }).select('_id type numero customerId supplierId').lean() : [];
 
     const documentMap = new Map();
@@ -362,8 +363,18 @@ export async function GET(request: NextRequest) {
                 ? document.customerId.toString()
                 : document.customerId?.toString() || document.customerId;
               referenceName = customerMap.get(customerIdStr) || movement.sourceId || '-';
+            } else if (movement.source === 'RETOUR_ACHAT' && document.isDocument && document.type === 'RETOUR_ACHAT') {
+              if (document.supplierId) {
+                const supplierIdStr = document.supplierId instanceof mongoose.Types.ObjectId
+                  ? document.supplierId.toString()
+                  : document.supplierId?.toString() || document.supplierId;
+                referenceName = supplierMap.get(supplierIdStr) || document.numero || movement.sourceId || '-';
+              } else {
+                referenceName = document.numero || movement.sourceId || '-';
+              }
             }
           }
+
           // For Entree (BR, RETOUR, or FAC purchase invoice), show supplier/customer name
           else if (movement.type === 'ENTREE') {
             // RETOUR - show customer name (product returned from customer)

@@ -2,7 +2,8 @@ import connectDB from '@/lib/mongodb';
 import CompanySettings from '@/lib/models/CompanySettings';
 import Counter from '@/lib/models/Counter';
 
-export type SequenceType = 'devis' | 'bc' | 'bl' | 'fac' | 'avoir' | 'ca' | 'br' | 'facfo' | 'avoirfo' | 'pafo' | 'pac' | 'int_fac' | 'retour';
+export type SequenceType = 'devis' | 'bc' | 'bl' | 'fac' | 'avoir' | 'ca' | 'br' | 'facfo' | 'avoirfo' | 'pafo' | 'pac' | 'int_fac' | 'retour' | 'retour_achat';
+
 
 export class NumberingService {
   /**
@@ -54,6 +55,22 @@ export class NumberingService {
       } catch (err: any) {
         console.warn('Failed to save retour template to settings:', err);
         // Continue anyway with the fallback template
+      }
+    }
+
+    // Fallback: if retour_achat not found, use default template
+    if (!template && seqName === 'retour_achat') {
+      template = 'RETA-{{YYYY}}-{{SEQ:4}}';
+      // Also update settings to persist the template
+      try {
+        if (!settings.numerotation) {
+          settings.numerotation = {};
+        }
+        settings.numerotation.retour_achat = template;
+        (settings as any).markModified('numerotation');
+        await (settings as any).save();
+      } catch (err: any) {
+        console.warn('Failed to save retour_achat template to settings:', err);
       }
     }
 
@@ -150,6 +167,11 @@ export class NumberingService {
       template = '{{SEQ:4}}';
     }
 
+    // Fallback: if retour_achat, use default
+    if (!template && seqName === 'retour_achat') {
+      template = 'RETA-{{YYYY}}-{{SEQ:4}}';
+    }
+
     if (!template) {
       throw new Error(`Template de numérotation non trouvé pour ${seqName}`);
     }
@@ -189,7 +211,7 @@ export class NumberingService {
   static async resetAll(tenantId: string): Promise<void> {
     await connectDB();
 
-    const sequenceTypes: SequenceType[] = ['devis', 'bc', 'bl', 'fac', 'avoir', 'ca', 'br', 'facfo', 'avoirfo', 'pafo', 'pac', 'int_fac', 'retour'];
+    const sequenceTypes: SequenceType[] = ['devis', 'bc', 'bl', 'fac', 'avoir', 'ca', 'br', 'facfo', 'avoirfo', 'pafo', 'pac', 'int_fac', 'retour', 'retour_achat'];
 
     for (const seqName of sequenceTypes) {
       await (Counter as any).findOneAndUpdate(

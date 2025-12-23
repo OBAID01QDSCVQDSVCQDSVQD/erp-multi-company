@@ -403,6 +403,100 @@ export default function Header({ onMenuClick }: HeaderProps) {
       </div>
       {!isFocused && (
         <div className="flex items-center gap-2 md:gap-4 ml-auto" style={{ overflow: 'visible', position: 'relative', zIndex: 1000 }}>
+
+          {/* Administration Dropdown - Only for admin@entreprise-demo.com */}
+          {isSystemAdmin && (
+            <div
+              ref={adminContainerRef}
+              className="relative flex-shrink-0"
+              style={{ zIndex: 1000, overflow: 'visible' }}
+              onMouseEnter={handleAdminMenuEnter}
+              onMouseLeave={handleAdminMenuLeave}
+            >
+              <button
+                type="button"
+                className="flex items-center space-x-1 text-gray-700 dark:text-gray-200 hover:text-indigo-600 dark:hover:text-indigo-400 px-3 py-2 text-sm font-medium transition-colors"
+              >
+                <span className="hidden sm:inline">Admin</span>
+                <span className="sm:hidden"><CogIcon className="h-5 w-5" /></span>
+                <ChevronDownIcon className="h-4 w-4" />
+              </button>
+              {adminMenuOpen && (
+                <div
+                  className="absolute right-0 bg-white dark:bg-gray-800 rounded-lg shadow-xl py-2 border border-gray-200 dark:border-gray-700"
+                  style={{
+                    top: 'calc(100% + 4px)',
+                    width: '240px',
+                    zIndex: 1001
+                  }}
+                  onMouseEnter={handleAdminMenuEnter}
+                  onMouseLeave={handleAdminMenuLeave}
+                >
+                  <Link
+                    href="/companies"
+                    className="block px-4 py-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-indigo-900/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                    onClick={() => setAdminMenuOpen(false)}
+                  >
+                    <div className="flex items-center">
+                      <BuildingOfficeIcon className="h-5 w-5 mr-3 text-indigo-600" />
+                      <div>
+                        <div className="font-medium">Gérer les entreprises</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">Contrôler les inscriptions</div>
+                      </div>
+                    </div>
+                  </Link>
+                  <Link
+                    href="/subscriptions/manage"
+                    className="block px-4 py-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-indigo-900/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                    onClick={() => setAdminMenuOpen(false)}
+                  >
+                    <div className="flex items-center">
+                      <CreditCardIcon className="h-5 w-5 mr-3 text-indigo-600" />
+                      <div>
+                        <div className="font-medium">Gérer les abonnements</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">Approuver les demandes</div>
+                      </div>
+                    </div>
+                  </Link>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Back to Admin Button (Impersonation Mode) */}
+          {(session?.user as any)?.isImpersonating && (
+            <button
+              onClick={async () => {
+                try {
+                  const res = await fetch('/api/admin/unimpersonate', { method: 'POST' });
+                  if (res.ok) {
+                    const { impersonationToken } = await res.json();
+                    const { signIn } = await import('next-auth/react');
+                    await signIn('credentials', {
+                      impersonationToken,
+                      redirect: false
+                    });
+                    window.location.href = '/admin';
+                  }
+                } catch (e) {
+                  console.error(e);
+                }
+              }}
+              className="hidden md:flex items-center px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-sm font-medium hover:bg-amber-200 transition-colors border border-amber-300 shadow-sm animate-pulse flex-shrink-0"
+            >
+              <span className="mr-1">⚠️</span>
+              <span className="whitespace-nowrap">Retour Admin</span>
+            </button>
+          )}
+
+          {/* Theme Toggle */}
+          <button
+            onClick={toggleTheme}
+            className="bg-white dark:bg-gray-700 p-1.5 rounded-full text-gray-400 hover:text-gray-500 dark:text-gray-300 dark:hover:text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex-shrink-0"
+          >
+            {darkMode ? <SunIcon className="h-5 w-5" /> : <MoonIcon className="h-5 w-5" />}
+          </button>
+
           {/* Home Icon - Only for admin */}
           {isAdmin && (
             <Link
@@ -507,99 +601,6 @@ export default function Header({ onMenuClick }: HeaderProps) {
               )}
             </div>
           )}
-
-          {/* Administration Dropdown - Only for admin@entreprise-demo.com */}
-          {isSystemAdmin && (
-            <div
-              ref={adminContainerRef}
-              className="relative flex-shrink-0"
-              style={{ zIndex: 1000, overflow: 'visible' }}
-              onMouseEnter={handleAdminMenuEnter}
-              onMouseLeave={handleAdminMenuLeave}
-            >
-              <button
-                type="button"
-                className="flex items-center space-x-1 text-gray-700 dark:text-gray-200 hover:text-indigo-600 dark:hover:text-indigo-400 px-3 py-2 text-sm font-medium transition-colors"
-              >
-                <span className="hidden sm:inline">Admin</span>
-                <span className="sm:hidden"><CogIcon className="h-5 w-5" /></span>
-                <ChevronDownIcon className="h-4 w-4" />
-              </button>
-              {adminMenuOpen && (
-                <div
-                  className="absolute right-0 bg-white dark:bg-gray-800 rounded-lg shadow-xl py-2 border border-gray-200 dark:border-gray-700"
-                  style={{
-                    top: 'calc(100% + 4px)',
-                    width: '240px',
-                    zIndex: 1001
-                  }}
-                  onMouseEnter={handleAdminMenuEnter}
-                  onMouseLeave={handleAdminMenuLeave}
-                >
-                  <Link
-                    href="/companies"
-                    className="block px-4 py-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-indigo-900/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-                    onClick={() => setAdminMenuOpen(false)}
-                  >
-                    <div className="flex items-center">
-                      <BuildingOfficeIcon className="h-5 w-5 mr-3 text-indigo-600" />
-                      <div>
-                        <div className="font-medium">Gérer les entreprises</div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">Contrôler les inscriptions</div>
-                      </div>
-                    </div>
-                  </Link>
-                  <Link
-                    href="/subscriptions/manage"
-                    className="block px-4 py-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-indigo-900/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-                    onClick={() => setAdminMenuOpen(false)}
-                  >
-                    <div className="flex items-center">
-                      <CreditCardIcon className="h-5 w-5 mr-3 text-indigo-600" />
-                      <div>
-                        <div className="font-medium">Gérer les abonnements</div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">Approuver les demandes</div>
-                      </div>
-                    </div>
-                  </Link>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Back to Admin Button (Impersonation Mode) */}
-          {(session?.user as any)?.isImpersonating && (
-            <button
-              onClick={async () => {
-                try {
-                  const res = await fetch('/api/admin/unimpersonate', { method: 'POST' });
-                  if (res.ok) {
-                    const { impersonationToken } = await res.json();
-                    const { signIn } = await import('next-auth/react');
-                    await signIn('credentials', {
-                      impersonationToken,
-                      redirect: false
-                    });
-                    window.location.href = '/admin';
-                  }
-                } catch (e) {
-                  console.error(e);
-                }
-              }}
-              className="hidden md:flex items-center px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-sm font-medium hover:bg-amber-200 transition-colors border border-amber-300 shadow-sm animate-pulse flex-shrink-0"
-            >
-              <span className="mr-1">⚠️</span>
-              <span className="whitespace-nowrap">Retour Admin</span>
-            </button>
-          )}
-
-          {/* Theme Toggle */}
-          <button
-            onClick={toggleTheme}
-            className="bg-white dark:bg-gray-700 p-1.5 rounded-full text-gray-400 hover:text-gray-500 dark:text-gray-300 dark:hover:text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex-shrink-0"
-          >
-            {darkMode ? <SunIcon className="h-5 w-5" /> : <MoonIcon className="h-5 w-5" />}
-          </button>
 
           <div
             ref={containerRef}

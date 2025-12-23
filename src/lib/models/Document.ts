@@ -22,7 +22,7 @@ export interface IDocument extends Document {
   tenantId: string;
 
   // Basic info
-  type: 'DEVIS' | 'BC' | 'BL' | 'FAC' | 'AVOIR' | 'PO' | 'BR' | 'FACFO' | 'AVOIRFO' | 'INT_FAC' | 'RETOUR';
+  type: 'DEVIS' | 'BC' | 'BL' | 'FAC' | 'AVOIR' | 'PO' | 'BR' | 'FACFO' | 'AVOIRFO' | 'INT_FAC' | 'RETOUR' | 'RETOUR_ACHAT';
   numero: string;
   dateDoc: Date;
   statut?: 'BROUILLON' | 'VALIDEE' | 'PARTIELLEMENT_PAYEE' | 'PAYEE' | 'ANNULEE';
@@ -34,7 +34,8 @@ export interface IDocument extends Document {
   warehouseId?: mongoose.Types.ObjectId; // Link to Warehouse
 
   // Return specific fields
-  blId?: string; // Reference to the delivery note (BL) this return is based on
+  blId?: string; // Reference to the delivery note (BL) this sales return is based on
+  brId?: string; // Reference to the reception note (BR) this purchase return is based on
 
   // References
   referenceExterne?: string;
@@ -100,7 +101,7 @@ const DocumentLineSchema = new Schema({
 const DocumentSchema = new (Schema as any)({
   tenantId: { type: String, required: true, index: true },
 
-  type: { type: String, enum: ['DEVIS', 'BC', 'BL', 'FAC', 'AVOIR', 'PO', 'BR', 'FACFO', 'AVOIRFO', 'INT_FAC', 'RETOUR'], required: true },
+  type: { type: String, enum: ['DEVIS', 'BC', 'BL', 'FAC', 'AVOIR', 'PO', 'BR', 'FACFO', 'AVOIRFO', 'INT_FAC', 'RETOUR', 'RETOUR_ACHAT'], required: true },
   numero: { type: String, required: true },
   dateDoc: { type: Date, required: true, default: Date.now },
   statut: { type: String, enum: ['BROUILLON', 'VALIDEE', 'PARTIELLEMENT_PAYEE', 'PAYEE', 'ANNULEE', 'LIVREE'], default: 'BROUILLON' },
@@ -109,7 +110,8 @@ const DocumentSchema = new (Schema as any)({
   supplierId: { type: String },
   projetId: { type: Schema.Types.ObjectId, ref: 'Project' },
   warehouseId: { type: Schema.Types.ObjectId, ref: 'Warehouse' },
-  blId: { type: String }, // Reference to BL for returns
+  blId: { type: String }, // Reference to BL for sales returns
+  brId: { type: String }, // Reference to BR for purchase returns
 
   referenceExterne: { type: String },
   bonCommandeClient: { type: String },

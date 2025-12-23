@@ -43,6 +43,7 @@ const SOURCE_LABELS: Record<string, string> = {
   TRANSFERT: 'Transfert',
   AUTRE: 'Autre',
   RETOUR: 'Bon de retour',
+  RETOUR_ACHAT: 'Retour achat',
 };
 
 const TYPE_COLORS: Record<string, string> = {
