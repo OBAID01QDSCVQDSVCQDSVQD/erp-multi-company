@@ -64,6 +64,23 @@ export default function Header({ onMenuClick }: HeaderProps) {
       setDarkMode(false);
       document.documentElement.classList.remove('dark');
     }
+
+    // Command + K Shortcut
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        if (searchContainerRef.current) {
+          const input = searchContainerRef.current.querySelector('input');
+          if (input) {
+            input.focus();
+            setIsFocused(true);
+          }
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   const toggleTheme = () => {
@@ -150,7 +167,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
 
     searchTimeoutRef.current = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`, {
+        const res = await fetch(`/api/search?q=${encodeURIComponent(q)}&limit=5`, {
           headers: { 'X-Tenant-Id': tenantId || '' }
         });
         if (res.ok) {
@@ -163,6 +180,13 @@ export default function Header({ onMenuClick }: HeaderProps) {
         setIsSearching(false);
       }
     }, 300);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && searchQuery) {
+      setShowSearchResults(false);
+      router.push(`/search?q=${encodeURIComponent(searchQuery)}`);
+    }
   };
 
   const extractInvoiceNumero = (title: string): string | null => {
@@ -320,6 +344,9 @@ export default function Header({ onMenuClick }: HeaderProps) {
               <div className="absolute inset-y-0 left-0 flex items-center pointer-events-none pl-2">
                 <MagnifyingGlassIcon className="h-5 w-5" />
               </div>
+              <div className="absolute inset-y-0 right-14 flex items-center pointer-events-none">
+                {!searchQuery && <span className="text-xs text-gray-400 border border-gray-200 dark:border-gray-700 px-1.5 py-0.5 rounded shadow-sm">⌘K</span>}
+              </div>
               <input
                 name="search"
                 id="search"
@@ -329,6 +356,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
                 autoComplete="off"
                 value={searchQuery}
                 onChange={handleSearchChange}
+                onKeyDown={handleKeyDown}
                 onFocus={() => {
                   setIsFocused(true);
                   if (searchQuery.length >= 2) setShowSearchResults(true);
