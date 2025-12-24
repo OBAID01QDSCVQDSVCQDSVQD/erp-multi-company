@@ -22,7 +22,7 @@ export async function GET(
         await connectDB();
 
         // 1. Fetch Return Doc
-        const returnDoc = await Document.findOne({
+        const returnDoc: any = await Document.findOne({
             _id: params.id,
             tenantId,
             type: 'RETOUR_ACHAT'
