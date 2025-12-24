@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import Document from '@/lib/models/Document';
-import { v4 as uuidv4 } from 'uuid';
+import crypto from 'crypto';
 
 export async function POST(
     request: NextRequest,
@@ -29,12 +29,17 @@ export async function POST(
             return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
         }
 
-        if (invoice.publicToken) {
+        // Check if token exists AND is in the new format (starts with F-)
+        if (invoice.publicToken && invoice.publicToken.startsWith('F-')) {
             return NextResponse.json({ token: invoice.publicToken });
         }
 
-        // Generate new token
-        const token = uuidv4();
+        // Generate descriptive token: F-[Numero]-[Random]
+        // Example: F-FAC-2025-0048-1a2b
+        const randomSuffix = crypto.randomBytes(3).toString('hex'); // 6 chars hex
+        const sanitizedNum = invoice.numero.replace(/[^a-zA-Z0-9-_]/g, '-');
+        const token = `F-${sanitizedNum}-${randomSuffix}`;
+
         invoice.publicToken = token;
         await invoice.save();
 

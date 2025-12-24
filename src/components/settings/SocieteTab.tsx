@@ -183,71 +183,143 @@ export default function SocieteTab({ tenantId }: SocieteTabProps) {
   const removeWhiteBackground = () => {
     if (!cachetPreview) return;
 
+    const toastId = toast.loading('Traitement de l\'image...');
     const img = new window.Image();
+
+    // Only set crossOrigin for remote URLs, not data: URIs
+    if (!cachetPreview.startsWith('data:')) {
+      img.crossOrigin = "Anonymous";
+    }
+
     img.onload = () => {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-
-      canvas.width = img.width;
-      canvas.height = img.height;
-      ctx.drawImage(img, 0, 0);
-
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const data = imageData.data;
-
-      for (let i = 0; i < data.length; i += 4) {
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
-        // If pixel is close to white, make it transparent
-        if (r > 200 && g > 200 && b > 200) {
-          data[i + 3] = 0; // Alpha to 0
+      try {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          toast.error("Erreur de contexte canvas", { id: toastId });
+          return;
         }
-      }
 
-      ctx.putImageData(imageData, 0, 0);
-      const newBase64 = canvas.toDataURL('image/png');
-      setCachetPreview(newBase64);
-      setValue('cachetUrl', newBase64);
-      toast.success('Fond blanc supprimé avec succès');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i];
+          const g = data[i + 1];
+          const b = data[i + 2];
+
+          // Improved Logic for Blue Stamps:
+          // 1. White/Very Light Grey -> Transparent
+          if (r > 230 && g > 230 && b > 230) {
+            data[i + 3] = 0;
+            continue;
+          }
+
+          // 2. Check for "Blue-ish" pixels (Safety for stamps)
+          // If Blue is significantly higher than Red and Green, it's likely ink. Keep it.
+          if (b > r + 20 && b > g + 20) {
+            // It's blue ink. 
+            // Optional: Boost blue saturation slightly to remove grey cast
+            // data[i] = r * 0.9; // Darken Red
+            // data[i+1] = g * 0.9; // Darken Green
+            // data[i+2] = Math.min(255, b * 1.1); // Brighten Blue
+            continue;
+          }
+
+          // 3. Light Grey Background removal
+          // If it's not predominantly blue/colored (low variance) AND it's bright enough
+          const max = Math.max(r, g, b);
+          const min = Math.min(r, g, b);
+          const variance = max - min;
+
+          if (max > 150 && variance < 30) {
+            data[i + 3] = 0; // Remove grey background
+          }
+        }
+
+        ctx.putImageData(imageData, 0, 0);
+        const newBase64 = canvas.toDataURL('image/png');
+        setCachetPreview(newBase64);
+        setValue('cachetUrl', newBase64);
+        toast.success('Fond blanc supprimé avec succès', { id: toastId });
+      } catch (e) {
+        console.error("Error processing image:", e);
+        toast.error("Impossible de traiter l'image (Erreur de sécurité ou format)", { id: toastId });
+      }
     };
-    img.src = cachetPreview;
+
+    img.onerror = () => {
+      toast.error("Impossible de charger l'image. Vérifiez qu'elle est accessible.", { id: toastId });
+    };
+
+    // Append timestamp to prevent caching issues if it's a URL
+    if (cachetPreview.startsWith('http')) {
+      img.src = cachetPreview + '?t=' + new Date().getTime();
+    } else {
+      img.src = cachetPreview;
+    }
   };
 
   const removeWhiteBackgroundLogo = () => {
     if (!logoPreview) return;
 
+    const toastId = toast.loading('Traitement du logo...');
     const img = new window.Image();
+
+    if (!logoPreview.startsWith('data:')) {
+      img.crossOrigin = "Anonymous";
+    }
+
     img.onload = () => {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-
-      canvas.width = img.width;
-      canvas.height = img.height;
-      ctx.drawImage(img, 0, 0);
-
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const data = imageData.data;
-
-      for (let i = 0; i < data.length; i += 4) {
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
-        // If pixel is close to white, make it transparent
-        if (r > 200 && g > 200 && b > 200) {
-          data[i + 3] = 0; // Alpha to 0
+      try {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          toast.error("Erreur de contexte canvas", { id: toastId });
+          return;
         }
-      }
 
-      ctx.putImageData(imageData, 0, 0);
-      const newBase64 = canvas.toDataURL('image/png');
-      setLogoPreview(newBase64);
-      setValue('logoUrl', newBase64);
-      toast.success('Fond blanc du logo supprimé avec succès');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i];
+          const g = data[i + 1];
+          const b = data[i + 2];
+          // If pixel is close to white
+          if (r > 160 && g > 160 && b > 160) {
+            data[i + 3] = 0; // Alpha to 0
+          }
+        }
+
+        ctx.putImageData(imageData, 0, 0);
+        const newBase64 = canvas.toDataURL('image/png');
+        setLogoPreview(newBase64);
+        setValue('logoUrl', newBase64);
+        toast.success('Fond blanc du logo supprimé avec succès', { id: toastId });
+      } catch (e) {
+        console.error("Error processing logo:", e);
+        toast.error("Impossible de traiter le logo (Erreur de sécurité)", { id: toastId });
+      }
     };
-    img.src = logoPreview;
+
+    img.onerror = () => {
+      toast.error("Impossible de charger le logo. Vérifiez qu'il est accessible.", { id: toastId });
+    };
+
+    if (logoPreview.startsWith('http')) {
+      img.src = logoPreview + '?t=' + new Date().getTime();
+    } else {
+      img.src = logoPreview;
+    }
   };
 
   const fetchSettings = async (showLoader = true) => {

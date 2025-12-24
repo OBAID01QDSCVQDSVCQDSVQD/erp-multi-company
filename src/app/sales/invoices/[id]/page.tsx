@@ -475,7 +475,7 @@ export default function ViewInvoicePage() {
       if (res.ok) {
         const data = await res.json();
         // Use window.location.origin to get correct domain (localhost or production)
-        publicLink = `${window.location.origin}/api/public/invoices/${data.token}`;
+        publicLink = `${window.location.origin}/i/${data.token}`;
       }
     } catch (e) {
       console.error("Error generating public link", e);
