@@ -988,109 +988,109 @@ export function generateDevisPdf(quoteData: QuoteData, companyInfo: CompanyInfo)
     // توجد مساحة كافية على الصفحة الأخيرة
     const finalY = drawTotals(doc, quoteData, safeCurrentPageY + 5, maxContentY);
     // Draw Stamp if available
-    // Position stamp to the LEFT of the totals box
-    // Totals box starts at x=125. We place stamp at x=80 roughly.
-    // We align it vertically with the "Arrêté à la somme de" or slightly higher.
-    // drawStamp(doc, url, x, y, w, h);
-    drawStamp(doc, companyInfo.cachetUrl, 80, finalY - 40, 40, 40);
-  }
-} else {
-  // لا توجد مساحة كافية، إضافة صفحة جديدة
-  doc.addPage();
-  const finalY = drawTotals(doc, quoteData, topMargin, maxContentY);
-  if (companyInfo.cachetUrl) {
-    drawStamp(doc, companyInfo.cachetUrl, 80, finalY - 40, 40, 40);
-  }
-}
-
-// تحديث عدد الصفحات النهائي
-const totalPages = doc.getNumberOfPages();
-
-// رسم التذييل على جميع الصفحات
-for (let i = 1; i <= totalPages; i++) {
-  doc.setPage(i);
-  drawFooter(doc, companyInfo, footerY, i, totalPages);
-}
-
-// Add watermark for internal invoices with BROUILLON or ANNULEE status
-if (quoteData.statut === 'BROUILLON' || quoteData.statut === 'ANNULEE') {
-  try {
-    const finalPageCount = doc.getNumberOfPages();
-    const watermarkText = quoteData.statut === 'BROUILLON' ? 'BROUILLON' : 'ANNULEE';
-
-    console.log('[PDF Watermark] Adding watermark:', watermarkText, 'statut:', quoteData.statut, 'on', finalPageCount, 'pages');
-
-    // Add watermark on all pages
-    for (let i = 1; i <= finalPageCount; i++) {
-      doc.setPage(i);
-
-      // Save current graphics state
-      const currentTextColor = doc.getTextColor();
-      const currentFont = doc.getFont();
-      const currentFontSize = doc.getFontSize();
-
-      // Get page dimensions (in mm for A4)
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const pageHeight = doc.internal.pageSize.getHeight();
-
-      // Set watermark properties: bold, large, 30% opacity
-      doc.setFontSize(72); // Large font size
-      doc.setFont('helvetica', 'bold');
-
-      // Set text color with 30% opacity (RGB with alpha)
-      // jsPDF doesn't support alpha directly, so we use a light gray color
-      // 30% opacity = 70% transparency = light gray (approximately RGB(180, 180, 180))
-      doc.setTextColor(180, 180, 180);
-
-      // Calculate text dimensions to center it
-      const textWidth = doc.getTextWidth(watermarkText);
-
-      // Center the watermark on the page
-      const centerX = pageWidth / 2;
-      const centerY = pageHeight / 2;
-
-      // Simple approach: draw text directly in center (without rotation for now)
-      // This ensures the watermark appears even if rotation fails
-      try {
-        doc.text(watermarkText, centerX, centerY, {
-          align: 'center',
-          baseline: 'middle'
-        });
-      } catch (textError) {
-        console.error('[PDF Watermark] Error drawing text:', textError);
-        // Continue even if text drawing fails
-      }
-
-      // Restore original graphics state
-      // getTextColor() returns a string like "rgb(0,0,0)" or array [r,g,b]
-      if (typeof currentTextColor === 'string') {
-        // Parse RGB string like "rgb(0,0,0)" or "#000000"
-        const rgbMatch = currentTextColor.match(/\d+/g);
-        if (rgbMatch && rgbMatch.length >= 3) {
-          doc.setTextColor(parseInt(rgbMatch[0]), parseInt(rgbMatch[1]), parseInt(rgbMatch[2]));
-        } else {
-          doc.setTextColor(0, 0, 0); // Default to black
-        }
-      } else if (Array.isArray(currentTextColor)) {
-        const colorArray = currentTextColor as number[];
-        if (colorArray.length >= 3) {
-          doc.setTextColor(colorArray[0], colorArray[1], colorArray[2]);
-        } else {
-          doc.setTextColor(0, 0, 0); // Default to black
-        }
-      } else {
-        doc.setTextColor(0, 0, 0); // Default to black
-      }
-      doc.setFont(currentFont.fontName, currentFont.fontStyle);
-      doc.setFontSize(currentFontSize);
+    if (companyInfo.cachetUrl) {
+      // Position stamp to the LEFT of the totals box
+      // Totals box starts at x=125. We place stamp at x=80 roughly.
+      // We align it vertically with the "Arrêté à la somme de" or slightly higher.
+      drawStamp(doc, companyInfo.cachetUrl, 80, finalY - 40, 40, 40);
     }
-
-    console.log('[PDF Watermark] Watermark added successfully');
-  } catch (watermarkError: any) {
-    console.error('[PDF Watermark] Error adding watermark:', watermarkError);
-    // Don't fail PDF generation if watermark fails
+  } else {
+    // لا توجد مساحة كافية، إضافة صفحة جديدة
+    doc.addPage();
+    const finalY = drawTotals(doc, quoteData, topMargin, maxContentY);
+    if (companyInfo.cachetUrl) {
+      drawStamp(doc, companyInfo.cachetUrl, 80, finalY - 40, 40, 40);
+    }
   }
-}
 
-return doc;
+  // تحديث عدد الصفحات النهائي
+  const totalPages = doc.getNumberOfPages();
+
+  // رسم التذييل على جميع الصفحات
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i);
+    drawFooter(doc, companyInfo, footerY, i, totalPages);
+  }
+
+  // Add watermark for internal invoices with BROUILLON or ANNULEE status
+  if (quoteData.statut === 'BROUILLON' || quoteData.statut === 'ANNULEE') {
+    try {
+      const finalPageCount = doc.getNumberOfPages();
+      const watermarkText = quoteData.statut === 'BROUILLON' ? 'BROUILLON' : 'ANNULEE';
+
+      console.log('[PDF Watermark] Adding watermark:', watermarkText, 'statut:', quoteData.statut, 'on', finalPageCount, 'pages');
+
+      // Add watermark on all pages
+      for (let i = 1; i <= finalPageCount; i++) {
+        doc.setPage(i);
+
+        // Save current graphics state
+        const currentTextColor = doc.getTextColor();
+        const currentFont = doc.getFont();
+        const currentFontSize = doc.getFontSize();
+
+        // Get page dimensions (in mm for A4)
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+
+        // Set watermark properties: bold, large, 30% opacity
+        doc.setFontSize(72); // Large font size
+        doc.setFont('helvetica', 'bold');
+
+        // Set text color with 30% opacity (RGB with alpha)
+        // jsPDF doesn't support alpha directly, so we use a light gray color
+        // 30% opacity = 70% transparency = light gray (approximately RGB(180, 180, 180))
+        doc.setTextColor(180, 180, 180);
+
+        // Calculate text dimensions to center it
+        const textWidth = doc.getTextWidth(watermarkText);
+
+        // Center the watermark on the page
+        const centerX = pageWidth / 2;
+        const centerY = pageHeight / 2;
+
+        // Simple approach: draw text directly in center (without rotation for now)
+        // This ensures the watermark appears even if rotation fails
+        try {
+          doc.text(watermarkText, centerX, centerY, {
+            align: 'center',
+            baseline: 'middle'
+          });
+        } catch (textError) {
+          console.error('[PDF Watermark] Error drawing text:', textError);
+          // Continue even if text drawing fails
+        }
+
+        // Restore original graphics state
+        // getTextColor() returns a string like "rgb(0,0,0)" or array [r,g,b]
+        if (typeof currentTextColor === 'string') {
+          // Parse RGB string like "rgb(0,0,0)" or "#000000"
+          const rgbMatch = currentTextColor.match(/\d+/g);
+          if (rgbMatch && rgbMatch.length >= 3) {
+            doc.setTextColor(parseInt(rgbMatch[0]), parseInt(rgbMatch[1]), parseInt(rgbMatch[2]));
+          } else {
+            doc.setTextColor(0, 0, 0); // Default to black
+          }
+        } else if (Array.isArray(currentTextColor)) {
+          const colorArray = currentTextColor as number[];
+          if (colorArray.length >= 3) {
+            doc.setTextColor(colorArray[0], colorArray[1], colorArray[2]);
+          } else {
+            doc.setTextColor(0, 0, 0); // Default to black
+          }
+        } else {
+          doc.setTextColor(0, 0, 0); // Default to black
+        }
+        doc.setFont(currentFont.fontName, currentFont.fontStyle);
+        doc.setFontSize(currentFontSize);
+      }
+
+      console.log('[PDF Watermark] Watermark added successfully');
+    } catch (watermarkError: any) {
+      console.error('[PDF Watermark] Error adding watermark:', watermarkError);
+      // Don't fail PDF generation if watermark fails
+    }
+  }
+
+  return doc;
 }
