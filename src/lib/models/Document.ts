@@ -83,6 +83,7 @@ export interface IDocument extends Document {
   createdBy?: string;
   archived?: boolean;
   linkedDocuments?: string[]; // Parent/child references
+  publicToken?: string; // For public PDF access
 }
 
 const DocumentLineSchema = new Schema({
@@ -165,7 +166,8 @@ const DocumentSchema = new (Schema as any)({
   notesInterne: { type: String },
   createdBy: { type: String },
   archived: { type: Boolean, default: false },
-  linkedDocuments: { type: [String] }
+  linkedDocuments: { type: [String] },
+  publicToken: { type: String, unique: true, sparse: true }
 }, { timestamps: true });
 
 // Indexes

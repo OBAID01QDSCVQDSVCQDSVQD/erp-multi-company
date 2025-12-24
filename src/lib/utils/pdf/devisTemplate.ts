@@ -179,7 +179,7 @@ function drawLogo(doc: jsPDF, base64: string | undefined, x: number = 15, y: num
 
     // Determine format from base64
     const format = base64.split(',')[0].split('/')[1].split(';')[0].toUpperCase();
-    doc.addImage(base64, format, x, y, w, h);
+    doc.addImage(base64, format, x, y, w, h, undefined, 'FAST');
 
     return y + h;
   } catch (error) {
@@ -206,7 +206,7 @@ function drawStamp(doc: jsPDF, base64: string | undefined, x: number, y: number,
 
     // Determine format
     const format = base64.split(',')[0].split('/')[1].split(';')[0].toUpperCase();
-    doc.addImage(base64, format, x, y, finalW, finalH);
+    doc.addImage(base64, format, x, y, finalW, finalH, undefined, 'FAST');
   } catch (error) {
     console.error('Error adding stamp:', error);
   }
@@ -920,7 +920,12 @@ function drawFooter(doc: jsPDF, companyInfo: CompanyInfo, footerY: number, pageN
 }
 
 export function generateDevisPdf(quoteData: QuoteData, companyInfo: CompanyInfo): jsPDF {
-  const doc = new jsPDF('p', 'mm', 'a4');
+  const doc = new jsPDF({
+    orientation: 'p',
+    unit: 'mm',
+    format: 'a4',
+    compress: true
+  });
   const pageHeight = 297; // ارتفاع A4 بالمليمتر
   const footerY = 280; // موضع ثابت للتذييل عند 280mm من الأعلى
   const topMargin = 10; // هامش علوي
