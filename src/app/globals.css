@@ -3,65 +3,100 @@
 @tailwind utilities;
 
 @layer base {
-  html {
-    font-family: 'Inter', system-ui, sans-serif;
-  }
-  
-  :root {
-    --chart-grid: #F3F4F6;
-    --chart-text: #6B7280;
-    --chart-tooltip-bg: #FFFFFF;
-    --chart-tooltip-border: #E5E7EB;
-    --chart-tooltip-text: #111827;
-  }
+    html {
+        font-family: 'Inter', system-ui, sans-serif;
+    }
 
-  .dark {
-    --chart-grid: #374151;
-    --chart-text: #9CA3AF;
-    --chart-tooltip-bg: #1F2937;
-    --chart-tooltip-border: #374151;
-    --chart-tooltip-text: #F9FAFB;
-  }
+    :root {
+        --chart-grid: #F3F4F6;
+        --chart-text: #6B7280;
+        --chart-tooltip-bg: #FFFFFF;
+        --chart-tooltip-border: #E5E7EB;
+        --chart-tooltip-text: #111827;
+    }
+
+    .dark {
+        --chart-grid: #374151;
+        --chart-text: #9CA3AF;
+        --chart-tooltip-bg: #1F2937;
+        --chart-tooltip-border: #374151;
+        --chart-tooltip-text: #F9FAFB;
+    }
+}
+
+/* Custom Scrollbar Styles */
+@layer utilities {
+
+    /* Chrome, Safari and Opera */
+    ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+        @apply bg-transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        @apply bg-gray-300 rounded-full hover:bg-gray-400 transition-colors;
+    }
+
+    .dark ::-webkit-scrollbar-thumb {
+        @apply bg-gray-700 hover:bg-gray-600;
+    }
+
+    /* Hide scrollbar for Chrome, Safari and Opera */
+    .scrollbar-hide::-webkit-scrollbar {
+        display: none;
+    }
+
+    /* Hide scrollbar for IE, Edge and Firefox */
+    .scrollbar-hide {
+        -ms-overflow-style: none;
+        /* IE and Edge */
+        scrollbar-width: none;
+        /* Firefox */
+    }
 }
 
 @layer components {
-  .btn-primary {
-    @apply inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500;
-  }
-  
-  .btn-secondary {
-    @apply inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500;
-  }
-  
-  .form-input {
-    @apply block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm;
-  }
-  
-  .form-label {
-    @apply block text-sm font-medium text-gray-700;
-  }
-  
-  .card {
-    @apply bg-white shadow rounded-lg p-6;
-  }
-  
-  .badge {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
-  }
-  
-  .badge-success {
-    @apply bg-green-100 text-green-800;
-  }
-  
-  .badge-warning {
-    @apply bg-yellow-100 text-yellow-800;
-  }
-  
-  .badge-error {
-    @apply bg-red-100 text-red-800;
-  }
-  
-  .badge-info {
-    @apply bg-blue-100 text-blue-800;
-  }
+    .btn-primary {
+        @apply inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500;
+    }
+
+    .btn-secondary {
+        @apply inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500;
+    }
+
+    .form-input {
+        @apply block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm;
+    }
+
+    .form-label {
+        @apply block text-sm font-medium text-gray-700;
+    }
+
+    .card {
+        @apply bg-white shadow rounded-lg p-6;
+    }
+
+    .badge {
+        @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+    }
+
+    .badge-success {
+        @apply bg-green-100 text-green-800;
+    }
+
+    .badge-warning {
+        @apply bg-yellow-100 text-yellow-800;
+    }
+
+    .badge-error {
+        @apply bg-red-100 text-red-800;
+    }
+
+    .badge-info {
+        @apply bg-blue-100 text-blue-800;
+    }
 }
