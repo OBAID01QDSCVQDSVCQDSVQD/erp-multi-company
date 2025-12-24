@@ -59,6 +59,12 @@ export interface IDocument extends Document {
   netAPayer: number;
   totalTVADeductible?: number; // For purchases
   remiseGlobalePct?: number; // Global discount percentage
+  totalFodec?: number;
+  fodec?: {
+    enabled: boolean;
+    tauxPct?: number;
+    montant?: number;
+  };
 
   // Settings
   devise?: string;
@@ -132,6 +138,13 @@ const DocumentSchema = new (Schema as any)({
   totalTVADeductible: { type: Number, default: 0 },
   remiseGlobalePct: { type: Number, default: 0, min: 0, max: 100 },
 
+  fodec: {
+    enabled: { type: Boolean, default: false },
+    tauxPct: { type: Number, default: 1 },
+    montant: { type: Number, default: 0 }
+  },
+  totalFodec: { type: Number, default: 0 },
+
   devise: { type: String, default: 'TND' },
   tauxChange: { type: Number, default: 1 },
   lieuLivraison: { type: String },
@@ -140,6 +153,13 @@ const DocumentSchema = new (Schema as any)({
 
   modePaiement: { type: String },
   conditionsPaiement: { type: String },
+
+  paiements: [{
+    date: Date,
+    montant: Number,
+    mode: String,
+    notes: String
+  }],
 
   notes: { type: String },
   notesInterne: { type: String },

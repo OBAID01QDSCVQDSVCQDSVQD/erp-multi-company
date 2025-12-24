@@ -7,6 +7,7 @@ export interface IReceptionLine {
   uom?: string;
   qteCommandee?: number;
   qteRecue: number;
+  qteRetournee?: number;
   prixUnitaireHT?: number;
   remisePct?: number;
   tvaPct?: number;
@@ -50,6 +51,7 @@ const ReceptionLineSchema = new Schema({
   uom: { type: String, default: 'PCE' },
   qteCommandee: { type: Number, min: 0 },
   qteRecue: { type: Number, required: true, min: 0 },
+  qteRetournee: { type: Number, default: 0, min: 0 },
   prixUnitaireHT: { type: Number, min: 0 },
   remisePct: { type: Number, default: 0, min: 0, max: 100 },
   tvaPct: { type: Number, min: 0, max: 100 },

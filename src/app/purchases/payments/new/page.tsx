@@ -63,6 +63,8 @@ export default function NewPurchasePaymentPage() {
   const [selectedInvoices, setSelectedInvoices] = useState<{ [key: string]: UnpaidInvoice & { montantPayeInput: number } }>({});
   const [unpaidInvoices, setUnpaidInvoices] = useState<UnpaidInvoice[]>([]);
   const [images, setImages] = useState<ImageData[]>([]);
+  const [availableAvoirs, setAvailableAvoirs] = useState<any[]>([]);
+  const [selectedAvoir, setSelectedAvoir] = useState<string>('');
 
   useEffect(() => {
     if (tenantId) {
@@ -73,11 +75,29 @@ export default function NewPurchasePaymentPage() {
   useEffect(() => {
     if (tenantId && formData.fournisseurId) {
       fetchUnpaidInvoices();
+      fetchAvailableAvoirs();
     } else {
       setUnpaidInvoices([]);
       setSelectedInvoices({});
+      setAvailableAvoirs([]);
+      setSelectedAvoir('');
     }
   }, [tenantId, formData.fournisseurId]);
+
+  // Handle Avoir Selection Auto-fill
+  useEffect(() => {
+    if (paymentType === 'onAccount' && selectedAvoir) {
+      const avoir = availableAvoirs.find(a => a._id === selectedAvoir);
+      if (avoir) {
+        setMontantOnAccount(avoir.soldeRestant);
+        setFormData(prev => ({
+          ...prev,
+          reference: prev.reference || `Conversion ${avoir.numero}`,
+          notes: prev.notes || `Conversion de l'avoir ${avoir.numero} en solde avance`
+        }));
+      }
+    }
+  }, [selectedAvoir, paymentType, availableAvoirs]);
 
   async function fetchSuppliers() {
     if (!tenantId) return;
@@ -91,6 +111,20 @@ export default function NewPurchasePaymentPage() {
       }
     } catch (error) {
       console.error('Error fetching suppliers:', error);
+    }
+  }
+
+  async function fetchAvailableAvoirs() {
+    if (!tenantId || !formData.fournisseurId) return;
+    try {
+      const response = await fetch(`/api/purchases/credit-notes/available?supplierId=${formData.fournisseurId}`, {
+        headers: { 'X-Tenant-Id': tenantId },
+      });
+      if (response.ok) {
+        setAvailableAvoirs(await response.json());
+      }
+    } catch (error) {
+      console.error('Error fetching avoirs:', error);
     }
   }
 
@@ -219,7 +253,16 @@ export default function NewPurchasePaymentPage() {
       if (!prev[invoiceId]) return prev;
       const invoice = prev[invoiceId];
       const maxAmount = invoice.soldeRestant;
-      const newAmount = Math.max(0, Math.min(amount, maxAmount));
+
+      let newAmount = amount;
+      if (maxAmount < 0) {
+        // Avoir: Amount should be between maxAmount (e.g. -200) and 0
+        newAmount = Math.max(maxAmount, Math.min(0, amount));
+      } else {
+        // Invoice: Amount between 0 and maxAmount (e.g. 1000)
+        newAmount = Math.max(0, Math.min(amount, maxAmount));
+      }
+
       return {
         ...prev,
         [invoiceId]: {
@@ -246,10 +289,7 @@ export default function NewPurchasePaymentPage() {
     }
 
     const total = calculateTotal();
-    if (total <= 0) {
-      toast.error('Le montant total doit être supérieur à zéro');
-      return;
-    }
+    // Removed strict total > 0 check to allow offsets (total = 0) and refunds (total < 0)
 
     if (paymentType === 'invoices' && Object.keys(selectedInvoices).length === 0) {
       toast.error('Veuillez sélectionner au moins une facture');
@@ -272,6 +312,9 @@ export default function NewPurchasePaymentPage() {
         payload.isPaymentOnAccount = true;
         payload.montantOnAccount = montantOnAccount;
         payload.lignes = [];
+        if (selectedAvoir) {
+          payload.sourceAvoirId = selectedAvoir;
+        }
       } else {
         payload.isPaymentOnAccount = false;
         payload.lignes = Object.values(selectedInvoices).map(inv => ({
@@ -490,24 +533,54 @@ export default function NewPurchasePaymentPage() {
 
               {/* Payment on Account */}
               {paymentType === 'onAccount' && (
-                <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                  <label htmlFor="montantOnAccount" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Montant du paiement sur compte *
-                  </label>
-                  <input
-                    type="number"
-                    id="montantOnAccount"
-                    min="0"
-                    step="0.001"
-                    value={montantOnAccount || ''}
-                    onChange={(e) => setMontantOnAccount(parseFloat(e.target.value) || 0)}
-                    className="w-full md:w-64 px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
-                    placeholder="0.000"
-                    required
-                  />
-                  <p className="mt-2 text-xs text-gray-600 dark:text-gray-400">
-                    Ce montant sera déduit du solde du fournisseur sans être lié à une facture spécifique.
-                  </p>
+                <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg space-y-4">
+
+                  {/* Avoir Selection */}
+                  {availableAvoirs.length > 0 && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Convertir un Avoir (Optionnel)
+                      </label>
+                      <select
+                        value={selectedAvoir}
+                        onChange={(e) => setSelectedAvoir(e.target.value)}
+                        className="w-full md:w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                      >
+                        <option value="">-- Aucun (Paiement standard) --</option>
+                        {availableAvoirs.map(avoir => (
+                          <option key={avoir._id} value={avoir._id}>
+                            {avoir.numero} - Reste: {avoir.soldeRestant.toFixed(3)} DT (Total: {avoir.montantTotal.toFixed(3)})
+                          </option>
+                        ))}
+                      </select>
+                      <p className="mt-1 text-xs text-blue-600 dark:text-blue-400">
+                        Sélectionnez un avoir pour convertir son solde restant en avance fournisseur.
+                      </p>
+                    </div>
+                  )}
+
+                  <div>
+                    <label htmlFor="montantOnAccount" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Montant du paiement sur compte *
+                    </label>
+                    <input
+                      type="number"
+                      id="montantOnAccount"
+                      min="0"
+                      step="0.001"
+                      value={montantOnAccount || ''}
+                      onChange={(e) => setMontantOnAccount(parseFloat(e.target.value) || 0)}
+                      readOnly={!!selectedAvoir} // Lock amount if converting avoir
+                      className={`w-full md:w-64 px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 ${selectedAvoir ? 'bg-gray-100 dark:bg-gray-800 cursor-not-allowed' : ''}`}
+                      placeholder="0.000"
+                      required
+                    />
+                    <p className="mt-2 text-xs text-gray-600 dark:text-gray-400">
+                      {selectedAvoir
+                        ? "Le montant correspond au solde restant de l'avoir sélectionné."
+                        : "Ce montant sera déduit du solde du fournisseur sans être lié à une facture spécifique."}
+                    </p>
+                  </div>
                 </div>
               )}
 
@@ -574,8 +647,8 @@ export default function NewPurchasePaymentPage() {
                                     {isSelected ? (
                                       <input
                                         type="number"
-                                        min="0"
-                                        max={invoice.soldeRestant}
+                                        min={invoice.soldeRestant < 0 ? invoice.soldeRestant : 0}
+                                        max={invoice.soldeRestant < 0 ? 0 : invoice.soldeRestant}
                                         step="0.001"
                                         value={selectedInvoice.montantPayeInput || 0}
                                         onChange={(e) => updatePaymentAmount(invoice._id, parseFloat(e.target.value) || 0)}
@@ -590,14 +663,45 @@ export default function NewPurchasePaymentPage() {
                             })}
                           </tbody>
                           <tfoot className="bg-gray-50 dark:bg-gray-700">
-                            <tr>
-                              <td colSpan={6} className="px-4 py-3 text-right text-sm font-semibold text-gray-700 dark:text-gray-300">
-                                Total du paiement:
-                              </td>
-                              <td className="px-4 py-3 text-right text-sm font-bold text-blue-600 dark:text-blue-400">
-                                {total.toFixed(3)} DT
-                              </td>
-                            </tr>
+                            {(() => {
+                              const totalPositive = Object.values(selectedInvoices)
+                                .reduce((sum, inv) => sum + Math.max(0, inv.montantPayeInput || 0), 0);
+                              const totalNegative = Object.values(selectedInvoices)
+                                .reduce((sum, inv) => sum + Math.min(0, inv.montantPayeInput || 0), 0);
+
+                              return (
+                                <>
+                                  {totalNegative < 0 && (
+                                    <>
+                                      <tr>
+                                        <td colSpan={6} className="px-4 py-1 text-right text-xs text-gray-500 dark:text-gray-400 border-none">
+                                          Total Factures:
+                                        </td>
+                                        <td className="px-4 py-1 text-right text-xs font-medium text-gray-900 dark:text-white border-none">
+                                          {totalPositive.toFixed(3)} DT
+                                        </td>
+                                      </tr>
+                                      <tr>
+                                        <td colSpan={6} className="px-4 py-1 text-right text-xs text-gray-500 dark:text-gray-400 border-none">
+                                          Total Avoirs déduits:
+                                        </td>
+                                        <td className="px-4 py-1 text-right text-xs font-medium text-red-600 dark:text-red-400 border-none">
+                                          {totalNegative.toFixed(3)} DT
+                                        </td>
+                                      </tr>
+                                    </>
+                                  )}
+                                  <tr>
+                                    <td colSpan={6} className="px-4 py-3 text-right text-sm font-semibold text-gray-700 dark:text-gray-300 border-t border-gray-200 dark:border-gray-600">
+                                      {totalNegative < 0 ? 'Net à payer (Total):' : 'Total du paiement:'}
+                                    </td>
+                                    <td className="px-4 py-3 text-right text-sm font-bold text-blue-600 dark:text-blue-400 border-t border-gray-200 dark:border-gray-600">
+                                      {total.toFixed(3)} DT
+                                    </td>
+                                  </tr>
+                                </>
+                              );
+                            })()}
                           </tfoot>
                         </table>
                       </div>
@@ -647,8 +751,8 @@ export default function NewPurchasePaymentPage() {
                                       <label className="block text-xs font-medium text-blue-700 dark:text-blue-300 mb-1">Montant à payer</label>
                                       <input
                                         type="number"
-                                        min="0"
-                                        max={invoice.soldeRestant}
+                                        min={invoice.soldeRestant < 0 ? invoice.soldeRestant : 0}
+                                        max={invoice.soldeRestant < 0 ? 0 : invoice.soldeRestant}
                                         step="0.001"
                                         value={selectedInvoice.montantPayeInput || 0}
                                         onChange={(e) => updatePaymentAmount(invoice._id, parseFloat(e.target.value) || 0)}
@@ -685,7 +789,7 @@ export default function NewPurchasePaymentPage() {
             </button>
             <button
               onClick={handleSave}
-              disabled={saving || total <= 0}
+              disabled={saving || (paymentType === 'onAccount' ? total <= 0 : Object.keys(selectedInvoices).length === 0)}
               className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {saving ? 'Enregistrement...' : 'Enregistrer le paiement'}

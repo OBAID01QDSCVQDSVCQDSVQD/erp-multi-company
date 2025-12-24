@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import Reception from '@/lib/models/Reception';
+import PurchaseInvoice from '@/lib/models/PurchaseInvoice';
 import PurchaseOrder from '@/lib/models/PurchaseOrder';
 import Supplier from '@/lib/models/Supplier';
 import Product from '@/lib/models/Product';
@@ -29,7 +30,32 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '50');
 
+    const excludeBilled = searchParams.get('excludeBilled') === 'true';
+
     const query: any = { societeId: tenantId };
+
+    if (excludeBilled) {
+      // Find all invoices that are NOT draft/cancelled to find billed BRs
+      const billedInvoices = await (PurchaseInvoice as any)
+        .find({
+          societeId: tenantId,
+          statut: { $in: ['VALIDEE', 'PAYEE', 'PARTIELLEMENT_PAYEE'] },
+          bonsReceptionIds: { $exists: true, $not: { $size: 0 } },
+        })
+        .select('bonsReceptionIds')
+        .lean();
+
+      const billedBrIds = billedInvoices.reduce((acc: any[], inv: any) => {
+        if (inv.bonsReceptionIds && Array.isArray(inv.bonsReceptionIds)) {
+          return [...acc, ...inv.bonsReceptionIds];
+        }
+        return acc;
+      }, []);
+
+      if (billedBrIds.length > 0) {
+        query._id = { $nin: billedBrIds };
+      }
+    }
 
     if (statut) {
       query.statut = statut;

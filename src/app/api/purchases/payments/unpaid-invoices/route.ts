@@ -24,10 +24,12 @@ export async function GET(request: NextRequest) {
     }
 
     // Get all invoices for this supplier (excluding ANNULEE)
+    // Only fetch Purchase Invoices, NO AVOIRS here.
     const query: any = {
       societeId: new mongoose.Types.ObjectId(tenantId),
       fournisseurId: fournisseurId,
       statut: { $nin: ['ANNULEE'] },
+      type: { $ne: 'AVOIRFO' } // Exclude legacy avoirs too just in case
     };
 
     const invoices = await (PurchaseInvoice as any).find(query)
@@ -54,8 +56,10 @@ export async function GET(request: NextRequest) {
 
         const montantTotal = invoice.totaux?.totalTTC || 0;
         const soldeRestant = montantTotal - montantPaye;
-        const estPayee = montantPaye >= montantTotal;
-        const estPartiellementPayee = montantPaye > 0 && montantPaye < montantTotal;
+
+        // Check if fully paid (tolerant of floating point)
+        const estPayee = Math.abs(soldeRestant) < 0.005;
+        const estPartiellementPayee = !estPayee && Math.abs(montantPaye) > 0.005;
 
         return {
           _id: invoice._id,
@@ -64,7 +68,7 @@ export async function GET(request: NextRequest) {
           referenceFournisseur: invoice.referenceFournisseur,
           montantTotal,
           montantPaye,
-          soldeRestant: Math.max(0, soldeRestant),
+          soldeRestant: Math.max(0, soldeRestant), // Ensure not negative
           statut: invoice.statut,
           estPayee,
           estPartiellementPayee,
@@ -86,11 +90,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-
-
-
-
-
-
-
-

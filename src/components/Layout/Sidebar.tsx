@@ -64,6 +64,7 @@ const navigation = [
       { name: 'Bons de réception', href: '/purchases/receipts', icon: ClipboardDocumentCheckIcon, permission: 'receipts' },
       { name: 'Retours achats', href: '/purchases/returns', icon: ArrowUturnLeftIcon, permission: 'receipts' },
       { name: 'Factures fournisseurs', href: '/purchases/invoices', icon: DocumentTextIcon, permission: 'purchase_invoices' },
+      { name: 'Avoirs fournisseurs', href: '/purchases/credit-notes', icon: ArrowUturnLeftIcon, permission: 'purchase_invoices' },
       { name: 'Paiements fournisseurs', href: '/purchases/payments', icon: BanknotesIcon, permission: 'supplier_payments' },
       { name: 'Soldes fournisseurs', href: '/suppliers/balances', icon: BanknotesIcon, permission: 'supplier_balances' },
     ]

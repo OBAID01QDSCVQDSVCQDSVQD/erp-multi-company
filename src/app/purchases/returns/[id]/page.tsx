@@ -87,14 +87,90 @@ export default function PurchaseReturnDetailsPage({ params }: { params: { id: st
         }
     };
 
-    const handlePrint = () => {
-        toast('Fonctionnalité d\'impression à venir');
-        // TODO: Implement PDF generation
+    const handlePrint = async () => {
+        try {
+            const toastId = toast.loading('Génération du PDF...');
+            const response = await fetch(`/api/purchases/returns/${id}/pdf`, {
+                headers: {
+                    'X-Tenant-Id': tenantId || '',
+                },
+            });
+
+            toast.dismiss(toastId);
+
+            if (response.ok) {
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                window.open(url, '_blank');
+            } else {
+                toast.error('Erreur lors de la génération du PDF');
+            }
+        } catch (error) {
+            console.error('Error printing:', error);
+            toast.error('Erreur lors de l\'impression');
+        }
     };
 
     const getSupplierName = (supplier: any) => {
         if (!supplier) return 'N/A';
         return supplier.raisonSociale || `${supplier.nom || ''} ${supplier.prenom || ''}`.trim() || 'N/A';
+    };
+
+    const handleValidate = async () => {
+        if (!confirm('Êtes-vous sûr de vouloir valider ce retour ? Cette action est irréversible.')) return;
+
+        try {
+            const toastId = toast.loading('Validation en cours...');
+            const response = await fetch(`/api/purchases/returns/${id}/validate`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Tenant-Id': tenantId || '',
+                },
+            });
+
+            toast.dismiss(toastId);
+
+            if (response.ok) {
+                const result = await response.json();
+                toast.success('Retour validé avec succès');
+                if (result.financialAction === 'CREDIT_NOTE_CREATED') {
+                    toast.success('Avoir fournisseur généré automatiquement', { duration: 5000 });
+                } else if (result.financialAction === 'INVOICE_ADJUSTED') {
+                    toast.success('Facture brouillon ajustée', { duration: 5000 });
+                }
+                fetchReturnDetails(); // Refresh data
+            } else {
+                const errorData = await response.json();
+                toast.error(errorData.error || 'Erreur lors de la validation');
+            }
+        } catch (error) {
+            console.error('Error validating:', error);
+            toast.error('Erreur de connexion');
+        }
+    };
+
+    const getStatusBadge = (statut: string) => {
+        switch (statut) {
+            case 'VALIDEE':
+                return (
+                    <span className="inline-flex px-3 py-1 text-sm font-medium rounded-full bg-green-100 text-green-800">
+                        Validé
+                    </span>
+                );
+            case 'BROUILLON':
+                return (
+                    <span className="inline-flex px-3 py-1 text-sm font-medium rounded-full bg-gray-100 text-gray-800">
+                        Brouillon
+                    </span>
+                );
+            default:
+                return (
+                    <span className="inline-flex px-3 py-1 text-sm font-medium rounded-full bg-gray-100 text-gray-800">
+                        {statut}
+                    </span>
+                );
+        }
     };
 
     if (loading) {
@@ -124,22 +200,30 @@ export default function PurchaseReturnDetailsPage({ params }: { params: { id: st
                         <div>
                             <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
                                 {returnDoc.numero}
-                                <span className="inline-flex px-3 py-1 text-sm font-medium rounded-full bg-green-100 text-green-800">
-                                    Validé
-                                </span>
+                                {getStatusBadge(returnDoc.statut)}
                             </h1>
                             <p className="text-sm text-gray-500 dark:text-gray-400">
                                 Créé le {new Date(returnDoc.dateDoc).toLocaleDateString('fr-FR')}
                             </p>
                         </div>
                     </div>
-                    <button
-                        onClick={handlePrint}
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                    >
-                        <PrinterIcon className="w-5 h-5" />
-                        Imprimer
-                    </button>
+                    <div className="flex gap-2">
+                        {returnDoc.statut === 'BROUILLON' && (
+                            <button
+                                onClick={handleValidate}
+                                className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                            >
+                                Valider
+                            </button>
+                        )}
+                        <button
+                            onClick={handlePrint}
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                        >
+                            <PrinterIcon className="w-5 h-5" />
+                            Imprimer
+                        </button>
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

@@ -17,7 +17,7 @@ function calculateDateEcheance(dateFacture: Date, conditionsPaiement?: string): 
   }
 
   const terms = conditionsPaiement.toLowerCase().trim();
-  
+
   // Parse patterns like "30 jours", "60 jours", etc.
   const joursMatch = terms.match(/(\d+)\s*jours?/);
   if (joursMatch) {
@@ -105,7 +105,7 @@ export async function GET(request: NextRequest) {
 
     // Get all payments
     // Note: PaiementFournisseur uses ObjectId for societeId and fournisseurId
-    const paymentQuery: any = { 
+    const paymentQuery: any = {
       societeId: new mongoose.Types.ObjectId(tenantId)
     };
     if (fournisseurId) {
@@ -119,10 +119,10 @@ export async function GET(request: NextRequest) {
     const invoicePayments: { [key: string]: number } = {};
     const paymentsOnAccount: { [key: string]: number } = {}; // Track payments on account per supplier
     const advanceUsed: { [key: string]: number } = {}; // Track advance used per supplier
-    
+
     payments.forEach((payment: any) => {
       const supplierId = payment.fournisseurId.toString();
-      
+
       // Calculate payment total from lignes (source of truth)
       const paymentTotalFromLignes = payment.lignes && Array.isArray(payment.lignes)
         ? payment.lignes.reduce((sum: number, line: any) => sum + (line.montantPaye || 0), 0)
@@ -147,7 +147,7 @@ export async function GET(request: NextRequest) {
           });
         }
       }
-      
+
       // Track advance used (reduces available advance balance)
       if (payment.advanceUsed && payment.advanceUsed > 0) {
         advanceUsed[supplierId] = (advanceUsed[supplierId] || 0) + payment.advanceUsed;
@@ -289,10 +289,10 @@ export async function GET(request: NextRequest) {
       const totalAdvanceUsed = advanceUsed[supplierId] || 0;
       // Round to 3 decimal places to avoid floating point issues
       const netAdvanceBalance = Math.round((totalPaymentsOnAccount - totalAdvanceUsed) * 1000) / 1000;
-      
+
       // Update netAdvanceBalance in supplierBalances (for display only)
       supplierBalances[supplierId].netAdvanceBalance = netAdvanceBalance;
-      
+
       // soldeDu is already correct and doesn't need adjustment
       // It's calculated from soldeRestant which already accounts for all payments (including advance usage)
     });

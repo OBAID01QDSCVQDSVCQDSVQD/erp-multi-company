@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import PurchaseInvoice from '@/lib/models/PurchaseInvoice';
+import Document from '@/lib/models/Document';
 import PaiementFournisseur from '@/lib/models/PaiementFournisseur';
 import PurchaseOrder from '@/lib/models/PurchaseOrder';
 import Reception from '@/lib/models/Reception';
@@ -142,10 +143,6 @@ export async function GET(
     // 3. Purchase Invoices & Avoirs
     if (!type || type === 'all' || type === 'facture' || type === 'avoir') {
       const query: any = { societeId: tenantId, fournisseurId: id };
-      // Status filter: Originally filtered out cancelled. User likely wants to see them if they search? 
-      // Or keep consistency. Let's keep consistency with original logic but allow if user explicitly wants history?
-      // Original: statut: { $ne: 'ANNULEE' }
-      // We will remove this filter to allow full history visibility as per generic demand.
 
       if (hasDateFilter) query.dateFacture = dateFilter;
       if (search) {
@@ -154,23 +151,22 @@ export async function GET(
           { referenceFournisseur: { $regex: search, $options: 'i' } }
         ];
       }
-      if (type === 'facture') query.type = { $ne: 'AVOIRFO' }; // Assuming type field distinguishes? 
-      // Wait, PurchaseInvoice uses 'type' field? Not explicitly in Interface I copied above, but logic used `isCreditNote` based on type==='AVOIRFO' OR amount < 0.
-      // IPurchaseInvoice interface doesn't show `type`. It shows `statut`, `totaux`. 
-      // Maybe it relies on amount < 0 or implicit?
-      // The original logic: const isCreditNote = invoice.type === 'AVOIRFO' || montantTotal < 0; (line 149 of original file)
-      // If type is not in schema, it might be dynamically set or I missed it. I'll rely on fetching all and filtering in loop.
+      if (type === 'facture') query.type = { $ne: 'AVOIRFO' }; // Keep filtering invoices
 
-      const invoices = await (PurchaseInvoice as any).find(query).lean();
+      // Avoir Query (Document model)
+      const avoirQuery: any = { tenantId: tenantId, supplierId: id, type: 'AVOIRFO', statut: { $ne: 'ANNULEE' } };
+      if (hasDateFilter) avoirQuery.dateDoc = dateFilter;
+      if (search) avoirQuery.numero = { $regex: search, $options: 'i' };
 
-      // Need payments to calc detailed Invoice status (paid/unpaid)
-      // We fetch ALL payments for this supplier to be safe/simple, or optimize?
-      // Optimization: Fetch only for these invoices? 
-      // Simpler: Fetch all payments for supplier.
-      const allPayments = await (PaiementFournisseur as any).find({
-        societeId: new mongoose.Types.ObjectId(tenantId),
-        fournisseurId: supplierObjectId // ID as ObjectId
-      }).lean();
+      // Fetch parallel
+      const [invoices, avoirdocs, allPayments] = await Promise.all([
+        (PurchaseInvoice as any).find(query).lean(),
+        Document.find(avoirQuery).lean(),
+        (PaiementFournisseur as any).find({
+          societeId: new mongoose.Types.ObjectId(tenantId),
+          fournisseurId: supplierObjectId
+        }).lean()
+      ]);
 
       const invoicePaymentsMap: { [key: string]: number } = {};
       allPayments.forEach((p: any) => {
@@ -183,13 +179,15 @@ export async function GET(
         }
       });
 
+      // Process Invoices
       invoices.forEach((invoice: any) => {
         const montantTotal = (invoice.totalTTC ?? invoice.totaux?.totalTTC) || 0;
         const isCreditNote = invoice.type === 'AVOIRFO' || montantTotal < 0;
 
-        // Filter by type if specified
-        if (type === 'facture' && isCreditNote) return;
+        // Skip if looking for Avoirs only and this is an invoice (unless it's an old-style avoir in PI collection)
         if (type === 'avoir' && !isCreditNote) return;
+        // Skip if looking for Invoices only and this is an old-style avoir
+        if (type === 'facture' && isCreditNote) return;
 
         const paid = invoicePaymentsMap[invoice._id.toString()] || 0;
         const montantPaye = Math.abs(paid);
@@ -212,6 +210,43 @@ export async function GET(
           documentType: 'PurchaseInvoice'
         });
       });
+
+      // Process New Avoirs (Document model)
+      if (type !== 'facture') {
+        avoirdocs.forEach((avoir: any) => {
+          let paid = invoicePaymentsMap[avoir._id.toString()] || 0;
+
+          // Add conversion payments which are not in invoicePaymentsMap
+          if (avoir.paiements && Array.isArray(avoir.paiements)) {
+            avoir.paiements.forEach((p: any) => {
+              if (p.mode === 'Conversion vers Solde') {
+                paid += (p.montant || 0);
+              }
+            });
+          }
+
+          const montantPaye = Math.abs(paid);
+          const total = avoir.totalTTC || 0;
+          // Solde is negative of (Total - Used)
+          const solde = -(total - montantPaye);
+
+          transactions.push({
+            id: avoir._id.toString(),
+            type: 'avoir',
+            numero: avoir.numero,
+            reference: avoir.referenceExterne || '',
+            date: avoir.dateDoc,
+            dateEcheance: null,
+            montant: total,
+            montantPaye: montantPaye,
+            soldeRestant: solde,
+            statut: avoir.statut,
+            devise: avoir.devise || 'TND',
+            notes: avoir.notes || '',
+            documentType: 'Document'
+          });
+        });
+      }
     }
 
     // 4. Payments
@@ -308,22 +343,62 @@ export async function GET(
       if (curr._id === 'avoir') summary.totalAvoirs = curr.total;
     });
 
+    // New Document Aggregation for Avoirs (from 'documents' collection)
+    const documentAgg = await Document.aggregate([
+      { $match: { tenantId: tenantId, supplierId: id, type: 'AVOIRFO', statut: 'VALIDEE' } },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: "$totalTTC" }
+        }
+      }
+    ]);
+
+    if (documentAgg.length > 0) {
+      summary.totalAvoirs += documentAgg[0].total;
+    }
+
     const paymentAgg = await (PaiementFournisseur as any).aggregate([
       { $match: { societeId: new mongoose.Types.ObjectId(tenantId), fournisseurId: new mongoose.Types.ObjectId(id) } },
       {
         $group: {
           _id: null,
-          total: { $sum: "$montantTotal" },
-          // We need details to separate on-account? Complex.
-          // Let's simplify: Total Payments = sum of all payments.
+          totalRaw: { $sum: "$montantTotal" },
+          totalAdvanceUsed: { $sum: { $ifNull: ["$advanceUsed", 0] } },
+          totalOnAccount: {
+            $sum: {
+              $cond: [{ $eq: ["$isPaymentOnAccount", true] }, "$montantTotal", 0]
+            }
+          }
         }
       }
     ]);
-    if (paymentAgg.length > 0) summary.totalPaiements = paymentAgg[0].total; // This includes onAccount, unlike original logic which tried to exclude.
-    // Original logic: totalPaiements excluded isPaymentOnAccount. 
-    // And soldeAvance used isPaymentOnAccount.
-    // I will leave summary as approx or 0 for now to avoid breaking constraints, user can rely on list.
-    // Or just return 0s to avoid error.
+
+    let totalPaiementsRaw = 0;
+    let totalAdvanceUsed = 0;
+    let totalOnAccount = 0;
+
+    if (paymentAgg.length > 0) {
+      totalPaiementsRaw = paymentAgg[0].totalRaw || 0;
+      totalAdvanceUsed = paymentAgg[0].totalAdvanceUsed || 0;
+      totalOnAccount = paymentAgg[0].totalOnAccount || 0;
+    }
+
+    // Correct Formulas
+    // Cash Out (Real Money Paid) = Raw Payments - Advance Usages (Internal Transfers)
+    summary.totalPaiements = totalPaiementsRaw - totalAdvanceUsed;
+
+    // Unpaid Invoices Amount = Invoices - Avoirs - (Payments applied to invoices)
+    // Payments applied to invoices = Raw Payments - OnAccount Payments
+    const paymentsToInvoices = totalPaiementsRaw - totalOnAccount;
+    // Don't cap at 0 just in case data is weird, but mathematically should be >= 0 usually
+    summary.facturesOuvertes = summary.totalFactures - summary.totalAvoirs - paymentsToInvoices;
+
+    // Available Advance = OnAccount Payments - Used Advances
+    summary.soldeAvanceDisponible = Math.max(0, totalOnAccount - totalAdvanceUsed);
+
+    // Net Balance (What we owe properly) = Invoices - Avoirs - Cash Paid
+    summary.soldeActuel = summary.totalFactures - summary.totalAvoirs - summary.totalPaiements;
 
     return NextResponse.json({
       supplier: {
@@ -333,7 +408,7 @@ export async function GET(
         telephone: supplier.telephone
       },
       transactions: paginatedTransactions,
-      summary: summary, // Simplified summary
+      summary: summary,
       pagination: {
         page,
         limit,

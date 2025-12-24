@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import PaiementFournisseur from '@/lib/models/PaiementFournisseur';
 import PurchaseInvoice from '@/lib/models/PurchaseInvoice';
+import Document from '@/lib/models/Document';
 import Supplier from '@/lib/models/Supplier';
 import { NumberingService } from '@/lib/services/NumberingService';
 import mongoose from 'mongoose';
@@ -518,36 +519,72 @@ export async function POST(request: NextRequest) {
     // The calculation of netAdvanceBalance in /api/suppliers/[id]/balance will automatically
     // show the correct remaining balance by subtracting advanceUsed from totalPaymentsOnAccount.
 
-    // Update invoice statuses only if not payment on account
+    // Update Avoir if this was a conversion
+    if (isPaymentOnAccount && body.sourceAvoirId && paiement) {
+      const avoir = await Document.findOne({ _id: body.sourceAvoirId, tenantId: tenantId });
+      if (avoir) {
+        if (!avoir.paiements) avoir.paiements = [];
+        avoir.paiements.push({
+          date: paiement.datePaiement,
+          montant: paiement.montantTotal,
+          mode: 'Conversion vers Solde',
+          notes: `Conversion vers Paiement ${paiement.numero}`
+        });
+
+        const totalUsed = avoir.paiements.reduce((sum: number, p: any) => sum + (p.montant || 0), 0);
+        if (totalUsed >= (avoir.totalTTC || 0) - 0.005) {
+          avoir.statut = 'PAYEE';
+        } else {
+          avoir.statut = 'PARTIELLEMENT_PAYEE';
+        }
+        await avoir.save();
+      }
+    }
+
+    // Update invoice/document statuses only if not payment on account
     if (!isPaymentOnAccount) {
       for (const line of lignes) {
         if (line.factureId && !line.isPaymentOnAccount) {
-          const invoice = await (PurchaseInvoice as any).findOne({
+          // Try finding in PurchaseInvoice first
+          let doc = await (PurchaseInvoice as any).findOne({
             _id: line.factureId,
             societeId: tenantId,
           });
 
-          if (invoice) {
+          // If not found, try Document (for Avoirs)
+          if (!doc) {
+            doc = await Document.findOne({
+              _id: line.factureId,
+              tenantId: tenantId,
+            });
+          }
+
+          if (doc) {
             const totalPaye = (line.montantPayeAvant || 0) + line.montantPaye;
 
-            if (totalPaye >= (line.montantFacture || 0)) {
-              invoice.statut = 'PAYEE';
-            } else if (totalPaye > 0) {
-              invoice.statut = 'PARTIELLEMENT_PAYEE';
+            // Handle both structure types (totaux.totalTTC for Invoice, totalTTC for Document)
+            const totalTTC = doc.totalTTC !== undefined ? doc.totalTTC : (doc.totaux?.totalTTC || 0);
+
+            // Compare absolute values to handle negative Avoir payments
+            // Full payment (or full utilization of credit)
+            if (Math.abs(totalPaye) >= Math.abs(totalTTC) - 0.005) {
+              doc.statut = 'PAYEE';
+            } else if (Math.abs(totalPaye) > 0.005) {
+              doc.statut = 'PARTIELLEMENT_PAYEE';
             }
 
-            // Add payment to invoice payments array if it exists
-            if (!invoice.paiements) {
-              invoice.paiements = [];
+            // Add payment to doc payments array
+            if (!doc.paiements) {
+              doc.paiements = [];
             }
-            invoice.paiements.push({
+            doc.paiements.push({
               date: paiement.datePaiement,
               montant: line.montantPaye,
               mode: paiement.modePaiement,
               notes: `Paiement ${paiement.numero}`,
             });
 
-            await invoice.save();
+            await doc.save();
           }
         }
       }

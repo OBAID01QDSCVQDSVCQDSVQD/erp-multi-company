@@ -22,12 +22,23 @@ interface BR {
     lignes: any[];
 }
 
+interface Invoice {
+    _id: string;
+    numero: string;
+    dateFacture: string;
+    fournisseurId: string;
+    fournisseurNom?: string;
+    warehouseId?: string;
+    lignes: any[];
+    statut: string;
+}
+
 interface ReturnLine {
     productId: string;
     designation: string;
     quantite: number;
     quantiteMax: number;
-    qteRecue: number; // Original quantity received
+    qteRecue: number; // Original quantity received/invoiced
     uom: string;
     prixUnitaireHT: number;
     remisePct: number;
@@ -41,12 +52,16 @@ export default function NewPurchaseReturnPage() {
 
     // Data
     const [brs, setBrs] = useState<BR[]>([]);
+    const [invoices, setInvoices] = useState<Invoice[]>([]);
     const [warehouses, setWarehouses] = useState<any[]>([]);
 
     // Selection
-    const [brSearch, setBrSearch] = useState('');
-    const [showBrDropdown, setShowBrDropdown] = useState(false);
+    const [returnSource, setReturnSource] = useState<'BR' | 'INVOICE'>('BR');
+    const [searchQuery, setSearchQuery] = useState('');
+    const [showDropdown, setShowDropdown] = useState(false);
+
     const [selectedBR, setSelectedBR] = useState<BR | null>(null);
+    const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
 
     // Form
     const [returnLines, setReturnLines] = useState<ReturnLine[]>([]);
@@ -59,14 +74,17 @@ export default function NewPurchaseReturnPage() {
     useEffect(() => {
         if (tenantId) {
             fetchBrs();
+            // Fetch invoices when switching source or eagerly? 
+            // We fetch lazily when user switches to 'INVOICE' OR eagerly if we want.
+            // Let's rely on fetchInvoices being called on toggle.
             fetchWarehouses();
         }
     }, [tenantId]);
 
     const fetchBrs = async () => {
         try {
-            // Fetch only VALIDATED receptions
-            const response = await fetch('/api/purchases/receptions?statut=VALIDE&limit=100', {
+            // Fetch VALIDATED receptions, EXCLUDING those already billed
+            const response = await fetch('/api/purchases/receptions?statut=VALIDE&excludeBilled=true&limit=100', {
                 headers: { 'X-Tenant-Id': tenantId || '' },
             });
             if (response.ok) {
@@ -76,6 +94,45 @@ export default function NewPurchaseReturnPage() {
         } catch (error) {
             console.error('Error fetching BRs:', error);
             toast.error('Erreur lors du chargement des bons de réception');
+        }
+    };
+
+    const fetchInvoices = async () => {
+        try {
+            // Fetch VALIDATED or PAID Invoices
+            // We can fetch 'VALIDEE' and then 'PAYEE' or fetch all and client filter.
+            // API supports single status? Let's assume standard API.
+            // Usually filters are exclusive. Let's fetch all and filter in memory if API is limited,
+            // or check if API supports list of statuses. 
+            // Currently `/api/purchases/invoices` filters strictly by one status.
+            // We will try fetching VALIDEE first.
+            // Ideally modify API to support multi-status, but let's just fetch VALIDEE for now as that's the main case
+            // The user mentioned "Paid" too.
+            // Let's loop fetches or modify API. Given time, I'll fetch VALIDEE.
+            // Actually, I can just fetch all (limit=100) and filter. Or just ask for VALIDEE.
+
+            // Wait, the API I saw earlier supports `statut`. 
+            // I'll fetch all without status filter but large limit and filter client side? 
+            // Or fetch VALIDEE and PAYEE.
+
+            const [res1, res2, res3] = await Promise.all([
+                fetch('/api/purchases/invoices?statut=VALIDEE&limit=50', { headers: { 'X-Tenant-Id': tenantId || '' } }),
+                fetch('/api/purchases/invoices?statut=PAYEE&limit=50', { headers: { 'X-Tenant-Id': tenantId || '' } }),
+                fetch('/api/purchases/invoices?statut=PARTIELLEMENT_PAYEE&limit=50', { headers: { 'X-Tenant-Id': tenantId || '' } })
+            ]);
+
+            let allInvoices: Invoice[] = [];
+            if (res1.ok) { const d = await res1.json(); allInvoices = [...allInvoices, ...(d.items || [])]; }
+            if (res2.ok) { const d = await res2.json(); allInvoices = [...allInvoices, ...(d.items || [])]; }
+            if (res3.ok) { const d = await res3.json(); allInvoices = [...allInvoices, ...(d.items || [])]; }
+
+            // Remove potential duplicates
+            const uniqueInvoices = Array.from(new Map(allInvoices.map(inv => [inv._id, inv])).values());
+
+            setInvoices(uniqueInvoices);
+        } catch (error) {
+            console.error('Error fetching invoices:', error);
+            toast.error('Erreur lors du chargement des factures');
         }
     };
 
@@ -93,48 +150,61 @@ export default function NewPurchaseReturnPage() {
         }
     };
 
-    const filteredBRs = brs.filter((br) => {
-        const searchLower = brSearch.toLowerCase();
-        return br.numero.toLowerCase().includes(searchLower);
-    });
+    const filteredItems = returnSource === 'BR'
+        ? brs.filter(br => br.numero.toLowerCase().includes(searchQuery.toLowerCase()))
+        : invoices.filter(inv => inv.numero.toLowerCase().includes(searchQuery.toLowerCase()));
 
-    const handleSelectBR = async (br: BR) => {
+    const handleSelectBR = (br: BR) => {
         setSelectedBR(br);
-        setBrSearch(br.numero);
-        setShowBrDropdown(false);
+        setSelectedInvoice(null);
+        setSearchQuery(br.numero);
+        setShowDropdown(false);
+        autoSelectWarehouse(br.warehouseId);
+        populateLines(br.lignes);
+    };
 
-        // Auto-select warehouse from BR if available
-        if (br.warehouseId) {
-            setSelectedWarehouseId(br.warehouseId);
+    const handleSelectInvoice = (inv: Invoice) => {
+        setSelectedInvoice(inv);
+        setSelectedBR(null);
+        setSearchQuery(inv.numero);
+        setShowDropdown(false);
+        autoSelectWarehouse(inv.warehouseId);
+        populateLines(inv.lignes);
+    };
+
+    const autoSelectWarehouse = (sourceWarehouseId?: string) => {
+        if (sourceWarehouseId) {
+            setSelectedWarehouseId(sourceWarehouseId);
         } else {
-            // Find default warehouse if possible, or leave empty
-            // Ideally we should find the default warehouse from the list
             const defaultMvt = warehouses.find(w => w.isDefault);
             if (defaultMvt) {
                 setSelectedWarehouseId(defaultMvt._id);
             }
         }
+    };
 
-        // Fetch full BR details including lignes because the list might be lightweight?
-        // Actually our API returns lines, but let's be safe and use the object we have or fetch if needed.
-        // Assuming 'br' from list already has lines. If not, we'd need a specific fetch.
-        // Let's rely on the list data for now as our API /api/purchases/receptions returns lines.
+    const populateLines = (sourceLines: any[]) => {
+        if (sourceLines && Array.isArray(sourceLines) && sourceLines.length > 0) {
+            const lines = sourceLines.map((line: any) => {
+                // Determine quantity (Recue for BR, Facturee/Quantite for Invoice)
+                // For Invoice, line.quantite is the billed quantity.
+                // For BR, line.qteRecue is the received quantity.
+                // We use a generic variable for "max quantity available to return".
+                let maxQty = 0;
 
-        // BUT we need to be careful: the list API implementation I saw earlier does NOT specific select fields, so it returns everything (lean).
-        // So 'br.lignes' should be available.
-
-        if (br.lignes && Array.isArray(br.lignes) && br.lignes.length > 0) {
-            const lines = br.lignes.map((line: any) => {
-                // Use qteRecue as the max returnable quantity
-                const qteRecue = line.qteRecue || 0;
+                if (returnSource === 'BR') {
+                    maxQty = line.qteRecue || 0;
+                } else {
+                    maxQty = line.quantite || 0; // Use invoiced quantity
+                }
 
                 return {
-                    productId: line.productId || '',
+                    productId: line.productId || line.produitId || '',
                     designation: line.designation,
                     quantite: 0,
-                    quantiteMax: qteRecue,
-                    qteRecue: qteRecue,
-                    uom: line.uom || 'PCE',
+                    quantiteMax: maxQty,
+                    qteRecue: maxQty,
+                    uom: line.uom || line.unite || 'PCE',
                     prixUnitaireHT: line.prixUnitaireHT || 0,
                     remisePct: line.remisePct || 0,
                     tvaPct: line.tvaPct || 0,
@@ -143,7 +213,7 @@ export default function NewPurchaseReturnPage() {
             setReturnLines(lines);
         } else {
             setReturnLines([]);
-            toast.error('Ce BR ne contient aucune ligne');
+            toast.error('Ce document ne contient aucune ligne');
         }
     };
 
@@ -161,8 +231,12 @@ export default function NewPurchaseReturnPage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (!selectedBR) {
+        if (returnSource === 'BR' && !selectedBR) {
             toast.error('Veuillez sélectionner un BR');
+            return;
+        }
+        if (returnSource === 'INVOICE' && !selectedInvoice) {
+            toast.error('Veuillez sélectionner une facture');
             return;
         }
 
@@ -179,11 +253,32 @@ export default function NewPurchaseReturnPage() {
 
         setLoading(true);
         try {
-            // Prepare return document
-            const supplierId = typeof selectedBR.fournisseurId === 'object' ? selectedBR.fournisseurId._id : selectedBR.fournisseurId;
+            const supplierId = returnSource === 'BR'
+                ? (typeof selectedBR?.fournisseurId === 'object' ? selectedBR.fournisseurId._id : selectedBR?.fournisseurId)
+                : selectedInvoice?.fournisseurId;
+
+            // Extract financial settings from selected document (if Invoice)
+            // If BR, we might not have them unless we fetched linked purchase order or supplier settings, 
+            // but usually BR doesn't have financials like Fodec/Remise Globale itself (it relies on Invoice).
+            // However, the User wants these on the Return/Credit Note.
+            // If Source is Invoice, we definitely have them.
+
+            let financialSettings = {};
+            if (returnSource === 'INVOICE' && selectedInvoice) {
+                financialSettings = {
+                    remiseGlobalePct: (selectedInvoice as any).remiseGlobalePct || 0,
+                    fodec: (selectedInvoice as any).fodec ? {
+                        enabled: (selectedInvoice as any).fodec.enabled,
+                        tauxPct: (selectedInvoice as any).fodec.tauxPct,
+                        montant: 0 // Will be recalculated
+                    } : undefined,
+                    timbreFiscal: (selectedInvoice as any).timbre ? (selectedInvoice as any).timbre.montant : undefined
+                };
+            }
 
             const returnDoc = {
-                brId: selectedBR._id,
+                brId: selectedBR?._id,
+                invoiceId: selectedInvoice?._id,
                 supplierId: supplierId,
                 warehouseId: selectedWarehouseId,
                 dateDoc: formData.dateDoc,
@@ -197,6 +292,7 @@ export default function NewPurchaseReturnPage() {
                     remisePct: line.remisePct,
                     tvaPct: line.tvaPct,
                 })),
+                ...financialSettings
             };
 
             const response = await fetch('/api/purchases/returns', {
@@ -209,8 +305,8 @@ export default function NewPurchaseReturnPage() {
             });
 
             if (response.ok) {
-                toast.success('Retour achat créé avec succès');
-                router.push('/purchases/returns'); // We need to create this list page too
+                toast.success('Retour achat créé avec succès. Veuillez le valider.');
+                router.push('/purchases/returns');
             } else {
                 const error = await response.json();
                 const errorMessage = error.error || error.details || 'Erreur lors de la création du retour';
@@ -232,50 +328,94 @@ export default function NewPurchaseReturnPage() {
         return 'N/A';
     };
 
+    const selectedDoc = returnSource === 'BR' ? selectedBR : selectedInvoice;
+
     return (
         <DashboardLayout>
             <div className="p-4 sm:p-6 space-y-6">
                 {/* Header */}
-                <div className="flex items-center gap-4">
-                    <button
-                        onClick={() => router.push('/purchases/returns')}
-                        className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                    >
-                        <ArrowLeftIcon className="w-5 h-5 text-gray-600 dark:text-gray-300" />
-                    </button>
-                    <div>
-                        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Nouveau retour achat</h1>
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Créer un bon de retour vers le fournisseur</p>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                        <button
+                            onClick={() => router.push('/purchases/returns')}
+                            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                        >
+                            <ArrowLeftIcon className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+                        </button>
+                        <div>
+                            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Nouveau retour achat</h1>
+                            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Créer un bon de retour vers le fournisseur</p>
+                        </div>
                     </div>
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-6">
-                    {/* BR Selection */}
+                    {/* Source Selection */}
                     <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 space-y-4 border dark:border-gray-700">
-                        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Sélectionner le Bon de Réception (BR)</h2>
+                        <div className="flex items-center justify-between mb-4">
+                            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Source du retour</h2>
 
+                            <div className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setReturnSource('BR');
+                                        setSelectedBR(null);
+                                        setSelectedInvoice(null);
+                                        setReturnLines([]);
+                                        setSearchQuery('');
+                                    }}
+                                    className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${returnSource === 'BR'
+                                        ? 'bg-white dark:bg-gray-600 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                                        : 'text-gray-600 dark:text-gray-300 hover:text-gray-900'
+                                        }`}
+                                >
+                                    Bon de Réception (Non facturé)
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setReturnSource('INVOICE');
+                                        setSelectedBR(null);
+                                        setSelectedInvoice(null);
+                                        setReturnLines([]);
+                                        setSearchQuery('');
+                                        if (invoices.length === 0) fetchInvoices();
+                                    }}
+                                    className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${returnSource === 'INVOICE'
+                                        ? 'bg-white dark:bg-gray-600 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                                        : 'text-gray-600 dark:text-gray-300 hover:text-gray-900'
+                                        }`}
+                                >
+                                    Facture Achat (Validée)
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Generic Document Selection (BR or Invoice) */}
                         <div className="relative">
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                Bon de réception *
+                                {returnSource === 'BR' ? 'Bon de réception' : 'Facture Achat'} *
                             </label>
                             <div className="relative">
                                 <input
                                     type="text"
-                                    value={brSearch}
+                                    value={searchQuery}
                                     onChange={(e) => {
-                                        setBrSearch(e.target.value);
-                                        setShowBrDropdown(true);
+                                        setSearchQuery(e.target.value);
+                                        setShowDropdown(true);
                                     }}
-                                    onFocus={() => setShowBrDropdown(true)}
-                                    placeholder="Rechercher un BR..."
+                                    onFocus={() => setShowDropdown(true)}
+                                    placeholder={returnSource === 'BR' ? "Rechercher un BR..." : "Rechercher une facture..."}
                                     className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                                 />
-                                {selectedBR && (
+                                {selectedDoc && (
                                     <button
                                         type="button"
                                         onClick={() => {
-                                            setSelectedBR(null);
-                                            setBrSearch('');
+                                            if (returnSource === 'BR') setSelectedBR(null);
+                                            else setSelectedInvoice(null);
+                                            setSearchQuery('');
                                             setReturnLines([]);
                                         }}
                                         className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600"
@@ -284,18 +424,18 @@ export default function NewPurchaseReturnPage() {
                                     </button>
                                 )}
 
-                                {showBrDropdown && filteredBRs.length > 0 && (
+                                {showDropdown && filteredItems.length > 0 && (
                                     <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-60 overflow-auto">
-                                        {filteredBRs.map((br) => (
+                                        {filteredItems.map((item: any) => (
                                             <button
-                                                key={br._id}
+                                                key={item._id}
                                                 type="button"
-                                                onClick={() => handleSelectBR(br)}
+                                                onClick={() => returnSource === 'BR' ? handleSelectBR(item) : handleSelectInvoice(item)}
                                                 className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-600 border-b border-gray-200 dark:border-gray-600 last:border-b-0 text-gray-900 dark:text-white"
                                             >
-                                                <div className="font-medium">{br.numero}</div>
+                                                <div className="font-medium">{item.numero}</div>
                                                 <div className="text-sm text-gray-600 dark:text-gray-300">
-                                                    {new Date(br.dateDoc).toLocaleDateString('fr-FR')} - {br.fournisseurNom || getSupplierName(br.fournisseurId)}
+                                                    {new Date(item.dateDoc || item.dateFacture).toLocaleDateString('fr-FR')} - {item.fournisseurNom || getSupplierName(item.fournisseurId)}
                                                 </div>
                                             </button>
                                         ))}
@@ -304,26 +444,26 @@ export default function NewPurchaseReturnPage() {
                             </div>
                         </div>
 
-                        {selectedBR && (
-                            <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border dark:border-gray-600">
+                        {selectedDoc && (
+                            <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border dark:border-gray-600 mt-4">
                                 <p className="text-sm text-gray-600 dark:text-gray-300">
-                                    <span className="font-medium text-gray-900 dark:text-white">BR:</span> {selectedBR.numero} |
-                                    <span className="font-medium ml-2 text-gray-900 dark:text-white">Date:</span> {new Date(selectedBR.dateDoc).toLocaleDateString('fr-FR')} |
-                                    <span className="font-medium ml-2 text-gray-900 dark:text-white">Fournisseur:</span> {selectedBR.fournisseurNom || getSupplierName(selectedBR.fournisseurId)}
+                                    <span className="font-medium text-gray-900 dark:text-white">Document:</span> {selectedDoc.numero} |
+                                    <span className="font-medium ml-2 text-gray-900 dark:text-white">Date:</span> {new Date((selectedDoc as any).dateDoc || (selectedDoc as any).dateFacture).toLocaleDateString('fr-FR')} |
+                                    <span className="font-medium ml-2 text-gray-900 dark:text-white">Fournisseur:</span> {(selectedDoc as any).fournisseurNom || getSupplierName((selectedDoc as any).fournisseurId)}
                                 </p>
                             </div>
                         )}
                     </div>
 
                     {/* Return Lines */}
-                    {selectedBR && (
+                    {selectedDoc && (
                         <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 space-y-4 border dark:border-gray-700">
                             <div className="flex items-center justify-between">
                                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Lignes à retourner</h2>
                             </div>
 
                             {returnLines.length === 0 ? (
-                                <p className="text-gray-500 dark:text-gray-400 text-center py-4">Aucune ligne disponible dans ce BR</p>
+                                <p className="text-gray-500 dark:text-gray-400 text-center py-4">Aucune ligne disponible</p>
                             ) : (
                                 <div className="space-y-4">
                                     {returnLines.map((line, index) => (
@@ -332,7 +472,7 @@ export default function NewPurchaseReturnPage() {
                                                 <div className="flex-1">
                                                     <p className="font-medium text-gray-900 dark:text-white">{line.designation}</p>
                                                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                                                        Quantité reçue: {line.qteRecue} {line.uom}
+                                                        Quantité {returnSource === 'BR' ? 'reçue' : 'facturée'}: {line.qteRecue} {line.uom}
                                                         {line.qteRecue !== line.quantiteMax && (
                                                             <span className="text-orange-600 dark:text-orange-400 ml-2">
                                                                 (Max retour: {line.quantiteMax} {line.uom})
@@ -378,7 +518,7 @@ export default function NewPurchaseReturnPage() {
                     )}
 
                     {/* Form Details */}
-                    {selectedBR && returnLines.some(line => line.quantite > 0) && (
+                    {selectedDoc && returnLines.some(line => line.quantite > 0) && (
                         <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 space-y-4 border dark:border-gray-700">
                             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Détails du retour</h2>
 
@@ -397,9 +537,9 @@ export default function NewPurchaseReturnPage() {
                                         </option>
                                     ))}
                                 </select>
-                                {selectedBR && selectedBR.warehouseId && selectedWarehouseId !== selectedBR.warehouseId && (
+                                {(selectedDoc as any)?.warehouseId && selectedWarehouseId !== (selectedDoc as any)?.warehouseId && (
                                     <p className="text-orange-600 dark:text-orange-400 text-xs mt-1">
-                                        Attention : L'entrepôt sélectionné diffère de celui du BR original. Assurez-vous que le stock est disponible.
+                                        Attention : L'entrepôt sélectionné diffère de celui du document original. Assurez-vous que le stock est disponible.
                                     </p>
                                 )}
                             </div>
@@ -442,7 +582,7 @@ export default function NewPurchaseReturnPage() {
                         </button>
                         <button
                             type="submit"
-                            disabled={loading || !selectedBR || !returnLines.some(line => line.quantite > 0)}
+                            disabled={loading || !selectedDoc || !returnLines.some(line => line.quantite > 0)}
                             className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {loading ? 'Création...' : 'Créer le retour'}

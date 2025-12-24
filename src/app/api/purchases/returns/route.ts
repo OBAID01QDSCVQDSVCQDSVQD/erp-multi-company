@@ -189,12 +189,13 @@ export async function POST(request: NextRequest) {
 
         const tenantId = session.user.companyId?.toString() || '';
 
-        // Validate stock availability BEFORE any DB writes
-        // This prevents the creation of the document if stock is insufficient
-        await validateStockAvailability(body.lignes, body.warehouseId, tenantId);
-
         // Generate numero
         const numero = await NumberingService.next(tenantId, 'retour_achat');
+
+        // Prepare linkedDocuments
+        const linkedDocuments = [];
+        if (body.invoiceId) linkedDocuments.push(body.invoiceId);
+        // Note: brId is a dedicated field, but we can also add it to linkedDocs for consistency if we wanted, but let's stick to dedicated field.
 
         // Create return document
         const returnDoc = new Document({
@@ -203,10 +204,11 @@ export async function POST(request: NextRequest) {
             type: 'RETOUR_ACHAT',
             numero,
             createdBy: session.user.email,
-            statut: 'VALIDEE', // Returns are automatically validated
+            statut: 'BROUILLON', // Create as draft first
             brId: body.brId ? body.brId : undefined,
             supplierId: body.supplierId ? body.supplierId : undefined,
             warehouseId: body.warehouseId ? new mongoose.Types.ObjectId(body.warehouseId) : undefined,
+            linkedDocuments: linkedDocuments.length > 0 ? linkedDocuments : undefined
         });
 
         // Calculate totals
@@ -214,27 +216,9 @@ export async function POST(request: NextRequest) {
 
         await (returnDoc as any).save();
 
-        // Update BR quantities and add note
-        if (body.brId) {
-            await updateBRForReturn(returnDoc, body.brId, tenantId, session.user.email);
-        }
-
-        // Remove products from stock
-        // We validated before, but this function does the actual movement creation
-        await removeProductsFromStock(returnDoc, tenantId, session.user.email);
-
         return NextResponse.json(returnDoc, { status: 201 });
     } catch (error) {
         console.error('Erreur POST /purchases/returns:', error);
-
-        // Handle custom stock error message specifically to pass it to the frontend
-        if ((error as Error).message.includes('Stock insuffisant')) {
-            return NextResponse.json(
-                { error: (error as Error).message },
-                { status: 400 } // Bad Request for validation error, not 500
-            );
-        }
-
         const errorMessage = (error as Error).message || 'Erreur lors de la création du retour d\'achat';
         return NextResponse.json(
             { error: errorMessage },
@@ -244,8 +228,9 @@ export async function POST(request: NextRequest) {
 }
 
 function calculateDocumentTotals(doc: any) {
-    let totalBaseHT = 0;
+    let totalHT = 0;
     let totalTVA = 0;
+    let totalRemiseLignes = 0;
 
     if (!doc.lignes || !Array.isArray(doc.lignes)) {
         doc.totalBaseHT = 0;
@@ -255,24 +240,76 @@ function calculateDocumentTotals(doc: any) {
         return;
     }
 
+    // 1. Calculate TotalHT (sum of lines with line remise applied)
     doc.lignes.forEach((line: any) => {
         const quantite = line.quantite || 0;
-        const remise = line.remisePct || 0;
-        const prixHT = (line.prixUnitaireHT || 0) * (1 - remise / 100);
-        const montantHT = prixHT * quantite;
-        totalBaseHT += montantHT;
+        const prixUnitaire = line.prixUnitaireHT || 0;
+        const remisePct = line.remisePct || 0;
 
-        if (line.tvaPct) {
-            totalTVA += montantHT * (line.tvaPct / 100);
+        const htAvantRemiseLigne = prixUnitaire * quantite;
+        let prixAvecRemise = prixUnitaire;
+
+        if (remisePct > 0) {
+            prixAvecRemise = prixUnitaire * (1 - remisePct / 100);
+            totalRemiseLignes += htAvantRemiseLigne - (prixAvecRemise * quantite);
+        }
+
+        const ligneHT = prixAvecRemise * quantite;
+        line.totalLigneHT = ligneHT;
+        totalHT += ligneHT;
+    });
+
+    // 2. Apply Global Discount (Remise Globale)
+    const remiseGlobalePct = doc.remiseGlobalePct || 0;
+    let remiseGlobale = 0;
+    let totalHTAfterGlobalDiscount = totalHT;
+
+    if (remiseGlobalePct > 0) {
+        remiseGlobale = totalHT * (remiseGlobalePct / 100);
+        totalHTAfterGlobalDiscount = totalHT - remiseGlobale;
+    }
+
+    // 3. Calculate FODEC if enabled
+    const fodecEnabled = doc.fodec && doc.fodec.enabled;
+    const tauxFodec = (doc.fodec && doc.fodec.tauxPct) || 1;
+    let totalFodec = 0;
+
+    if (fodecEnabled) {
+        totalFodec = totalHTAfterGlobalDiscount * (tauxFodec / 100);
+        doc.fodec.montant = totalFodec;
+        doc.totalFodec = totalFodec;
+    } else {
+        doc.totalFodec = 0;
+        if (doc.fodec) doc.fodec.montant = 0;
+    }
+
+    // 4. Calculate TVA
+    // Re-iterate lines to apply TVA properly with global discount and Fodec
+    doc.lignes.forEach((line: any) => {
+        if (line.prixUnitaireHT && line.quantite > 0 && line.tvaPct) {
+            const lineHT = line.totalLigneHT || 0;
+
+            // Apply Global Discount share
+            const lineHTNet = remiseGlobalePct > 0 ? lineHT * (1 - remiseGlobalePct / 100) : lineHT;
+
+            // FODEC share
+            const lineFodec = fodecEnabled ? lineHTNet * (tauxFodec / 100) : 0;
+
+            // Base TVA
+            const lineBaseTVA = lineHTNet + lineFodec;
+
+            const lineTVA = lineBaseTVA * (line.tvaPct / 100);
+            totalTVA += lineTVA;
         }
     });
 
-    doc.totalBaseHT = Math.round(totalBaseHT * 100) / 100;
-    doc.totalTVA = Math.round(totalTVA * 100) / 100;
-
-    // Add timbre fiscal if it exists in the document
+    // 5. Timbre Fiscal
     const timbreFiscal = doc.timbreFiscal || 0;
-    doc.totalTTC = doc.totalBaseHT + doc.totalTVA + timbreFiscal;
+
+    // 6. Final Totals
+    doc.totalBaseHT = Math.round(totalHT * 1000) / 1000;
+    doc.totalTVA = Math.round(totalTVA * 1000) / 1000;
+    doc.totalTTC = Math.round((totalHTAfterGlobalDiscount + totalFodec + totalTVA + timbreFiscal) * 1000) / 1000;
     doc.netAPayer = doc.totalTTC;
 }
 
