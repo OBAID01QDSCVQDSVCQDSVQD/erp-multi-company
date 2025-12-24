@@ -33,9 +33,9 @@ export async function GET(
         }
 
         // 1b. Manually Fetch Relations (Schema lacks 'ref' for some fields)
-        let supplier = null;
+        let supplier: any = null;
         if (returnDoc.supplierId) {
-            supplier = await Supplier.findOne({ _id: returnDoc.supplierId }).lean();
+            supplier = await (Supplier as any).findOne({ _id: returnDoc.supplierId }).lean();
         }
 
         let br = null;
@@ -48,7 +48,7 @@ export async function GET(
             .map((l: any) => l.productId)
             .filter((id: string) => id && mongoose.Types.ObjectId.isValid(id));
 
-        const products = await Product.find({
+        const products = await (Product as any).find({
             _id: { $in: productIds }
             // tenantId removed to be safe, IDs are unique
         }).select('sku referenceClient').lean();
@@ -56,7 +56,7 @@ export async function GET(
         const productMap = new Map(products.map((p: any) => [p._id.toString(), p]));
 
         // 2. Fetch Company Settings
-        const settings = await CompanySettings.findOne({ tenantId }).lean();
+        const settings = await (CompanySettings as any).findOne({ tenantId }).lean();
         const companyInfo = {
             nom: settings?.societe?.nom || 'Ma Société',
             adresse: {

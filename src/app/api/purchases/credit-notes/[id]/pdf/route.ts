@@ -33,9 +33,9 @@ export async function GET(
         }
 
         // 1b. Manually Fetch Supplier
-        let supplier = null;
+        let supplier: any = null;
         if (creditNote.supplierId) {
-            supplier = await Supplier.findOne({ _id: creditNote.supplierId }).lean();
+            supplier = await (Supplier as any).findOne({ _id: creditNote.supplierId }).lean();
         }
 
         // 1.5 Fetch Products to get codes
@@ -43,14 +43,14 @@ export async function GET(
             .map((l: any) => l.productId)
             .filter((id: string) => id && mongoose.Types.ObjectId.isValid(id));
 
-        const products = await Product.find({
+        const products = await (Product as any).find({
             _id: { $in: productIds }
         }).select('sku referenceClient').lean();
 
         const productMap = new Map(products.map((p: any) => [p._id.toString(), p]));
 
         // 2. Fetch Company Settings
-        const settings = await CompanySettings.findOne({ tenantId }).lean();
+        const settings = await (CompanySettings as any).findOne({ tenantId }).lean();
         const companyInfo = {
             nom: settings?.societe?.nom || 'Ma Société',
             adresse: {
