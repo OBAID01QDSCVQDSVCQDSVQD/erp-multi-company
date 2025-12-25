@@ -121,7 +121,7 @@ export async function GET(
             modePaiement: doc.modePaiement || '',
             conditionsPaiement: doc.conditionsPaiement || '',
             notes: doc.notes || '',
-            documentType: doc.type === 'DEVIS' ? 'DEVIS' : (doc.type === 'BL' ? 'BON DE LIVRAISON' : 'FACTURE')
+            documentType: doc.type === 'DEVIS' ? 'DEVIS' : (doc.type === 'BL' ? 'BON DE LIVRAISON' : (doc.type === 'INT_FAC' ? 'FACTURE' : 'FACTURE'))
         };
 
         // Calculate missing details (reuse logic)
@@ -140,7 +140,7 @@ export async function GET(
 
         let pdfDoc;
 
-        if (doc.type === 'FAC') {
+        if (doc.type === 'FAC' || doc.type === 'INT_FAC') {
             pdfDoc = generateInvoicePdf(commonData, settings.societe);
         } else {
             // For DEVIS and BL (and others), use generateDevisPdf

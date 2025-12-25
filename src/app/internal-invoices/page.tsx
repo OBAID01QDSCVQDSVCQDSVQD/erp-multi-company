@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
-import { PlusIcon, DocumentTextIcon, MagnifyingGlassIcon, EyeIcon, PencilIcon, ArrowDownTrayIcon, TrashIcon, ArrowRightIcon, ExclamationTriangleIcon, XMarkIcon, ArrowLeftIcon, CheckIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, DocumentTextIcon, MagnifyingGlassIcon, EyeIcon, PencilIcon, ArrowDownTrayIcon, TrashIcon, ArrowRightIcon, ExclamationTriangleIcon, XMarkIcon, ArrowLeftIcon, CheckIcon, ChatBubbleLeftEllipsisIcon, PhoneIcon } from '@heroicons/react/24/outline';
 import { useTenantId } from '@/hooks/useTenantId';
 import toast from 'react-hot-toast';
 import ProductSearchModal from '@/components/common/ProductSearchModal';
@@ -14,7 +14,7 @@ interface Invoice {
   numero: string;
   dateDoc: string;
   statut?: 'BROUILLON' | 'VALIDEE' | 'PARTIELLEMENT_PAYEE' | 'PAYEE' | 'ANNULEE';
-  customerId?: string;
+  customerId?: any; // Allow object or string
   customerName?: string;
   projetId?: {
     _id: string;
@@ -151,6 +151,14 @@ export default function InternalInvoicesPage() {
   const [hasProcessedEditParam, setHasProcessedEditParam] = useState(false); // Track if we've processed the edit query param
   const [pendingSummary, setPendingSummary] = useState<{ totalCount: number; totalPendingAmount: number } | null>(null);
   const [loadingPendingSummary, setLoadingPendingSummary] = useState(false);
+
+  // WhatsApp Modal State
+  const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
+  const [whatsAppNumber, setWhatsAppNumber] = useState('');
+  const [clientSearchQuery, setClientSearchQuery] = useState('');
+  const [clientSearchResults, setClientSearchResults] = useState<any[]>([]);
+  const [searchingClients, setSearchingClients] = useState(false);
+  const [selectedInvoiceForWhatsApp, setSelectedInvoiceForWhatsApp] = useState<Invoice | null>(null);
 
   // Form state
   const [formData, setFormData] = useState(() => createDefaultFormData());
@@ -1778,6 +1786,112 @@ export default function InternalInvoicesPage() {
     }
   };
 
+  // WhatsApp Logic
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(async () => {
+      if (clientSearchQuery.trim()) {
+        setSearchingClients(true);
+        try {
+          const res = await fetch(`/api/search?q=${encodeURIComponent(clientSearchQuery)}&type=client`, {
+            headers: { 'X-Tenant-Id': tenantId || '' }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            setClientSearchResults(data.results || []);
+          }
+        } catch (error) {
+          console.error("Error searching clients", error);
+        } finally {
+          setSearchingClients(false);
+        }
+      } else {
+        setClientSearchResults([]);
+      }
+    }, 500);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [clientSearchQuery, tenantId]);
+
+  const handleOpenWhatsAppModal = async (invoice: Invoice) => {
+    setSelectedInvoiceForWhatsApp(invoice);
+    setWhatsAppNumber('');
+
+    // Try to fetch customer phone if customerId exists
+    let custId = '';
+    if (invoice.customerId) {
+      if (typeof invoice.customerId === 'object') {
+        custId = (invoice.customerId as any)._id;
+      } else if (typeof invoice.customerId === 'string') {
+        custId = invoice.customerId;
+      }
+    }
+
+    if (custId && tenantId) {
+      try {
+        const res = await fetch(`/api/customers/${custId}`, {
+          headers: { 'X-Tenant-Id': tenantId }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          let phone = data.mobile || data.telephone || '';
+          let clean = phone.replace(/\D/g, '');
+          if (clean.length === 8) clean = '216' + clean;
+          setWhatsAppNumber(clean);
+        }
+      } catch (e) {
+        console.error("Error fetching customer for whatsapp", e);
+      }
+    }
+
+    setClientSearchQuery('');
+    setClientSearchResults([]);
+    setShowWhatsAppModal(true);
+  };
+
+  const confirmWhatsAppSend = async () => {
+    if (!selectedInvoiceForWhatsApp || !whatsAppNumber) return;
+
+    let numberToSend = whatsAppNumber.replace(/\D/g, '');
+    if (numberToSend.length === 8) numberToSend = '216' + numberToSend;
+
+    // Generate public link
+    let publicLink = '';
+    const toastId = toast.loading('Génération du lien...');
+
+    try {
+      const res = await fetch(`/api/internal-invoices/${selectedInvoiceForWhatsApp._id}/share`, {
+        method: 'POST',
+        headers: { 'X-Tenant-Id': tenantId || '' }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        publicLink = `${window.location.origin}/i/${data.token}`;
+      }
+    } catch (e) {
+      console.error("Error generating public link", e);
+      toast.error("Erreur génération lien", { id: toastId });
+    }
+
+    // Determine customer name
+    let customerName = 'Cher Client';
+    if (selectedInvoiceForWhatsApp.customerName) {
+      customerName = selectedInvoiceForWhatsApp.customerName;
+    }
+
+    const companyName = 'notre société';
+    let message = `Bonjour ${customerName}, de la part de ${companyName} : Voici votre facture ${selectedInvoiceForWhatsApp.numero} du ${new Date(selectedInvoiceForWhatsApp.dateDoc).toLocaleDateString('fr-FR')} pour un montant de ${selectedInvoiceForWhatsApp.totalTTC.toFixed(3)} ${selectedInvoiceForWhatsApp.devise || 'TND'}.`;
+
+    if (publicLink) {
+      message += `\n\n📄 Télécharger votre document ici : ${publicLink}`;
+    }
+
+    const url = `https://api.whatsapp.com/send?phone=${numberToSend}&text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank');
+
+    toast.dismiss(toastId);
+    setShowWhatsAppModal(false);
+  };
+
   return (
     <DashboardLayout>
       <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
@@ -1804,6 +1918,158 @@ export default function InternalInvoicesPage() {
             </button>
           </div>
         </div>
+
+        {/* WhatsApp Modal */}
+        {showWhatsAppModal && (
+          <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+            <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+              <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onClick={() => setShowWhatsAppModal(false)}></div>
+              <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+              <div className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
+                <div className="absolute top-0 right-0 pt-4 pr-4">
+                  <button
+                    type="button"
+                    className="bg-white dark:bg-gray-800 rounded-md text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                    onClick={() => setShowWhatsAppModal(false)}
+                  >
+                    <span className="sr-only">Fermer</span>
+                    <XMarkIcon className="h-6 w-6" aria-hidden="true" />
+                  </button>
+                </div>
+
+                <div>
+                  <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 dark:bg-green-900">
+                    <ChatBubbleLeftEllipsisIcon className="h-6 w-6 text-green-600 dark:text-green-400" aria-hidden="true" />
+                  </div>
+                  <div className="mt-3 text-center sm:mt-5">
+                    <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white" id="modal-title">
+                      Envoyer par WhatsApp
+                    </h3>
+                    <div className="mt-2">
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Confirmez le numéro ou recherchez un autre client.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-5 space-y-4">
+                  <div>
+                    <label htmlFor="wa-number" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Numéro de téléphone
+                    </label>
+                    <div className="mt-1 relative rounded-md shadow-sm">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <PhoneIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
+                      </div>
+                      <input
+                        type="text"
+                        name="wa-number"
+                        id="wa-number"
+                        className="focus:ring-green-500 focus:border-green-500 block w-full pl-10 sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md h-10"
+                        placeholder="216..."
+                        value={whatsAppNumber}
+                        onChange={(e) => setWhatsAppNumber(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="relative flex py-1 items-center">
+                    <div className="flex-grow border-t border-gray-300 dark:border-gray-600"></div>
+                    <span className="flex-shrink-0 mx-4 text-gray-400 text-xs">OU RECHERCHER UN CLIENT</span>
+                    <div className="flex-grow border-t border-gray-300 dark:border-gray-600"></div>
+                  </div>
+
+                  <div className="relative">
+                    <label htmlFor="search-client" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Rechercher un autre client
+                    </label>
+                    <div className="mt-1 relative rounded-md shadow-sm">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
+                      </div>
+                      <input
+                        type="text"
+                        id="search-client"
+                        className="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md h-10"
+                        placeholder="Nom du client..."
+                        value={clientSearchQuery}
+                        onChange={(e) => setClientSearchQuery(e.target.value)}
+                        autoComplete="off"
+                      />
+                      {searchingClients && (
+                        <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div>
+                        </div>
+                      )}
+                    </div>
+
+                    {clientSearchResults.length > 0 && (
+                      <ul className="absolute z-10 mt-1 w-full bg-white dark:bg-gray-700 shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm">
+                        {clientSearchResults.map((client) => (
+                          <li
+                            key={client._id}
+                            className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-gray-100 dark:hover:bg-gray-600"
+                            onClick={async (e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              try {
+                                const res = await fetch(`/api/customers/${client._id}`, { headers: { 'X-Tenant-Id': tenantId || '' } });
+                                if (res.ok) {
+                                  const data = await res.json();
+                                  const phone = data.mobile || data.telephone || '';
+                                  let clean = phone.replace(/\D/g, '');
+                                  if (clean.length === 8) clean = '216' + clean;
+
+                                  if (clean) {
+                                    setWhatsAppNumber(clean);
+                                    setClientSearchQuery('');
+                                    setClientSearchResults([]);
+                                  } else {
+                                    toast.error(`Aucun numéro trouvé pour ${client.title}`);
+                                  }
+                                }
+                              } catch (err) {
+                                console.error(err);
+                                toast.error("Erreur lors de la récupération du numéro");
+                              }
+                            }}
+                          >
+                            <div className="flex items-center">
+                              <span className="font-medium block truncate text-gray-900 dark:text-white">
+                                {client.title}
+                              </span>
+                            </div>
+                            <span className="text-gray-500 dark:text-gray-400 text-xs">
+                              {client.subtitle}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense">
+                  <button
+                    type="button"
+                    className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:col-start-2 sm:text-sm"
+                    onClick={confirmWhatsAppSend}
+                  >
+                    Envoyer
+                  </button>
+                  <button
+                    type="button"
+                    className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-700 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:col-start-1 sm:text-sm"
+                    onClick={() => setShowWhatsAppModal(false)}
+                  >
+                    Annuler
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Pending Invoices Alert Banner */}
         {pendingSummary && pendingSummary.totalCount > 0 && (
@@ -2029,6 +2295,13 @@ export default function InternalInvoicesPage() {
                               </button>
                             )}
                             <button
+                              onClick={() => handleOpenWhatsAppModal(invoice)}
+                              className="p-1.5 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30 rounded-lg transition-colors"
+                              title="WhatsApp"
+                            >
+                              <ChatBubbleLeftEllipsisIcon className="w-4 h-4" />
+                            </button>
+                            <button
                               onClick={() => handleDownloadPDF(invoice)}
                               className="p-1.5 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded-lg transition-colors"
                               title="Télécharger PDF"
@@ -2069,6 +2342,13 @@ export default function InternalInvoicesPage() {
                         title="Voir"
                       >
                         <EyeIcon className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={() => handleOpenWhatsAppModal(invoice)}
+                        className="p-2 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg"
+                        title="WhatsApp"
+                      >
+                        <ChatBubbleLeftEllipsisIcon className="w-5 h-5" />
                       </button>
                       <button
                         onClick={() => handleEdit(invoice)}
@@ -3241,62 +3521,66 @@ export default function InternalInvoicesPage() {
       </div>
 
       {/* Product Search Modal */}
-      {currentProductLineIndex !== null && showProductModal[currentProductLineIndex] && (
-        <ProductSearchModal
-          isOpen={true}
-          onClose={handleCloseProductModal}
-          onSelect={handleSelectProduct}
-          products={products}
-          tenantId={tenantId || ''}
-          title="Rechercher un produit"
-        />
-      )}
+      {
+        currentProductLineIndex !== null && showProductModal[currentProductLineIndex] && (
+          <ProductSearchModal
+            isOpen={true}
+            onClose={handleCloseProductModal}
+            onSelect={handleSelectProduct}
+            products={products}
+            tenantId={tenantId || ''}
+            title="Rechercher un produit"
+          />
+        )
+      }
       {/* Print Options Modal */}
-      {showPrintModal && invoiceToPrint && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
-            <div className="p-6">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
-                Options d'impression
-              </h3>
-              <p className="text-gray-600 dark:text-gray-300 mb-6">
-                Voulez-vous inclure le cachet de l'entreprise sur le document ?
-              </p>
+      {
+        showPrintModal && invoiceToPrint && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+              <div className="p-6">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
+                  Options d'impression
+                </h3>
+                <p className="text-gray-600 dark:text-gray-300 mb-6">
+                  Voulez-vous inclure le cachet de l'entreprise sur le document ?
+                </p>
 
-              <div className="flex items-center gap-3 p-4 border border-gray-200 dark:border-gray-700 rounded-lg mb-6 bg-gray-50 dark:bg-gray-700/50 cursor-pointer" onClick={() => setIncludeStamp(!includeStamp)}>
-                <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${includeStamp ? 'bg-blue-600 border-blue-600' : 'border-gray-400 bg-white dark:bg-gray-700'}`}>
-                  {includeStamp && <CheckIcon className="w-3.5 h-3.5 text-white" />}
+                <div className="flex items-center gap-3 p-4 border border-gray-200 dark:border-gray-700 rounded-lg mb-6 bg-gray-50 dark:bg-gray-700/50 cursor-pointer" onClick={() => setIncludeStamp(!includeStamp)}>
+                  <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${includeStamp ? 'bg-blue-600 border-blue-600' : 'border-gray-400 bg-white dark:bg-gray-700'}`}>
+                    {includeStamp && <CheckIcon className="w-3.5 h-3.5 text-white" />}
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={includeStamp}
+                    onChange={(e) => setIncludeStamp(e.target.checked)}
+                    className="hidden"
+                  />
+                  <label className="text-sm font-medium text-gray-900 dark:text-white cursor-pointer select-none">
+                    Inclure le cachet / signature
+                  </label>
                 </div>
-                <input
-                  type="checkbox"
-                  checked={includeStamp}
-                  onChange={(e) => setIncludeStamp(e.target.checked)}
-                  className="hidden"
-                />
-                <label className="text-sm font-medium text-gray-900 dark:text-white cursor-pointer select-none">
-                  Inclure le cachet / signature
-                </label>
-              </div>
 
-              <div className="flex justify-end gap-3">
-                <button
-                  onClick={() => setShowPrintModal(false)}
-                  className="px-4 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors font-medium"
-                >
-                  Annuler
-                </button>
-                <button
-                  onClick={confirmDownloadPDF}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center gap-2"
-                >
-                  <ArrowDownTrayIcon className="w-4 h-4" />
-                  Télécharger PDF
-                </button>
+                <div className="flex justify-end gap-3">
+                  <button
+                    onClick={() => setShowPrintModal(false)}
+                    className="px-4 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors font-medium"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    onClick={confirmDownloadPDF}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center gap-2"
+                  >
+                    <ArrowDownTrayIcon className="w-4 h-4" />
+                    Télécharger PDF
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
-    </DashboardLayout>
+        )
+      }
+    </DashboardLayout >
   );
 }

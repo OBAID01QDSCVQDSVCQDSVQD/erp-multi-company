@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
 import { useTenantId } from '@/hooks/useTenantId';
-import { ArrowLeftIcon, PencilIcon, TrashIcon, ArrowDownTrayIcon, ArrowRightIcon, BanknotesIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { ArrowLeftIcon, PencilIcon, TrashIcon, ArrowDownTrayIcon, ArrowRightIcon, BanknotesIcon, XMarkIcon, ChatBubbleLeftEllipsisIcon, PhoneIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
 
@@ -93,6 +93,13 @@ export default function InternalInvoiceDetailPage() {
   });
   const [paymentAmountInput, setPaymentAmountInput] = useState('');
 
+  // WhatsApp Modal State
+  const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
+  const [whatsAppNumber, setWhatsAppNumber] = useState('');
+  const [clientSearchQuery, setClientSearchQuery] = useState('');
+  const [clientSearchResults, setClientSearchResults] = useState<any[]>([]);
+  const [searchingClients, setSearchingClients] = useState(false);
+
   useEffect(() => {
     if (params?.id && tenantId) {
       fetchInvoice();
@@ -152,6 +159,121 @@ export default function InternalInvoiceDetailPage() {
       });
     }
   }, [showPaymentModal, paymentData.useAdvance, advanceBalance, soldeRestantActuel]);
+
+  // WhatsApp Logic
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(async () => {
+      if (clientSearchQuery.trim()) {
+        setSearchingClients(true);
+        try {
+          const res = await fetch(`/api/search?q=${encodeURIComponent(clientSearchQuery)}&type=client`, {
+            headers: { 'X-Tenant-Id': tenantId || '' }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            setClientSearchResults(data.results || []);
+          }
+        } catch (error) {
+          console.error("Error searching clients", error);
+        } finally {
+          setSearchingClients(false);
+        }
+      } else {
+        setClientSearchResults([]);
+      }
+    }, 500);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [clientSearchQuery, tenantId]);
+
+  const handleOpenWhatsAppModal = async () => {
+    if (!invoice) return;
+    setWhatsAppNumber('');
+
+    // Check if we have customer loaded
+    // Invoice customerId can be object or string in this component
+    let custId = '';
+    let customerData = null;
+
+    if (invoice.customerId) {
+      if (typeof invoice.customerId === 'object' && invoice.customerId !== null) {
+        // Already an object, but might not have phone. We might need to fetch full details if not present.
+        // Based on previous code, it only populates basic fields. So let's fetch full details using ID.
+        custId = (invoice.customerId as any)._id;
+        customerData = invoice.customerId;
+      } else if (typeof invoice.customerId === 'string') {
+        custId = invoice.customerId;
+      }
+    }
+
+    if (custId && tenantId) {
+      try {
+        const res = await fetch(`/api/customers/${custId}`, {
+          headers: { 'X-Tenant-Id': tenantId }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          let phone = data.mobile || data.telephone || '';
+          let clean = phone.replace(/\D/g, '');
+          if (clean.length === 8) clean = '216' + clean;
+          setWhatsAppNumber(clean);
+        }
+      } catch (e) {
+        console.error("Error fetching customer for whatsapp", e);
+      }
+    }
+
+    setClientSearchQuery('');
+    setClientSearchResults([]);
+    setShowWhatsAppModal(true);
+  };
+
+  const confirmWhatsAppSend = async () => {
+    if (!invoice || !whatsAppNumber) return;
+
+    let numberToSend = whatsAppNumber.replace(/\D/g, '');
+    if (numberToSend.length === 8) numberToSend = '216' + numberToSend;
+
+    // Generate public link
+    let publicLink = '';
+    const toastId = toast.loading('Génération du lien...');
+
+    try {
+      const res = await fetch(`/api/internal-invoices/${invoice._id}/share`, {
+        method: 'POST',
+        headers: { 'X-Tenant-Id': tenantId || '' }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        publicLink = `${window.location.origin}/i/${data.token}`;
+      }
+    } catch (e) {
+      console.error("Error generating public link", e);
+      toast.error("Erreur génération lien", { id: toastId });
+    }
+
+    // Determine customer name
+    let customerName = 'Cher Client';
+    if (invoice.customerId && typeof invoice.customerId === 'object') {
+      const c = invoice.customerId as any;
+      customerName = c.raisonSociale || `${c.nom || ''} ${c.prenom || ''}`.trim() || 'Cher Client';
+    }
+
+    const companyName = 'notre société'; // We don't have company settings loaded here in this component? 
+    // Actually we don't fetch company settings in this component currently.
+
+    let message = `Bonjour ${customerName}, de la part de ${companyName} : Voici votre facture ${invoice.numero} du ${new Date(invoice.dateDoc).toLocaleDateString('fr-FR')} pour un montant de ${invoice.totalTTC.toFixed(3)} ${invoice.devise || 'TND'}.`;
+
+    if (publicLink) {
+      message += `\n\n📄 Télécharger votre document ici : ${publicLink}`;
+    }
+
+    const url = `https://api.whatsapp.com/send?phone=${numberToSend}&text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank');
+
+    toast.dismiss(toastId);
+    setShowWhatsAppModal(false);
+  };
 
   const fetchInvoice = async () => {
     try {
@@ -708,6 +830,15 @@ export default function InternalInvoiceDetailPage() {
               )}
 
               <button
+                onClick={handleOpenWhatsAppModal}
+                className="inline-flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm sm:text-base font-medium flex-1 sm:flex-initial min-w-[120px]"
+              >
+                <ChatBubbleLeftEllipsisIcon className="w-5 h-5" />
+                <span className="hidden sm:inline">WhatsApp</span>
+                <span className="sm:hidden">WhatsApp</span>
+              </button>
+
+              <button
                 onClick={() => router.push(`/internal-invoices?edit=${invoice._id}`)}
                 className="inline-flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors text-sm sm:text-base font-medium flex-1 sm:flex-initial min-w-[110px]"
               >
@@ -734,524 +865,678 @@ export default function InternalInvoiceDetailPage() {
               </button>
             </div>
           </div>
-        </div>
 
-        {/* Info Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-          <div className="bg-white dark:bg-gray-800 p-4 sm:p-5 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
-            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 font-medium">Client</p>
-            <p className="mt-2 text-base sm:text-lg font-semibold text-gray-900 dark:text-white break-words">{customerName}</p>
-          </div>
-          {invoice.projetId && (
+          {/* Info Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             <div className="bg-white dark:bg-gray-800 p-4 sm:p-5 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
-              <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 font-medium">Projet</p>
-              <Link
-                href={`/projects/${invoice.projetId._id}`}
-                className="mt-2 text-base sm:text-lg font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 break-words inline-block"
-              >
-                {invoice.projetId.name}
-              </Link>
+              <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 font-medium">Client</p>
+              <p className="mt-2 text-base sm:text-lg font-semibold text-gray-900 dark:text-white break-words">{customerName}</p>
             </div>
-          )}
-          <div className="bg-white dark:bg-gray-800 p-4 sm:p-5 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
-            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 font-medium">Total TTC</p>
-            <p className="mt-2 text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
-              {invoice.totalTTC?.toFixed(3)} {invoice.devise || 'TND'}
-            </p>
-          </div>
-        </div>
-
-        {/* Details */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-          <div className="px-4 sm:px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Détails de la facture</h2>
-          </div>
-          <div className="px-4 sm:px-6 py-4 space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Date</p>
-                <p className="mt-1 font-medium text-gray-900 dark:text-white">
-                  {new Date(invoice.dateDoc).toLocaleDateString('fr-FR')}
-                </p>
+            {invoice.projetId && (
+              <div className="bg-white dark:bg-gray-800 p-4 sm:p-5 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
+                <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 font-medium">Projet</p>
+                <Link
+                  href={`/projects/${invoice.projetId._id}`}
+                  className="mt-2 text-base sm:text-lg font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 break-words inline-block"
+                >
+                  {invoice.projetId.name}
+                </Link>
               </div>
-              {invoice.dateEcheance && (
+            )}
+            <div className="bg-white dark:bg-gray-800 p-4 sm:p-5 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
+              <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 font-medium">Total TTC</p>
+              <p className="mt-2 text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
+                {invoice.totalTTC?.toFixed(3)} {invoice.devise || 'TND'}
+              </p>
+            </div>
+          </div>
+
+          {/* Details */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div className="px-4 sm:px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Détails de la facture</h2>
+            </div>
+            <div className="px-4 sm:px-6 py-4 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Date d'échéance</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Date</p>
                   <p className="mt-1 font-medium text-gray-900 dark:text-white">
-                    {new Date(invoice.dateEcheance).toLocaleDateString('fr-FR')}
+                    {new Date(invoice.dateDoc).toLocaleDateString('fr-FR')}
                   </p>
                 </div>
-              )}
-              {invoice.referenceExterne && (
+                {invoice.dateEcheance && (
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Date d'échéance</p>
+                    <p className="mt-1 font-medium text-gray-900 dark:text-white">
+                      {new Date(invoice.dateEcheance).toLocaleDateString('fr-FR')}
+                    </p>
+                  </div>
+                )}
+                {invoice.referenceExterne && (
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Référence externe</p>
+                    <p className="mt-1 font-medium text-gray-900 dark:text-white">{invoice.referenceExterne}</p>
+                  </div>
+                )}
+                {invoice.modePaiement && (
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Mode de paiement</p>
+                    <p className="mt-1 font-medium text-gray-900 dark:text-white">{invoice.modePaiement}</p>
+                  </div>
+                )}
+              </div>
+              {invoice.conditionsPaiement && (
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Référence externe</p>
-                  <p className="mt-1 font-medium text-gray-900 dark:text-white">{invoice.referenceExterne}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Conditions de paiement</p>
+                  <p className="mt-1 font-medium text-gray-900">{invoice.conditionsPaiement}</p>
                 </div>
               )}
-              {invoice.modePaiement && (
+              {invoice.notes && (
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Mode de paiement</p>
-                  <p className="mt-1 font-medium text-gray-900 dark:text-white">{invoice.modePaiement}</p>
+                  <p className="text-sm text-gray-600">Notes</p>
+                  <p className="mt-1 font-medium text-gray-900 whitespace-pre-wrap">{invoice.notes}</p>
                 </div>
               )}
             </div>
-            {invoice.conditionsPaiement && (
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Conditions de paiement</p>
-                <p className="mt-1 font-medium text-gray-900">{invoice.conditionsPaiement}</p>
-              </div>
-            )}
-            {invoice.notes && (
-              <div>
-                <p className="text-sm text-gray-600">Notes</p>
-                <p className="mt-1 font-medium text-gray-900 whitespace-pre-wrap">{invoice.notes}</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Lines */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
-          <div className="px-4 sm:px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
-            <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Lignes de facture</h2>
           </div>
 
-          {/* Desktop Table View */}
-          <div className="hidden md:block overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-50 dark:bg-gray-700/50">
-                <tr>
-                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Désignation
-                  </th>
-                  <th className="px-4 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Qté
-                  </th>
-                  <th className="px-4 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Prix unitaire HT
-                  </th>
-                  <th className="px-4 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Remise
-                  </th>
-                  <th className="px-4 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    TVA
-                  </th>
-                  <th className="px-4 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Total HT
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                {invoice.lignes && invoice.lignes.length > 0 ? (
-                  invoice.lignes.map((line, index) => {
-                    const remise = line.remisePct || 0;
-                    const prixHT = line.prixUnitaireHT * (1 - remise / 100);
-                    const montantHT = prixHT * line.quantite;
-                    const tvaPct = line.tvaPct || 0;
+          {/* Lines */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
+            <div className="px-4 sm:px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Lignes de facture</h2>
+            </div>
 
-                    return (
-                      <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                        <td className="px-4 sm:px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">
-                          {line.designation}
-                        </td>
-                        <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400 text-right">
-                          {line.quantite} {line.uomCode || ''}
-                        </td>
-                        <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400 text-right">
-                          {line.prixUnitaireHT.toFixed(3)} {invoice.devise || 'TND'}
-                        </td>
-                        <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400 text-right">
-                          {remise > 0 ? `${remise}%` : '-'}
-                        </td>
-                        <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400 text-right">
-                          {tvaPct > 0 ? `${tvaPct}%` : '-'}
-                        </td>
-                        <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-white text-right">
-                          {montantHT.toFixed(3)} {invoice.devise || 'TND'}
-                        </td>
-                      </tr>
-                    );
-                  })
-                ) : (
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead className="bg-gray-50 dark:bg-gray-700/50">
                   <tr>
-                    <td colSpan={6} className="px-4 sm:px-6 py-8 text-center text-gray-500 dark:text-gray-400">
-                      Aucune ligne de facture
-                    </td>
+                    <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Désignation
+                    </th>
+                    <th className="px-4 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Qté
+                    </th>
+                    <th className="px-4 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Prix unitaire HT
+                    </th>
+                    <th className="px-4 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Remise
+                    </th>
+                    <th className="px-4 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      TVA
+                    </th>
+                    <th className="px-4 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Total HT
+                    </th>
                   </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                  {invoice.lignes && invoice.lignes.length > 0 ? (
+                    invoice.lignes.map((line, index) => {
+                      const remise = line.remisePct || 0;
+                      const prixHT = line.prixUnitaireHT * (1 - remise / 100);
+                      const montantHT = prixHT * line.quantite;
+                      const tvaPct = line.tvaPct || 0;
 
-          {/* Mobile Card View */}
-          <div className="md:hidden divide-y divide-gray-200 dark:divide-gray-700">
-            {invoice.lignes && invoice.lignes.length > 0 ? (
-              invoice.lignes.map((line, index) => {
-                const remise = line.remisePct || 0;
-                const prixHT = line.prixUnitaireHT * (1 - remise / 100);
-                const montantHT = prixHT * line.quantite;
-                const tvaPct = line.tvaPct || 0;
-
-                return (
-                  <div key={index} className="px-4 py-4 space-y-2">
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900 dark:text-white">{line.designation}</p>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div>
-                        <p className="text-gray-500 dark:text-gray-400">Quantité</p>
-                        <p className="font-medium text-gray-900 dark:text-white">{line.quantite} {line.uomCode || ''}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-gray-500 dark:text-gray-400">Prix unitaire HT</p>
-                        <p className="font-medium text-gray-900 dark:text-white">{line.prixUnitaireHT.toFixed(3)} {invoice.devise || 'TND'}</p>
-                      </div>
-                      {remise > 0 && (
-                        <div>
-                          <p className="text-gray-500 dark:text-gray-400">Remise</p>
-                          <p className="font-medium text-gray-900 dark:text-white">{remise}%</p>
-                        </div>
-                      )}
-                      {tvaPct > 0 && (
-                        <div className="text-right">
-                          <p className="text-gray-500 dark:text-gray-400">TVA</p>
-                          <p className="font-medium text-gray-900 dark:text-white">{tvaPct}%</p>
-                        </div>
-                      )}
-                      <div className="col-span-2 pt-2 border-t border-gray-200 dark:border-gray-700">
-                        <div className="flex justify-between items-center">
-                          <p className="text-sm text-gray-500 dark:text-gray-400">Total HT</p>
-                          <p className="text-base font-semibold text-gray-900 dark:text-white">
+                      return (
+                        <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                          <td className="px-4 sm:px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">
+                            {line.designation}
+                          </td>
+                          <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400 text-right">
+                            {line.quantite} {line.uomCode || ''}
+                          </td>
+                          <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400 text-right">
+                            {line.prixUnitaireHT.toFixed(3)} {invoice.devise || 'TND'}
+                          </td>
+                          <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400 text-right">
+                            {remise > 0 ? `${remise}%` : '-'}
+                          </td>
+                          <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400 text-right">
+                            {tvaPct > 0 ? `${tvaPct}%` : '-'}
+                          </td>
+                          <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-white text-right">
                             {montantHT.toFixed(3)} {invoice.devise || 'TND'}
-                          </p>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan={6} className="px-4 sm:px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+                        Aucune ligne de facture
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Card View */}
+            <div className="md:hidden divide-y divide-gray-200 dark:divide-gray-700">
+              {invoice.lignes && invoice.lignes.length > 0 ? (
+                invoice.lignes.map((line, index) => {
+                  const remise = line.remisePct || 0;
+                  const prixHT = line.prixUnitaireHT * (1 - remise / 100);
+                  const montantHT = prixHT * line.quantite;
+                  const tvaPct = line.tvaPct || 0;
+
+                  return (
+                    <div key={index} className="px-4 py-4 space-y-2">
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900 dark:text-white">{line.designation}</p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                          <p className="text-gray-500 dark:text-gray-400">Quantité</p>
+                          <p className="font-medium text-gray-900 dark:text-white">{line.quantite} {line.uomCode || ''}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-gray-500 dark:text-gray-400">Prix unitaire HT</p>
+                          <p className="font-medium text-gray-900 dark:text-white">{line.prixUnitaireHT.toFixed(3)} {invoice.devise || 'TND'}</p>
+                        </div>
+                        {remise > 0 && (
+                          <div>
+                            <p className="text-gray-500 dark:text-gray-400">Remise</p>
+                            <p className="font-medium text-gray-900 dark:text-white">{remise}%</p>
+                          </div>
+                        )}
+                        {tvaPct > 0 && (
+                          <div className="text-right">
+                            <p className="text-gray-500 dark:text-gray-400">TVA</p>
+                            <p className="font-medium text-gray-900 dark:text-white">{tvaPct}%</p>
+                          </div>
+                        )}
+                        <div className="col-span-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+                          <div className="flex justify-between items-center">
+                            <p className="text-sm text-gray-500 dark:text-gray-400">Total HT</p>
+                            <p className="text-base font-semibold text-gray-900 dark:text-white">
+                              {montantHT.toFixed(3)} {invoice.devise || 'TND'}
+                            </p>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })
-            ) : (
-              <div className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
-                Aucune ligne de facture
-              </div>
-            )}
+                  );
+                })
+              ) : (
+                <div className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                  Aucune ligne de facture
+                </div>
+              )}
+            </div>
           </div>
-        </div>
 
-        {/* Totals */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
-          <div className="px-4 sm:px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
-            <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Totaux</h2>
-          </div>
-          <div className="px-4 sm:px-6 py-4 sm:py-5">
-            <div className="space-y-2.5 sm:space-y-3 max-w-md ml-auto">
-              {invoice.remiseGlobalePct && invoice.remiseGlobalePct > 0 && (
+          {/* Totals */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
+            <div className="px-4 sm:px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Totaux</h2>
+            </div>
+            <div className="px-4 sm:px-6 py-4 sm:py-5">
+              <div className="space-y-2.5 sm:space-y-3 max-w-md ml-auto">
+                {invoice.remiseGlobalePct && invoice.remiseGlobalePct > 0 && (
+                  <div className="flex justify-between items-center text-sm sm:text-base">
+                    <span className="text-gray-600 dark:text-gray-400">Remise globale:</span>
+                    <span className="font-medium text-gray-900 dark:text-white">{invoice.remiseGlobalePct}%</span>
+                  </div>
+                )}
                 <div className="flex justify-between items-center text-sm sm:text-base">
-                  <span className="text-gray-600 dark:text-gray-400">Remise globale:</span>
-                  <span className="font-medium text-gray-900 dark:text-white">{invoice.remiseGlobalePct}%</span>
-                </div>
-              )}
-              <div className="flex justify-between items-center text-sm sm:text-base">
-                <span className="text-gray-600 dark:text-gray-400">Total HT:</span>
-                <span className="font-medium text-gray-900 dark:text-white">
-                  {invoice.totalBaseHT?.toFixed(3)} {invoice.devise || 'TND'}
-                </span>
-              </div>
-              {invoice.fodec && invoice.fodec.enabled && invoice.fodec.montant && (
-                <div className="flex justify-between items-center text-sm sm:text-base">
-                  <span className="text-gray-600 dark:text-gray-400">FODEC:</span>
+                  <span className="text-gray-600 dark:text-gray-400">Total HT:</span>
                   <span className="font-medium text-gray-900 dark:text-white">
-                    {invoice.fodec.montant.toFixed(3)} {invoice.devise || 'TND'}
+                    {invoice.totalBaseHT?.toFixed(3)} {invoice.devise || 'TND'}
                   </span>
                 </div>
-              )}
-              <div className="flex justify-between items-center text-sm sm:text-base">
-                <span className="text-gray-600 dark:text-gray-400">Total TVA:</span>
-                <span className="font-medium text-gray-900 dark:text-white">
-                  {invoice.totalTVA?.toFixed(3)} {invoice.devise || 'TND'}
-                </span>
-              </div>
-              {invoice.timbreFiscal && invoice.timbreFiscal > 0 && (
+                {invoice.fodec && invoice.fodec.enabled && invoice.fodec.montant && (
+                  <div className="flex justify-between items-center text-sm sm:text-base">
+                    <span className="text-gray-600 dark:text-gray-400">FODEC:</span>
+                    <span className="font-medium text-gray-900 dark:text-white">
+                      {invoice.fodec.montant.toFixed(3)} {invoice.devise || 'TND'}
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between items-center text-sm sm:text-base">
-                  <span className="text-gray-600 dark:text-gray-400">Timbre fiscal:</span>
+                  <span className="text-gray-600 dark:text-gray-400">Total TVA:</span>
                   <span className="font-medium text-gray-900 dark:text-white">
-                    {invoice.timbreFiscal.toFixed(3)} {invoice.devise || 'TND'}
+                    {invoice.totalTVA?.toFixed(3)} {invoice.devise || 'TND'}
                   </span>
                 </div>
-              )}
-              <div className="flex justify-between items-center text-base sm:text-lg pt-3 border-t-2 border-gray-300 dark:border-gray-600 mt-3">
-                <span className="font-bold text-gray-900 dark:text-white">Total TTC:</span>
-                <span className="font-bold text-blue-600 dark:text-blue-400">
-                  {invoice.totalTTC?.toFixed(3)} {invoice.devise || 'TND'}
-                </span>
+                {invoice.timbreFiscal && invoice.timbreFiscal > 0 && (
+                  <div className="flex justify-between items-center text-sm sm:text-base">
+                    <span className="text-gray-600 dark:text-gray-400">Timbre fiscal:</span>
+                    <span className="font-medium text-gray-900 dark:text-white">
+                      {invoice.timbreFiscal.toFixed(3)} {invoice.devise || 'TND'}
+                    </span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center text-base sm:text-lg pt-3 border-t-2 border-gray-300 dark:border-gray-600 mt-3">
+                  <span className="font-bold text-gray-900 dark:text-white">Total TTC:</span>
+                  <span className="font-bold text-blue-600 dark:text-blue-400">
+                    {invoice.totalTTC?.toFixed(3)} {invoice.devise || 'TND'}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Payment Modal */}
-        {showPaymentModal && invoice && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4 backdrop-blur-sm">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl border dark:border-gray-700 max-w-2xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-800 z-10">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Ajouter un paiement</h2>
-                <button
-                  onClick={() => {
-                    setShowPaymentModal(false);
-                    setPaymentData({
-                      datePaiement: new Date().toISOString().split('T')[0],
-                      modePaiement: 'Espèces',
-                      reference: '',
-                      notes: '',
-                      montantPaye: 0,
-                      useAdvance: false,
-                      advanceAmount: 0,
-                    });
-                  }}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <XMarkIcon className="w-6 h-6" />
-                </button>
-              </div>
-
-              <div className="p-6 space-y-4">
-                {/* Advance Balance Info */}
-                {advanceBalance > 0 && (
-                  <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-green-800 dark:text-green-300">
-                        Solde avance disponible:
-                      </span>
-                      <span className="text-lg font-bold text-green-700 dark:text-green-400">
-                        {advanceBalance.toFixed(3)} {invoice.devise}
-                      </span>
-                    </div>
-                  </div>
-                )}
-
-                {/* Use Advance Checkbox */}
-                {advanceBalance > 0 && (
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      id="useAdvance"
-                      checked={paymentData.useAdvance}
-                      onChange={(e) => {
-                        const useAdvance = e.target.checked;
-                        setPaymentData(prev => {
-                          if (useAdvance) {
-                            const advanceToUse = Math.min(advanceBalance, soldeRestantActuel);
-                            setPaymentAmountInput(advanceToUse.toFixed(3));
-                            return { ...prev, useAdvance: true, montantPaye: advanceToUse };
-                          } else {
-                            setPaymentAmountInput(
-                              soldeRestantActuel > 0
-                                ? soldeRestantActuel.toFixed(3)
-                                : ''
-                            );
-                            return { ...prev, useAdvance: false, montantPaye: soldeRestantActuel };
-                          }
-                        });
-                      }}
-                      className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700"
-                    />
-                    <label htmlFor="useAdvance" className="ml-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
-                      Utiliser l'avance disponible
-                    </label>
-                  </div>
-                )}
-
-                {/* Date */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Date de paiement *
-                  </label>
-                  <input
-                    type="date"
-                    value={paymentData.datePaiement}
-                    onChange={(e) => setPaymentData({ ...paymentData, datePaiement: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    required
-                  />
+          {/* Payment Modal */}
+          {showPaymentModal && invoice && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4 backdrop-blur-sm">
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl border dark:border-gray-700 max-w-2xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+                <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-800 z-10">
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">Ajouter un paiement</h2>
+                  <button
+                    onClick={() => {
+                      setShowPaymentModal(false);
+                      setPaymentData({
+                        datePaiement: new Date().toISOString().split('T')[0],
+                        modePaiement: 'Espèces',
+                        reference: '',
+                        notes: '',
+                        montantPaye: 0,
+                        useAdvance: false,
+                        advanceAmount: 0,
+                      });
+                    }}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <XMarkIcon className="w-6 h-6" />
+                  </button>
                 </div>
 
-                {/* Payment Method */}
-                {!paymentData.useAdvance && (
+                <div className="p-6 space-y-4">
+                  {/* Advance Balance Info */}
+                  {advanceBalance > 0 && (
+                    <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-green-800 dark:text-green-300">
+                          Solde avance disponible:
+                        </span>
+                        <span className="text-lg font-bold text-green-700 dark:text-green-400">
+                          {advanceBalance.toFixed(3)} {invoice.devise}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Use Advance Checkbox */}
+                  {advanceBalance > 0 && (
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="useAdvance"
+                        checked={paymentData.useAdvance}
+                        onChange={(e) => {
+                          const useAdvance = e.target.checked;
+                          setPaymentData(prev => {
+                            if (useAdvance) {
+                              const advanceToUse = Math.min(advanceBalance, soldeRestantActuel);
+                              setPaymentAmountInput(advanceToUse.toFixed(3));
+                              return { ...prev, useAdvance: true, montantPaye: advanceToUse };
+                            } else {
+                              setPaymentAmountInput(
+                                soldeRestantActuel > 0
+                                  ? soldeRestantActuel.toFixed(3)
+                                  : ''
+                              );
+                              return { ...prev, useAdvance: false, montantPaye: soldeRestantActuel };
+                            }
+                          });
+                        }}
+                        className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700"
+                      />
+                      <label htmlFor="useAdvance" className="ml-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+                        Utiliser l'avance disponible
+                      </label>
+                    </div>
+                  )}
+
+                  {/* Date */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Mode de paiement *
+                      Date de paiement *
                     </label>
-                    <select
-                      value={paymentData.modePaiement}
-                      onChange={(e) => setPaymentData({ ...paymentData, modePaiement: e.target.value })}
+                    <input
+                      type="date"
+                      value={paymentData.datePaiement}
+                      onChange={(e) => setPaymentData({ ...paymentData, datePaiement: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       required
-                    >
-                      <option value="Espèces">Espèces</option>
-                      <option value="Chèque">Chèque</option>
-                      <option value="Virement">Virement</option>
-                      <option value="Carte">Carte</option>
-                      <option value="Autre">Autre</option>
-                    </select>
+                    />
                   </div>
-                )}
 
-                {/* Reference */}
-                {!paymentData.useAdvance && (
+                  {/* Payment Method */}
+                  {!paymentData.useAdvance && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Mode de paiement *
+                      </label>
+                      <select
+                        value={paymentData.modePaiement}
+                        onChange={(e) => setPaymentData({ ...paymentData, modePaiement: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        required
+                      >
+                        <option value="Espèces">Espèces</option>
+                        <option value="Chèque">Chèque</option>
+                        <option value="Virement">Virement</option>
+                        <option value="Carte">Carte</option>
+                        <option value="Autre">Autre</option>
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Reference */}
+                  {!paymentData.useAdvance && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Référence
+                      </label>
+                      <input
+                        type="text"
+                        value={paymentData.reference}
+                        onChange={(e) => setPaymentData({ ...paymentData, reference: e.target.value })}
+                        placeholder="N° de chèque, référence virement, etc."
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder-gray-400 dark:placeholder-gray-500"
+                      />
+                    </div>
+                  )}
+
+                  {/* Amount to Pay */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Référence
+                      Montant à payer *
                     </label>
                     <input
                       type="text"
-                      value={paymentData.reference}
-                      onChange={(e) => setPaymentData({ ...paymentData, reference: e.target.value })}
-                      placeholder="N° de chèque, référence virement, etc."
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder-gray-400 dark:placeholder-gray-500"
-                    />
-                  </div>
-                )}
-
-                {/* Amount to Pay */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Montant à payer *
-                  </label>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    value={paymentAmountInput}
-                    onChange={(e) => {
-                      if (paymentData.useAdvance) {
-                        return;
-                      }
-                      const raw = e.target.value;
-                      setPaymentAmountInput(raw);
-                      if (raw.trim() === '') {
-                        setPaymentData({ ...paymentData, montantPaye: 0 });
-                        return;
-                      }
-                      // نقبل فاصلة أو نقطة كفاصل عشري
-                      const normalized = raw.replace(',', '.');
-                      const parsed = Number(normalized);
-                      if (isNaN(parsed)) {
-                        // لا نحدّث القيمة العددية إذا النص غير صالح، لكن نتركه يكتب
-                        return;
-                      }
-                      const remaining =
-                        soldeRestantActuel > 0
-                          ? soldeRestantActuel
-                          : invoice.totalTTC;
-                      const roundedValue =
-                        Math.round(parsed * 1000) / 1000;
-                      const clamped = Math.min(
-                        Math.max(0, roundedValue),
-                        remaining
-                      );
-                      setPaymentData({
-                        ...paymentData,
-                        montantPaye: clamped,
-                      });
-                    }}
-                    onBlur={(e) => {
-                      if (
-                        paymentData.useAdvance &&
-                        advanceBalance > 0 &&
-                        soldeRestantActuel > 0
-                      ) {
-                        const advanceToUse = Math.min(
-                          advanceBalance,
-                          soldeRestantActuel
+                      inputMode="decimal"
+                      value={paymentAmountInput}
+                      onChange={(e) => {
+                        if (paymentData.useAdvance) {
+                          return;
+                        }
+                        const raw = e.target.value;
+                        setPaymentAmountInput(raw);
+                        if (raw.trim() === '') {
+                          setPaymentData({ ...paymentData, montantPaye: 0 });
+                          return;
+                        }
+                        // نقبل فاصلة أو نقطة كفاصل عشري
+                        const normalized = raw.replace(',', '.');
+                        const parsed = Number(normalized);
+                        if (isNaN(parsed)) {
+                          // لا نحدّث القيمة العددية إذا النص غير صالح، لكن نتركه يكتب
+                          return;
+                        }
+                        const remaining =
+                          soldeRestantActuel > 0
+                            ? soldeRestantActuel
+                            : invoice.totalTTC;
+                        const roundedValue =
+                          Math.round(parsed * 1000) / 1000;
+                        const clamped = Math.min(
+                          Math.max(0, roundedValue),
+                          remaining
                         );
-                        const roundedAdvance =
-                          Math.round(advanceToUse * 1000) / 1000;
                         setPaymentData({
                           ...paymentData,
-                          montantPaye: roundedAdvance,
+                          montantPaye: clamped,
                         });
-                        setPaymentAmountInput(roundedAdvance.toFixed(3));
-                        return;
-                      }
-                      const normalized = e.target.value.replace(',', '.');
-                      const parsed = Number(normalized) || 0;
-                      const rounded =
-                        Math.round(parsed * 1000) / 1000;
-                      const remaining =
-                        soldeRestantActuel > 0
-                          ? soldeRestantActuel
-                          : invoice.totalTTC;
-                      const clamped = Math.min(rounded, remaining);
-                      setPaymentData({
-                        ...paymentData,
-                        montantPaye: clamped,
-                      });
-                      setPaymentAmountInput(
-                        clamped > 0 ? clamped.toFixed(3) : ''
-                      );
-                    }}
-                    disabled={paymentData.useAdvance}
-                    readOnly={paymentData.useAdvance}
-                    placeholder="0.000"
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:cursor-not-allowed placeholder-gray-400 dark:placeholder-gray-500"
-                    required
-                  />
-                  {paymentData.useAdvance && (
-                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                      Le montant est automatiquement défini depuis l'avance disponible
-                    </p>
-                  )}
-                  <div className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                    Solde restant: <span className="font-medium text-gray-900 dark:text-white">{soldeRestantActuel.toFixed(3)} {invoice.devise}</span>
+                      }}
+                      onBlur={(e) => {
+                        if (
+                          paymentData.useAdvance &&
+                          advanceBalance > 0 &&
+                          soldeRestantActuel > 0
+                        ) {
+                          const advanceToUse = Math.min(
+                            advanceBalance,
+                            soldeRestantActuel
+                          );
+                          const roundedAdvance =
+                            Math.round(advanceToUse * 1000) / 1000;
+                          setPaymentData({
+                            ...paymentData,
+                            montantPaye: roundedAdvance,
+                          });
+                          setPaymentAmountInput(roundedAdvance.toFixed(3));
+                          return;
+                        }
+                        const normalized = e.target.value.replace(',', '.');
+                        const parsed = Number(normalized) || 0;
+                        const rounded =
+                          Math.round(parsed * 1000) / 1000;
+                        const remaining =
+                          soldeRestantActuel > 0
+                            ? soldeRestantActuel
+                            : invoice.totalTTC;
+                        const clamped = Math.min(rounded, remaining);
+                        setPaymentData({
+                          ...paymentData,
+                          montantPaye: clamped,
+                        });
+                        setPaymentAmountInput(
+                          clamped > 0 ? clamped.toFixed(3) : ''
+                        );
+                      }}
+                      disabled={paymentData.useAdvance}
+                      readOnly={paymentData.useAdvance}
+                      placeholder="0.000"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:cursor-not-allowed placeholder-gray-400 dark:placeholder-gray-500"
+                      required
+                    />
+                    {paymentData.useAdvance && (
+                      <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                        Le montant est automatiquement défini depuis l'avance disponible
+                      </p>
+                    )}
+                    <div className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                      Solde restant: <span className="font-medium text-gray-900 dark:text-white">{soldeRestantActuel.toFixed(3)} {invoice.devise}</span>
+                    </div>
+                  </div>
+
+                  {/* Notes */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Notes
+                    </label>
+                    <textarea
+                      value={paymentData.notes}
+                      onChange={(e) => setPaymentData({ ...paymentData, notes: e.target.value })}
+                      rows={3}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder-gray-400 dark:placeholder-gray-500"
+                      placeholder="Notes supplémentaires..."
+                    />
                   </div>
                 </div>
 
-                {/* Notes */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Notes
-                  </label>
-                  <textarea
-                    value={paymentData.notes}
-                    onChange={(e) => setPaymentData({ ...paymentData, notes: e.target.value })}
-                    rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder-gray-400 dark:placeholder-gray-500"
-                    placeholder="Notes supplémentaires..."
-                  />
+                <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+                  <button
+                    onClick={() => {
+                      setShowPaymentModal(false);
+                      setPaymentData({
+                        datePaiement: new Date().toISOString().split('T')[0],
+                        modePaiement: 'Espèces',
+                        reference: '',
+                        notes: '',
+                        montantPaye: 0,
+                        useAdvance: false,
+                        advanceAmount: 0,
+                      });
+                      setPaymentAmountInput('');
+                    }}
+                    className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    onClick={handleSavePayment}
+                    disabled={savingPayment || paymentData.montantPaye <= 0}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {savingPayment ? 'Enregistrement...' : 'Enregistrer le paiement'}
+                  </button>
                 </div>
               </div>
+            </div>
+          )}
+        </div>
+      </div>
 
-              <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
-                <button
-                  onClick={() => {
-                    setShowPaymentModal(false);
-                    setPaymentData({
-                      datePaiement: new Date().toISOString().split('T')[0],
-                      modePaiement: 'Espèces',
-                      reference: '',
-                      notes: '',
-                      montantPaye: 0,
-                      useAdvance: false,
-                      advanceAmount: 0,
-                    });
-                    setPaymentAmountInput('');
-                  }}
-                  className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                >
-                  Annuler
-                </button>
-                <button
-                  onClick={handleSavePayment}
-                  disabled={savingPayment || paymentData.montantPaye <= 0}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {savingPayment ? 'Enregistrement...' : 'Enregistrer le paiement'}
-                </button>
+      {/* WhatsApp Modal */}
+      {
+        showWhatsAppModal && (
+          <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+            <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+              <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onClick={() => setShowWhatsAppModal(false)}></div>
+              <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+              <div className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
+                <div className="absolute top-0 right-0 pt-4 pr-4">
+                  <button
+                    type="button"
+                    className="bg-white dark:bg-gray-800 rounded-md text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                    onClick={() => setShowWhatsAppModal(false)}
+                  >
+                    <span className="sr-only">Fermer</span>
+                    <XMarkIcon className="h-6 w-6" aria-hidden="true" />
+                  </button>
+                </div>
+
+                <div>
+                  <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 dark:bg-green-900">
+                    <ChatBubbleLeftEllipsisIcon className="h-6 w-6 text-green-600 dark:text-green-400" aria-hidden="true" />
+                  </div>
+                  <div className="mt-3 text-center sm:mt-5">
+                    <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white" id="modal-title">
+                      Envoyer par WhatsApp
+                    </h3>
+                    <div className="mt-2">
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Confirmez le numéro ou recherchez un autre client.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-5 space-y-4">
+                  <div>
+                    <label htmlFor="wa-number" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Numéro de téléphone
+                    </label>
+                    <div className="mt-1 relative rounded-md shadow-sm">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <PhoneIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
+                      </div>
+                      <input
+                        type="text"
+                        name="wa-number"
+                        id="wa-number"
+                        className="focus:ring-green-500 focus:border-green-500 block w-full pl-10 sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md h-10"
+                        placeholder="216..."
+                        value={whatsAppNumber}
+                        onChange={(e) => setWhatsAppNumber(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="relative flex py-1 items-center">
+                    <div className="flex-grow border-t border-gray-300 dark:border-gray-600"></div>
+                    <span className="flex-shrink-0 mx-4 text-gray-400 text-xs">OU RECHERCHER UN CLIENT</span>
+                    <div className="flex-grow border-t border-gray-300 dark:border-gray-600"></div>
+                  </div>
+
+                  <div className="relative">
+                    <label htmlFor="search-client" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Rechercher un autre client
+                    </label>
+                    <div className="mt-1 relative rounded-md shadow-sm">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
+                      </div>
+                      <input
+                        type="text"
+                        id="search-client"
+                        className="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md h-10"
+                        placeholder="Nom du client..."
+                        value={clientSearchQuery}
+                        onChange={(e) => setClientSearchQuery(e.target.value)}
+                        autoComplete="off"
+                      />
+                      {searchingClients && (
+                        <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div>
+                        </div>
+                      )}
+                    </div>
+
+                    {clientSearchResults.length > 0 && (
+                      <ul className="absolute z-10 mt-1 w-full bg-white dark:bg-gray-700 shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm">
+                        {clientSearchResults.map((client) => (
+                          <li
+                            key={client._id}
+                            className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-gray-100 dark:hover:bg-gray-600"
+                            onClick={async (e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              try {
+                                const res = await fetch(`/api/customers/${client._id}`, { headers: { 'X-Tenant-Id': tenantId || '' } });
+                                if (res.ok) {
+                                  const data = await res.json();
+                                  const phone = data.mobile || data.telephone || '';
+                                  let clean = phone.replace(/\D/g, '');
+                                  if (clean.length === 8) clean = '216' + clean;
+
+                                  if (clean) {
+                                    setWhatsAppNumber(clean);
+                                    setClientSearchQuery('');
+                                    setClientSearchResults([]);
+                                  } else {
+                                    toast.error(`Aucun numéro trouvé pour ${client.title}`);
+                                  }
+                                }
+                              } catch (err) {
+                                console.error(err);
+                                toast.error("Erreur lors de la récupération du numéro");
+                              }
+                            }}
+                          >
+                            <div className="flex items-center">
+                              <span className="font-medium block truncate text-gray-900 dark:text-white">
+                                {client.title}
+                              </span>
+                            </div>
+                            <span className="text-gray-500 dark:text-gray-400 text-xs">
+                              {client.subtitle}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense">
+                  <button
+                    type="button"
+                    className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:col-start-2 sm:text-sm"
+                    onClick={confirmWhatsAppSend}
+                  >
+                    Envoyer
+                  </button>
+                  <button
+                    type="button"
+                    className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-700 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:col-start-1 sm:text-sm"
+                    onClick={() => setShowWhatsAppModal(false)}
+                  >
+                    Annuler
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        )}
-      </div>
-    </DashboardLayout>
+        )
+      }
+    </DashboardLayout >
   );
 }
 
