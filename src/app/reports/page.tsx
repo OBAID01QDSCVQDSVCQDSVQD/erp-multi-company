@@ -153,11 +153,13 @@ export default function ReportsPage() {
   // Filtres
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [justification, setJustification] = useState('justified'); // 'justified', 'non_justified', 'all'
+  const [avoirType, setAvoirType] = useState('client'); // 'client', 'fournisseur', 'all'
   const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     fetchReportData();
-  }, [dateFrom, dateTo]);
+  }, [dateFrom, dateTo, justification, avoirType]);
 
   const fetchReportData = async () => {
     try {
@@ -165,6 +167,14 @@ export default function ReportsPage() {
       const params = new URLSearchParams();
       if (dateFrom) params.append('dateFrom', dateFrom);
       if (dateTo) params.append('dateTo', dateTo);
+
+      if (justification === 'justified') {
+        params.append('isDeclared', 'true');
+      } else if (justification === 'non_justified') {
+        params.append('isDeclared', 'false');
+      }
+
+      params.append('avoirType', avoirType);
       params.append('type', 'all');
 
       const response = await fetch(`/api/reports/accounting?${params.toString()}`);
@@ -251,6 +261,15 @@ export default function ReportsPage() {
       const params = new URLSearchParams();
       if (dateFrom) params.append('dateFrom', dateFrom);
       if (dateTo) params.append('dateTo', dateTo);
+
+      if (justification === 'justified') {
+        params.append('isDeclared', 'true');
+      } else if (justification === 'non_justified') {
+        params.append('isDeclared', 'false');
+      }
+
+      params.append('avoirType', avoirType);
+
       params.append('type', type);
       params.append('format', 'pdf');
 
@@ -279,6 +298,8 @@ export default function ReportsPage() {
   const resetFilters = () => {
     setDateFrom('');
     setDateTo('');
+    setJustification('justified');
+    setAvoirType('client');
   };
 
   if (loading) {
@@ -364,7 +385,42 @@ export default function ReportsPage() {
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
               />
             </div>
-            <div className="flex items-end sm:col-span-2 lg:col-span-1">
+
+            {activeTab === 'expenses' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Justification
+                </label>
+                <select
+                  value={justification}
+                  onChange={(e) => setJustification(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                >
+                  <option value="justified">Justifiée</option>
+                  <option value="non_justified">Non justifiée</option>
+                  <option value="all">Tout</option>
+                </select>
+              </div>
+            )}
+
+            {activeTab === 'invoices' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Type d'Avoir
+                </label>
+                <select
+                  value={avoirType}
+                  onChange={(e) => setAvoirType(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                >
+                  <option value="client">Client</option>
+                  <option value="fournisseur">Fournisseur</option>
+                  <option value="all">Tout</option>
+                </select>
+              </div>
+            )}
+
+            <div className="flex items-end sm:col-span-1 lg:col-span-1">
               <button
                 onClick={resetFilters}
                 className="w-full sm:w-auto px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
@@ -490,8 +546,8 @@ export default function ReportsPage() {
             {[
               { id: 'expenses', label: 'Dépenses', icon: BanknotesIcon, shortLabel: 'Dépenses' },
               { id: 'sales', label: 'Factures de Vente', icon: ShoppingBagIcon, shortLabel: 'Ventes' },
-              { id: 'purchases', label: 'Factures d\'Achat', icon: DocumentTextIcon, shortLabel: 'Achats' },
-              { id: 'invoices', label: 'افوار', icon: DocumentTextIcon, shortLabel: 'افوار' },
+              { id: 'purchases', label: "Factures d'Achat", icon: DocumentTextIcon, shortLabel: 'Achats' },
+              { id: 'invoices', label: "Factures d'Avoir", icon: DocumentTextIcon, shortLabel: 'Avoirs' },
               { id: 'payments', label: 'Paiements', icon: CreditCardIcon, shortLabel: 'Paiements' },
             ].map((tab) => {
               const Icon = tab.icon;
@@ -500,8 +556,8 @@ export default function ReportsPage() {
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
                   className={`py-3 sm:py-4 px-2 sm:px-1 border-b-2 font-medium text-xs sm:text-sm flex items-center space-x-1 sm:space-x-2 whitespace-nowrap ${activeTab === tab.id
-                      ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+                    ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
                     }`}
                 >
                   <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
@@ -600,9 +656,9 @@ export default function ReportsPage() {
                           </td>
                           <td className="px-2 py-2 whitespace-nowrap">
                             <span className={`px-1.5 inline-flex text-xs leading-5 font-semibold rounded-full ${expense.statut === 'paye' ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300' :
-                                expense.statut === 'valide' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300' :
-                                  expense.statut === 'en_attente' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300' :
-                                    'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                              expense.statut === 'valide' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300' :
+                                expense.statut === 'en_attente' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300' :
+                                  'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
                               }`}>
                               {expense.statut.replace('_', ' ')}
                             </span>
@@ -715,9 +771,9 @@ export default function ReportsPage() {
                           </td>
                           <td className="px-2 py-2 whitespace-nowrap hidden lg:table-cell">
                             <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${invoice.statut === 'PAYEE' ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300' :
-                                invoice.statut === 'PARTIELLEMENT_PAYEE' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300' :
-                                  invoice.statut === 'VALIDEE' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300' :
-                                    'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                              invoice.statut === 'PARTIELLEMENT_PAYEE' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300' :
+                                invoice.statut === 'VALIDEE' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300' :
+                                  'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
                               }`}>
                               {invoice.statut}
                             </span>
@@ -836,9 +892,9 @@ export default function ReportsPage() {
                           </td>
                           <td className="px-2 py-2 whitespace-nowrap hidden xl:table-cell">
                             <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${invoice.statut === 'PAYEE' ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300' :
-                                invoice.statut === 'PARTIELLEMENT_PAYEE' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300' :
-                                  invoice.statut === 'VALIDEE' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300' :
-                                    'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                              invoice.statut === 'PARTIELLEMENT_PAYEE' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300' :
+                                invoice.statut === 'VALIDEE' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300' :
+                                  'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
                               }`}>
                               {invoice.statut}
                             </span>
@@ -867,6 +923,115 @@ export default function ReportsPage() {
                       ))}
                     </tfoot>
                   )}
+                </table>
+              </div>
+            </div>
+          )}
+          {/* Factures d'Avoir Table */}
+          {activeTab === 'invoices' && reportData?.invoices && (
+            <div>
+              <div className="px-2 py-2 border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <h3 className="text-base sm:text-lg font-medium text-gray-900 dark:text-white">
+                  Factures d'Avoir ({reportData.invoices.length})
+                </h3>
+                <button
+                  onClick={() => handleExportPDF('invoices')}
+                  disabled={exporting}
+                  className="inline-flex items-center justify-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 w-full sm:w-auto"
+                >
+                  <ArrowDownTrayIcon className="h-4 w-4 mr-1" />
+                  PDF
+                </button>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead className="bg-gray-50 dark:bg-gray-700/50">
+                    <tr>
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        Date
+                      </th>
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        Numéro
+                      </th>
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        Tiers
+                      </th>
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        Type
+                      </th>
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        TVA
+                      </th>
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider hidden md:table-cell">
+                        Timbre
+                      </th>
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        Total HT
+                      </th>
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        Total TTC
+                      </th>
+                      <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider hidden lg:table-cell">
+                        Statut
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {reportData.invoices.length === 0 ? (
+                      <tr>
+                        <td colSpan={9} className="px-3 sm:px-6 py-4 text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                          Aucune facture d'avoir trouvée
+                        </td>
+                      </tr>
+                    ) : (
+                      reportData.invoices.map((invoice) => (
+                        <tr key={invoice._id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                          <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm text-gray-900 dark:text-white">
+                            {formatDate(invoice.date)}
+                          </td>
+                          <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
+                            {invoice.numero}
+                          </td>
+                          <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                            {invoice.companyName}
+                          </td>
+                          <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${invoice.type === 'vente'
+                              ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300'
+                              : 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300'
+                              }`}>
+                              {invoice.type === 'vente' ? 'Vente' : 'Achat'}
+                            </span>
+                          </td>
+                          <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                            {formatPrice(invoice.tva || 0, invoice.devise || 'TND')}
+                          </td>
+                          <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden md:table-cell">
+                            {formatPrice(invoice.timbre || 0, invoice.devise || 'TND')}
+                          </td>
+                          <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm text-gray-900 dark:text-white">
+                            {formatPrice(invoice.totalHT, invoice.devise || 'TND')}
+                          </td>
+                          <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
+                            {formatPrice(invoice.totalTTC, invoice.devise || 'TND')}
+                          </td>
+                          <td className="px-2 py-2 whitespace-nowrap hidden lg:table-cell">
+                            {invoice.statut ? (
+                              <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${invoice.statut === 'PAYEE' || invoice.statut === 'paye' ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300' :
+                                invoice.statut === 'PARTIELLEMENT_PAYEE' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300' :
+                                  invoice.statut === 'VALIDEE' || invoice.statut === 'valide' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300' :
+                                    'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                                }`}>
+                                {invoice.statut}
+                              </span>
+                            ) : (
+                              <span className="text-gray-400">-</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
                 </table>
               </div>
             </div>

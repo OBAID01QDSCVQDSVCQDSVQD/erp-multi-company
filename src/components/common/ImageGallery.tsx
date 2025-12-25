@@ -51,13 +51,13 @@ export default function ImageGallery({ images, title = 'Images jointes', classNa
 
   return (
     <>
-      <div className={`bg-white rounded-lg shadow p-4 sm:p-6 ${className}`}>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">{title}</h3>
+      <div className={`bg-white dark:bg-gray-800 rounded-lg shadow border dark:border-gray-700 p-4 sm:p-6 ${className}`}>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">{title}</h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
           {images.map((image) => (
             <div
               key={image.id}
-              className="group relative aspect-square bg-gray-100 rounded-lg overflow-hidden cursor-pointer hover:shadow-lg transition-all duration-200 transform hover:scale-105"
+              className="group relative aspect-square bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden cursor-pointer hover:shadow-lg transition-all duration-200 transform hover:scale-105"
               onClick={() => openLightbox(image)}
             >
               <Image

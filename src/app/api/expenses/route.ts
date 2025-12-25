@@ -17,18 +17,19 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
     const tenantId = session.user.companyId;
-    
+
     // Filtres
     const periode = searchParams.get('periode');
     const categorieId = searchParams.get('categorieId');
     const statut = searchParams.get('statut');
+    const isDeclared = searchParams.get('isDeclared');
     const projetId = searchParams.get('projetId');
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
@@ -57,7 +58,7 @@ export async function GET(request: NextRequest) {
     // Ensure tenantId is a string for comparison
     const tenantIdString = String(tenantId);
     const filter: any = { tenantId: tenantIdString };
-    
+
     if (periode) {
       const [startDate, endDate] = periode.split(',');
       filter.date = {
@@ -65,15 +66,19 @@ export async function GET(request: NextRequest) {
         $lte: new Date(endDate)
       };
     }
-    
+
     if (categorieId) {
       filter.categorieId = categorieId;
     }
-    
+
     if (statut) {
       filter.statut = statut;
     }
-    
+
+    if (isDeclared) {
+      filter.isDeclared = isDeclared === 'true';
+    }
+
     if (projetId) {
       filter.projetId = projetId;
     }
@@ -130,14 +135,14 @@ export async function GET(request: NextRequest) {
       // Handle categorieId - if it's an ObjectId string, create a default object
       let categorieId = exp.categorieId;
       if (!categorieId || (typeof categorieId === 'string' && categorieId.length === 24)) {
-        categorieId = { 
-          _id: exp.categorieId || null, 
-          nom: 'Catégorie supprimée', 
-          code: '', 
-          icone: '💸' 
+        categorieId = {
+          _id: exp.categorieId || null,
+          nom: 'Catégorie supprimée',
+          code: '',
+          icone: '💸'
         };
       }
-      
+
       return {
         ...exp,
         categorieId,
@@ -162,7 +167,7 @@ export async function GET(request: NextRequest) {
     console.error('Erreur lors de la récupération des dépenses:', error);
     console.error('Error stack:', error?.stack);
     console.error('Error message:', error?.message);
-    
+
     // Return success response with empty data instead of error
     // This prevents the UI from showing error messages
     return NextResponse.json({
@@ -181,7 +186,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }
@@ -232,7 +237,7 @@ export async function POST(request: NextRequest) {
         numero = `EXP-${currentYear}-${counterValue.toString().padStart(5, '0')}`;
 
         // Check if numero already exists (check both with tenantId and globally to handle old indexes)
-        const existingExpense = await (Expense as any).findOne({ 
+        const existingExpense = await (Expense as any).findOne({
           $or: [
             { tenantId: tenantIdString, numero },
             { numero } // Also check globally in case of old index
@@ -247,7 +252,7 @@ export async function POST(request: NextRequest) {
         // Création de la dépense
         // Remove societeId from body if present, and set it from session
         const { societeId: _, description, ...bodyWithoutSocieteId } = body;
-        
+
         // Build expenseData, only include description if it's not empty
         // Convert projetId to ObjectId if it exists
         const expenseData: any = {
@@ -262,7 +267,7 @@ export async function POST(request: NextRequest) {
         if (body.projetId) {
           expenseData.projetId = new mongoose.Types.ObjectId(body.projetId);
         }
-        
+
         // Only add description if it's not empty
         if (description && description.trim() !== '') {
           expenseData.description = description.trim();

@@ -15,7 +15,7 @@ import mongoose from 'mongoose';
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }
@@ -24,10 +24,12 @@ export async function GET(request: NextRequest) {
 
     const tenantId = session.user.companyId?.toString() || '';
     const { searchParams } = new URL(request.url);
-    
+
     // Filtres de date
     const dateFrom = searchParams.get('dateFrom');
     const dateTo = searchParams.get('dateTo');
+    const isDeclaredParam = searchParams.get('isDeclared');
+    const avoirType = searchParams.get('avoirType'); // 'client', 'fournisseur', 'all'
     const type = searchParams.get('type'); // 'expenses', 'sales', 'purchases', 'payments', 'all'
 
     // Construire le filtre de date
@@ -50,6 +52,12 @@ export async function GET(request: NextRequest) {
         expenseQuery.date = dateFilter;
       }
 
+      if (isDeclaredParam === 'true') {
+        expenseQuery.isDeclared = true;
+      } else if (isDeclaredParam === 'false') {
+        expenseQuery.isDeclared = false;
+      }
+
       const expenses = await (Expense as any).find(expenseQuery)
         .sort({ date: -1 })
         .lean();
@@ -58,7 +66,7 @@ export async function GET(request: NextRequest) {
       const categorieIds = Array.from(new Set(expenses.map((e: any) => e.categorieId?.toString()).filter(Boolean)));
       const fournisseurIds = Array.from(new Set(expenses.map((e: any) => e.fournisseurId?.toString()).filter(Boolean)));
 
-      const categories = categorieIds.length > 0 
+      const categories = categorieIds.length > 0
         ? await (ExpenseCategory as any).find({ _id: { $in: categorieIds.map((id: string) => new mongoose.Types.ObjectId(id)) } }).lean()
         : [];
       const fournisseurs = fournisseurIds.length > 0
@@ -71,7 +79,7 @@ export async function GET(request: NextRequest) {
       results.expenses = expenses.map((exp: any) => {
         const categorie = exp.categorieId ? (categoriesMap.get(exp.categorieId.toString()) as any) : null;
         const fournisseur = exp.fournisseurId ? (fournisseursMap.get(exp.fournisseurId.toString()) as any) : null;
-        
+
         // Utiliser les valeurs calculées du modèle Expense
         const tvaPct = exp.tvaPct || 0;
         const totalHT = exp.totalHT || 0;
@@ -79,7 +87,7 @@ export async function GET(request: NextRequest) {
         const timbreFiscal = exp.timbreFiscal || 0;
         const fodec = exp.fodec || 0;
         const tvaAmount = exp.tva || 0; // Montant TVA calculé
-        
+
         return {
           _id: exp._id,
           numero: exp.numero,
@@ -87,8 +95,8 @@ export async function GET(request: NextRequest) {
           companyName: fournisseur
             ? (fournisseur.raisonSociale || `${fournisseur.nom || ''} ${fournisseur.prenom || ''}`.trim())
             : 'N/A',
-          tva: tvaPct, // Pourcentage TVA pour l'affichage
-          tvaAmount: tvaAmount, // Montant TVA pour les calculs
+          tva: tvaPct,
+          tvaAmount: tvaAmount,
           fodec: fodec,
           timbre: timbreFiscal,
           totalHT: totalHT,
@@ -107,9 +115,8 @@ export async function GET(request: NextRequest) {
         if (!expensesByCurrency[currency]) {
           expensesByCurrency[currency] = { totalHT: 0, totalTVA: 0, totalTimbre: 0, totalTTC: 0, count: 0 };
         }
-        // Récupérer la TVA réelle depuis l'expense
         const tvaAmount = exp.tvaAmount || (exp.totalTTC - exp.totalHT - (exp.timbre || 0) - (exp.fodec || 0));
-        
+
         expensesByCurrency[currency].totalHT += exp.totalHT;
         expensesByCurrency[currency].totalTVA += tvaAmount;
         expensesByCurrency[currency].totalTimbre += exp.timbre || 0;
@@ -130,20 +137,20 @@ export async function GET(request: NextRequest) {
         .sort({ dateDoc: -1 })
         .lean();
 
-      // Récupérer les clients manuellement car customerId est un String
+      // Récupérer les clients manuellement
       const customerIds = Array.from(new Set(salesInvoices.map((inv: any) => inv.customerId).filter(Boolean)));
       const customers = customerIds.length > 0
-        ? await (Customer as any).find({ 
-            _id: { $in: customerIds.map((id: string) => new mongoose.Types.ObjectId(id)) },
-            tenantId 
-          }).lean()
+        ? await (Customer as any).find({
+          _id: { $in: customerIds.map((id: string) => new mongoose.Types.ObjectId(id)) },
+          tenantId
+        }).lean()
         : [];
 
       const customersMap = new Map(customers.map((c: any) => [c._id.toString(), c]));
 
       results.salesInvoices = salesInvoices.map((inv: any) => {
         const customer = inv.customerId ? (customersMap.get(inv.customerId) as any) : null;
-        
+
         return {
           _id: inv._id,
           numero: inv.numero,
@@ -152,18 +159,18 @@ export async function GET(request: NextRequest) {
             ? (customer.raisonSociale || `${customer.nom || ''} ${customer.prenom || ''}`.trim())
             : 'N/A',
           tva: inv.totalTVA || 0,
-          fodec: 0, // Fodec non applicable pour les ventes
+          fodec: 0,
           timbre: inv.timbreFiscal || 0,
           totalHT: inv.totalBaseHT || 0,
           totalTTC: inv.totalTTC || 0,
-          devise: inv.devise || 'TND', // Utiliser TND comme valeur par défaut (comme dans le modèle)
-          tauxChange: inv.tauxChange || 1, // Taux de change pour conversion en TND
+          devise: inv.devise || 'TND',
+          tauxChange: inv.tauxChange || 1,
           statut: inv.statut,
           referenceExterne: inv.referenceExterne,
         };
       });
 
-      // Calculer les totaux par devise
+      // Calculer les totaux par devise pour Ventes
       const salesByCurrency: Record<string, { totalHT: number; totalTVA: number; totalTimbre: number; totalTTC: number; count: number }> = {};
       results.salesInvoices.forEach((inv: any) => {
         const currency = inv.devise || 'TND';
@@ -201,12 +208,12 @@ export async function GET(request: NextRequest) {
         totalHT: inv.totaux?.totalHT || 0,
         totalTTC: inv.totaux?.totalTTC || 0,
         devise: inv.devise || 'TND',
-        tauxChange: inv.tauxChange || 1, // Taux de change pour conversion en TND
+        tauxChange: inv.tauxChange || 1,
         statut: inv.statut,
         referenceFournisseur: inv.referenceFournisseur,
       }));
 
-      // Calculer les totaux par devise
+      // Calculer les totaux par devise pour Achats
       const purchasesByCurrency: Record<string, { totalHT: number; totalTVA: number; totalFodec: number; totalTimbre: number; totalTTC: number; count: number }> = {};
       results.purchaseInvoices.forEach((inv: any) => {
         const currency = inv.devise || 'TND';
@@ -244,7 +251,7 @@ export async function GET(request: NextRequest) {
       results.salesInvoices.forEach((inv: any) => {
         const tauxChange = inv.tauxChange || 1;
         const currency = inv.devise || 'TND';
-        
+
         if (currency !== 'TND') {
           financialSummary.totalVentesHT += (inv.totalHT || 0) * tauxChange;
           financialSummary.totalVentesTVA += (inv.tva || 0) * tauxChange;
@@ -264,7 +271,7 @@ export async function GET(request: NextRequest) {
       results.purchaseInvoices.forEach((inv: any) => {
         const tauxChange = inv.tauxChange || 1;
         const currency = inv.devise || 'TND';
-        
+
         if (currency !== 'TND') {
           financialSummary.totalAchatsHT += (inv.totalHT || 0) * tauxChange;
           financialSummary.totalAchatsTVA += (inv.tva || 0) * tauxChange;
@@ -284,10 +291,10 @@ export async function GET(request: NextRequest) {
     // Convertir les dépenses en TND
     if (results.expenses) {
       results.expenses.forEach((exp: any) => {
-        const tauxChange = 1; // TODO: Ajouter tauxChange dans Expense model si nécessaire
+        const tauxChange = 1;
         const currency = exp.devise || 'TND';
         const tvaAmount = exp.tvaAmount || (exp.totalTTC - exp.totalHT - (exp.timbre || 0) - (exp.fodec || 0));
-        
+
         if (currency !== 'TND') {
           financialSummary.totalDepensesHT += (exp.totalHT || 0) * tauxChange;
           financialSummary.totalDepensesTVA += tvaAmount * tauxChange;
@@ -302,61 +309,78 @@ export async function GET(request: NextRequest) {
 
     results.financialSummary = financialSummary;
 
-    // 4. افوار (Invoices) - Combine Sales and Purchase Invoices
+    // 4. Factures d'Avoir (Credit Notes)
     if (!type || type === 'invoices' || type === 'all') {
-      const allInvoices: any[] = [];
-      
-      // Add sales invoices
-      if (results.salesInvoices) {
-        results.salesInvoices.forEach((inv: any) => {
-          allInvoices.push({
-            _id: inv._id,
-            numero: inv.numero,
-            date: inv.date,
-            companyName: inv.companyName,
-            type: 'vente',
-            tva: inv.tva,
-            fodec: 0, // Fodec non applicable pour les ventes
-            timbre: inv.timbre,
-            totalHT: inv.totalHT,
-            totalTTC: inv.totalTTC,
-            devise: inv.devise,
-            statut: inv.statut,
-            referenceExterne: inv.referenceExterne,
-          });
-        });
+      let avoirTypes = ['AVOIR', 'AVOIRFO'];
+      if (avoirType === 'client') avoirTypes = ['AVOIR'];
+      else if (avoirType === 'fournisseur') avoirTypes = ['AVOIRFO'];
+
+      const avoirQuery: any = {
+        tenantId,
+        type: { $in: avoirTypes }
+      };
+
+      if (Object.keys(dateFilter).length > 0) {
+        avoirQuery.dateDoc = dateFilter;
       }
-      
-      // Add purchase invoices
-      if (results.purchaseInvoices) {
-        results.purchaseInvoices.forEach((inv: any) => {
-          allInvoices.push({
-            _id: inv._id,
-            numero: inv.numero,
-            date: inv.date,
-            companyName: inv.companyName,
-            type: 'achat',
-            tva: inv.tva,
-            fodec: inv.fodec,
-            timbre: inv.timbre,
-            totalHT: inv.totalHT,
-            totalTTC: inv.totalTTC,
-            devise: inv.devise,
-            statut: inv.statut,
-            referenceFournisseur: inv.referenceFournisseur,
-          });
-        });
-      }
-      
-      // Sort by date descending
-      results.invoices = allInvoices.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+      const avoirs = await (Document as any).find(avoirQuery)
+        .sort({ dateDoc: -1 })
+        .lean();
+
+      // Get needed customers/suppliers IDs
+      const customerIds = new Set<string>();
+      const supplierIds = new Set<string>();
+
+      avoirs.forEach((doc: any) => {
+        if (doc.customerId) customerIds.add(doc.customerId);
+        if (doc.supplierId) supplierIds.add(doc.supplierId);
+      });
+
+      // Fetch Names
+      const customers = customerIds.size > 0
+        ? await (Customer as any).find({ _id: { $in: Array.from(customerIds).map(id => new mongoose.Types.ObjectId(id)) } }).lean()
+        : [];
+      const suppliers = supplierIds.size > 0
+        ? await (Supplier as any).find({ _id: { $in: Array.from(supplierIds).map(id => new mongoose.Types.ObjectId(id)) } }).lean()
+        : [];
+
+      const customersMap = new Map(customers.map((c: any) => [c._id.toString(), c]));
+      const suppliersMap = new Map(suppliers.map((s: any) => [s._id.toString(), s]));
+
+      results.invoices = avoirs.map((inv: any) => {
+        let companyName = 'N/A';
+        if (inv.customerId && customersMap.has(inv.customerId)) {
+          const c: any = customersMap.get(inv.customerId);
+          companyName = c.raisonSociale || `${c.nom || ''} ${c.prenom || ''}`.trim();
+        } else if (inv.supplierId && suppliersMap.has(inv.supplierId)) {
+          const s: any = suppliersMap.get(inv.supplierId);
+          companyName = s.raisonSociale || `${s.nom || ''} ${s.prenom || ''}`.trim();
+        }
+
+        return {
+          _id: inv._id,
+          numero: inv.numero,
+          date: inv.dateDoc,
+          companyName,
+          type: inv.type === 'AVOIR' ? 'vente' : 'achat',
+          tva: inv.totalTVA || 0,
+          fodec: inv.totalFodec || inv.fodec?.montant || 0,
+          timbre: inv.timbreFiscal || 0,
+          totalHT: inv.totalBaseHT || 0,
+          totalTTC: inv.totalTTC || 0,
+          devise: inv.devise || 'TND',
+          statut: inv.statut,
+          referenceExterne: inv.referenceExterne
+        };
+      });
     }
 
     // 5. Paiements (Payments)
     if (!type || type === 'payments' || type === 'all') {
       // Paiements clients
-      const customerPaymentsQuery: any = { 
-        societeId: new mongoose.Types.ObjectId(tenantId) 
+      const customerPaymentsQuery: any = {
+        societeId: new mongoose.Types.ObjectId(tenantId)
       };
       if (Object.keys(dateFilter).length > 0) {
         customerPaymentsQuery.datePaiement = dateFilter;
@@ -368,8 +392,8 @@ export async function GET(request: NextRequest) {
         .lean();
 
       // Paiements fournisseurs
-      const supplierPaymentsQuery: any = { 
-        societeId: new mongoose.Types.ObjectId(tenantId) 
+      const supplierPaymentsQuery: any = {
+        societeId: new mongoose.Types.ObjectId(tenantId)
       };
       if (Object.keys(dateFilter).length > 0) {
         supplierPaymentsQuery.datePaiement = dateFilter;

@@ -32,6 +32,7 @@ interface Expense {
   totalHT?: number;
   totalTTC?: number;
   modePaiement: string;
+  isDeclared?: boolean;
   statut: string;
   fournisseurId?: {
     _id: string;
@@ -119,6 +120,7 @@ export default function ExpensesPage() {
     periode: '',
     categorieId: '',
     statut: '',
+    isDeclared: 'true',
     projetId: '',
   });
   const [pagination, setPagination] = useState({
@@ -152,6 +154,7 @@ export default function ExpensesPage() {
       if (filters.periode) queryParams.append('periode', filters.periode);
       if (filters.categorieId) queryParams.append('categorieId', filters.categorieId);
       if (filters.statut) queryParams.append('statut', filters.statut);
+      if (filters.isDeclared) queryParams.append('isDeclared', filters.isDeclared);
       if (filters.projetId) queryParams.append('projetId', filters.projetId);
       queryParams.append('page', pagination.page.toString());
       queryParams.append('limit', pagination.limit.toString());
@@ -241,6 +244,7 @@ export default function ExpensesPage() {
       periode: '',
       categorieId: '',
       statut: '',
+      isDeclared: '',
       projetId: '',
     });
     setPagination(prev => ({ ...prev, page: 1 }));
@@ -482,6 +486,20 @@ export default function ExpensesPage() {
                   <option value="valide">Validé</option>
                   <option value="paye">Payé</option>
                   <option value="rejete">Rejeté</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Justification
+                </label>
+                <select
+                  value={filters.isDeclared}
+                  onChange={(e) => handleFilterChange('isDeclared', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                >
+                  <option value="">Tous</option>
+                  <option value="true">Justifiée</option>
+                  <option value="false">Non justifiée</option>
                 </select>
               </div>
               <div className="flex items-end">
@@ -802,7 +820,8 @@ export default function ExpensesPage() {
           </div>
         ) : (
           <>
-            <div className="bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-md border dark:border-gray-700">
+            {/* Desktop View: Table */}
+            <div className="hidden sm:block bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-md border dark:border-gray-700">
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                   <thead className="bg-gray-50 dark:bg-gray-700">
@@ -818,6 +837,9 @@ export default function ExpensesPage() {
                       </th>
                       <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Projet
+                      </th>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        Justification
                       </th>
                       <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Utilisateur
@@ -847,6 +869,17 @@ export default function ExpensesPage() {
                         </td>
                         <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
                           {expense.projetId?.name || '-'}
+                        </td>
+                        <td className="px-2 py-2 whitespace-nowrap text-xs">
+                          {expense.isDeclared === false ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
+                              Non justifiée
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300">
+                              Justifiée
+                            </span>
+                          )}
                         </td>
                         <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
                           {expense.createdBy
@@ -894,6 +927,88 @@ export default function ExpensesPage() {
                   </tbody>
                 </table>
               </div>
+            </div>
+
+            {/* Mobile View: Cards */}
+            <div className="sm:hidden space-y-4">
+              {expenses.map((expense) => (
+                <div key={expense._id} className="bg-white dark:bg-gray-800 shadow rounded-lg p-4 border dark:border-gray-700">
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <span className="text-xs font-medium text-gray-500 dark:text-gray-400 block">{formatDate(expense.date)}</span>
+                      <h4 className="text-sm font-semibold text-gray-900 dark:text-white">{expense.numero}</h4>
+                    </div>
+                    {expense.isDeclared === false ? (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
+                        Non justifiée
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300">
+                        Justifiée
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="space-y-2 mb-3">
+                    <div className="flex items-center text-sm">
+                      <span className="w-20 text-gray-500 dark:text-gray-400">Catégorie:</span>
+                      <span className="text-gray-900 dark:text-white font-medium truncate">
+                        {expense.categorieId.icone || '💸'} {expense.categorieId.nom}
+                      </span>
+                    </div>
+                    <div className="flex items-center text-sm">
+                      <span className="w-20 text-gray-500 dark:text-gray-400">Projet:</span>
+                      <span className="text-gray-900 dark:text-white truncate">{expense.projetId?.name || '-'}</span>
+                    </div>
+                    <div className="flex items-center text-sm">
+                      <span className="w-20 text-gray-500 dark:text-gray-400">Total TTC:</span>
+                      <span className="text-indigo-600 dark:text-indigo-400 font-bold">
+                        {formatPrice(expense.totalTTC || expense.montant || 0, expense.devise || 'TND')}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between items-center pt-2 border-t dark:border-gray-700">
+                    <select
+                      value={expense.statut}
+                      onChange={(e) => handleStatusChange(expense._id, e.target.value)}
+                      className={`text-xs font-semibold rounded-full px-2 py-1 border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500 ${expense.statut === 'paye' ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300' :
+                        expense.statut === 'valide' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300' :
+                          expense.statut === 'en_attente' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300' :
+                            'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                        }`}
+                    >
+                      <option value="brouillon">Brouillon</option>
+                      <option value="en_attente">En attente</option>
+                      <option value="valide">Validé</option>
+                      <option value="paye">Payé</option>
+                      <option value="rejete">Rejeté</option>
+                    </select>
+
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => handleViewExpense(expense._id)}
+                        className="p-1 text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300"
+                        title="Voir"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => handleEditExpense(expense._id)}
+                        className="p-1 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-300"
+                        title="Modifier"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 00 2 2h11a2 2 0 00 2-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
 
             {/* Pagination */}

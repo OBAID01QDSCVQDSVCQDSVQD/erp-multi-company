@@ -9,7 +9,7 @@ import ExpenseCategory from '@/lib/models/ExpenseCategory';
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }
@@ -18,6 +18,7 @@ export async function GET(request: NextRequest) {
     const tenantId = session.user.companyId;
     const from = searchParams.get('from');
     const to = searchParams.get('to');
+    const isDeclaredParam = searchParams.get('isDeclared');
 
     await connectDB();
 
@@ -26,14 +27,23 @@ export async function GET(request: NextRequest) {
     const startDate = from ? new Date(from) : new Date();
     startDate.setMonth(startDate.getMonth() - 6);
 
+    // Construction du filtre
+    const matchQuery: any = {
+      tenantId,
+      date: { $gte: startDate, $lte: endDate },
+      statut: { $in: ['valide', 'paye'] }
+    };
+
+    if (isDeclaredParam === 'true') {
+      matchQuery.isDeclared = true; // Ou { $ne: false } si on veut inclure undefined comme true
+    } else if (isDeclaredParam === 'false') {
+      matchQuery.isDeclared = false;
+    }
+
     // Agrégation par catégorie et par mois
     const monthlyExpenses = await (Expense as any).aggregate([
       {
-        $match: {
-          tenantId,
-          date: { $gte: startDate, $lte: endDate },
-          statut: { $in: ['valide', 'paye'] }
-        }
+        $match: matchQuery
       },
       {
         $lookup: {
@@ -72,11 +82,7 @@ export async function GET(request: NextRequest) {
     // Agrégation globale par mois
     const monthlyTotals = await (Expense as any).aggregate([
       {
-        $match: {
-          tenantId,
-          date: { $gte: startDate, $lte: endDate },
-          statut: { $in: ['valide', 'paye'] }
-        }
+        $match: matchQuery
       },
       {
         $group: {
@@ -97,11 +103,7 @@ export async function GET(request: NextRequest) {
     // Agrégation par catégorie (total)
     const categoryTotals = await (Expense as any).aggregate([
       {
-        $match: {
-          tenantId,
-          date: { $gte: startDate, $lte: endDate },
-          statut: { $in: ['valide', 'paye'] }
-        }
+        $match: matchQuery
       },
       {
         $lookup: {

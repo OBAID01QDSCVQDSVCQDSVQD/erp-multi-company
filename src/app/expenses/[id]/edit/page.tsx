@@ -14,33 +14,34 @@ import ImageUploader, { ImageData } from '@/components/common/ImageUploader';
 const expenseSchema = z.object({
   date: z.string().min(1, 'La date est requise'),
   categorieId: z.string().min(1, 'La catégorie est requise'),
+  isDeclared: z.boolean(),
   description: z.string().optional(),
   centreCoutId: z.string().optional(),
   projetId: z.string().optional(),
-  
+
   // Montant et TVA
   montantType: z.enum(['HT', 'TTC']),
   montant: z.number().min(0.01, 'Le montant doit être supérieur à 0'),
   devise: z.string().min(1, 'La devise est requise'),
   taxCode: z.string().min(1, 'Le code TVA est requis'),
   tvaDeductiblePct: z.number().min(0).max(100),
-  
+
   // FODEC
   fodecActif: z.boolean(),
   fodecRate: z.number().min(0).max(100),
   fodecBase: z.enum(['avantRemise', 'apresRemise']),
-  
+
   // Retenue
   retenueActif: z.boolean(),
   retenueRate: z.number().min(0).max(100),
   retenueBase: z.enum(['TTC_TIMBRE']),
-  
+
   // Timbre
   timbreFiscal: z.number().min(0),
-  
+
   // Remise
   remiseGlobalePct: z.number().min(0).max(100),
-  
+
   // Informations complémentaires
   modePaiement: z.enum(['especes', 'cheque', 'virement', 'carte', 'autre']),
   fournisseurId: z.string().optional(),
@@ -117,7 +118,7 @@ export default function EditExpensePage() {
   const [projectSearchQuery, setProjectSearchQuery] = useState('');
   const [initialProjectName, setInitialProjectName] = useState('');
   const [showProjectDropdown, setShowProjectDropdown] = useState(false);
-  
+
   // Display states for numeric inputs
   const [montantDisplay, setMontantDisplay] = useState<string>('');
   const [tvaDeductiblePctDisplay, setTvaDeductiblePctDisplay] = useState<string>('100');
@@ -151,6 +152,7 @@ export default function EditExpensePage() {
       timbreFiscal: 0,
       remiseGlobalePct: 0,
       statut: 'brouillon',
+      isDeclared: true,
     },
   });
 
@@ -289,7 +291,7 @@ export default function EditExpensePage() {
   const filteredProjects = useMemo(() => {
     if (!projectSearchQuery.trim()) return projects;
     const query = projectSearchQuery.toLowerCase();
-    return projects.filter((project) => 
+    return projects.filter((project) =>
       project.name.toLowerCase().includes(query)
     );
   }, [projects, projectSearchQuery]);
@@ -332,10 +334,10 @@ export default function EditExpensePage() {
 
   const fetchData = async () => {
     if (!tenantId) return;
-    
+
     try {
       setInitialLoading(true);
-      
+
       // Charger la dépense
       const expenseResponse = await fetch(`/api/expenses/${params.id}`, {
         headers: { 'X-Tenant-Id': tenantId },
@@ -389,15 +391,16 @@ export default function EditExpensePage() {
         fodecBase: expenseData.fodecBase || 'apresRemise',
         retenueActif: expenseData.retenueActif || false,
         retenueRate: expenseData.retenueRate || 0,
-      retenueBase: expenseData.retenueBase || 'TTC_TIMBRE',
-      timbreFiscal: expenseData.timbreFiscal ?? 0,
-      remiseGlobalePct: expenseData.remiseGlobalePct || 0,
-      modePaiement: expenseData.modePaiement || 'virement',
-      fournisseurId: expenseData.fournisseurId?._id || expenseData.fournisseurId || '',
-      employeId: expenseData.employeId?._id || expenseData.employeId || '',
-      referencePiece: expenseData.referencePiece || '',
-      notesInterne: expenseData.notesInterne || '',
+        retenueBase: expenseData.retenueBase || 'TTC_TIMBRE',
+        timbreFiscal: expenseData.timbreFiscal ?? 0,
+        remiseGlobalePct: expenseData.remiseGlobalePct || 0,
+        modePaiement: expenseData.modePaiement || 'virement',
+        fournisseurId: expenseData.fournisseurId?._id || expenseData.fournisseurId || '',
+        employeId: expenseData.employeId?._id || expenseData.employeId || '',
+        referencePiece: expenseData.referencePiece || '',
+        notesInterne: expenseData.notesInterne || '',
         statut: expenseData.statut || 'brouillon',
+        isDeclared: expenseData.isDeclared ?? true,
       });
 
       if (projetNameValue) {
@@ -499,7 +502,7 @@ export default function EditExpensePage() {
 
     try {
       const selectedTaxRate = taxRates.find(rate => rate.code === data.taxCode);
-      
+
       const piecesJointes = images.map(img => ({
         nom: img.name,
         url: img.url,
@@ -511,7 +514,7 @@ export default function EditExpensePage() {
         height: img.height,
         format: img.format,
       }));
-      
+
       const expenseData = {
         ...data,
         tvaPct: selectedTaxRate?.tauxPct || 0,
@@ -609,18 +612,31 @@ export default function EditExpensePage() {
         {/* Form */}
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           {/* 1. Informations générales */}
-          <div className="bg-white p-6 rounded-lg shadow">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">1. Informations générales</h3>
-            
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow border dark:border-gray-700">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white">1. Informations générales</h3>
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  {...register('isDeclared')}
+                  id="isDeclared"
+                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                />
+                <label htmlFor="isDeclared" className="ml-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Dépense justifiée (Avec justificatif)
+                </label>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Date du dépense <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="date"
                   {...register('date')}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 />
                 {errors.date && (
                   <p className="mt-1 text-sm text-red-600">{errors.date.message}</p>
@@ -628,12 +644,12 @@ export default function EditExpensePage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Catégorie <span className="text-red-500">*</span>
                 </label>
                 <select
                   {...register('categorieId')}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 >
                   <option value="">Sélectionner une catégorie</option>
                   {categories.map((category) => (
@@ -652,18 +668,18 @@ export default function EditExpensePage() {
 
               {projects.length > 0 && (
                 <div className="relative">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Projet (optionnel)
                   </label>
                   <div className="relative">
                     <input
                       type="text"
-                    value={projectSearchQuery || selectedProject?.name || initialProjectName}
+                      value={projectSearchQuery || selectedProject?.name || initialProjectName}
                       onChange={(e) => {
                         const value = e.target.value;
                         if (watchedProjetId) {
                           setValue('projetId', '');
-                        setInitialProjectName('');
+                          setInitialProjectName('');
                         }
                         setProjectSearchQuery(value);
                         setShowProjectDropdown(true);
@@ -671,7 +687,7 @@ export default function EditExpensePage() {
                       onFocus={() => setShowProjectDropdown(true)}
                       onBlur={() => setTimeout(() => setShowProjectDropdown(false), 200)}
                       placeholder="Rechercher un projet..."
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     />
                     {watchedProjetId && (
                       <button
@@ -679,7 +695,7 @@ export default function EditExpensePage() {
                         onClick={() => {
                           setValue('projetId', '');
                           setProjectSearchQuery('');
-                        setInitialProjectName('');
+                          setInitialProjectName('');
                         }}
                         className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                       >
@@ -687,7 +703,7 @@ export default function EditExpensePage() {
                       </button>
                     )}
                     {showProjectDropdown && filteredProjects.length > 0 && (
-                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
+                      <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-lg max-h-60 overflow-auto">
                         {filteredProjects.map((project) => (
                           <button
                             key={project._id}
@@ -699,7 +715,7 @@ export default function EditExpensePage() {
                               setInitialProjectName(project.name);
                               setShowProjectDropdown(false);
                             }}
-                            className="w-full text-left px-3 py-2 hover:bg-indigo-50 focus:bg-indigo-50 focus:outline-none"
+                            className="w-full text-left px-3 py-2 hover:bg-indigo-50 dark:hover:bg-indigo-900/50 text-gray-900 dark:text-white focus:outline-none"
                           >
                             {project.name}
                           </button>
@@ -712,12 +728,12 @@ export default function EditExpensePage() {
 
               {costCenters.length > 0 && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Centre de coût
                   </label>
                   <select
                     {...register('centreCoutId')}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   >
                     <option value="">Sélectionner un centre de coût</option>
                     {costCenters.map((cc) => (
@@ -731,13 +747,13 @@ export default function EditExpensePage() {
             </div>
 
             <div className="mt-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Description
               </label>
               <textarea
                 {...register('description')}
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 placeholder="Description de la dépense"
               />
               {errors.description && (
@@ -747,17 +763,17 @@ export default function EditExpensePage() {
           </div>
 
           {/* 2. Montant et TVA */}
-          <div className="bg-white p-6 rounded-lg shadow">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">2. Montant et TVA</h3>
-            
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow border dark:border-gray-700">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">2. Montant et TVA</h3>
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Type de montant
                 </label>
                 <select
                   {...register('montantType')}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 >
                   <option value="HT">HT</option>
                   <option value="TTC">TTC</option>
@@ -765,7 +781,7 @@ export default function EditExpensePage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Montant <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -787,12 +803,12 @@ export default function EditExpensePage() {
                   onBlur={(e) => {
                     const value = parseFloat(e.target.value);
                     if (isNaN(value) || e.target.value === '') {
-                      setMontantDisplay('');
+                      setMontantDisplay('0.000');
                     } else {
                       setMontantDisplay(e.target.value);
                     }
                   }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   placeholder="0.000"
                 />
                 {errors.montant && (
@@ -801,12 +817,12 @@ export default function EditExpensePage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Devise <span className="text-red-500">*</span>
                 </label>
                 <select
                   {...register('devise')}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 >
                   <option value="TND">TND</option>
                   <option value="EUR">EUR</option>
@@ -817,12 +833,12 @@ export default function EditExpensePage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Code TVA <span className="text-red-500">*</span>
                 </label>
                 <select
                   {...register('taxCode')}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 >
                   <option value="">Sélectionner un code TVA</option>
                   {taxRates.map((rate) => (
@@ -837,7 +853,7 @@ export default function EditExpensePage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Déductible Achats (%)
                 </label>
                 <input
@@ -867,7 +883,7 @@ export default function EditExpensePage() {
                       setTvaDeductiblePctDisplay(e.target.value);
                     }
                   }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   placeholder="100"
                 />
                 <p className="mt-1 text-xs text-gray-500">Généralement 100%</p>
@@ -875,22 +891,22 @@ export default function EditExpensePage() {
             </div>
 
             {/* FODEC */}
-            <div className="mt-6 p-4 bg-gray-50 rounded-md">
+            <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-md">
               <div className="flex items-center mb-3">
                 <input
                   type="checkbox"
                   {...register('fodecActif')}
                   className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                 />
-                <label className="ml-2 block text-sm font-medium text-gray-700">
+                <label className="ml-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                   FODEC activé
                 </label>
               </div>
-              
+
               {fodecActif && (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Taux FODEC (%)
                     </label>
                     <input
@@ -920,17 +936,17 @@ export default function EditExpensePage() {
                           setFodecRateDisplay(e.target.value);
                         }
                       }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                       placeholder="1"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Base de calcul
                     </label>
                     <select
                       {...register('fodecBase')}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     >
                       <option value="avantRemise">Avant remise</option>
                       <option value="apresRemise">Après remise</option>
@@ -941,7 +957,7 @@ export default function EditExpensePage() {
             </div>
 
             {/* Retenue à la source */}
-            <div className="mt-4 p-4 bg-gray-50 rounded-md">
+            <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-md">
               <div className="flex items-center mb-3">
                 <input
                   type="checkbox"
@@ -956,18 +972,18 @@ export default function EditExpensePage() {
                   }}
                   className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                 />
-                <label className="ml-2 block text-sm font-medium text-gray-700">
+                <label className="ml-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                   Retenue à la source activée
                   {calculations.totalTTC >= 1000 && retenueActif && !retenueManuallyDisabled && (
-                    <span className="ml-2 text-xs text-gray-500">(Activée automatiquement)</span>
+                    <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">(Activée automatiquement)</span>
                   )}
                 </label>
               </div>
-              
+
               {retenueActif && (
                 <div>
                   <div className="mb-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Taux retenue (%)
                     </label>
                     <input
@@ -997,11 +1013,11 @@ export default function EditExpensePage() {
                           setRetenueRateDisplay(e.target.value);
                         }
                       }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                       placeholder="1.5"
                     />
                   </div>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
                     Base de calcul: TTC - Timbre fiscal
                   </p>
                 </div>
@@ -1010,7 +1026,7 @@ export default function EditExpensePage() {
 
             {/* Timbre fiscal */}
             <div className="mt-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Timbre fiscal
               </label>
               <input
@@ -1039,15 +1055,15 @@ export default function EditExpensePage() {
                     setTimbreFiscalDisplay(e.target.value);
                   }
                 }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 placeholder="1.000"
               />
-              <p className="mt-1 text-xs text-gray-500">Montant fixe (ex: 1.000 TND)</p>
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Montant fixe (ex: 1.000 TND)</p>
             </div>
 
             {/* Remise globale */}
             <div className="mt-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Remise globale (%)
               </label>
               <input
@@ -1077,29 +1093,29 @@ export default function EditExpensePage() {
                     setRemiseGlobalePctDisplay(e.target.value);
                   }
                 }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 placeholder="0"
               />
             </div>
           </div>
 
           {/* 3. Informations complémentaires */}
-          <div className="bg-white p-6 rounded-lg shadow">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">3. Informations complémentaires</h3>
-            
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow border dark:border-gray-700">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">3. Informations complémentaires</h3>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Fournisseur
                 </label>
                 <select
                   {...register('fournisseurId')}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 >
                   <option value="">Sélectionner un fournisseur</option>
                   {suppliers.map((supplier) => {
-                    const supplierName = supplier.type === 'societe' 
-                      ? supplier.raisonSociale 
+                    const supplierName = supplier.type === 'societe'
+                      ? supplier.raisonSociale
                       : `${supplier.nom || ''} ${supplier.prenom || ''}`.trim();
                     return (
                       <option key={supplier._id} value={supplier._id}>
@@ -1111,12 +1127,12 @@ export default function EditExpensePage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Employé (qui a payé)
                 </label>
                 <select
                   {...register('employeId')}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 >
                   <option value="">Sélectionner un employé</option>
                   {users.map((user) => (
@@ -1128,12 +1144,12 @@ export default function EditExpensePage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Mode de paiement <span className="text-red-500">*</span>
                 </label>
                 <select
                   {...register('modePaiement')}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 >
                   <option value="especes">Espèces</option>
                   <option value="cheque">Chèque</option>
@@ -1144,24 +1160,24 @@ export default function EditExpensePage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Référence pièce / N° facture fournisseur
                 </label>
                 <input
                   type="text"
                   {...register('referencePiece')}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   placeholder="Numéro de facture fournisseur"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Statut
                 </label>
                 <select
                   {...register('statut')}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 >
                   <option value="brouillon">Brouillon</option>
                   <option value="en_attente">En attente</option>
@@ -1176,22 +1192,22 @@ export default function EditExpensePage() {
             </div>
 
             <div className="mt-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Notes internes
               </label>
               <textarea
                 {...register('notesInterne')}
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 placeholder="Notes internes sur cette dépense"
               />
             </div>
           </div>
 
           {/* 4. Pièces jointes */}
-          <div className="bg-white p-6 rounded-lg shadow">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">4. Pièces jointes</h3>
-            
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow border dark:border-gray-700">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">4. Pièces jointes</h3>
+
             <ImageUploader
               images={images}
               onChange={setImages}
@@ -1202,68 +1218,68 @@ export default function EditExpensePage() {
           </div>
 
           {/* 5. Totaux calculés */}
-          <div className="bg-white p-6 rounded-lg shadow">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">5. Totaux calculés</h3>
-            
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow border dark:border-gray-700">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">5. Totaux calculés</h3>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <div className="flex justify-between py-2 border-b">
-                  <span className="text-sm text-gray-600">Base HT:</span>
-                  <span className="text-sm font-medium">{calculations.baseHT.toFixed(3)} {watch('devise')}</span>
+                <div className="flex justify-between py-2 border-b dark:border-gray-700">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Base HT:</span>
+                  <span className="text-sm font-medium text-gray-900 dark:text-white">{calculations.totalHT.toFixed(3)} {watch('devise')}</span>
                 </div>
                 {calculations.remise > 0 && (
-                  <div className="flex justify-between py-2 border-b">
-                    <span className="text-sm text-gray-600">Remise:</span>
+                  <div className="flex justify-between py-2 border-b dark:border-gray-700">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Remise:</span>
                     <span className="text-sm font-medium text-red-600">-{calculations.remise.toFixed(3)} {watch('devise')}</span>
                   </div>
                 )}
-                <div className="flex justify-between py-2 border-b">
-                  <span className="text-sm text-gray-600">Base HT après remise:</span>
-                  <span className="text-sm font-medium">{calculations.baseHTApresRemise.toFixed(3)} {watch('devise')}</span>
+                <div className="flex justify-between py-2 border-b dark:border-gray-700">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Base HT après remise:</span>
+                  <span className="text-sm font-medium text-gray-900 dark:text-white">{calculations.baseHTApresRemise.toFixed(3)} {watch('devise')}</span>
                 </div>
                 {calculations.fodec > 0 && (
-                  <div className="flex justify-between py-2 border-b">
-                    <span className="text-sm text-gray-600">FODEC:</span>
-                    <span className="text-sm font-medium">{calculations.fodec.toFixed(3)} {watch('devise')}</span>
+                  <div className="flex justify-between py-2 border-b dark:border-gray-700">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">FODEC:</span>
+                    <span className="text-sm font-medium text-gray-900 dark:text-white">{calculations.fodec.toFixed(3)} {watch('devise')}</span>
                   </div>
                 )}
-                <div className="flex justify-between py-2 border-b">
-                  <span className="text-sm text-gray-600">TVA ({tvaPct}%):</span>
-                  <span className="text-sm font-medium">{calculations.tva.toFixed(3)} {watch('devise')}</span>
+                <div className="flex justify-between py-2 border-b dark:border-gray-700">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">TVA ({tvaPct}%):</span>
+                  <span className="text-sm font-medium text-gray-900 dark:text-white">{calculations.tva.toFixed(3)} {watch('devise')}</span>
                 </div>
                 {calculations.tvaNonDeductible > 0 && (
-                  <div className="flex justify-between py-2 border-b">
-                    <span className="text-sm text-gray-600">TVA non déductible:</span>
-                    <span className="text-sm font-medium text-orange-600">{calculations.tvaNonDeductible.toFixed(3)} {watch('devise')}</span>
+                  <div className="flex justify-between py-2 border-b dark:border-gray-700">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">TVA non déductible:</span>
+                    <span className="text-sm font-medium text-orange-600 dark:text-orange-400">{calculations.tvaNonDeductible.toFixed(3)} {watch('devise')}</span>
                   </div>
                 )}
                 {calculations.timbreFiscal > 0 && (
-                  <div className="flex justify-between py-2 border-b">
-                    <span className="text-sm text-gray-600">Timbre fiscal:</span>
-                    <span className="text-sm font-medium">{calculations.timbreFiscal.toFixed(3)} {watch('devise')}</span>
+                  <div className="flex justify-between py-2 border-b dark:border-gray-700">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Timbre fiscal:</span>
+                    <span className="text-sm font-medium text-gray-900 dark:text-white">{calculations.timbreFiscal.toFixed(3)} {watch('devise')}</span>
                   </div>
                 )}
               </div>
-              
+
               <div className="space-y-2">
-                <div className="flex justify-between py-2 border-b">
-                  <span className="text-sm text-gray-600">Total HT:</span>
-                  <span className="text-sm font-medium">{calculations.totalHT.toFixed(3)} {watch('devise')}</span>
+                <div className="flex justify-between py-2 border-b dark:border-gray-700">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Total HT:</span>
+                  <span className="text-sm font-medium text-gray-900 dark:text-white">{calculations.totalHT.toFixed(3)} {watch('devise')}</span>
                 </div>
-                <div className="flex justify-between py-3 border-t-2 border-gray-300">
-                  <span className="text-base font-semibold text-gray-900">Total TTC:</span>
-                  <span className="text-base font-bold text-indigo-600">{calculations.totalTTC.toFixed(3)} {watch('devise')}</span>
+                <div className="flex justify-between py-3 border-t-2 border-gray-300 dark:border-gray-600">
+                  <span className="text-base font-semibold text-gray-900 dark:text-white">Total TTC:</span>
+                  <span className="text-base font-bold text-indigo-600 dark:text-indigo-400">{calculations.totalTTC.toFixed(3)} {watch('devise')}</span>
                 </div>
                 {calculations.retenue > 0 && (
-                  <div className="flex justify-between py-2 border-b">
-                    <span className="text-sm text-gray-600">Retenue à la source:</span>
-                    <span className="text-sm font-medium text-orange-600">{calculations.retenue.toFixed(3)} {watch('devise')}</span>
+                  <div className="flex justify-between py-2 border-b dark:border-gray-700">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Retenue à la source:</span>
+                    <span className="text-sm font-medium text-orange-600 dark:text-orange-400">{calculations.retenue.toFixed(3)} {watch('devise')}</span>
                   </div>
                 )}
                 {calculations.retenue > 0 && (
-                  <div className="flex justify-between py-3 border-t-2 border-gray-300 mt-2">
-                    <span className="text-base font-semibold text-gray-900">Net à décaisser:</span>
-                    <span className="text-base font-bold text-green-600">{calculations.netADecaisser.toFixed(3)} {watch('devise')}</span>
+                  <div className="flex justify-between py-3 border-t-2 border-gray-300 dark:border-gray-600 mt-2">
+                    <span className="text-base font-semibold text-gray-900 dark:text-white">Net à décaisser:</span>
+                    <span className="text-base font-bold text-green-600 dark:text-green-400">{calculations.netADecaisser.toFixed(3)} {watch('devise')}</span>
                   </div>
                 )}
               </div>
@@ -1274,7 +1290,7 @@ export default function EditExpensePage() {
             <button
               type="button"
               onClick={() => router.back()}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200"
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600"
             >
               Annuler
             </button>

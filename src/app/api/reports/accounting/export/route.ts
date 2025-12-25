@@ -17,7 +17,7 @@ import autoTable from 'jspdf-autotable';
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }
@@ -26,11 +26,13 @@ export async function GET(request: NextRequest) {
 
     const tenantId = session.user.companyId?.toString() || '';
     const { searchParams } = new URL(request.url);
-    
+
     // Filtres
     const dateFrom = searchParams.get('dateFrom');
     const dateTo = searchParams.get('dateTo');
     const type = searchParams.get('type') || 'all';
+    const isDeclaredParam = searchParams.get('isDeclared');
+    const avoirType = searchParams.get('avoirType');
 
     // Construire le filtre de date
     const dateFilter: any = {};
@@ -57,10 +59,10 @@ export async function GET(request: NextRequest) {
     const periodText = dateFrom && dateTo
       ? `Période: ${new Date(dateFrom).toLocaleDateString('fr-FR')} - ${new Date(dateTo).toLocaleDateString('fr-FR')}`
       : dateFrom
-      ? `À partir du: ${new Date(dateFrom).toLocaleDateString('fr-FR')}`
-      : dateTo
-      ? `Jusqu'au: ${new Date(dateTo).toLocaleDateString('fr-FR')}`
-      : 'Toutes les périodes';
+        ? `À partir du: ${new Date(dateFrom).toLocaleDateString('fr-FR')}`
+        : dateTo
+          ? `Jusqu'au: ${new Date(dateTo).toLocaleDateString('fr-FR')}`
+          : 'Toutes les périodes';
     doc.text(periodText, 14, yPosition);
     yPosition += 15;
 
@@ -83,6 +85,12 @@ export async function GET(request: NextRequest) {
         expenseQuery.date = dateFilter;
       }
 
+      if (isDeclaredParam === 'true') {
+        expenseQuery.isDeclared = true;
+      } else if (isDeclaredParam === 'false') {
+        expenseQuery.isDeclared = false;
+      }
+
       expenses = await (Expense as any).find(expenseQuery)
         .sort({ date: -1 })
         .lean();
@@ -91,7 +99,7 @@ export async function GET(request: NextRequest) {
       const categorieIds = Array.from(new Set(expenses.map((e: any) => e.categorieId?.toString()).filter(Boolean)));
       const fournisseurIds = Array.from(new Set(expenses.map((e: any) => e.fournisseurId?.toString()).filter(Boolean)));
 
-      const categories = categorieIds.length > 0 
+      const categories = categorieIds.length > 0
         ? await (ExpenseCategory as any).find({ _id: { $in: categorieIds.map((id: string) => new mongoose.Types.ObjectId(id)) } }).lean()
         : [];
       const fournisseurs = fournisseurIds.length > 0
@@ -112,7 +120,7 @@ export async function GET(request: NextRequest) {
           const montantTTC = exp.montant;
           const montantHT = tvaPct > 0 ? montantTTC / (1 + tvaPct / 100) : montantTTC;
           const currency = exp.devise || 'TND';
-          
+
           return [
             new Date(exp.date).toLocaleDateString('fr-FR'),
             exp.numero,
@@ -148,6 +156,12 @@ export async function GET(request: NextRequest) {
 
         yPosition = (doc as any).lastAutoTable.finalY + 15;
 
+        // Check for page break before summary
+        if (yPosition > 175) {
+          doc.addPage();
+          yPosition = 20;
+        }
+
         // Totaux par devise
         const expensesByCurrency: Record<string, { totalHT: number; totalTimbre: number; totalTTC: number }> = {};
         expenses.forEach((exp: any) => {
@@ -155,7 +169,7 @@ export async function GET(request: NextRequest) {
           const tvaPct = exp.tvaPct || 0;
           const montantTTC = exp.montant;
           const montantHT = tvaPct > 0 ? montantTTC / (1 + tvaPct / 100) : montantTTC;
-          
+
           if (!expensesByCurrency[currency]) {
             expensesByCurrency[currency] = { totalHT: 0, totalTimbre: 0, totalTTC: 0 };
           }
@@ -171,7 +185,7 @@ export async function GET(request: NextRequest) {
         yPosition += 6;
         doc.setFont(undefined, 'normal');
         doc.setFontSize(9);
-        
+
         Object.entries(expensesByCurrency).forEach(([currency, totals]) => {
           doc.setFont(undefined, 'bold');
           doc.text(`${currency}:`, 14, yPosition);
@@ -199,10 +213,10 @@ export async function GET(request: NextRequest) {
       // Récupérer les clients manuellement car customerId est un String
       const customerIds = Array.from(new Set(salesInvoices.map((inv: any) => inv.customerId).filter(Boolean)));
       const customers = customerIds.length > 0
-        ? await (Customer as any).find({ 
-            _id: { $in: customerIds.map((id: string) => new mongoose.Types.ObjectId(id)) },
-            tenantId 
-          }).lean()
+        ? await (Customer as any).find({
+          _id: { $in: customerIds.map((id: string) => new mongoose.Types.ObjectId(id)) },
+          tenantId
+        }).lean()
         : [];
 
       const customersMap = new Map(customers.map((c: any) => [c._id.toString(), c]));
@@ -220,7 +234,7 @@ export async function GET(request: NextRequest) {
         const salesData = salesInvoices.map((inv: any) => {
           const customer = inv.customerId ? (customersMap.get(inv.customerId) as any) : null;
           const currency = inv.devise || 'TND';
-          
+
           return [
             new Date(inv.dateDoc).toLocaleDateString('fr-FR'),
             inv.numero,
@@ -228,6 +242,7 @@ export async function GET(request: NextRequest) {
               ? (customer.raisonSociale || `${customer.nom || ''} ${customer.prenom || ''}`.trim())
               : 'N/A',
             formatPrice(inv.totalTVA || 0, currency),
+            formatPrice(inv.totalFodec || inv.fodec?.montant || 0, currency),
             formatPrice(inv.timbreFiscal || 0, currency),
             formatPrice(inv.totalBaseHT || 0, currency),
             formatPrice(inv.totalTTC || 0, currency),
@@ -236,7 +251,7 @@ export async function GET(request: NextRequest) {
 
         autoTable(doc, {
           startY: yPosition,
-          head: [['Date', 'Numéro', 'Client', 'TVA', 'Timbre', 'Total HT', 'Total TTC']],
+          head: [['Date', 'Numéro', 'Client', 'TVA', 'Fodec', 'Timbre', 'Total HT', 'Total TTC']],
           body: salesData,
           theme: 'striped',
           headStyles: { fillColor: [40, 167, 69], fontSize: 9, cellPadding: { top: 1, bottom: 1, left: 1, right: 1 } },
@@ -244,17 +259,24 @@ export async function GET(request: NextRequest) {
           columnStyles: {
             0: { cellWidth: 18 }, // Date
             1: { cellWidth: 32 }, // Numéro
-            2: { cellWidth: 40 }, // Client
-            3: { cellWidth: 26, halign: 'right' }, // TVA
-            4: { cellWidth: 24, halign: 'right' }, // Timbre
-            5: { cellWidth: 30, halign: 'right' }, // Total HT
-            6: { cellWidth: 30, halign: 'right' }, // Total TTC
+            2: { cellWidth: 38 }, // Client
+            3: { cellWidth: 24, halign: 'right' }, // TVA
+            4: { cellWidth: 22, halign: 'right' }, // Fodec
+            5: { cellWidth: 22, halign: 'right' }, // Timbre
+            6: { cellWidth: 28, halign: 'right' }, // Total HT
+            7: { cellWidth: 28, halign: 'right' }, // Total TTC
           },
           styles: { overflow: 'linebreak', cellPadding: { top: 1, bottom: 1, left: 1, right: 1 }, fontSize: 8 },
           margin: { left: 5, right: 5 },
         });
 
         yPosition = (doc as any).lastAutoTable.finalY + 15;
+
+        // Check for page break before summary
+        if (yPosition > 175) {
+          doc.addPage();
+          yPosition = 20;
+        }
 
         // Totaux par devise
         const salesByCurrency: Record<string, { totalHT: number; totalTVA: number; totalTimbre: number; totalTTC: number }> = {};
@@ -276,7 +298,7 @@ export async function GET(request: NextRequest) {
         yPosition += 6;
         doc.setFont(undefined, 'normal');
         doc.setFontSize(9);
-        
+
         Object.entries(salesByCurrency).forEach(([currency, totals]) => {
           doc.setFont(undefined, 'bold');
           doc.text(`${currency}:`, 14, yPosition);
@@ -350,6 +372,12 @@ export async function GET(request: NextRequest) {
 
         yPosition = (doc as any).lastAutoTable.finalY + 15;
 
+        // Check for page break before summary
+        if (yPosition > 175) {
+          doc.addPage();
+          yPosition = 20;
+        }
+
         // Totaux par devise
         const purchasesByCurrency: Record<string, { totalHT: number; totalTVA: number; totalFodec: number; totalTimbre: number; totalTTC: number }> = {};
         purchaseInvoices.forEach((inv: any) => {
@@ -371,7 +399,7 @@ export async function GET(request: NextRequest) {
         yPosition += 6;
         doc.setFont(undefined, 'normal');
         doc.setFontSize(9);
-        
+
         Object.entries(purchasesByCurrency).forEach(([currency, totals]) => {
           doc.setFont(undefined, 'bold');
           doc.text(`${currency}:`, 14, yPosition);
@@ -390,57 +418,65 @@ export async function GET(request: NextRequest) {
 
     // 4. افوار (Invoices) - Combine Sales and Purchase Invoices
     if (type === 'invoices' || type === 'all') {
-      // Combine sales and purchase invoices
-      const allInvoices: any[] = [];
-      
-      // Add sales invoices
-      if (salesInvoices && salesInvoices.length > 0) {
-        const customerIds = Array.from(new Set(salesInvoices.map((inv: any) => inv.customerId).filter(Boolean)));
-        const customers = customerIds.length > 0
-          ? await (Customer as any).find({ 
-              _id: { $in: customerIds.map((id: string) => new mongoose.Types.ObjectId(id)) },
-              tenantId 
-            }).lean()
-          : [];
-        const customersMap = new Map(customers.map((c: any) => [c._id.toString(), c]));
+      let avoirTypes = ['AVOIR', 'AVOIRFO'];
+      if (avoirType === 'client') avoirTypes = ['AVOIR'];
+      else if (avoirType === 'fournisseur') avoirTypes = ['AVOIRFO'];
 
-        salesInvoices.forEach((inv: any) => {
-          const customer = inv.customerId ? (customersMap.get(inv.customerId) as any) : null;
-          allInvoices.push({
-            date: inv.dateDoc,
-            numero: inv.numero,
-            type: 'Vente',
-            companyName: customer
-              ? (customer.raisonSociale || `${customer.nom || ''} ${customer.prenom || ''}`.trim())
-              : 'N/A',
-            tva: inv.totalTVA || 0,
-            fodec: 0,
-            timbre: inv.timbreFiscal || 0,
-            totalHT: inv.totalBaseHT || 0,
-            totalTTC: inv.totalTTC || 0,
-            devise: inv.devise || 'TND',
-          });
-        });
+      const avoirQuery: any = {
+        tenantId,
+        type: { $in: avoirTypes }
+      };
+
+      if (Object.keys(dateFilter).length > 0) {
+        avoirQuery.dateDoc = dateFilter;
       }
-      
-      // Add purchase invoices
-      if (purchaseInvoices && purchaseInvoices.length > 0) {
-        purchaseInvoices.forEach((inv: any) => {
-          allInvoices.push({
-            date: inv.dateFacture,
-            numero: inv.numero,
-            type: 'Achat',
-            companyName: inv.fournisseurNom || 'N/A',
-            tva: inv.totaux?.totalTVA || 0,
-            fodec: inv.totaux?.totalFodec || 0,
-            timbre: inv.totaux?.totalTimbre || 0,
-            totalHT: inv.totaux?.totalHT || 0,
-            totalTTC: inv.totaux?.totalTTC || 0,
-            devise: inv.devise || 'TND',
-          });
-        });
-      }
-      
+
+      const avoirs = await (Document as any).find(avoirQuery)
+        .sort({ dateDoc: -1 })
+        .lean();
+
+      // IDs fetching
+      const customerIds = new Set<string>();
+      const supplierIds = new Set<string>();
+      avoirs.forEach((doc: any) => {
+        if (doc.customerId) customerIds.add(doc.customerId);
+        if (doc.supplierId) supplierIds.add(doc.supplierId);
+      });
+
+      const customers = customerIds.size > 0
+        ? await (Customer as any).find({ _id: { $in: Array.from(customerIds).map(id => new mongoose.Types.ObjectId(id)) } }).lean()
+        : [];
+      const suppliers = supplierIds.size > 0
+        ? await (Supplier as any).find({ _id: { $in: Array.from(supplierIds).map(id => new mongoose.Types.ObjectId(id)) } }).lean()
+        : [];
+
+      const customersMap = new Map(customers.map((c: any) => [c._id.toString(), c]));
+      const suppliersMap = new Map(suppliers.map((s: any) => [s._id.toString(), s]));
+
+      const allInvoices = avoirs.map((inv: any) => {
+        let companyName = 'N/A';
+        if (inv.customerId && customersMap.has(inv.customerId)) {
+          const c: any = customersMap.get(inv.customerId);
+          companyName = c.raisonSociale || `${c.nom || ''} ${c.prenom || ''}`.trim();
+        } else if (inv.supplierId && suppliersMap.has(inv.supplierId)) {
+          const s: any = suppliersMap.get(inv.supplierId);
+          companyName = s.raisonSociale || `${s.nom || ''} ${s.prenom || ''}`.trim();
+        }
+
+        return {
+          date: inv.dateDoc,
+          numero: inv.numero,
+          type: inv.type === 'AVOIR' ? 'Vente' : 'Achat',
+          companyName,
+          tva: inv.totalTVA || 0,
+          fodec: inv.totalFodec || inv.fodec?.montant || 0,
+          timbre: inv.timbreFiscal || 0,
+          totalHT: inv.totalBaseHT || 0,
+          totalTTC: inv.totalTTC || 0,
+          devise: inv.devise || 'TND',
+        };
+      });
+
       // Sort by date descending
       allInvoices.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
@@ -451,7 +487,10 @@ export async function GET(request: NextRequest) {
         }
 
         doc.setFontSize(14);
-        doc.text('افوار (Factures)', 14, yPosition);
+        let title = "Factures d'Avoir";
+        if (avoirType === 'client') title = "Factures d'Avoir (Clients)";
+        else if (avoirType === 'fournisseur') title = "Factures d'Avoir (Fournisseurs)";
+        doc.text(title, 14, yPosition);
         yPosition += 10;
 
         const invoiceData = allInvoices.map((inv: any) => {
@@ -493,6 +532,12 @@ export async function GET(request: NextRequest) {
 
         yPosition = (doc as any).lastAutoTable.finalY + 15;
 
+        // Check for page break before summary
+        if (yPosition > 175) {
+          doc.addPage();
+          yPosition = 20;
+        }
+
         // Totaux par devise
         const invoicesByCurrency: Record<string, { totalHT: number; totalTVA: number; totalFodec: number; totalTimbre: number; totalTTC: number }> = {};
         allInvoices.forEach((inv: any) => {
@@ -514,7 +559,7 @@ export async function GET(request: NextRequest) {
         yPosition += 6;
         doc.setFont(undefined, 'normal');
         doc.setFontSize(9);
-        
+
         Object.entries(invoicesByCurrency).forEach(([currency, totals]) => {
           doc.setFont(undefined, 'bold');
           doc.text(`${currency}:`, 14, yPosition);
@@ -533,8 +578,8 @@ export async function GET(request: NextRequest) {
 
     // 5. Paiements
     if (type === 'payments' || type === 'all') {
-      const customerPaymentsQuery: any = { 
-        societeId: new mongoose.Types.ObjectId(tenantId) 
+      const customerPaymentsQuery: any = {
+        societeId: new mongoose.Types.ObjectId(tenantId)
       };
       if (Object.keys(dateFilter).length > 0) {
         customerPaymentsQuery.datePaiement = dateFilter;
@@ -545,8 +590,8 @@ export async function GET(request: NextRequest) {
         .sort({ datePaiement: -1 })
         .lean();
 
-      const supplierPaymentsQuery: any = { 
-        societeId: new mongoose.Types.ObjectId(tenantId) 
+      const supplierPaymentsQuery: any = {
+        societeId: new mongoose.Types.ObjectId(tenantId)
       };
       if (Object.keys(dateFilter).length > 0) {
         supplierPaymentsQuery.datePaiement = dateFilter;
@@ -614,6 +659,12 @@ export async function GET(request: NextRequest) {
 
         yPosition = (doc as any).lastAutoTable.finalY + 15;
 
+        // Check for page break before summary
+        if (yPosition > 175) {
+          doc.addPage();
+          yPosition = 20;
+        }
+
         // Total
         const total = allPayments.reduce((sum: number, p: any) => sum + (p.montantTotal || 0), 0);
         const totalClients = allPayments.filter((p: any) => p.type === 'client').reduce((sum: number, p: any) => sum + (p.montantTotal || 0), 0);
@@ -627,17 +678,20 @@ export async function GET(request: NextRequest) {
 
     // Résumé Financier - Convertir toutes les devises en TND
     if (type === 'all') {
-      if (yPosition > 180) {
+      // Force page break if we are past the middle of the page to ensure good layout
+      if (yPosition > 140) {
         doc.addPage();
         yPosition = 20;
+      } else {
+        yPosition += 20; // Add extra space before summary if not new page
       }
 
-      doc.setFontSize(14);
+      doc.setFontSize(16);
       doc.text('Résumé Financier (TND)', 14, yPosition);
-      yPosition += 8;
-      doc.setFontSize(9);
-      doc.text('Tous les montants sont convertis en TND selon le taux de change à la date de la facture', 14, yPosition);
       yPosition += 10;
+      doc.setFontSize(10);
+      doc.text('Tous les montants sont convertis en TND selon le taux de change à la date de la facture', 14, yPosition);
+      yPosition += 15;
 
       // Calculer les totaux convertis en TND
       const financialSummary = {
@@ -660,7 +714,7 @@ export async function GET(request: NextRequest) {
         salesInvoices.forEach((inv: any) => {
           const tauxChange = inv.tauxChange || 1;
           const currency = inv.devise || 'TND';
-          
+
           if (currency !== 'TND') {
             financialSummary.totalVentesHT += (inv.totalBaseHT || 0) * tauxChange;
             financialSummary.totalVentesTVA += (inv.totalTVA || 0) * tauxChange;
@@ -680,7 +734,7 @@ export async function GET(request: NextRequest) {
         purchaseInvoices.forEach((inv: any) => {
           const tauxChange = inv.tauxChange || 1;
           const currency = inv.devise || 'TND';
-          
+
           if (currency !== 'TND') {
             financialSummary.totalAchatsHT += (inv.totaux?.totalHT || 0) * tauxChange;
             financialSummary.totalAchatsTVA += (inv.totaux?.totalTVA || 0) * tauxChange;
@@ -705,7 +759,7 @@ export async function GET(request: NextRequest) {
           const tvaPct = exp.tvaPct || 0;
           const montantTTC = exp.montant;
           const montantHT = tvaPct > 0 ? montantTTC / (1 + tvaPct / 100) : montantTTC;
-          
+
           if (currency !== 'TND') {
             financialSummary.totalDepensesHT += montantHT * tauxChange;
             financialSummary.totalDepensesTVA += (montantTTC - montantHT) * tauxChange;

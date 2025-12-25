@@ -27,9 +27,10 @@ export interface IExpense extends Document {
   date: Date;
   categorieId: mongoose.Types.ObjectId;
   description?: string;
+  isDeclared: boolean; // Dépense déclarée ou non
   centreCoutId?: mongoose.Types.ObjectId; // Cost center
   projetId?: mongoose.Types.ObjectId;
-  
+
   // Montant et TVA
   montantType: 'HT' | 'TTC'; // User choice: HT or TTC
   montant: number; // The entered amount (HT or TTC)
@@ -37,23 +38,23 @@ export interface IExpense extends Document {
   taxCode: string; // TVA code
   tvaPct: number;
   tvaDeductiblePct: number; // Déductible Achats (%)
-  
+
   // FODEC
   fodecActif: boolean;
   fodecRate: number; // Usually 1%
   fodecBase: 'avantRemise' | 'apresRemise'; // Calculation base
-  
+
   // Retenue à la source
   retenueActif: boolean;
   retenueRate: number; // e.g., 1.5%, 3%, 5%
   retenueBase: 'TTC_TIMBRE'; // Calculation base (TTC - Timbre fiscal)
-  
+
   // Timbre fiscal
   timbreFiscal: number; // Fixed amount (e.g., 1.000 TND)
-  
+
   // Remise globale
   remiseGlobalePct: number; // Global discount (%)
-  
+
   // Calculated totals (stored for reference)
   baseHT: number;
   fodec: number;
@@ -67,14 +68,14 @@ export interface IExpense extends Document {
   totalTaxes: number;
   totalTTC: number;
   netADecaisser: number; // TTC - retenue if retenue is withheld
-  
+
   // Informations complémentaires
   modePaiement: 'especes' | 'cheque' | 'virement' | 'carte' | 'autre';
   fournisseurId?: mongoose.Types.ObjectId;
   employeId?: mongoose.Types.ObjectId;
   referencePiece?: string; // Num. facture fournisseur
   notesInterne?: string;
-  
+
   // Statut
   statut: 'brouillon' | 'en_attente' | 'valide' | 'paye' | 'rejete';
   piecesJointes: IPieceJointe[];
@@ -124,6 +125,10 @@ const ExpenseSchema = new (Schema as any)({
     required: false,
     trim: true,
   },
+  isDeclared: {
+    type: Boolean,
+    default: true,
+  },
   centreCoutId: {
     type: Schema.Types.ObjectId,
     ref: 'CostCenter',
@@ -132,7 +137,7 @@ const ExpenseSchema = new (Schema as any)({
     type: Schema.Types.ObjectId,
     ref: 'Project',
   },
-  
+
   // Montant et TVA
   montantType: {
     type: String,
@@ -168,7 +173,7 @@ const ExpenseSchema = new (Schema as any)({
     max: 100,
     default: 100,
   },
-  
+
   // FODEC
   fodecActif: {
     type: Boolean,
@@ -185,7 +190,7 @@ const ExpenseSchema = new (Schema as any)({
     enum: ['avantRemise', 'apresRemise'],
     default: 'avantRemise',
   },
-  
+
   // Retenue à la source
   retenueActif: {
     type: Boolean,
@@ -202,14 +207,14 @@ const ExpenseSchema = new (Schema as any)({
     enum: ['TTC_TIMBRE'],
     default: 'TTC_TIMBRE',
   },
-  
+
   // Timbre fiscal
   timbreFiscal: {
     type: Number,
     min: 0,
     default: 0,
   },
-  
+
   // Remise globale
   remiseGlobalePct: {
     type: Number,
@@ -217,7 +222,7 @@ const ExpenseSchema = new (Schema as any)({
     max: 100,
     default: 0,
   },
-  
+
   // Calculated totals
   baseHT: { type: Number, default: 0 },
   fodec: { type: Number, default: 0 },
@@ -231,7 +236,7 @@ const ExpenseSchema = new (Schema as any)({
   totalTaxes: { type: Number, default: 0 },
   totalTTC: { type: Number, default: 0 },
   netADecaisser: { type: Number, default: 0 },
-  
+
   // Informations complémentaires
   modePaiement: {
     type: String,
@@ -254,7 +259,7 @@ const ExpenseSchema = new (Schema as any)({
     type: String,
     trim: true,
   },
-  
+
   // Statut
   statut: {
     type: String,
