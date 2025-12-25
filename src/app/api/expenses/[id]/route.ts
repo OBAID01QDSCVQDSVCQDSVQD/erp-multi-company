@@ -4,6 +4,9 @@ import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import Expense from '@/lib/models/Expense';
 import Project from '@/lib/models/Project';
+import ExpenseCategory from '@/lib/models/ExpenseCategory';
+import Supplier from '@/lib/models/Supplier';
+import User from '@/lib/models/User';
 import mongoose from 'mongoose';
 
 // PATCH /api/expenses/[id] - Mettre à jour une dépense (validation/paiement)
@@ -13,7 +16,7 @@ export async function PATCH(
 ) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }
@@ -34,15 +37,13 @@ export async function PATCH(
 
     await connectDB();
 
-    // Ensure Project model is registered before using populate
-    if (!(mongoose.models as any)['Project']) {
-      const ProjectModel = await import('@/lib/models/Project');
-      void ProjectModel.default;
-    }
+    // Ensure models are registered before using populate
+    // Note: Implicit registration via top-level imports should handle this,
+    // but explicit model passing to populate is safer.
 
     // Vérifier que la dépense appartient au tenant
     const expense = await (Expense as any).findOne({ _id: id, tenantId });
-    
+
     if (!expense) {
       return NextResponse.json(
         { error: 'Dépense non trouvée' },
@@ -75,17 +76,17 @@ export async function PATCH(
     }
 
     // Mise à jour de la dépense
-    const updatedExpense = await (Expense as any).findByIdAndUpdate(
+    const updatedExpense = await ((Expense as any).findByIdAndUpdate(
       id,
       { ...expenseData, updatedAt: new Date() },
       { new: true }
-    ).populate([
-      { path: 'categorieId', select: 'nom code icone' },
-      { path: 'centreCoutId', select: 'code nom' },
-      { path: 'fournisseurId', select: 'type raisonSociale nom prenom' },
-      { path: 'employeId', select: 'firstName lastName' },
-      { path: 'projetId', select: 'name', model: Project }
-    ]);
+    ) as any).populate([
+      { path: 'categorieId', select: 'nom code icone', model: ExpenseCategory as any },
+      // { path: 'centreCoutId', select: 'code nom' }, // Model not implemented yet
+      { path: 'fournisseurId', select: 'type raisonSociale nom prenom', model: Supplier as any },
+      { path: 'employeId', select: 'firstName lastName', model: User as any },
+      { path: 'projetId', select: 'name', model: Project as any }
+    ] as any);
 
     return NextResponse.json(updatedExpense);
 
@@ -105,7 +106,7 @@ export async function GET(
 ) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }
@@ -125,20 +126,18 @@ export async function GET(
 
     await connectDB();
 
-    // Ensure Project model is registered before using populate
-    if (!(mongoose.models as any)['Project']) {
-      const ProjectModel = await import('@/lib/models/Project');
-      void ProjectModel.default;
-    }
+    // Ensure models are registered before using populate
+    // Note: Implicit registration via top-level imports should handle this,
+    // but explicit model passing to populate is safer.
 
-    const expense = await (Expense as any).findOne({ _id: id, tenantId })
+    const expense = await ((Expense as any).findOne({ _id: id, tenantId }) as any)
       .populate([
-        { path: 'categorieId', select: 'nom code icone' },
-        { path: 'centreCoutId', select: 'code nom' },
-        { path: 'fournisseurId', select: 'type raisonSociale nom prenom' },
-        { path: 'employeId', select: 'firstName lastName' },
-        { path: 'projetId', select: 'name', model: Project }
-      ]);
+        { path: 'categorieId', select: 'nom code icone', model: ExpenseCategory as any },
+        // { path: 'centreCoutId', select: 'code nom' }, // Model not implemented yet
+        { path: 'fournisseurId', select: 'type raisonSociale nom prenom', model: Supplier as any },
+        { path: 'employeId', select: 'firstName lastName', model: User as any },
+        { path: 'projetId', select: 'name', model: Project as any }
+      ] as any);
 
     if (!expense) {
       return NextResponse.json(
@@ -165,7 +164,7 @@ export async function DELETE(
 ) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }
