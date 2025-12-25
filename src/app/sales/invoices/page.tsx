@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
-import { PlusIcon, DocumentTextIcon, MagnifyingGlassIcon, EyeIcon, PencilIcon, ArrowDownTrayIcon, TrashIcon, ArrowRightIcon, ExclamationTriangleIcon, XMarkIcon, ArrowLeftIcon, CheckIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, DocumentTextIcon, MagnifyingGlassIcon, EyeIcon, PencilIcon, ArrowDownTrayIcon, TrashIcon, ArrowRightIcon, ExclamationTriangleIcon, XMarkIcon, ArrowLeftIcon, CheckIcon, ChatBubbleLeftEllipsisIcon, PhoneIcon } from '@heroicons/react/24/outline';
 import { useTenantId } from '@/hooks/useTenantId';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
@@ -104,6 +104,14 @@ export default function InvoicesPage() {
   const [warehouses, setWarehouses] = useState<any[]>([]);
   const [selectedWarehouseId, setSelectedWarehouseId] = useState<string>('');
   const [multiWarehouseEnabled, setMultiWarehouseEnabled] = useState(false);
+
+  // WhatsApp Modal State
+  const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
+  const [whatsAppNumber, setWhatsAppNumber] = useState('');
+  const [clientSearchQuery, setClientSearchQuery] = useState('');
+  const [clientSearchResults, setClientSearchResults] = useState<any[]>([]);
+  const [searchingClients, setSearchingClients] = useState(false);
+  const [selectedInvoiceForWhatsApp, setSelectedInvoiceForWhatsApp] = useState<Invoice | null>(null);
 
   // Form state
   const [formData, setFormData] = useState(() => createDefaultFormData());
@@ -1451,6 +1459,111 @@ export default function InvoicesPage() {
     }
   };
 
+  // WhatsApp Logic
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(async () => {
+      if (clientSearchQuery.trim()) {
+        setSearchingClients(true);
+        try {
+          const res = await fetch(`/api/search?q=${encodeURIComponent(clientSearchQuery)}&type=client`, {
+            headers: { 'X-Tenant-Id': tenantId || '' }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            setClientSearchResults(data.results || []);
+          }
+        } catch (error) {
+          console.error("Error searching clients", error);
+        } finally {
+          setSearchingClients(false);
+        }
+      } else {
+        setClientSearchResults([]);
+      }
+    }, 500);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [clientSearchQuery, tenantId]);
+
+  const handleOpenWhatsAppModal = async (invoice: Invoice) => {
+    setSelectedInvoiceForWhatsApp(invoice);
+    setWhatsAppNumber(''); // Reset first
+
+    // Try to fetch customer phone if customerId exists
+    if (invoice.customerId && tenantId) {
+      try {
+        // If customerId is an object (it happens in some views), extract ID. But in the transformed list, it's string.
+        const custId = typeof invoice.customerId === 'object' ? (invoice.customerId as any)._id : invoice.customerId;
+
+        const res = await fetch(`/api/customers/${custId}`, {
+          headers: { 'X-Tenant-Id': tenantId }
+        });
+        if (res.ok) {
+          const customer = await res.json();
+          const phone = customer.mobile || customer.telephone || '';
+          let clean = phone.replace(/\D/g, '');
+          if (clean.length === 8) clean = '216' + clean;
+          setWhatsAppNumber(clean);
+        }
+      } catch (e) {
+        console.error("Error fetching customer for whatsapp", e);
+      }
+    }
+
+    setClientSearchQuery('');
+    setClientSearchResults([]);
+    setShowWhatsAppModal(true);
+  };
+
+  const confirmWhatsAppSend = async () => {
+    if (!selectedInvoiceForWhatsApp || !whatsAppNumber) return;
+
+    let numberToSend = whatsAppNumber.replace(/\D/g, '');
+
+    // Auto-fix if user entered 8 digits without prefix
+    if (numberToSend.length === 8) {
+      numberToSend = '216' + numberToSend;
+    }
+
+    // Generate public link
+    let publicLink = '';
+    const invoice = selectedInvoiceForWhatsApp;
+
+    // Use toast promise for better UX during link generation
+    const toastId = toast.loading('Génération du lien...');
+
+    try {
+      const res = await fetch(`/api/sales/invoices/${invoice._id}/share`, {
+        method: 'POST',
+        headers: { 'X-Tenant-Id': tenantId || '' }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        publicLink = `${window.location.origin}/i/${data.token}`;
+      }
+    } catch (e) {
+      console.error("Error generating public link", e);
+      toast.error("Erreur génération lien", { id: toastId });
+    }
+
+    const customerName = invoice.customerName || 'Cher Client';
+    // We don't have companySettings readily available in a centralized way mostly, 
+    // unless we use the TvaSettings logic or fetch it. Let's use a generic name or what we have.
+    const companyName = tvaSettings?.societe?.nom || 'notre société';
+
+    let message = `Bonjour ${customerName}, de la part de ${companyName} : Voici votre facture ${invoice.numero} du ${new Date(invoice.dateDoc).toLocaleDateString('fr-FR')} pour un montant de ${invoice.totalTTC.toFixed(3)} ${invoice.devise || 'TND'}. Merci de votre confiance.`;
+
+    if (publicLink) {
+      message += `\n\n📄 Télécharger votre facture ici : ${publicLink}`;
+    }
+
+    const url = `https://api.whatsapp.com/send?phone=${numberToSend}&text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank');
+
+    toast.dismiss(toastId);
+    setShowWhatsAppModal(false);
+  };
+
   return (
     <DashboardLayout>
       <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
@@ -1663,6 +1776,15 @@ export default function InvoicesPage() {
                               <ArrowDownTrayIcon className="w-3.5 h-3.5" />
                             </button>
                             <button
+                              onClick={() => {
+                                handleOpenWhatsAppModal(invoice);
+                              }}
+                              className="p-1.5 text-green-600 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-900/20 rounded-lg transition-colors"
+                              title="WhatsApp"
+                            >
+                              <ChatBubbleLeftEllipsisIcon className="w-3.5 h-3.5" />
+                            </button>
+                            <button
                               onClick={() => handleDelete(invoice._id)}
                               className="p-1.5 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                               title="Supprimer"
@@ -1729,8 +1851,13 @@ export default function InvoicesPage() {
                       onClick={() => handleDownloadPDF(invoice)}
                       className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm border dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
                     >
-                      <ArrowDownTrayIcon className="w-4 h-4" />
-                      PDF
+                      <ArrowDownTrayIcon className="w-4 h-4" /> PDF
+                    </button>
+                    <button
+                      onClick={() => handleOpenWhatsAppModal(invoice)}
+                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm border border-green-200 dark:border-green-800 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20 text-green-700 dark:text-green-400"
+                    >
+                      <ChatBubbleLeftEllipsisIcon className="w-4 h-4" /> WhatsApp
                     </button>
                     <button
                       onClick={() => handleDelete(invoice._id)}
@@ -2702,6 +2829,161 @@ export default function InvoicesPage() {
                 >
                   <ArrowDownTrayIcon className="w-4 h-4" />
                   Télécharger PDF
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* WhatsApp Modal */}
+      {showWhatsAppModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+          <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onClick={() => setShowWhatsAppModal(false)}></div>
+            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            <div className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
+              <div className="absolute top-0 right-0 pt-4 pr-4">
+                <button
+                  type="button"
+                  className="bg-white dark:bg-gray-800 rounded-md text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  onClick={() => setShowWhatsAppModal(false)}
+                >
+                  <span className="sr-only">Fermer</span>
+                  <XMarkIcon className="h-6 w-6" aria-hidden="true" />
+                </button>
+              </div>
+
+              <div>
+                <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 dark:bg-green-900">
+                  <ChatBubbleLeftEllipsisIcon className="h-6 w-6 text-green-600 dark:text-green-400" aria-hidden="true" />
+                </div>
+                <div className="mt-3 text-center sm:mt-5">
+                  <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white" id="modal-title">
+                    Envoyer par WhatsApp
+                  </h3>
+                  <div className="mt-2">
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Confirmez le numéro ou recherchez un autre client.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-5 space-y-4">
+                {/* Manual Number Input */}
+                <div>
+                  <label htmlFor="wa-number" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Numéro de téléphone
+                  </label>
+                  <div className="mt-1 relative rounded-md shadow-sm">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <PhoneIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
+                    </div>
+                    <input
+                      type="text"
+                      name="wa-number"
+                      id="wa-number"
+                      className="focus:ring-green-500 focus:border-green-500 block w-full pl-10 sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md h-10"
+                      placeholder="216..."
+                      value={whatsAppNumber}
+                      onChange={(e) => setWhatsAppNumber(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="relative flex py-1 items-center">
+                  <div className="flex-grow border-t border-gray-300 dark:border-gray-600"></div>
+                  <span className="flex-shrink-0 mx-4 text-gray-400 text-xs">OU RECHERCHER UN CLIENT</span>
+                  <div className="flex-grow border-t border-gray-300 dark:border-gray-600"></div>
+                </div>
+
+                {/* Search Client */}
+                <div className="relative">
+                  <label htmlFor="search-client" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Rechercher un autre client
+                  </label>
+                  <div className="mt-1 relative rounded-md shadow-sm">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
+                    </div>
+                    <input
+                      type="text"
+                      id="search-client"
+                      className="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md h-10"
+                      placeholder="Nom du client..."
+                      value={clientSearchQuery}
+                      onChange={(e) => setClientSearchQuery(e.target.value)}
+                      autoComplete="off"
+                    />
+                    {searchingClients && (
+                      <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Search Results Dropdown */}
+                  {clientSearchResults.length > 0 && (
+                    <ul className="absolute z-10 mt-1 w-full bg-white dark:bg-gray-700 shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm">
+                      {clientSearchResults.map((client) => (
+                        <li
+                          key={client._id}
+                          className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-gray-100 dark:hover:bg-gray-600"
+                          onClick={async (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            try {
+                              const res = await fetch(`/api/customers/${client._id}`, { headers: { 'X-Tenant-Id': tenantId || '' } });
+                              if (res.ok) {
+                                const data = await res.json();
+                                const phone = data.mobile || data.telephone || '';
+                                let clean = phone.replace(/\D/g, '');
+                                if (clean.length === 8) clean = '216' + clean;
+
+                                if (clean) {
+                                  setWhatsAppNumber(clean);
+                                  setClientSearchQuery('');
+                                  setClientSearchResults([]);
+                                } else {
+                                  toast.error(`Aucun numéro trouvé pour ${client.title}`);
+                                }
+                              }
+                            } catch (err) {
+                              console.error(err);
+                              toast.error("Erreur lors de la récupération du numéro");
+                            }
+                          }}
+                        >
+                          <div className="flex items-center">
+                            <span className="font-medium block truncate text-gray-900 dark:text-white">
+                              {client.title}
+                            </span>
+                          </div>
+                          <span className="text-gray-500 dark:text-gray-400 text-xs">
+                            {client.subtitle}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense">
+                <button
+                  type="button"
+                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:col-start-2 sm:text-sm"
+                  onClick={confirmWhatsAppSend}
+                >
+                  Envoyer
+                </button>
+                <button
+                  type="button"
+                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-700 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:col-start-1 sm:text-sm"
+                  onClick={() => setShowWhatsAppModal(false)}
+                >
+                  Annuler
                 </button>
               </div>
             </div>

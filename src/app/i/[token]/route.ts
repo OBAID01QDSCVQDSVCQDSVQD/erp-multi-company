@@ -5,6 +5,7 @@ import CompanySettings from '@/lib/models/CompanySettings';
 import Product from '@/lib/models/Product';
 import Customer from '@/lib/models/Customer';
 import { generateInvoicePdf } from '@/lib/utils/pdf/invoiceTemplate';
+import { generateDevisPdf } from '@/lib/utils/pdf/devisTemplate';
 
 export async function GET(
     request: NextRequest,
@@ -19,18 +20,16 @@ export async function GET(
 
         await connectDB();
 
-        // Fetch invoice by publicToken
-        const invoice = await (Document as any).findOne({
-            publicToken: token,
-            type: 'FAC'
+        // Fetch document by publicToken (any type)
+        const doc = await (Document as any).findOne({
+            publicToken: token
         });
 
-        if (!invoice) {
-            // Fallback for security: if not found, it might mean the token is invalid
+        if (!doc) {
             return NextResponse.json({ error: 'Lien invalide ou expiré' }, { status: 404 });
         }
 
-        const tenantId = invoice.tenantId;
+        const tenantId = doc.tenantId;
 
         // Fetch company settings
         const settings = await (CompanySettings as any).findOne({ tenantId });
@@ -56,10 +55,10 @@ export async function GET(
         let customerCode = '';
         let customerPhone = '';
 
-        if (invoice.customerId) {
+        if (doc.customerId) {
             try {
                 const customer = await (Customer as any).findOne({
-                    _id: invoice.customerId.toString(),
+                    _id: doc.customerId.toString(),
                     tenantId
                 }).lean();
 
@@ -82,7 +81,7 @@ export async function GET(
 
         // Enrich lines with product references if missing
         const enrichedLines = await Promise.all(
-            invoice.lignes.map(async (line: any) => {
+            doc.lignes.map(async (line: any) => {
                 if (line.productId) {
                     try {
                         const product = await (Product as any).findOne({ _id: line.productId, tenantId });
@@ -97,53 +96,64 @@ export async function GET(
             })
         );
 
-        // Calculate details (reuse logic)
-        const remiseLignes = invoice.lignes.reduce((sum: number, line: any) => {
-            const remise = line.remisePct || 0;
-            const prixHT = line.prixUnitaireHT * (1 - remise / 100);
-            return sum + (line.prixUnitaireHT - prixHT) * line.quantite;
-        }, 0);
-
-        const remiseGlobalePct = invoice.remiseGlobalePct || 0;
-        const totalHT = (invoice.totalBaseHT || 0) - remiseLignes;
-        const remiseGlobale = totalHT * (remiseGlobalePct / 100);
-
-        // Prepare invoice data
-        const invoiceData = {
-            numero: invoice.numero,
-            dateDoc: invoice.dateDoc.toISOString(),
-            dateEcheance: invoice.dateEcheance?.toISOString(),
+        // Prepare data object (common fields)
+        const commonData = {
+            numero: doc.numero,
+            dateDoc: doc.dateDoc.toISOString(),
+            dateEcheance: doc.dateEcheance?.toISOString(),
             customerName,
             customerAddress,
             customerMatricule,
             customerCode,
             customerPhone,
-            devise: invoice.devise || 'TND',
+            devise: doc.devise || 'TND',
             lignes: enrichedLines,
-            totalBaseHT: invoice.totalBaseHT || 0,
-            remiseLignes: remiseLignes,
-            remiseGlobale: remiseGlobale,
-            remiseGlobalePct: remiseGlobalePct,
-            totalRemise: remiseLignes + remiseGlobale,
-            fodec: invoice.fodec?.montant || 0,
-            fodecTauxPct: invoice.fodec?.tauxPct || 0,
-            totalTVA: invoice.totalTVA || 0,
-            timbreFiscal: invoice.timbreFiscal || 0,
-            totalTTC: invoice.totalTTC || 0,
-            modePaiement: invoice.modePaiement || '',
-            conditionsPaiement: invoice.conditionsPaiement || '',
-            notes: invoice.notes || ''
+            totalBaseHT: doc.totalBaseHT || 0,
+            remiseGlobale: 0, // Calculated below
+            remiseGlobalePct: doc.remiseGlobalePct || 0,
+            totalRemise: 0, // Calculated below
+            remiseLignes: 0, // Calculated below
+            fodec: doc.fodec?.montant || 0,
+            fodecTauxPct: doc.fodec?.tauxPct || 0,
+            totalTVA: doc.totalTVA || 0,
+            timbreFiscal: doc.timbreFiscal || 0,
+            totalTTC: doc.totalTTC || 0,
+            modePaiement: doc.modePaiement || '',
+            conditionsPaiement: doc.conditionsPaiement || '',
+            notes: doc.notes || '',
+            documentType: doc.type === 'DEVIS' ? 'DEVIS' : (doc.type === 'BL' ? 'BON DE LIVRAISON' : 'FACTURE')
         };
 
-        // Generate PDF
-        const pdfDoc = generateInvoicePdf(invoiceData, settings.societe);
+        // Calculate missing details (reuse logic)
+        const remiseLignes = doc.lignes.reduce((sum: number, line: any) => {
+            const remise = line.remisePct || 0;
+            const prixHT = line.prixUnitaireHT * (1 - remise / 100);
+            return sum + (line.prixUnitaireHT - prixHT) * line.quantite;
+        }, 0);
+
+        const totalHT = (doc.totalBaseHT || 0) - remiseLignes;
+        const remiseGlobale = totalHT * (commonData.remiseGlobalePct / 100);
+
+        commonData.remiseLignes = remiseLignes;
+        commonData.remiseGlobale = remiseGlobale;
+        commonData.totalRemise = remiseLignes + remiseGlobale;
+
+        let pdfDoc;
+
+        if (doc.type === 'FAC') {
+            pdfDoc = generateInvoicePdf(commonData, settings.societe);
+        } else {
+            // For DEVIS and BL (and others), use generateDevisPdf
+            pdfDoc = generateDevisPdf(commonData, settings.societe);
+        }
 
         // Convert to buffer
         const pdfBuffer = Buffer.from(pdfDoc.output('arraybuffer'));
 
         // Return PDF as response
+        const prefix = doc.type === 'FAC' ? 'Facture' : (doc.type === 'DEVIS' ? 'Devis' : 'BL');
         const sanitizedCustomerName = customerName.replace(/[^a-zA-Z0-9 ]/g, '').trim().replace(/\s+/g, '_');
-        const filename = `Facture-${invoiceData.numero}${customerName ? '-' + sanitizedCustomerName : ''}.pdf`;
+        const filename = `${prefix}-${commonData.numero}${customerName ? '-' + sanitizedCustomerName : ''}.pdf`;
         return new NextResponse(pdfBuffer, {
             headers: {
                 'Content-Type': 'application/pdf',
