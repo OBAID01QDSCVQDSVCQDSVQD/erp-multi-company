@@ -35,6 +35,10 @@ import {
   PlusIcon,
   ExclamationTriangleIcon,
   SparklesIcon,
+  FolderIcon,
+  ShieldCheckIcon,
+  ClipboardDocumentListIcon,
+  ArchiveBoxIcon,
 } from '@heroicons/react/24/outline';
 
 const navigation = [
@@ -94,6 +98,14 @@ const navigation = [
       { name: 'Liste des projets', href: '/projects', icon: BriefcaseIcon, permission: 'projects' },
       { name: 'Nouveau projet', href: '/projects/new', icon: PlusIcon, permission: 'projects' },
       { name: '🔖 Facture interne', href: '/internal-invoices', icon: DocumentTextIcon, permission: 'internal_invoices' },
+    ]
+  },
+  {
+    name: '🗂️ Documents Divers', href: '#', icon: FolderIcon, hasSubmenu: true, permission: null, submenu: [
+      { name: 'Garanties', href: '/documents/warranties', icon: ShieldCheckIcon, permission: null },
+      { name: 'Modèles de Garantie', href: '/settings/warranties', icon: DocumentTextIcon, permission: 'settings' },
+      { name: 'Fiches Techniques', href: '/documents/datasheets', icon: ClipboardDocumentListIcon, permission: null },
+      { name: 'Bibliothèque', href: '/documents/library', icon: ArchiveBoxIcon, permission: null },
     ]
   },
   { name: 'Rapports', href: '/reports', icon: ChartBarIcon, permission: 'reports' },
