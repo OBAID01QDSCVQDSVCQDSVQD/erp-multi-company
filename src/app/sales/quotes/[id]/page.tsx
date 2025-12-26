@@ -322,6 +322,7 @@ export default function ViewQuotePage() {
               {/* Logo */}
               {companySettings.societe.logoUrl && (
                 <div className="flex-shrink-0">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={companySettings.societe.logoUrl}
                     alt="Company Logo"

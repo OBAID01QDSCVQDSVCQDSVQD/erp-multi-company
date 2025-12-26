@@ -21,8 +21,7 @@ export async function GET(
         await connectDB();
 
         // Ensure models are registered to avoid MissingSchemaError
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const _registered = [WarrantyTemplate, Customer, DocumentModel];
+        console.log('Preloading models:', !!WarrantyTemplate, !!Customer, !!DocumentModel);
 
         // Fetch warranty by publicToken
         const warranty = await (Warranty as any).findOne({

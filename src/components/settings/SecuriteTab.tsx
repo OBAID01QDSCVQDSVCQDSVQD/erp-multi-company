@@ -325,6 +325,7 @@ export default function SecuriteTab({ tenantId }: SecuriteTabProps) {
             <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-4">Configuration de l'authentification</h4>
             <div className="flex flex-col md:flex-row gap-8 items-start">
               <div className="bg-white p-3 rounded-lg shadow-sm border border-gray-100">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 {qrCodeUrl && <img src={qrCodeUrl} alt="QR Code 2FA" className="w-40 h-40 object-contain" />}
               </div>
               <div className="flex-1 space-y-4">
