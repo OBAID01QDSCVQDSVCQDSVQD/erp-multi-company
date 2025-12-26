@@ -179,10 +179,12 @@ DocumentSchema.index({ tenantId: 1, projetId: 1 });
 DocumentSchema.index({ tenantId: 1, warehouseId: 1 });
 DocumentSchema.index({ 'lignes.productId': 1 });
 
-// Clear cache
+let DocumentModel: any;
+
 if (mongoose.models.Document) {
-  delete mongoose.models.Document;
+  DocumentModel = mongoose.models.Document;
+} else {
+  DocumentModel = mongoose.model<any>('Document', DocumentSchema, 'documents');
 }
 
-// Use 'documents' as collection name for all document types
-export default mongoose.model<any>('Document', DocumentSchema, 'documents');
+export default DocumentModel;

@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Warranty from '@/lib/models/Warranty';
 import CompanySettings from '@/lib/models/CompanySettings';
+import WarrantyTemplate from '@/lib/models/WarrantyTemplate';
+import Customer from '@/lib/models/Customer';
+import DocumentModel from '@/lib/models/Document';
 import { generateWarrantyPdf } from '@/lib/utils/pdf/warrantyTemplate';
 
 export async function GET(
@@ -16,6 +19,10 @@ export async function GET(
         }
 
         await connectDB();
+
+        // Ensure models are registered to avoid MissingSchemaError
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const _registered = [WarrantyTemplate, Customer, DocumentModel];
 
         // Fetch warranty by publicToken
         const warranty = await (Warranty as any).findOne({
