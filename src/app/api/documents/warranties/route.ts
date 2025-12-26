@@ -41,12 +41,16 @@ export async function GET(req: Request) {
             ];
         }
 
+        console.log('GET /api/documents/warranties - Tenant:', tenantId);
+        console.log('Query:', JSON.stringify(query));
+
         const warranties = await (Warranty as any).find(query)
             .populate('templateId', 'name')
             .populate('customerId', 'raisonSociale nom prenom telephone mobile')
             .sort({ createdAt: -1 })
             .limit(50);
 
+        console.log(`Found ${warranties.length} warranties`);
         return NextResponse.json(warranties);
     } catch (error) {
         console.error('Error fetching warranties:', error);
