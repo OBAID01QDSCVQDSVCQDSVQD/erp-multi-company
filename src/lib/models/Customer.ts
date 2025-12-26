@@ -177,8 +177,12 @@ CustomerSchema.index({
 });
 
 // Clear the model from cache if it exists
+let Customer: any;
+
 if (mongoose.models.Customer) {
-  delete mongoose.models.Customer;
+  Customer = mongoose.models.Customer;
+} else {
+  Customer = mongoose.model('Customer', CustomerSchema);
 }
 
-export default mongoose.model<any>('Customer', CustomerSchema);
+export default Customer;

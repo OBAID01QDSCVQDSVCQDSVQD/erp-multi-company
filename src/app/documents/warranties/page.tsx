@@ -2,7 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { PlusIcon, FunnelIcon, DocumentArrowDownIcon, ChatBubbleLeftEllipsisIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import {
+    PlusIcon,
+    FunnelIcon,
+    DocumentArrowDownIcon,
+    ChatBubbleLeftEllipsisIcon,
+    MagnifyingGlassIcon,
+    XMarkIcon,
+    CheckIcon
+} from '@heroicons/react/24/outline';
 import { toast } from 'react-hot-toast';
 import { useSession } from 'next-auth/react';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
@@ -25,6 +33,10 @@ export default function WarrantyListPage() {
         status: '',
         search: ''
     });
+    const [showPrintModal, setShowPrintModal] = useState(false);
+    const [includeStamp, setIncludeStamp] = useState(true);
+    const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+    const [selectedWarranty, setSelectedWarranty] = useState<Warranty | null>(null);
 
     useEffect(() => {
         if (session) {
@@ -55,6 +67,45 @@ export default function WarrantyListPage() {
         }
     };
 
+    const handleDownloadClick = (warranty: Warranty) => {
+        setSelectedWarranty(warranty);
+        setShowPrintModal(true);
+    };
+
+    const confirmDownloadPDF = async () => {
+        if (!selectedWarranty) return;
+
+        setIsGeneratingPdf(true);
+        try {
+            const res = await fetch(`/api/documents/warranties/${selectedWarranty._id}/pdf?includeStamp=${includeStamp}`, {
+                headers: {
+                    'X-Tenant-Id': (session?.user as any)?.companyId || ''
+                }
+            });
+
+            if (res.ok) {
+                const blob = await res.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `Garantie-${selectedWarranty.certificateNumber}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+            } else {
+                toast.error('Erreur lors de la génération du PDF');
+            }
+        } catch (error) {
+            console.error('Error downloading PDF:', error);
+            toast.error('Erreur lors du téléchargement');
+        } finally {
+            setIsGeneratingPdf(false);
+            setShowPrintModal(false);
+            setSelectedWarranty(null);
+        }
+    };
+
     const getStatusBadge = (status: string) => {
         switch (status) {
             case 'active':
@@ -79,7 +130,8 @@ export default function WarrantyListPage() {
             return;
         }
 
-        const phoneNumber = warranty.customerId.mobile || warranty.customerId.telephone;
+        const customer = warranty.customerId as any; // Type casting for safety if interface mismatches
+        const phoneNumber = customer.mobile || customer.telephone;
         if (!phoneNumber) {
             toast.error('Aucun numéro de téléphone trouvé pour ce client');
             return;
@@ -232,15 +284,13 @@ export default function WarrantyListPage() {
                                                     </td>
                                                     <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                                                         <div className="flex justify-end gap-3">
-                                                            <a
-                                                                href={`/api/documents/warranties/${warranty._id}/pdf`}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
+                                                            <button
+                                                                onClick={() => handleDownloadClick(warranty)}
                                                                 className="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-300"
                                                                 title="Télécharger PDF"
                                                             >
                                                                 <DocumentArrowDownIcon className="h-5 w-5" />
-                                                            </a>
+                                                            </button>
                                                             <button
                                                                 onClick={() => handleWhatsApp(warranty)}
                                                                 disabled={processingWhatsApp === warranty._id}
@@ -268,6 +318,75 @@ export default function WarrantyListPage() {
                     </div>
                 </div>
             </div>
+
+            {/* Print Settings Modal */}
+            {showPrintModal && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+                    <div className="bg-white dark:bg-gray-800 rounded-l-xl rounded-r-xl sm:rounded-2xl max-w-md w-full shadow-2xl transform transition-all scale-100 opacity-100">
+                        <div className="p-6 border-b dark:border-gray-700 flex items-center justify-between">
+                            <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                                <DocumentArrowDownIcon className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                                Options d'impression
+                            </h3>
+                            <button
+                                onClick={() => setShowPrintModal(false)}
+                                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+                            >
+                                <XMarkIcon className="w-6 h-6" />
+                            </button>
+                        </div>
+
+                        <div className="p-6">
+                            <p className="text-gray-600 dark:text-gray-300 mb-6">
+                                Voulez-vous inclure le cachet de l'entreprise sur le document ?
+                            </p>
+
+                            <div
+                                className="flex items-center gap-3 p-4 border border-gray-200 dark:border-gray-700 rounded-lg mb-6 bg-gray-50 dark:bg-gray-700/50 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                                onClick={() => setIncludeStamp(!includeStamp)}
+                            >
+                                <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${includeStamp ? 'bg-blue-600 border-blue-600' : 'border-gray-400 bg-white dark:bg-gray-600'}`}>
+                                    {includeStamp && <CheckIcon className="w-3.5 h-3.5 text-white" />}
+                                </div>
+                                <div className="flex-1">
+                                    <label className="text-sm font-medium text-gray-900 dark:text-white cursor-pointer select-none block">
+                                        Inclure le cachet / signature
+                                    </label>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                        Ajoute le tampon officiel en bas du document
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="flex justify-end gap-3 pt-2">
+                                <button
+                                    onClick={() => setShowPrintModal(false)}
+                                    className="px-4 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors font-medium border border-gray-200 dark:border-gray-700"
+                                >
+                                    Annuler
+                                </button>
+                                <button
+                                    onClick={confirmDownloadPDF}
+                                    disabled={isGeneratingPdf}
+                                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center gap-2 shadow-lg shadow-blue-500/30 disabled:opacity-70 disabled:cursor-not-allowed"
+                                >
+                                    {isGeneratingPdf ? (
+                                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                    ) : (
+                                        <DocumentArrowDownIcon className="w-4 h-4" />
+                                    )}
+                                    {isGeneratingPdf ? 'Génération...' : 'Télécharger PDF'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Imports needed: CheckIcon, XMarkIcon which were added in previous edits but might need fresh input if not present */}
         </DashboardLayout>
     );
 }

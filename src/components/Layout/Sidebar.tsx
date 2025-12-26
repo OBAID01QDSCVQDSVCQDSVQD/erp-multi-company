@@ -232,7 +232,7 @@ export default function Sidebar({ sidebarOpen: externalSidebarOpen, setSidebarOp
     }
   }, [tenantId]);
 
-  const SidebarContent = () => (
+  const sidebarContent = (
     <div className="flex flex-col h-full bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-xl border-r border-gray-200 dark:border-gray-700">
       <div className="flex items-center flex-shrink-0 px-6 py-4 border-b border-gray-200 dark:border-gray-700 min-h-[80px]">
         {companySettings?.societe?.logoUrl ? (
@@ -420,7 +420,7 @@ export default function Sidebar({ sidebarOpen: externalSidebarOpen, setSidebarOp
                     <span className="sr-only">Fermer la barre latérale</span>
                   </button>
                 </div>
-                <SidebarContent />
+                {sidebarContent}
               </div>
             </motion.div>
           </div>
@@ -430,7 +430,7 @@ export default function Sidebar({ sidebarOpen: externalSidebarOpen, setSidebarOp
       {/* Desktop Sidebar */}
       <div className="hidden lg:flex lg:flex-shrink-0">
         <div className="flex flex-col w-72">
-          <SidebarContent />
+          {sidebarContent}
         </div>
       </div>
     </>

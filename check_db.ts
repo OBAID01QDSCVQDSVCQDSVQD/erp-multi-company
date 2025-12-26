@@ -15,18 +15,21 @@ async function checkData() {
     console.log("Latest Template:", template ? JSON.stringify(template.toJSON(), null, 2) : "None");
 
     console.log("Checking Warranty...");
-    const warranty = await (Warranty as any).findOne({}).sort({ updatedAt: -1 }).populate('templateId');
-    console.log("Latest Warranty:", warranty ? JSON.stringify(warranty.toJSON(), null, 2) : "None");
-
-    // Check if exclusiveAdvantages exists in raw doc
-    if (template && !template.exclusiveAdvantages) {
-        console.log("WARN: exclusiveAdvantages missing from Template model output. Checking raw collection...");
-        const rawTemplate = await mongoose.connection.collection('warrantytemplates').findOne({ _id: template._id });
-        console.log("Raw Template exclusiveAdvantages:", rawTemplate?.exclusiveAdvantages);
+    const warranties = await (Warranty as any).find({}).populate('templateId');
+    if (warranties.length === 0) {
+        console.log("No warranties found in DB.");
+    } else {
+        console.log(`Found ${warranties.length} warranties.`);
+        warranties.forEach((w: any) => {
+            console.log(`- ID: ${w._id}, Cert: ${w.certificateNumber}, Tenant: ${w.tenantId}, Template: ${w.templateId?.name}`);
+        });
     }
 
-    if (warranty && !warranty.exclusiveAdvantages) {
-        console.log("WARN: exclusiveAdvantages missing from Warranty model output (root).");
+    if (warranties.length > 0) {
+        const warranty = warranties[0];
+        if (!warranty.exclusiveAdvantages) {
+            console.log("WARN: exclusiveAdvantages missing from Warranty model output (root).");
+        }
     }
 
     process.exit();
