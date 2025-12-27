@@ -96,6 +96,11 @@ export default function AgendaPage() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [viewingEvent, setViewingEvent] = useState<Event | null>(null);
     const [viewerImage, setViewerImage] = useState<string | null>(null);
+
+    // Location Modal State
+    const [showLocationModal, setShowLocationModal] = useState(false);
+    const [tempCoords, setTempCoords] = useState<{ lat: number, lng: number, accuracy?: number } | null>(null);
+
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
     const [editingEvent, setEditingEvent] = useState<Event | null>(null);
 
@@ -326,6 +331,54 @@ export default function AgendaPage() {
             default: return 'bg-gray-500/10 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-500/30 ring-1 ring-gray-500/20';
         }
     };
+
+    const handleGetLocation = async () => {
+        if (!navigator.geolocation) {
+            toast.error('Géolocalisation non supportée');
+            return;
+        }
+
+        const loadId = toast.loading('Recherche de la position...');
+
+        const getPosition = (options: PositionOptions): Promise<GeolocationPosition> => {
+            return new Promise((resolve, reject) => {
+                navigator.geolocation.getCurrentPosition(resolve, reject, options);
+            });
+        };
+
+        try {
+            // Tentative 1: Haute précision (GPS)
+            try {
+                const pos = await getPosition({ enableHighAccuracy: true, timeout: 5000, maximumAge: 0 });
+                setTempCoords({
+                    lat: pos.coords.latitude,
+                    lng: pos.coords.longitude,
+                    accuracy: pos.coords.accuracy
+                });
+                setShowLocationModal(true);
+                toast.success('Position trouvée !', { id: loadId });
+            } catch (err) {
+                // Tentative 2: Basse précision (Wifi/IP) si GPS échoue ou timeout
+                console.log('GPS failed, trying low accuracy fallback...');
+                const pos = await getPosition({ enableHighAccuracy: false, timeout: 10000, maximumAge: 0 });
+                setTempCoords({
+                    lat: pos.coords.latitude,
+                    lng: pos.coords.longitude,
+                    accuracy: pos.coords.accuracy
+                });
+                setShowLocationModal(true);
+                toast.success('Position approximative trouvée', { id: loadId });
+            }
+        } catch (error: any) {
+            console.error(error);
+            let msg = 'Impossible de récupérer la position';
+            if (error.code === 1) msg = 'Permission refusée';
+            if (error.code === 2) msg = 'Position indisponible';
+            if (error.code === 3) msg = 'Délai d\'attente dépassé';
+            toast.error(msg, { id: loadId });
+        }
+    };
+
 
     const getTypeIcon = (type: string) => {
         switch (type) {
@@ -831,26 +884,7 @@ export default function AgendaPage() {
 
                                         <button
                                             type="button"
-                                            onClick={() => {
-                                                if (!navigator.geolocation) {
-                                                    toast.error('Géolocalisation non supportée');
-                                                    return;
-                                                }
-                                                const loadId = toast.loading('Acquisition de la position...');
-                                                navigator.geolocation.getCurrentPosition(
-                                                    (pos) => {
-                                                        const { latitude, longitude } = pos.coords;
-                                                        // Format as Google Maps URL
-                                                        const url = `https://www.google.com/maps?q=${latitude},${longitude}`;
-                                                        setFormData(prev => ({ ...prev, location: url }));
-                                                        toast.success('Position actuelle capturée !', { id: loadId });
-                                                    },
-                                                    (err) => {
-                                                        console.error(err);
-                                                        toast.error('Impossible de récupérer la position', { id: loadId });
-                                                    }
-                                                );
-                                            }}
+                                            onClick={handleGetLocation}
                                             className="p-3 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors tooltip tooltip-bottom"
                                             title="Utiliser ma position actuelle"
                                         >
@@ -873,6 +907,34 @@ export default function AgendaPage() {
                                             </a>
                                         )}
                                     </div>
+
+                                    {/* Map Preview */}
+                                    {(() => {
+                                        // Try to extract coordinates from Google Maps URL
+                                        const coords = formData.location.match(/q=(-?\d+\.\d+),(-?\d+\.\d+)/);
+                                        if (coords) {
+                                            const lat = coords[1];
+                                            const lng = coords[2];
+                                            return (
+                                                <div className="mt-3 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 h-48 relative group">
+                                                    <iframe
+                                                        width="100%"
+                                                        height="100%"
+                                                        frameBorder="0"
+                                                        scrolling="no"
+                                                        marginHeight={0}
+                                                        marginWidth={0}
+                                                        src={`https://www.openstreetmap.org/export/embed.html?bbox=${parseFloat(lng) - 0.005},${parseFloat(lat) - 0.005},${parseFloat(lng) + 0.005},${parseFloat(lat) + 0.005}&layer=mapnik&marker=${lat},${lng}`}
+                                                        className="w-full h-full"
+                                                    ></iframe>
+                                                    <div className="absolute top-2 right-2 bg-white/90 dark:bg-black/80 px-2 py-1 rounded text-xs font-bold shadow pointer-events-none">
+                                                        Aperçu
+                                                    </div>
+                                                </div>
+                                            );
+                                        }
+                                        return null;
+                                    })()}
                                 </div>
 
                                 <div>
@@ -1180,6 +1242,58 @@ export default function AgendaPage() {
                         className="max-h-[90vh] max-w-[95vw] object-contain rounded-lg shadow-2xl"
                         onClick={(e) => e.stopPropagation()}
                     />
+                </div>
+            )}
+            {/* Location Confirmation Modal */}
+            {showLocationModal && tempCoords && (
+                <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col">
+                        <div className="p-6 border-b border-gray-100 dark:border-gray-700">
+                            <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                                <MapPinIcon className="w-5 h-5 text-blue-500" />
+                                Confirmer la position
+                            </h3>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                                Veuillez vérifier que la position détectée est correcte.
+                            </p>
+                        </div>
+
+                        <div className="h-64 relative bg-gray-100 w-full">
+                            <iframe
+                                width="100%"
+                                height="100%"
+                                frameBorder="0"
+                                scrolling="no"
+                                src={`https://www.openstreetmap.org/export/embed.html?bbox=${tempCoords.lng - 0.002},${tempCoords.lat - 0.002},${tempCoords.lng + 0.002},${tempCoords.lat + 0.002}&layer=mapnik&marker=${tempCoords.lat},${tempCoords.lng}`}
+                                className="w-full h-full"
+                            ></iframe>
+                            {tempCoords.accuracy && (
+                                <div className="absolute bottom-2 left-2 bg-white/90 dark:bg-black/80 px-2 py-1 rounded text-xs text-gray-700 dark:text-gray-300 shadow">
+                                    Précision: ~{Math.round(tempCoords.accuracy)}m
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="p-4 bg-gray-50 dark:bg-gray-800/50 flex gap-3 justify-end">
+                            <button
+                                onClick={() => setShowLocationModal(false)}
+                                className="px-4 py-2 text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                            >
+                                Annuler
+                            </button>
+                            <button
+                                onClick={() => {
+                                    const url = `https://www.google.com/maps?q=${tempCoords.lat},${tempCoords.lng}`;
+                                    setFormData(prev => ({ ...prev, location: url }));
+                                    setShowLocationModal(false);
+                                    toast.success('Position enregistrée');
+                                }}
+                                className="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors shadow-lg shadow-blue-500/30"
+                            >
+                                Utiliser cette position
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
         </DashboardLayout>
