@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
 import {
   ClockIcon,
@@ -61,6 +62,7 @@ interface ProjectSelectorProps {
 
 export default function AttendancePage() {
   const { tenantId } = useTenantId();
+  const searchParams = useSearchParams();
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
@@ -382,7 +384,12 @@ export default function AttendancePage() {
 
   // Filter employees
   const filteredEmployees = useMemo(() => {
+    const employeeIdParam = searchParams.get('employeeId');
     return employees.filter(emp => {
+      if (employeeIdParam && emp._id !== employeeIdParam) {
+        return false;
+      }
+
       const matchesSearch =
         `${emp.firstName} ${emp.lastName}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
         emp.position.toLowerCase().includes(searchQuery.toLowerCase());
@@ -391,7 +398,7 @@ export default function AttendancePage() {
 
       return matchesSearch && matchesDepartment;
     });
-  }, [employees, searchQuery, filterDepartment]);
+  }, [employees, searchQuery, filterDepartment, searchParams]);
 
   // Get departments list
   const departments = useMemo(() => {
@@ -565,8 +572,160 @@ export default function AttendancePage() {
           </div>
         </div>
 
-        {/* Attendance Table */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden border dark:border-gray-700">
+        {/* Mobile View - Cards */}
+        <div className="grid grid-cols-1 gap-4 sm:hidden">
+          {loading ? (
+            [1, 2, 3].map((i) => (
+              <div key={i} className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 border dark:border-gray-700 space-y-3 animate-pulse">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-full bg-gray-200 dark:bg-gray-700" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 w-2/3 bg-gray-200 dark:bg-gray-700 rounded" />
+                    <div className="h-3 w-1/3 bg-gray-200 dark:bg-gray-700 rounded" />
+                  </div>
+                </div>
+                <div className="h-20 bg-gray-200 dark:bg-gray-700 rounded" />
+              </div>
+            ))
+          ) : filteredEmployees.length === 0 ? (
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-8 text-center border dark:border-gray-700">
+              <UserIcon className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
+              <h3 className="text-gray-900 dark:text-white font-medium">Aucun employé trouvé</h3>
+            </div>
+          ) : (
+            filteredEmployees.map((employee) => {
+              const employeeIdStr = String(employee._id);
+              const record = attendance.find(a => {
+                if ((a as any)._normalizedEmployeeId) {
+                  return (a as any)._normalizedEmployeeId === employeeIdStr;
+                }
+                // Fallback logic
+                if (!a.employeeId) return false;
+                let attendanceEmployeeId: string;
+                const empId = a.employeeId;
+                if (typeof empId === 'object' && empId !== null) {
+                  const empObj = empId as { _id?: any; toString?: () => string };
+                  if (empObj._id) attendanceEmployeeId = empObj._id.toString();
+                  else if (typeof empObj.toString === 'function') attendanceEmployeeId = empObj.toString();
+                  else attendanceEmployeeId = String(empObj);
+                } else {
+                  attendanceEmployeeId = String(empId);
+                }
+                return attendanceEmployeeId === employeeIdStr;
+              });
+
+              const hasCheckedIn = record?.checkIn;
+              const hasCheckedOut = record?.checkOut;
+
+              return (
+                <div key={employee._id} className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 border dark:border-gray-700 flex flex-col gap-4">
+                  {/* Header: User Info & Status */}
+                  <div className="flex justify-between items-start gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="flex-shrink-0 h-10 w-10 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
+                        <span className="text-blue-600 dark:text-blue-400 font-medium text-sm">
+                          {employee.firstName[0]}{employee.lastName[0]}
+                        </span>
+                      </div>
+                      <div>
+                        <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                          {employee.firstName} {employee.lastName}
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          {employee.position || employee.employeeNumber || 'Employé'}
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      {record ? getStatusBadge(record) : (
+                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">Non pointé</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Times Grid */}
+                  <div className="grid grid-cols-3 gap-2 py-3 border-t border-b dark:border-gray-700 border-gray-100">
+                    <div className="text-center">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Entrée</p>
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">{formatTime(record?.checkIn)}</p>
+                    </div>
+                    <div className="text-center border-l dark:border-gray-700 border-gray-100">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Sortie</p>
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">{formatTime(record?.checkOut)}</p>
+                    </div>
+                    <div className="text-center border-l dark:border-gray-700 border-gray-100">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Heures</p>
+                      <p className="text-sm font-bold text-gray-900 dark:text-white">{calculateHours(record?.checkIn, record?.checkOut)}</p>
+                    </div>
+                  </div>
+
+                  {/* Project Selector */}
+                  <div className="w-full">
+                    {record ? (
+                      projects.length > 0 ? (
+                        <ProjectSelector
+                          currentProjectId={typeof record.projectId === 'string' ? record.projectId : record.projectId?._id}
+                          projects={projects}
+                          disabled={loading}
+                          onChange={(projectId) => handleProjectChange(record._id, projectId)}
+                        />
+                      ) : record.projectId ? (
+                        <div className="text-sm text-center text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-900/50 p-2 rounded">
+                          {typeof record.projectId === 'object' ? record.projectId?.name : 'Projet lié'}
+                        </div>
+                      ) : (
+                        <div className="text-sm text-center text-gray-400 italic">Aucun projet disponible</div>
+                      )
+                    ) : (
+                      <div className="text-sm text-center text-gray-400 italic bg-gray-50 dark:bg-gray-900/50 p-2 rounded">Pointer pour assigner un projet</div>
+                    )}
+                  </div>
+
+                  {/* Actions Buttons */}
+                  <div className="grid grid-cols-1">
+                    {!hasCheckedIn ? (
+                      <button
+                        onClick={() => handleCheckIn(employee._id)}
+                        disabled={loading}
+                        className="w-full px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                      >
+                        Pointer Entrée
+                      </button>
+                    ) : !hasCheckedOut ? (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleCheckOut(employee._id, record._id)}
+                          disabled={loading}
+                          className="flex-1 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
+                        >
+                          Pointer Sortie
+                        </button>
+                        <button
+                          onClick={() => handleEditClick(record)}
+                          disabled={loading}
+                          className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                        >
+                          <PencilIcon className="w-5 h-5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => handleEditClick(record)}
+                        disabled={loading}
+                        className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors border border-gray-200 dark:border-gray-600 flex items-center justify-center gap-2"
+                      >
+                        <PencilIcon className="w-4 h-4" /> Modifier le pointage
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Desktop Attendance Table */}
+        <div className="hidden sm:block bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden border dark:border-gray-700">
           {loading ? (
             <div className="p-4 space-y-4">
               {[1, 2, 3, 4, 5].map((i) => (
@@ -927,8 +1086,8 @@ function ProjectSelector({ currentProjectId, projects, disabled, onChange }: Pro
                 setSearchTerm(letter);
               }}
               className={`px-2 py-1 rounded-md border transition-colors ${searchTerm === letter
-                  ? 'bg-blue-600 text-white border-blue-600'
-                  : 'border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700'
+                ? 'bg-blue-600 text-white border-blue-600'
+                : 'border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700'
                 }`}
             >
               {letter}
@@ -955,8 +1114,8 @@ function ProjectSelector({ currentProjectId, projects, disabled, onChange }: Pro
               type="button"
               onClick={() => handleSelect(project._id)}
               className={`w-full text-left px-4 py-3 border-b dark:border-gray-700 flex flex-col gap-1 transition-colors ${currentProjectId === project._id
-                  ? 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500'
-                  : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                ? 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500'
+                : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'
                 }`}
             >
               <div className="flex items-center justify-between gap-2">
@@ -987,8 +1146,8 @@ function ProjectSelector({ currentProjectId, projects, disabled, onChange }: Pro
             }
           }}
           className={`w-full sm:w-56 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 flex items-center justify-between transition-colors ${disabled
-              ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 cursor-not-allowed border-gray-200 dark:border-gray-700'
-              : 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-600'
+            ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 cursor-not-allowed border-gray-200 dark:border-gray-700'
+            : 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-600'
             }`}
         >
           <span className="truncate">

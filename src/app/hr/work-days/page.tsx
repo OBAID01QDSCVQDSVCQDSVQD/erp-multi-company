@@ -298,8 +298,76 @@ export default function WorkDaysPage() {
           </div>
         </div>
 
-        {/* Work Days Table */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden border dark:border-gray-700">
+        {/* Mobile View - Cards */}
+        <div className="grid grid-cols-1 gap-4 sm:hidden">
+          {loading ? (
+            [1, 2, 3].map((i) => (
+              <div key={i} className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 border dark:border-gray-700 space-y-3 animate-pulse">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-full bg-gray-200 dark:bg-gray-700" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 w-2/3 bg-gray-200 dark:bg-gray-700 rounded" />
+                    <div className="h-3 w-1/3 bg-gray-200 dark:bg-gray-700 rounded" />
+                  </div>
+                </div>
+                <div className="h-20 bg-gray-200 dark:bg-gray-700 rounded" />
+              </div>
+            ))
+          ) : filteredWorkDays.length === 0 ? (
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-8 text-center border dark:border-gray-700">
+              <CalendarDaysIcon className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
+              <h3 className="text-gray-900 dark:text-white font-medium">Aucune donnée</h3>
+            </div>
+          ) : (
+            filteredWorkDays.map((employee) => (
+              <div key={employee.employeeId} className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 border dark:border-gray-700 flex flex-col gap-3">
+                <div className="flex justify-between items-start">
+                  <div className="flex items-center gap-3">
+                    <div className="flex-shrink-0 h-10 w-10 flex items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-semibold">
+                      {employee.employeeName.split(' ').map(n => n[0]).join('').substring(0, 2)}
+                    </div>
+                    <div>
+                      <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                        {employee.employeeName}
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        {employee.employeePosition}
+                      </div>
+                    </div>
+                  </div>
+                  <span className="text-xs font-medium px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                    {employee.totalDays}j total
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 py-3 border-t border-b dark:border-gray-700 border-gray-100">
+                  <div className="text-center">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Travaillés</p>
+                    <p className="text-sm font-bold text-green-600 dark:text-green-400">{employee.workedDays}j</p>
+                  </div>
+                  <div className="text-center border-l dark:border-gray-700 border-gray-100">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Absence</p>
+                    <p className="text-sm font-bold text-red-600 dark:text-red-400">{employee.absentDays}j</p>
+                  </div>
+                  <div className="text-center border-l dark:border-gray-700 border-gray-100">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Congé</p>
+                    <p className="text-sm font-bold text-blue-600 dark:text-blue-400">{employee.leaveDays}j</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-sm text-gray-600 dark:text-gray-400">
+                  <div>
+                    <span className="block text-xs text-gray-500">Département</span>
+                    <span className="font-medium text-gray-900 dark:text-white">{employee.employeeDepartment}</span>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Work Days Table - Desktop */}
+        <div className="hidden sm:block bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden border dark:border-gray-700">
           {loading ? (
             <div className="p-4 space-y-4">
               {[1, 2, 3, 4, 5].map((i) => (

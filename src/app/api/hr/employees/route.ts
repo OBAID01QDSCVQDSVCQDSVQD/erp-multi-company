@@ -156,7 +156,7 @@ export async function POST(request: NextRequest) {
       },
       cin: body.cin?.trim() || undefined,
       socialSecurityNumber: body.socialSecurityNumber?.trim() || undefined,
-      
+
       // Professional Information
       position: body.position?.trim(),
       department: body.department?.trim(),
@@ -164,21 +164,22 @@ export async function POST(request: NextRequest) {
       hireDate: body.hireDate ? new Date(body.hireDate) : new Date(),
       contractType: body.contractType || 'cdi',
       status: body.status || 'active',
-      
+
       // Salary Information
       baseSalary: body.baseSalary ? parseFloat(body.baseSalary) : undefined,
+      dailyRate: body.dailyRate ? parseFloat(body.dailyRate) : undefined,
       currency: body.currency || 'TND',
       paymentMethod: body.paymentMethod || 'bank_transfer',
       bankAccount: body.bankAccount || {},
-      
+
       // Emergency Contact
       emergencyContact: body.emergencyContact || {},
-      
+
       // Additional Information
       notes: body.notes?.trim() || undefined,
       skills: body.skills || [],
       languages: body.languages || [],
-      
+
       createdBy: session.user.email,
     };
 
@@ -208,7 +209,7 @@ export async function POST(request: NextRequest) {
     );
   } catch (error: any) {
     console.error('Error creating employee:', error);
-    
+
     if (error.code === 11000) {
       return NextResponse.json(
         { error: 'Un employé avec cet email ou numéro existe déjà' },

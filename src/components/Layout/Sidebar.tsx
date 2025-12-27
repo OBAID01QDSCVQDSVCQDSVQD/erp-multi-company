@@ -48,21 +48,21 @@ const navigation = [
   { name: 'Utilisateurs', href: '/users', icon: UserGroupIcon, permission: 'users' },
   { name: 'Mon abonnement', href: '/subscriptions', icon: CreditCardIcon, permission: null },
   {
-    name: '💼 Ventes', href: '#', icon: ShoppingBagIcon, hasSubmenu: true, permission: null, submenu: [
+    name: 'Ventes', href: '#', icon: ShoppingBagIcon, hasSubmenu: true, permission: null, submenu: [
       { name: 'Clients', href: '/customers', icon: UserGroupIcon, permission: 'customers' },
       { name: 'Devis', href: '/sales/quotes', icon: DocumentTextIcon, permission: 'quotes' },
       { name: 'Commandes clients', href: '/sales/orders', icon: ShoppingCartIcon, permission: 'sales_orders' },
       { name: 'Bons de livraison', href: '/sales/deliveries', icon: TruckIcon, permission: 'deliveries' },
       { name: 'Retours', href: '/sales/returns', icon: ArrowUturnLeftIcon, permission: 'deliveries' },
       { name: 'Factures clients', href: '/sales/invoices', icon: DocumentTextIcon, permission: 'sales_invoices' },
-      { name: '⚠️ Factures en attente', href: '/pending-invoices', icon: ExclamationTriangleIcon, permission: 'sales_invoices' },
+      { name: 'Factures en attente', href: '/pending-invoices', icon: ExclamationTriangleIcon, permission: 'sales_invoices' },
       { name: 'Avoirs clients', href: '/sales/credit-notes', icon: ArrowUturnLeftIcon, permission: 'sales_invoices' },
       { name: 'Paiements clients', href: '/sales/payments', icon: BanknotesIcon, permission: 'customer_payments' },
       { name: 'Soldes clients', href: '/customers/balances', icon: BanknotesIcon, permission: 'customer_balances' },
     ]
   },
   {
-    name: '📦 Achats', href: '#', icon: ShoppingCartIcon, hasSubmenu: true, permission: null, submenu: [
+    name: 'Achats', href: '#', icon: ShoppingCartIcon, hasSubmenu: true, permission: null, submenu: [
       { name: 'Fournisseurs', href: '/suppliers', icon: UserGroupIcon, permission: 'suppliers' },
       { name: 'Commandes d\'achat', href: '/purchases/orders', icon: ShoppingCartIcon, permission: 'purchase_orders' },
       { name: 'Bons de réception', href: '/purchases/receipts', icon: ClipboardDocumentCheckIcon, permission: 'receipts' },
@@ -74,7 +74,7 @@ const navigation = [
     ]
   },
   {
-    name: '🏭 Stock', href: '#', icon: CubeIcon, hasSubmenu: true, permission: null, submenu: [
+    name: 'Stock', href: '#', icon: CubeIcon, hasSubmenu: true, permission: null, submenu: [
       { name: 'Inventaire', href: '/stock', icon: CubeIcon, permission: 'inventory' },
       { name: 'Produits / Articles', href: '/products', icon: ShoppingBagIcon, permission: 'products' },
       { name: 'Entrepôts', href: '/stock/warehouses', icon: BuildingOfficeIcon, permission: 'inventory' },
@@ -85,7 +85,7 @@ const navigation = [
   },
   { name: 'Dépenses', href: '/expenses', icon: CurrencyEuroIcon, permission: 'expenses' },
   {
-    name: '👥 Ressources Humaines', href: '#', icon: UserGroupIcon, hasSubmenu: true, permission: null, submenu: [
+    name: 'Ressources Humaines', href: '#', icon: UserGroupIcon, hasSubmenu: true, permission: null, submenu: [
       { name: 'Liste des employés', href: '/hr/employees', icon: UserIcon, permission: 'employees' },
       { name: 'Présence / Pointage', href: '/hr/attendance', icon: ClockIcon, permission: 'attendance' },
       { name: 'Heures de travail', href: '/hr/work-hours', icon: CalendarIcon, permission: 'work_hours' },
@@ -94,14 +94,15 @@ const navigation = [
     ]
   },
   {
-    name: '📁 Projets', href: '#', icon: BriefcaseIcon, hasSubmenu: true, permission: null, submenu: [
+    name: 'Projets', href: '#', icon: BriefcaseIcon, hasSubmenu: true, permission: null, submenu: [
       { name: 'Liste des projets', href: '/projects', icon: BriefcaseIcon, permission: 'projects' },
       { name: 'Nouveau projet', href: '/projects/new', icon: PlusIcon, permission: 'projects' },
-      { name: '🔖 Facture interne', href: '/internal-invoices', icon: DocumentTextIcon, permission: 'internal_invoices' },
+      { name: 'Facture interne', href: '/internal-invoices', icon: DocumentTextIcon, permission: 'internal_invoices' },
     ]
   },
+  { name: 'Agenda', href: '/agenda', icon: CalendarDaysIcon, permission: null },
   {
-    name: '🗂️ Documents Divers', href: '#', icon: FolderIcon, hasSubmenu: true, permission: null, submenu: [
+    name: 'Documents Divers', href: '#', icon: FolderIcon, hasSubmenu: true, permission: null, submenu: [
       { name: 'Garanties', href: '/documents/warranties', icon: ShieldCheckIcon, permission: null },
       { name: 'Modèles de Garantie', href: '/settings/warranties', icon: DocumentTextIcon, permission: 'settings' },
       { name: 'Fiches Techniques', href: '/documents/datasheets', icon: ClipboardDocumentListIcon, permission: null },

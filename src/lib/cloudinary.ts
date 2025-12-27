@@ -42,7 +42,7 @@ export async function uploadImageToCloudinary(
   return new Promise(async (resolve, reject) => {
     try {
       let buffer: Buffer;
-      
+
       // Convertir File/ArrayBuffer en buffer si nécessaire
       if (Buffer.isBuffer(file)) {
         buffer = file;
@@ -64,6 +64,10 @@ export async function uploadImageToCloudinary(
           // Optimisation automatique des images
           quality: 'auto',
           fetch_format: 'auto',
+          // Redimensionner pour limiter la taille
+          width: 1200,
+          height: 1200,
+          crop: 'limit',
         },
         (error, result) => {
           if (error) {

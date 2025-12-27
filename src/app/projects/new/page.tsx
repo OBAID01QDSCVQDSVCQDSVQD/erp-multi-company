@@ -460,12 +460,46 @@ export default function NewProjectPage() {
                           <select
                             required
                             value={emp.employeeId}
-                            onChange={(e) => {
+                            onChange={async (e) => {
                               const selectedEmployeeId = e.target.value;
-                              updateEmployee(index, 'employeeId', selectedEmployeeId);
-                              const emp = employees.find(employee => employee._id === selectedEmployeeId);
-                              if (emp && emp.dailyRate) {
-                                updateEmployee(index, 'dailyRate', emp.dailyRate.toString());
+
+                              // 1. Optimistic update from loaded list
+                              const listEmp = employees.find(employee => employee._id === selectedEmployeeId);
+                              let updatedEmployees = [...formData.assignedEmployees];
+                              updatedEmployees[index] = {
+                                ...updatedEmployees[index],
+                                employeeId: selectedEmployeeId,
+                                // Use list data if available
+                                dailyRate: listEmp?.dailyRate !== undefined ? listEmp.dailyRate.toString() : updatedEmployees[index].dailyRate,
+                                role: listEmp?.position || updatedEmployees[index].role
+                              };
+                              setFormData(prev => ({ ...prev, assignedEmployees: updatedEmployees }));
+
+                              // 2. Fetch fresh details to ensure accuracy
+                              if (selectedEmployeeId && tenantId) {
+                                try {
+                                  const res = await fetch(`/api/hr/employees/${selectedEmployeeId}`, {
+                                    headers: { 'X-Tenant-Id': tenantId }
+                                  });
+                                  if (res.ok) {
+                                    const freshData = await res.json();
+                                    setFormData(prev => {
+                                      // Verify row still points to same employee
+                                      if (prev.assignedEmployees[index]?.employeeId === selectedEmployeeId) {
+                                        const current = [...prev.assignedEmployees];
+                                        current[index] = {
+                                          ...current[index],
+                                          dailyRate: freshData.dailyRate !== undefined ? freshData.dailyRate.toString() : current[index].dailyRate,
+                                          role: freshData.position || current[index].role
+                                        };
+                                        return { ...prev, assignedEmployees: current };
+                                      }
+                                      return prev;
+                                    });
+                                  }
+                                } catch (err) {
+                                  console.error("Error fetching detailed employee info", err);
+                                }
                               }
                             }}
                             className="w-full px-2 py-1.5 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
