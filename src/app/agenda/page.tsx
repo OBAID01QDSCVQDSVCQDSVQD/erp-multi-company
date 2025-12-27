@@ -43,7 +43,7 @@ import {
 import { fr } from 'date-fns/locale';
 import dynamic from 'next/dynamic';
 
-const LeafletMap = dynamic(() => import('@/components/common/LeafletMap'), {
+const GoogleMapPicker = dynamic(() => import('@/components/common/GoogleMapPicker'), {
     loading: () => <div className="h-full w-full bg-gray-100 animate-pulse flex items-center justify-center text-gray-400 text-sm rounded-xl">Chargement de la carte...</div>,
     ssr: false
 });
@@ -923,7 +923,7 @@ export default function AgendaPage() {
                                             const lng = parseFloat(coords[2]);
                                             return (
                                                 <div className="mt-3 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 h-48 relative z-0">
-                                                    <LeafletMap pos={{ lat, lng }} readonly />
+                                                    <GoogleMapPicker initialLat={lat} initialLng={lng} readonly height="100%" />
                                                 </div>
                                             );
                                         }
@@ -1094,7 +1094,7 @@ export default function AgendaPage() {
                                             const lng = parseFloat(coords[2]);
                                             return (
                                                 <div className="h-40 rounded-lg overflow-hidden border border-blue-200 dark:border-blue-800 mb-2 z-0">
-                                                    <LeafletMap pos={{ lat, lng }} readonly />
+                                                    <GoogleMapPicker initialLat={lat} initialLng={lng} readonly height="100%" />
                                                 </div>
                                             );
                                         }
@@ -1268,9 +1268,11 @@ export default function AgendaPage() {
                         </div>
 
                         <div className="h-64 relative bg-gray-100 w-full z-0">
-                            <LeafletMap
-                                pos={{ lat: tempCoords.lat, lng: tempCoords.lng }}
-                                onLocationSelect={(lat, lng) => setTempCoords(prev => prev ? { ...prev, lat, lng } : null)}
+                            <GoogleMapPicker
+                                initialLat={tempCoords.lat}
+                                initialLng={tempCoords.lng}
+                                onLocationChange={(lat, lng) => setTempCoords(prev => prev ? { ...prev, lat, lng } : null)}
+                                height="100%"
                             />
                             {tempCoords.accuracy && (
                                 <div className="absolute top-2 right-2 z-[400] bg-white/90 dark:bg-black/80 px-2 py-1 rounded text-xs text-gray-700 dark:text-gray-300 shadow backdrop-blur-sm">

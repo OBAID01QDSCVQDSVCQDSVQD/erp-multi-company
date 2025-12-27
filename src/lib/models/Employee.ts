@@ -2,7 +2,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IEmployee extends Document {
   tenantId: string;
-  
+
   // Personal Information
   firstName: string;
   lastName: string;
@@ -19,7 +19,7 @@ export interface IEmployee extends Document {
   };
   cin?: string;
   socialSecurityNumber?: string;
-  
+
   // Professional Information
   employeeNumber?: string;
   position: string;
@@ -28,7 +28,7 @@ export interface IEmployee extends Document {
   hireDate: Date;
   contractType: 'cdi' | 'cdd' | 'stage' | 'freelance';
   status: 'active' | 'inactive' | 'on_leave';
-  
+
   // Salary Information
   baseSalary?: number;
   dailyRate?: number;
@@ -40,7 +40,7 @@ export interface IEmployee extends Document {
     rib?: string;
     iban?: string;
   };
-  
+
   // Emergency Contact
   emergencyContact: {
     name?: string;
@@ -48,12 +48,12 @@ export interface IEmployee extends Document {
     phone?: string;
     email?: string;
   };
-  
+
   // Additional Information
   notes?: string;
   skills?: string[];
   languages?: string[];
-  
+
   createdAt: Date;
   updatedAt: Date;
   createdBy?: string;
@@ -83,7 +83,7 @@ const EmergencyContactSchema = new Schema({
 
 const EmployeeSchema = new (Schema as any)({
   tenantId: { type: String, required: true, index: true },
-  
+
   // Personal Information
   firstName: { type: String, required: true },
   lastName: { type: String, required: true },
@@ -94,43 +94,43 @@ const EmployeeSchema = new (Schema as any)({
   address: { type: AddressSchema, required: true },
   cin: { type: String },
   socialSecurityNumber: { type: String },
-  
+
   // Professional Information
   employeeNumber: { type: String },
   position: { type: String, required: true, trim: true },
   department: { type: String, required: true, trim: true },
   manager: { type: String },
   hireDate: { type: Date, required: true },
-  contractType: { 
-    type: String, 
+  contractType: {
+    type: String,
     enum: ['cdi', 'cdd', 'stage', 'freelance'],
     default: 'cdi'
   },
-  status: { 
-    type: String, 
+  status: {
+    type: String,
     enum: ['active', 'inactive', 'on_leave'],
     default: 'active'
   },
-  
+
   // Salary Information
   baseSalary: { type: Number },
   dailyRate: { type: Number },
   currency: { type: String, default: 'TND' },
-  paymentMethod: { 
-    type: String, 
+  paymentMethod: {
+    type: String,
     enum: ['bank_transfer', 'check', 'cash'],
     default: 'bank_transfer'
   },
   bankAccount: { type: BankAccountSchema, default: {} },
-  
+
   // Emergency Contact
   emergencyContact: { type: EmergencyContactSchema, default: {} },
-  
+
   // Additional Information
   notes: { type: String },
   skills: [{ type: String }],
   languages: [{ type: String }],
-  
+
   createdBy: { type: String },
 }, {
   timestamps: true,
@@ -142,12 +142,14 @@ EmployeeSchema.index({ tenantId: 1, employeeNumber: 1 }, { unique: true, sparse:
 EmployeeSchema.index({ tenantId: 1, status: 1 });
 EmployeeSchema.index({ tenantId: 1, department: 1 });
 
-// Export
-if (mongoose.models && mongoose.models['Employee']) {
-  delete (mongoose.models as any)['Employee'];
+// Clear the model from cache if it exists
+let Employee: any;
+
+if (mongoose.models.Employee) {
+  Employee = mongoose.models.Employee;
+} else {
+  Employee = mongoose.model('Employee', EmployeeSchema);
 }
 
-const Employee = mongoose.model<IEmployee>('Employee', EmployeeSchema as any);
-
-export default Employee as any;
+export default Employee;
 
