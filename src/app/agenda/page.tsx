@@ -41,6 +41,12 @@ import {
     startOfToday
 } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import dynamic from 'next/dynamic';
+
+const LeafletMap = dynamic(() => import('@/components/common/LeafletMap'), {
+    loading: () => <div className="h-full w-full bg-gray-100 animate-pulse flex items-center justify-center text-gray-400 text-sm rounded-xl">Chargement de la carte...</div>,
+    ssr: false
+});
 
 interface Event {
     _id: string;
@@ -913,23 +919,11 @@ export default function AgendaPage() {
                                         // Try to extract coordinates from Google Maps URL
                                         const coords = formData.location.match(/q=(-?\d+\.\d+),(-?\d+\.\d+)/);
                                         if (coords) {
-                                            const lat = coords[1];
-                                            const lng = coords[2];
+                                            const lat = parseFloat(coords[1]);
+                                            const lng = parseFloat(coords[2]);
                                             return (
-                                                <div className="mt-3 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 h-48 relative group">
-                                                    <iframe
-                                                        width="100%"
-                                                        height="100%"
-                                                        frameBorder="0"
-                                                        scrolling="no"
-                                                        marginHeight={0}
-                                                        marginWidth={0}
-                                                        src={`https://www.openstreetmap.org/export/embed.html?bbox=${parseFloat(lng) - 0.005},${parseFloat(lat) - 0.005},${parseFloat(lng) + 0.005},${parseFloat(lat) + 0.005}&layer=mapnik&marker=${lat},${lng}`}
-                                                        className="w-full h-full"
-                                                    ></iframe>
-                                                    <div className="absolute top-2 right-2 bg-white/90 dark:bg-black/80 px-2 py-1 rounded text-xs font-bold shadow pointer-events-none">
-                                                        Aperçu
-                                                    </div>
+                                                <div className="mt-3 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 h-48 relative z-0">
+                                                    <LeafletMap pos={{ lat, lng }} readonly />
                                                 </div>
                                             );
                                         }
@@ -1092,6 +1086,21 @@ export default function AgendaPage() {
                                     <p className="text-sm text-gray-700 dark:text-gray-300 mb-2 truncate">
                                         {viewingEvent.location.startsWith('http') ? 'Lien Google Maps' : viewingEvent.location}
                                     </p>
+
+                                    {(() => {
+                                        const coords = viewingEvent.location.match(/q=(-?\d+\.\d+),(-?\d+\.\d+)/);
+                                        if (coords) {
+                                            const lat = parseFloat(coords[1]);
+                                            const lng = parseFloat(coords[2]);
+                                            return (
+                                                <div className="h-40 rounded-lg overflow-hidden border border-blue-200 dark:border-blue-800 mb-2 z-0">
+                                                    <LeafletMap pos={{ lat, lng }} readonly />
+                                                </div>
+                                            );
+                                        }
+                                        return null;
+                                    })()}
+
                                     {viewingEvent.location && (
                                         <a
                                             href={viewingEvent.location.startsWith('http') ? viewingEvent.location : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(viewingEvent.location)}`}
@@ -1258,18 +1267,14 @@ export default function AgendaPage() {
                             </p>
                         </div>
 
-                        <div className="h-64 relative bg-gray-100 w-full">
-                            <iframe
-                                width="100%"
-                                height="100%"
-                                frameBorder="0"
-                                scrolling="no"
-                                src={`https://www.openstreetmap.org/export/embed.html?bbox=${tempCoords.lng - 0.002},${tempCoords.lat - 0.002},${tempCoords.lng + 0.002},${tempCoords.lat + 0.002}&layer=mapnik&marker=${tempCoords.lat},${tempCoords.lng}`}
-                                className="w-full h-full"
-                            ></iframe>
+                        <div className="h-64 relative bg-gray-100 w-full z-0">
+                            <LeafletMap
+                                pos={{ lat: tempCoords.lat, lng: tempCoords.lng }}
+                                onLocationSelect={(lat, lng) => setTempCoords(prev => prev ? { ...prev, lat, lng } : null)}
+                            />
                             {tempCoords.accuracy && (
-                                <div className="absolute bottom-2 left-2 bg-white/90 dark:bg-black/80 px-2 py-1 rounded text-xs text-gray-700 dark:text-gray-300 shadow">
-                                    Précision: ~{Math.round(tempCoords.accuracy)}m
+                                <div className="absolute top-2 right-2 z-[400] bg-white/90 dark:bg-black/80 px-2 py-1 rounded text-xs text-gray-700 dark:text-gray-300 shadow backdrop-blur-sm">
+                                    Précision ~{Math.round(tempCoords.accuracy)}m
                                 </div>
                             )}
                         </div>
