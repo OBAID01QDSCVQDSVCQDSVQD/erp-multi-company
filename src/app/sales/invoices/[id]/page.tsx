@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
-import { DocumentTextIcon, ArrowLeftIcon, ArrowDownTrayIcon, BanknotesIcon, XMarkIcon, ChatBubbleLeftEllipsisIcon, MagnifyingGlassIcon, PhoneIcon } from '@heroicons/react/24/outline';
+import { DocumentTextIcon, ArrowLeftIcon, ArrowDownTrayIcon, BanknotesIcon, XMarkIcon, ChatBubbleLeftEllipsisIcon, MagnifyingGlassIcon, PhoneIcon, CheckIcon } from '@heroicons/react/24/outline';
 import { useTenantId } from '@/hooks/useTenantId';
 import toast from 'react-hot-toast';
 
@@ -65,6 +65,7 @@ export default function ViewInvoicePage() {
   const [clientSearchQuery, setClientSearchQuery] = useState('');
   const [clientSearchResults, setClientSearchResults] = useState<any[]>([]);
   const [searchingClients, setSearchingClients] = useState(false);
+  const [includeStamp, setIncludeStamp] = useState(true);
 
   useEffect(() => {
     if (tenantId && params.id) {
@@ -132,14 +133,12 @@ export default function ViewInvoicePage() {
       setSearchingClients(true);
       try {
         // Use the existing search API
-        const response = await fetch(`/api/search?q=${encodeURIComponent(clientSearchQuery)}&limit=5`, {
+        const response = await fetch(`/api/search?q=${encodeURIComponent(clientSearchQuery)}&type=client`, {
           headers: { 'X-Tenant-Id': tenantId || '' }
         });
         if (response.ok) {
           const data = await response.json();
-          // Filter to only show Clients
-          const clients = data.filter((item: any) => item.type === 'Client');
-          setClientSearchResults(clients);
+          setClientSearchResults(Array.isArray(data) ? data : data.results || []);
         }
       } catch (error) {
         console.error('Error searching clients:', error);
@@ -452,6 +451,10 @@ export default function ViewInvoicePage() {
     setWhatsAppNumber(clean);
     setClientSearchQuery('');
     setClientSearchResults([]);
+    setWhatsAppNumber(clean);
+    setClientSearchQuery('');
+    setClientSearchResults([]);
+    setIncludeStamp(true);
     setShowWhatsAppModal(true);
   };
 
@@ -475,7 +478,7 @@ export default function ViewInvoicePage() {
       if (res.ok) {
         const data = await res.json();
         // Use window.location.origin to get correct domain (localhost or production)
-        publicLink = `${window.location.origin}/i/${data.token}`;
+        publicLink = `${window.location.origin}/i/${data.token}?withStamp=${includeStamp}`;
       }
     } catch (e) {
       console.error("Error generating public link", e);
@@ -1303,7 +1306,7 @@ export default function ViewInvoicePage() {
 
                                 if (clean) {
                                   setWhatsAppNumber(clean);
-                                  setClientSearchQuery('');
+                                  setClientSearchQuery(client.title);
                                   setClientSearchResults([]);
                                 } else {
                                   toast.error(`Aucun numéro trouvé pour ${client.title}`);
@@ -1328,6 +1331,20 @@ export default function ViewInvoicePage() {
                     </ul>
                   )}
                 </div>
+
+                {/* Include Stamp Checkbox */}
+                <div
+                  className="mt-4 flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                  onClick={() => setIncludeStamp(!includeStamp)}
+                >
+                  <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${includeStamp ? 'bg-blue-600 border-blue-600' : 'border-gray-400 bg-white dark:bg-gray-800'}`}>
+                    {includeStamp && <CheckIcon className="w-3.5 h-3.5 text-white" />}
+                  </div>
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer select-none">
+                    Inclure le cachet
+                  </label>
+                </div>
+
               </div>
 
               <div className="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense">

@@ -1470,7 +1470,7 @@ export default function InvoicesPage() {
           });
           if (res.ok) {
             const data = await res.json();
-            setClientSearchResults(data.results || []);
+            setClientSearchResults(Array.isArray(data) ? data : data.results || []);
           }
         } catch (error) {
           console.error("Error searching clients", error);
@@ -1487,7 +1487,8 @@ export default function InvoicesPage() {
 
   const handleOpenWhatsAppModal = async (invoice: Invoice) => {
     setSelectedInvoiceForWhatsApp(invoice);
-    setWhatsAppNumber(''); // Reset first
+    setWhatsAppNumber('');
+    setIncludeStamp(true); // Reset first
 
     // Try to fetch customer phone if customerId exists
     if (invoice.customerId && tenantId) {
@@ -1539,7 +1540,7 @@ export default function InvoicesPage() {
       });
       if (res.ok) {
         const data = await res.json();
-        publicLink = `${window.location.origin}/i/${data.token}`;
+        publicLink = `${window.location.origin}/i/${data.token}?withStamp=${includeStamp}`;
       }
     } catch (e) {
       console.error("Error generating public link", e);
@@ -2842,7 +2843,7 @@ export default function InvoicesPage() {
           <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
             <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onClick={() => setShowWhatsAppModal(false)}></div>
             <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-            <div className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
+            <div className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg px-4 pt-5 pb-4 text-left shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
               <div className="absolute top-0 right-0 pt-4 pr-4">
                 <button
                   type="button"
@@ -2923,7 +2924,6 @@ export default function InvoicesPage() {
                     )}
                   </div>
 
-                  {/* Search Results Dropdown */}
                   {clientSearchResults.length > 0 && (
                     <ul className="absolute z-10 mt-1 w-full bg-white dark:bg-gray-700 shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm">
                       {clientSearchResults.map((client) => (
@@ -2943,7 +2943,7 @@ export default function InvoicesPage() {
 
                                 if (clean) {
                                   setWhatsAppNumber(clean);
-                                  setClientSearchQuery('');
+                                  setClientSearchQuery(client.title);
                                   setClientSearchResults([]);
                                 } else {
                                   toast.error(`Aucun numéro trouvé pour ${client.title}`);
@@ -2967,6 +2967,19 @@ export default function InvoicesPage() {
                       ))}
                     </ul>
                   )}
+                </div>
+
+                {/* Include Stamp Checkbox */}
+                <div
+                  className="flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                  onClick={() => setIncludeStamp(!includeStamp)}
+                >
+                  <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${includeStamp ? 'bg-blue-600 border-blue-600' : 'border-gray-400 bg-white dark:bg-gray-800'}`}>
+                    {includeStamp && <CheckIcon className="w-3.5 h-3.5 text-white" />}
+                  </div>
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer select-none">
+                    Inclure le cachet
+                  </label>
                 </div>
               </div>
 

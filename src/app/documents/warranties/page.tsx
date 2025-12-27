@@ -9,7 +9,8 @@ import {
     ChatBubbleLeftEllipsisIcon,
     MagnifyingGlassIcon,
     XMarkIcon,
-    CheckIcon
+    CheckIcon,
+    PhoneIcon
 } from '@heroicons/react/24/outline';
 import { toast } from 'react-hot-toast';
 import { useSession } from 'next-auth/react';
@@ -124,44 +125,95 @@ export default function WarrantyListPage() {
         return customer.raisonSociale || `${customer.prenom} ${customer.nom}`;
     };
 
-    const handleWhatsApp = async (warranty: Warranty) => {
-        if (!warranty.customerId) {
-            toast.error('Aucun client associé');
-            return;
+    // WhatsApp Modal State
+    const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
+    const [whatsAppNumber, setWhatsAppNumber] = useState('');
+    const [selectedWarrantyForWhatsApp, setSelectedWarrantyForWhatsApp] = useState<Warranty | null>(null);
+    const [clientSearchQuery, setClientSearchQuery] = useState('');
+    const [clientSearchResults, setClientSearchResults] = useState<any[]>([]);
+    const [searchingClients, setSearchingClients] = useState(false);
+    const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
+
+    // Client Search Effect
+    useEffect(() => {
+        const delayDebounceFn = setTimeout(async () => {
+            if (clientSearchQuery.trim()) {
+                setSearchingClients(true);
+                try {
+                    const res = await fetch(`/api/search?q=${encodeURIComponent(clientSearchQuery)}&type=client`, {
+                        headers: { 'X-Tenant-Id': (session?.user as any)?.companyId || '' }
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        setClientSearchResults(Array.isArray(data) ? data : data.results || []);
+                    }
+                } catch (error) {
+                    console.error("Error searching clients", error);
+                } finally {
+                    setSearchingClients(false);
+                }
+            } else {
+                setClientSearchResults([]);
+            }
+        }, 500);
+
+        return () => clearTimeout(delayDebounceFn);
+    }, [clientSearchQuery, session]);
+
+    const handleWhatsAppClick = (warranty: Warranty) => {
+        setSelectedWarrantyForWhatsApp(warranty);
+        setWhatsAppNumber('');
+        setIncludeStamp(true);
+
+        // Pre-fill number if available
+        if (warranty.customerId) {
+            const customer = warranty.customerId as any;
+            let phone = customer.mobile || customer.telephone || '';
+            let clean = phone.replace(/\D/g, '');
+            if (clean.length === 8) clean = '216' + clean;
+            setWhatsAppNumber(clean);
         }
 
-        const customer = warranty.customerId as any; // Type casting for safety if interface mismatches
-        const phoneNumber = customer.mobile || customer.telephone;
-        if (!phoneNumber) {
-            toast.error('Aucun numéro de téléphone trouvé pour ce client');
-            return;
-        }
+        setShowWhatsAppModal(true);
+    };
 
-        // Clean number (Tunisia format assumption)
-        let clean = phoneNumber.replace(/\D/g, '');
-        if (clean.length === 8) clean = '216' + clean;
+    const confirmWhatsAppSend = async () => {
+        if (!selectedWarrantyForWhatsApp || !whatsAppNumber) return;
 
-        setProcessingWhatsApp(warranty._id);
+        setIsSendingWhatsApp(true);
         try {
-            const res = await fetch(`/api/documents/warranties/${warranty._id}/share`, {
-                method: 'POST'
+            // Clean number
+            let numberToSend = whatsAppNumber.replace(/\D/g, '');
+            if (numberToSend.length === 8) numberToSend = '216' + numberToSend;
+
+            // Generate public link
+            const res = await fetch(`/api/documents/warranties/${selectedWarrantyForWhatsApp._id}/share`, {
+                method: 'POST',
+                headers: {
+                    'X-Tenant-Id': (session?.user as any)?.companyId || ''
+                }
             });
 
             if (res.ok) {
                 const data = await res.json();
-                // Use short public link
-                const link = `${window.location.origin}/w/${data.token}`;
-                const message = `Bonjour, veuillez trouver ci-joint votre certificat de garantie ${warranty.certificateNumber} :\n${link}`;
+                const link = `${window.location.origin}/w/${data.token}?withStamp=${includeStamp}`;
 
-                window.open(`https://wa.me/${clean}?text=${encodeURIComponent(message)}`, '_blank');
+                // Construct message
+                const customer = selectedWarrantyForWhatsApp.customerId as any;
+                const customerName = customer ? (customer.raisonSociale || `${customer.nom} ${customer.prenom}`) : 'Client';
+                const message = `Bonjour ${customerName}, veuillez trouver ci-joint votre certificat de garantie ${selectedWarrantyForWhatsApp.certificateNumber} :\n${link}`;
+
+                // Open WhatsApp
+                window.open(`https://wa.me/${numberToSend}?text=${encodeURIComponent(message)}`, '_blank');
+                setShowWhatsAppModal(false);
             } else {
-                toast.error('Erreur lors de la génération du lien de partage');
+                toast.error('Erreur lors de la génération du lien');
             }
         } catch (error) {
             console.error(error);
-            toast.error('Erreur lors du partage');
+            toast.error('Erreur lors de l\'envoi');
         } finally {
-            setProcessingWhatsApp(null);
+            setIsSendingWhatsApp(false);
         }
     };
 
@@ -292,12 +344,12 @@ export default function WarrantyListPage() {
                                                                 <DocumentArrowDownIcon className="h-5 w-5" />
                                                             </button>
                                                             <button
-                                                                onClick={() => handleWhatsApp(warranty)}
-                                                                disabled={processingWhatsApp === warranty._id}
+                                                                onClick={() => handleWhatsAppClick(warranty)}
+                                                                disabled={isSendingWhatsApp && selectedWarrantyForWhatsApp?._id === warranty._id}
                                                                 className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300 disabled:opacity-50"
                                                                 title="Envoyer par WhatsApp"
                                                             >
-                                                                {processingWhatsApp === warranty._id ? (
+                                                                {isSendingWhatsApp && selectedWarrantyForWhatsApp?._id === warranty._id ? (
                                                                     <div className="h-5 w-5 animate-spin rounded-full border-2 border-green-600 border-t-transparent" />
                                                                 ) : (
                                                                     <ChatBubbleLeftEllipsisIcon className="h-5 w-5" />
@@ -379,6 +431,171 @@ export default function WarrantyListPage() {
                                         <DocumentArrowDownIcon className="w-4 h-4" />
                                     )}
                                     {isGeneratingPdf ? 'Génération...' : 'Télécharger PDF'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* WhatsApp Modal */}
+            {showWhatsAppModal && (
+                <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+                    <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onClick={() => setShowWhatsAppModal(false)}></div>
+                        <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+                        <div className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg px-4 pt-5 pb-4 text-left shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
+                            <div className="absolute top-0 right-0 pt-4 pr-4">
+                                <button
+                                    type="button"
+                                    className="bg-white dark:bg-gray-800 rounded-md text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                                    onClick={() => setShowWhatsAppModal(false)}
+                                >
+                                    <span className="sr-only">Fermer</span>
+                                    <XMarkIcon className="h-6 w-6" aria-hidden="true" />
+                                </button>
+                            </div>
+
+                            <div>
+                                <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 dark:bg-green-900">
+                                    <ChatBubbleLeftEllipsisIcon className="h-6 w-6 text-green-600 dark:text-green-400" aria-hidden="true" />
+                                </div>
+                                <div className="mt-3 text-center sm:mt-5">
+                                    <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white" id="modal-title">
+                                        Envoyer par WhatsApp
+                                    </h3>
+                                    <div className="mt-2">
+                                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                                            Confirmez le numéro ou recherchez un autre client.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="mt-5 space-y-4">
+                                <div>
+                                    <label htmlFor="wa-number" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        Numéro de téléphone
+                                    </label>
+                                    <div className="mt-1 relative rounded-md shadow-sm">
+                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                            <PhoneIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
+                                        </div>
+                                        <input
+                                            type="text"
+                                            name="wa-number"
+                                            id="wa-number"
+                                            className="focus:ring-green-500 focus:border-green-500 block w-full pl-10 sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md h-10"
+                                            placeholder="216..."
+                                            value={whatsAppNumber}
+                                            onChange={(e) => setWhatsAppNumber(e.target.value)}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="relative flex py-1 items-center">
+                                    <div className="flex-grow border-t border-gray-300 dark:border-gray-600"></div>
+                                    <span className="flex-shrink-0 mx-4 text-gray-400 text-xs">OU RECHERCHER UN CLIENT</span>
+                                    <div className="flex-grow border-t border-gray-300 dark:border-gray-600"></div>
+                                </div>
+
+                                <div className="relative">
+                                    <label htmlFor="search-client" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        Rechercher un autre client
+                                    </label>
+                                    <div className="mt-1 relative rounded-md shadow-sm">
+                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                            <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
+                                        </div>
+                                        <input
+                                            type="text"
+                                            id="search-client"
+                                            className="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md h-10"
+                                            placeholder="Nom du client..."
+                                            value={clientSearchQuery}
+                                            onChange={(e) => setClientSearchQuery(e.target.value)}
+                                            autoComplete="off"
+                                        />
+                                        {searchingClients && (
+                                            <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {clientSearchResults.length > 0 && (
+                                        <ul className="absolute z-10 mt-1 w-full bg-white dark:bg-gray-700 shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm">
+                                            {clientSearchResults.map((client) => (
+                                                <li
+                                                    key={client._id}
+                                                    className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-gray-100 dark:hover:bg-gray-600"
+                                                    onClick={async (e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        try {
+                                                            const res = await fetch(`/api/customers/${client._id}`, { headers: { 'X-Tenant-Id': (session?.user as any)?.companyId || '' } });
+                                                            if (res.ok) {
+                                                                const data = await res.json();
+                                                                const phone = data.mobile || data.telephone || '';
+                                                                let clean = phone.replace(/\D/g, '');
+                                                                if (clean.length === 8) clean = '216' + clean;
+
+                                                                if (clean) {
+                                                                    setWhatsAppNumber(clean);
+                                                                    setClientSearchQuery(client.title);
+                                                                    setClientSearchResults([]);
+                                                                } else {
+                                                                    toast.error(`Aucun numéro trouvé pour ${client.title}`);
+                                                                }
+                                                            }
+                                                        } catch (err) {
+                                                            console.error(err);
+                                                            toast.error("Erreur lors de la récupération du numéro");
+                                                        }
+                                                    }}
+                                                >
+                                                    <div className="flex items-center">
+                                                        <span className="font-medium block truncate text-gray-900 dark:text-white">
+                                                            {client.title}
+                                                        </span>
+                                                    </div>
+                                                    <span className="text-gray-500 dark:text-gray-400 text-xs">
+                                                        {client.subtitle}
+                                                    </span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Include Stamp Checkbox */}
+                            <div
+                                className="flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                                onClick={() => setIncludeStamp(!includeStamp)}
+                            >
+                                <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${includeStamp ? 'bg-blue-600 border-blue-600' : 'border-gray-400 bg-white dark:bg-gray-800'}`}>
+                                    {includeStamp && <CheckIcon className="w-3.5 h-3.5 text-white" />}
+                                </div>
+                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer select-none">
+                                    Inclure le cachet
+                                </label>
+                            </div>
+
+                            <div className="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense">
+                                <button
+                                    type="button"
+                                    className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:col-start-2 sm:text-sm"
+                                    onClick={confirmWhatsAppSend}
+                                >
+                                    Envoyer
+                                </button>
+                                <button
+                                    type="button"
+                                    className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-700 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:col-start-1 sm:text-sm"
+                                    onClick={() => setShowWhatsAppModal(false)}
+                                >
+                                    Annuler
                                 </button>
                             </div>
                         </div>

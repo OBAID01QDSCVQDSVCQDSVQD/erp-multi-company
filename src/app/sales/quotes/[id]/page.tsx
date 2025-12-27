@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
-import { DocumentTextIcon, ArrowLeftIcon, ArrowDownTrayIcon, ChatBubbleLeftEllipsisIcon, PhoneIcon, MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { DocumentTextIcon, ArrowLeftIcon, ArrowDownTrayIcon, ChatBubbleLeftEllipsisIcon, PhoneIcon, MagnifyingGlassIcon, XMarkIcon, CheckIcon } from '@heroicons/react/24/outline';
 import { useTenantId } from '@/hooks/useTenantId';
 import toast from 'react-hot-toast';
 
@@ -41,6 +41,7 @@ export default function ViewQuotePage() {
   const [clientSearchQuery, setClientSearchQuery] = useState('');
   const [clientSearchResults, setClientSearchResults] = useState<any[]>([]);
   const [searchingClients, setSearchingClients] = useState(false);
+  const [includeStamp, setIncludeStamp] = useState(true);
 
   useEffect(() => {
     if (tenantId && params.id) {
@@ -160,7 +161,7 @@ export default function ViewQuotePage() {
           });
           if (res.ok) {
             const data = await res.json();
-            setClientSearchResults(data.results || []);
+            setClientSearchResults(Array.isArray(data) ? data : data.results || []);
           }
         } catch (error) {
           console.error("Error searching clients", error);
@@ -178,6 +179,7 @@ export default function ViewQuotePage() {
   const handleOpenWhatsAppModal = async () => {
     if (!quote) return;
     setWhatsAppNumber('');
+    setIncludeStamp(true);
 
     // Check if we have customer loaded
     if (customer && (customer.mobile || customer.telephone)) {
@@ -226,7 +228,7 @@ export default function ViewQuotePage() {
       });
       if (res.ok) {
         const data = await res.json();
-        publicLink = `${window.location.origin}/i/${data.token}`;
+        publicLink = `${window.location.origin}/i/${data.token}?withStamp=${includeStamp}`;
       }
     } catch (e) {
       console.error("Error generating public link", e);
@@ -660,7 +662,7 @@ export default function ViewQuotePage() {
             <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
               <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onClick={() => setShowWhatsAppModal(false)}></div>
               <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-              <div className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
+              <div className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg px-4 pt-5 pb-4 text-left shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
                 <div className="absolute top-0 right-0 pt-4 pr-4">
                   <button
                     type="button"
@@ -758,7 +760,7 @@ export default function ViewQuotePage() {
 
                                   if (clean) {
                                     setWhatsAppNumber(clean);
-                                    setClientSearchQuery('');
+                                    setClientSearchQuery(client.title);
                                     setClientSearchResults([]);
                                   } else {
                                     toast.error(`Aucun numéro trouvé pour ${client.title}`);
@@ -783,6 +785,19 @@ export default function ViewQuotePage() {
                       </ul>
                     )}
                   </div>
+                </div>
+
+                {/* Include Stamp Checkbox */}
+                <div
+                  className="mt-4 flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                  onClick={() => setIncludeStamp(!includeStamp)}
+                >
+                  <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${includeStamp ? 'bg-blue-600 border-blue-600' : 'border-gray-400 bg-white dark:bg-gray-800'}`}>
+                    {includeStamp && <CheckIcon className="w-3.5 h-3.5 text-white" />}
+                  </div>
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer select-none">
+                    Inclure le cachet
+                  </label>
                 </div>
 
                 <div className="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense">

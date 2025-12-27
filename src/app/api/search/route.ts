@@ -28,108 +28,118 @@ export async function GET(request: NextRequest) {
 
         await connectDB();
 
-        // Safe regex for search
+        const typeParam = searchParams.get('type');
         const safeQ = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const regex = new RegExp(safeQ, 'i');
 
         const results: any[] = [];
+        let customers: any[] = [];
+        let suppliers: any[] = [];
+        let products: any[] = [];
+        let directDocs: any[] = [];
+        let relatedDocs: any[] = [];
 
         // 1. Search Customers
-        const customers = await Customer.find({
-            tenantId,
-            $or: [
-                { raisonSociale: regex },
-                { nom: regex },
-                { prenom: regex },
-                { email: regex },
-                { matriculeFiscale: regex }
-            ]
-        }).select('_id raisonSociale nom prenom type email').limit(5);
+        if (!typeParam || typeParam === 'client' || typeParam === 'customer') {
+            customers = await Customer.find({
+                tenantId,
+                $or: [
+                    { raisonSociale: regex },
+                    { nom: regex },
+                    { prenom: regex },
+                    { email: regex },
+                    { matriculeFiscale: regex }
+                ]
+            }).select('_id raisonSociale nom prenom type email telephone mobile').limit(10);
 
-        customers.forEach(c => {
-            const name = c.raisonSociale || `${c.nom || ''} ${c.prenom || ''}`.trim();
-            results.push({
-                _id: c._id,
-                type: 'Client',
-                title: name,
-                subtitle: c.email || 'Fiche Client',
-                url: `/customers/${c._id}`,
-                icon: 'UserGroupIcon'
+            customers.forEach(c => {
+                const name = c.raisonSociale || `${c.nom || ''} ${c.prenom || ''}`.trim();
+                results.push({
+                    _id: c._id,
+                    type: 'Client',
+                    title: name,
+                    subtitle: c.email || c.mobile || c.telephone || 'Fiche Client',
+                    url: `/customers/${c._id}`,
+                    icon: 'UserGroupIcon'
+                });
             });
-        });
+        }
 
         // 2. Search Suppliers
-        const suppliers = await Supplier.find({
-            tenantId,
-            $or: [
-                { raisonSociale: regex },
-                { nom: regex },
-                { prenom: regex },
-                { email: regex },
-                { matriculeFiscale: regex }
-            ]
-        }).select('_id raisonSociale nom prenom type email').limit(5);
+        if (!typeParam || typeParam === 'supplier' || typeParam === 'fournisseur') {
+            suppliers = await Supplier.find({
+                tenantId,
+                $or: [
+                    { raisonSociale: regex },
+                    { nom: regex },
+                    { prenom: regex },
+                    { email: regex },
+                    { matriculeFiscale: regex }
+                ]
+            }).select('_id raisonSociale nom prenom type email').limit(10);
 
-        suppliers.forEach(s => {
-            const name = s.raisonSociale || `${s.nom || ''} ${s.prenom || ''}`.trim();
-            results.push({
-                _id: s._id,
-                type: 'Fournisseur',
-                title: name,
-                subtitle: s.email || 'Fiche Fournisseur',
-                url: `/suppliers/${s._id}`,
-                icon: 'BuildingOfficeIcon'
+            suppliers.forEach(s => {
+                const name = s.raisonSociale || `${s.nom || ''} ${s.prenom || ''}`.trim();
+                results.push({
+                    _id: s._id,
+                    type: 'Fournisseur',
+                    title: name,
+                    subtitle: s.email || 'Fiche Fournisseur',
+                    url: `/suppliers/${s._id}`,
+                    icon: 'BuildingOfficeIcon'
+                });
             });
-        });
+        }
 
         // 3. Search Products
-        const products = await Product.find({
-            tenantId,
-            $or: [
-                { name: regex },
-                { reference: regex },
-                { description: regex },
-                { category: regex }
-            ]
-        }).select('_id name reference sellPrice stock').limit(5);
+        if (!typeParam || typeParam === 'product' || typeParam === 'produit') {
+            products = await Product.find({
+                tenantId,
+                $or: [
+                    { name: regex },
+                    { reference: regex },
+                    { description: regex },
+                    { category: regex }
+                ]
+            }).select('_id name reference sellPrice stock').limit(5);
 
-        products.forEach(p => {
-            results.push({
-                _id: p._id,
-                type: 'Produit',
-                title: p.name,
-                subtitle: `Ref: ${p.reference} | Stock: ${p.stock}`,
-                url: `/products/${p._id}`,
-                meta: `${p.sellPrice?.toFixed(3)} TND`,
-                icon: 'CubeIcon'
+            products.forEach(p => {
+                results.push({
+                    _id: p._id,
+                    type: 'Produit',
+                    title: p.name,
+                    subtitle: `Ref: ${p.reference} | Stock: ${p.stock}`,
+                    url: `/products/${p._id}`,
+                    meta: `${p.sellPrice?.toFixed(3)} TND`,
+                    icon: 'CubeIcon'
+                });
             });
-        });
+        }
+
+        // Return early if specific type requested (Entity Search)
+        if (typeParam) {
+            return NextResponse.json(results.slice(0, limit));
+        }
+
+        // --- GLOBAL SEARCH CONTINUE (Documents, etc.) ---
 
         // 4. Search Documents (Direct match on number or ref)
-        const directDocs = await Document.find({
+        directDocs = await Document.find({
             tenantId,
             $or: [
                 { numero: regex },
-                { referenceExterne: regex } // Search by external ref (e.g. quote number from client)
+                { referenceExterne: regex }
             ]
         }).sort({ dateDoc: -1 }).limit(10);
 
-        // 5. Search Documents by Customer/Supplier IDs found
-        // 5. Search Documents by Customer/Supplier IDs found
-        const customerIds = customers.map(c => c._id);
-        const supplierIds = suppliers.map(s => s._id);
+        // Re-declaring variables inside the !typeParam block would be cleaner or lifting them up.
+        // I will lift the arrays up.
 
-        let relatedDocs: any[] = [];
-        // Only fetch related docs if we found people, and don't fetch too many
-        if ((customerIds.length > 0 || supplierIds.length > 0) && directDocs.length < 5) {
-            relatedDocs = await Document.find({
-                tenantId,
-                $or: [
-                    { customerId: { $in: customerIds } },
-                    { supplierId: { $in: supplierIds } }
-                ]
-            }).sort({ dateDoc: -1 }).limit(5);
-        }
+        // WAIT: The code I am replacing (lines 31-132) covers the entity search + initial doc search.
+        // I should just replace the whole body to be clean.
+
+        // Let's rely on the previous structure but add guards.
+
 
         // Helper Map to find names easily
         const customerMap = new Map();

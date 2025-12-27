@@ -43,7 +43,11 @@ export async function GET(
             return NextResponse.json({ error: 'Paramètres de société non trouvés' }, { status: 404 });
         }
 
-        const pdfDoc = generateWarrantyPdf(warranty, settings);
+        // Check query params for stamp option
+        const { searchParams } = new URL(request.url);
+        const withStamp = searchParams.get('withStamp') !== 'false';
+
+        const pdfDoc = generateWarrantyPdf(warranty, settings, withStamp);
 
         // Convert to buffer
         const pdfBuffer = Buffer.from(pdfDoc.output('arraybuffer'));
