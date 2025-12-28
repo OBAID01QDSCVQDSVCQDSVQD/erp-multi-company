@@ -142,14 +142,12 @@ EmployeeSchema.index({ tenantId: 1, employeeNumber: 1 }, { unique: true, sparse:
 EmployeeSchema.index({ tenantId: 1, status: 1 });
 EmployeeSchema.index({ tenantId: 1, department: 1 });
 
-// Clear the model from cache if it exists
-let Employee: any;
-
-if (mongoose.models.Employee) {
-  Employee = mongoose.models.Employee;
-} else {
-  Employee = mongoose.model('Employee', EmployeeSchema);
+// Export
+if (mongoose.models && mongoose.models['Employee']) {
+  delete (mongoose.models as any)['Employee'];
 }
 
-export default Employee;
+const Employee = mongoose.model<IEmployee>('Employee', EmployeeSchema as any);
+
+export default Employee as any;
 

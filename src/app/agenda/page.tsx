@@ -43,7 +43,7 @@ import {
 import { fr } from 'date-fns/locale';
 import dynamic from 'next/dynamic';
 
-const GoogleMapPicker = dynamic(() => import('@/components/common/GoogleMapPicker'), {
+const LeafletMap = dynamic(() => import('@/components/common/LeafletMap'), {
     loading: () => <div className="h-full w-full bg-gray-100 animate-pulse flex items-center justify-center text-gray-400 text-sm rounded-xl">Chargement de la carte...</div>,
     ssr: false
 });
@@ -344,7 +344,7 @@ export default function AgendaPage() {
             return;
         }
 
-        const loadId = toast.loading('Recherche de la position...');
+        const loadId = toast.loading('Recherche GPS en cours... Cela peut prendre jusqu\'à 15 secondes');
 
         const getPosition = (options: PositionOptions): Promise<GeolocationPosition> => {
             return new Promise((resolve, reject) => {
@@ -352,36 +352,75 @@ export default function AgendaPage() {
             });
         };
 
+        // Enhanced: Try to get multiple samples and pick the most accurate
+        const getBestPosition = async (): Promise<GeolocationPosition> => {
+            const samples: GeolocationPosition[] = [];
+            const watchId = navigator.geolocation.watchPosition(
+                (pos) => {
+                    samples.push(pos);
+                    toast.loading(`Précision: ${Math.round(pos.coords.accuracy)}m - Amélioration en cours...`, { id: loadId });
+                },
+                () => { },
+                { enableHighAccuracy: true, maximumAge: 0 }
+            );
+
+            // Wait up to 15 seconds to collect samples
+            await new Promise(resolve => setTimeout(resolve, 15000));
+            navigator.geolocation.clearWatch(watchId);
+
+            if (samples.length === 0) {
+                throw new Error('No GPS samples collected');
+            }
+
+            // Return the most accurate sample
+            return samples.reduce((best, current) =>
+                current.coords.accuracy < best.coords.accuracy ? current : best
+            );
+        };
+
         try {
-            // Tentative 1: Haute précision (GPS)
+            // Tentative 1: Multi-sample GPS with maximum accuracy
             try {
-                const pos = await getPosition({ enableHighAccuracy: true, timeout: 5000, maximumAge: 0 });
+                const pos = await getBestPosition();
                 setTempCoords({
                     lat: pos.coords.latitude,
                     lng: pos.coords.longitude,
                     accuracy: pos.coords.accuracy
                 });
                 setShowLocationModal(true);
-                toast.success('Position trouvée !', { id: loadId });
+                toast.success(`Position GPS trouvée ! (±${Math.round(pos.coords.accuracy)}m)`, { id: loadId });
             } catch (err) {
-                // Tentative 2: Basse précision (Wifi/IP) si GPS échoue ou timeout
-                console.log('GPS failed, trying low accuracy fallback...');
-                const pos = await getPosition({ enableHighAccuracy: false, timeout: 10000, maximumAge: 0 });
+                // Tentative 2: Single high-accuracy attempt
+                console.log('Multi-sample failed, trying single high-accuracy...');
+                const pos = await getPosition({ enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
                 setTempCoords({
                     lat: pos.coords.latitude,
                     lng: pos.coords.longitude,
                     accuracy: pos.coords.accuracy
                 });
                 setShowLocationModal(true);
-                toast.success('Position approximative trouvée', { id: loadId });
+                toast.success(`Position trouvée (±${Math.round(pos.coords.accuracy)}m)`, { id: loadId });
             }
         } catch (error: any) {
-            console.error(error);
-            let msg = 'Impossible de récupérer la position';
-            if (error.code === 1) msg = 'Permission refusée';
-            if (error.code === 2) msg = 'Position indisponible';
-            if (error.code === 3) msg = 'Délai d\'attente dépassé';
-            toast.error(msg, { id: loadId });
+            // Tentative 3: Fallback to network-based location
+            try {
+                console.log('High accuracy failed, using network location...');
+                const pos = await getPosition({ enableHighAccuracy: false, timeout: 5000, maximumAge: 0 });
+                setTempCoords({
+                    lat: pos.coords.latitude,
+                    lng: pos.coords.longitude,
+                    accuracy: pos.coords.accuracy
+                });
+                setShowLocationModal(true);
+                toast.success(`Position réseau (±${Math.round(pos.coords.accuracy)}m) - Ajustez manuellement`, { id: loadId });
+            } catch (finalError: any) {
+                console.error(finalError);
+                let msg = 'Impossible de récupérer la position';
+                if (finalError.code === 1) msg = 'Permission GPS refusée - Vérifiez les paramètres du navigateur';
+                if (finalError.code === 2) msg = 'GPS indisponible - Utilisez l\'entrée manuelle';
+                if (finalError.code === 3) msg = 'Délai GPS dépassé - Réessayez ou entrez manuellement';
+                toast.error(msg, { id: loadId });
+            }
         }
     };
 
@@ -923,7 +962,7 @@ export default function AgendaPage() {
                                             const lng = parseFloat(coords[2]);
                                             return (
                                                 <div className="mt-3 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 h-48 relative z-0">
-                                                    <GoogleMapPicker initialLat={lat} initialLng={lng} readonly height="100%" />
+                                                    <LeafletMap pos={{ lat, lng }} readonly />
                                                 </div>
                                             );
                                         }
@@ -1094,7 +1133,7 @@ export default function AgendaPage() {
                                             const lng = parseFloat(coords[2]);
                                             return (
                                                 <div className="h-40 rounded-lg overflow-hidden border border-blue-200 dark:border-blue-800 mb-2 z-0">
-                                                    <GoogleMapPicker initialLat={lat} initialLng={lng} readonly height="100%" />
+                                                    <LeafletMap pos={{ lat, lng }} readonly />
                                                 </div>
                                             );
                                         }
@@ -1268,11 +1307,9 @@ export default function AgendaPage() {
                         </div>
 
                         <div className="h-64 relative bg-gray-100 w-full z-0">
-                            <GoogleMapPicker
-                                initialLat={tempCoords.lat}
-                                initialLng={tempCoords.lng}
-                                onLocationChange={(lat, lng) => setTempCoords(prev => prev ? { ...prev, lat, lng } : null)}
-                                height="100%"
+                            <LeafletMap
+                                pos={{ lat: tempCoords.lat, lng: tempCoords.lng }}
+                                onLocationSelect={(lat, lng) => setTempCoords(prev => prev ? { ...prev, lat, lng } : null)}
                             />
                             {tempCoords.accuracy && (
                                 <div className="absolute top-2 right-2 z-[400] bg-white/90 dark:bg-black/80 px-2 py-1 rounded text-xs text-gray-700 dark:text-gray-300 shadow backdrop-blur-sm">
