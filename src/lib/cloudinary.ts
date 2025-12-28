@@ -6,11 +6,10 @@ const apiKey = process.env.CLOUDINARY_API_KEY;
 const apiSecret = process.env.CLOUDINARY_API_SECRET;
 
 if (!cloudName || !apiKey || !apiSecret) {
-  console.error('❌ Cloudinary configuration missing!');
-  console.error('Cloud Name:', cloudName ? '✓' : '✗');
-  console.error('API Key:', apiKey ? '✓' : '✗');
-  console.error('API Secret:', apiSecret ? '✓' : '✗');
-  throw new Error('Cloudinary configuration is incomplete. Please check your .env.local file.');
+  console.warn('⚠️ Cloudinary configuration missing! Image uploads will fail.');
+  console.warn('Cloud Name:', cloudName ? '✓' : '✗');
+  console.warn('API Key:', apiKey ? '✓' : '✗');
+  console.warn('API Secret:', apiSecret ? '✓' : '✗');
 }
 
 cloudinary.config({

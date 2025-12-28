@@ -7,8 +7,9 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production --legacy-peer-deps
+# Install ALL dependencies including devDependencies (TypeScript, Tailwind, etc.)
+# CACHE BUSTER: Updated to ensure devDependencies are installed
+RUN npm ci --legacy-peer-deps
 
 # Copy the rest of the application
 COPY . .
