@@ -31,6 +31,7 @@ export default function ReceptionsPage() {
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState('');
   const [statutFilter, setStatutFilter] = useState<string>('');
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (tenantId) fetchReceptions();
@@ -61,6 +62,36 @@ export default function ReceptionsPage() {
       setLoading(false);
     }
   }
+
+  const handleDownloadPDF = async (reception: Reception) => {
+    try {
+      setDownloadingId(reception._id);
+      const response = await fetch(`/api/purchases/receptions/${reception._id}/pdf`, {
+        headers: { 'X-Tenant-Id': tenantId || '' },
+      });
+
+      if (!response.ok) {
+        throw new Error('Erreur lors de la génération du PDF');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Reception-${reception.numero}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast.success('PDF téléchargé avec succès');
+    } catch (error: any) {
+      console.error('Error downloading PDF:', error);
+      toast.error(error.message || 'Erreur lors du téléchargement du PDF');
+    } finally {
+      setDownloadingId(null);
+    }
+  };
 
   const filteredReceptions = receptions.filter((reception) => {
     if (!q) return true;
@@ -275,32 +306,19 @@ export default function ReceptionsPage() {
                             <PencilIcon className="h-5 w-5" />
                           </button>
                           <button
-                            onClick={async () => {
-                              try {
-                                const response = await fetch(`/api/purchases/receptions/${reception._id}/pdf`, {
-                                  headers: { 'X-Tenant-Id': tenantId },
-                                });
-                                if (response.ok) {
-                                  const blob = await response.blob();
-                                  const url = window.URL.createObjectURL(blob);
-                                  const a = document.createElement('a');
-                                  a.href = url;
-                                  a.download = `Reception-${reception.numero}.pdf`;
-                                  document.body.appendChild(a);
-                                  a.click();
-                                  window.URL.revokeObjectURL(url);
-                                  document.body.removeChild(a);
-                                  toast.success('PDF téléchargé avec succès');
-                                }
-                              } catch (error) {
-                                console.error('Error downloading PDF:', error);
-                                toast.error('Erreur lors du téléchargement du PDF');
-                              }
-                            }}
-                            className="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-300 p-2 rounded transition-colors"
+                            onClick={() => handleDownloadPDF(reception)}
+                            disabled={downloadingId === reception._id}
+                            className="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-300 p-2 rounded transition-colors disabled:opacity-50"
                             title="Télécharger PDF"
                           >
-                            <ArrowDownTrayIcon className="h-5 w-5" />
+                            {downloadingId === reception._id ? (
+                              <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                              </svg>
+                            ) : (
+                              <ArrowDownTrayIcon className="h-5 w-5" />
+                            )}
                           </button>
                         </div>
                       </td>
@@ -367,32 +385,24 @@ export default function ReceptionsPage() {
                       Modifier
                     </button>
                     <button
-                      onClick={async () => {
-                        try {
-                          const response = await fetch(`/api/purchases/receptions/${reception._id}/pdf`, {
-                            headers: { 'X-Tenant-Id': tenantId },
-                          });
-                          if (response.ok) {
-                            const blob = await response.blob();
-                            const url = window.URL.createObjectURL(blob);
-                            const a = document.createElement('a');
-                            a.href = url;
-                            a.download = `Reception-${reception.numero}.pdf`;
-                            document.body.appendChild(a);
-                            a.click();
-                            window.URL.revokeObjectURL(url);
-                            document.body.removeChild(a);
-                            toast.success('PDF téléchargé avec succès');
-                          }
-                        } catch (error) {
-                          console.error('Error downloading PDF:', error);
-                          toast.error('Erreur lors du téléchargement du PDF');
-                        }
-                      }}
-                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm border dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
+                      onClick={() => handleDownloadPDF(reception)}
+                      disabled={downloadingId === reception._id}
+                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm border dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 disabled:opacity-50"
                     >
-                      <ArrowDownTrayIcon className="w-4 h-4" />
-                      PDF
+                      {downloadingId === reception._id ? (
+                        <>
+                          <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Génération...
+                        </>
+                      ) : (
+                        <>
+                          <ArrowDownTrayIcon className="w-4 h-4" />
+                          PDF
+                        </>
+                      )}
                     </button>
                   </div>
                 </div>

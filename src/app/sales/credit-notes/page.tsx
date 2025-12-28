@@ -55,6 +55,7 @@ export default function CreditNotesPage() {
   const [q, setQ] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     invoiceNumber: '',
     reason: '',
@@ -338,6 +339,7 @@ export default function CreditNotesPage() {
   const handleDownloadPdf = async (note: CreditNote) => {
     if (!tenantId) return;
     try {
+      setDownloadingId(note._id);
       const response = await fetch(`/api/sales/credit-notes/${note._id}/pdf`, {
         headers: { 'X-Tenant-Id': tenantId },
       });
@@ -354,9 +356,12 @@ export default function CreditNotesPage() {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
+      toast.success('PDF téléchargé avec succès');
     } catch (error) {
       console.error('Error downloading PDF:', error);
       toast.error('Impossible de télécharger le PDF');
+    } finally {
+      setDownloadingId(null);
     }
   };
 
@@ -532,10 +537,18 @@ export default function CreditNotesPage() {
                           </button>
                           <button
                             onClick={() => handleDownloadPdf(note)}
-                            className="p-2 rounded-lg border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-200"
+                            disabled={downloadingId === note._id}
+                            className="p-2 rounded-lg border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-200 disabled:opacity-50"
                             title="Télécharger le PDF"
                           >
-                            <ArrowDownTrayIcon className="w-4 h-4" />
+                            {downloadingId === note._id ? (
+                              <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                              </svg>
+                            ) : (
+                              <ArrowDownTrayIcon className="w-4 h-4" />
+                            )}
                           </button>
                           <button
                             onClick={() => handleDeleteCreditNote(note)}
@@ -599,10 +612,23 @@ export default function CreditNotesPage() {
                   <div className="flex gap-2 pt-2">
                     <button
                       onClick={() => handleDownloadPdf(note)}
-                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                      disabled={downloadingId === note._id}
+                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
                     >
-                      <ArrowDownTrayIcon className="w-4 h-4" />
-                      PDF
+                      {downloadingId === note._id ? (
+                        <>
+                          <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Génération...
+                        </>
+                      ) : (
+                        <>
+                          <ArrowDownTrayIcon className="w-4 h-4" />
+                          PDF
+                        </>
+                      )}
                     </button>
                     <button
                       onClick={() => handleDeleteCreditNote(note)}

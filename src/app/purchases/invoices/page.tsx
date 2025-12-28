@@ -39,6 +39,7 @@ export default function PurchaseInvoicesPage() {
   const [selectedInvoiceForImages, setSelectedInvoiceForImages] = useState<PurchaseInvoice | null>(null);
   const [newImages, setNewImages] = useState<ImageData[]>([]);
   const [uploadingImages, setUploadingImages] = useState(false);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (tenantId) {
@@ -123,8 +124,37 @@ export default function PurchaseInvoicesPage() {
     }
   }
 
-  function handleDownloadPdf(invoiceId: string) {
-    window.open(`/api/purchases/invoices/${invoiceId}/pdf`, '_blank');
+  async function handleDownloadPdf(invoiceId: string) {
+    try {
+      const invoice = invoices.find(i => i._id === invoiceId);
+      const invoiceNum = invoice ? invoice.numero : 'invoice';
+
+      setDownloadingId(invoiceId);
+      const response = await fetch(`/api/purchases/invoices/${invoiceId}/pdf`, {
+        headers: { 'X-Tenant-Id': tenantId || '' },
+      });
+
+      if (!response.ok) {
+        throw new Error('Erreur lors de la génération du PDF');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Facture-Achat-${invoiceNum}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast.success('PDF téléchargé avec succès');
+    } catch (error: any) {
+      console.error('Error downloading PDF:', error);
+      toast.error(error.message || 'Erreur lors du téléchargement du PDF');
+    } finally {
+      setDownloadingId(null);
+    }
   }
 
   function handleAddImages(invoice: PurchaseInvoice) {
@@ -398,10 +428,18 @@ export default function PurchaseInvoicesPage() {
                           )}
                           <button
                             onClick={() => handleDownloadPdf(invoice._id)}
-                            className="p-1.5 sm:p-2 text-green-600 hover:text-green-900 hover:bg-green-50 dark:hover:bg-green-900/20 dark:text-green-400 dark:hover:text-green-300 rounded transition-colors"
+                            disabled={downloadingId === invoice._id}
+                            className="p-1.5 sm:p-2 text-green-600 hover:text-green-900 hover:bg-green-50 dark:hover:bg-green-900/20 dark:text-green-400 dark:hover:text-green-300 rounded transition-colors disabled:opacity-50"
                             title="Télécharger PDF"
                           >
-                            <ArrowDownTrayIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                            {downloadingId === invoice._id ? (
+                              <svg className="animate-spin h-4 w-4 sm:h-5 sm:w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                              </svg>
+                            ) : (
+                              <ArrowDownTrayIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                            )}
                           </button>
                           <button
                             onClick={() => handleAddImages(invoice)}
@@ -492,10 +530,18 @@ export default function PurchaseInvoicesPage() {
                     )}
                     <button
                       onClick={() => handleDownloadPdf(invoice._id)}
-                      className="p-2 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
+                      disabled={downloadingId === invoice._id}
+                      className="p-2 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors disabled:opacity-50"
                       title="PDF"
                     >
-                      <ArrowDownTrayIcon className="w-5 h-5" />
+                      {downloadingId === invoice._id ? (
+                        <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                      ) : (
+                        <ArrowDownTrayIcon className="w-5 h-5" />
+                      )}
                     </button>
                     <button
                       onClick={() => handleAddImages(invoice)}
