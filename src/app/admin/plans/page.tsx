@@ -181,18 +181,18 @@ export default function PlansManagementPage() {
         <AdminLayout>
             <div className="max-w-7xl mx-auto">
                 {/* Header Section */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 bg-white p-8 rounded-3xl shadow-sm border border-gray-100/50">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 bg-white dark:bg-gray-800 p-8 rounded-3xl shadow-sm border border-gray-100/50 dark:border-gray-700/50">
                     <div>
-                        <h1 className="text-4xl font-black bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-violet-600">
+                        <h1 className="text-4xl font-black bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-violet-600 dark:from-indigo-400 dark:to-violet-400">
                             Gestion des Plans
                         </h1>
-                        <p className="text-gray-500 mt-2 text-lg">
+                        <p className="text-gray-500 dark:text-gray-400 mt-2 text-lg">
                             Configurez et gérez les offres d'abonnement visibles par vos clients.
                         </p>
                     </div>
                     <button
                         onClick={() => openModal()}
-                        className="flex items-center justify-center px-8 py-4 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-2xl shadow-xl shadow-indigo-100 hover:shadow-indigo-200 transform transition-all hover:scale-[1.03] active:scale-95 font-bold text-lg"
+                        className="flex items-center justify-center px-8 py-4 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-2xl shadow-xl shadow-indigo-100 dark:shadow-none hover:shadow-indigo-200 transform transition-all hover:scale-[1.03] active:scale-95 font-bold text-lg"
                     >
                         <PlusIcon className="w-6 h-6 mr-2" />
                         Nouveau Plan
@@ -201,31 +201,31 @@ export default function PlansManagementPage() {
 
                 {/* Plans Grid */}
                 {plans.length === 0 ? (
-                    <div className="text-center py-32 bg-white rounded-3xl shadow-sm border border-gray-100">
-                        <div className="bg-indigo-50 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6">
-                            <PlusIcon className="w-12 h-12 text-indigo-500" />
+                    <div className="text-center py-32 bg-white dark:bg-gray-800 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700">
+                        <div className="bg-indigo-50 dark:bg-indigo-900/30 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6">
+                            <PlusIcon className="w-12 h-12 text-indigo-500 dark:text-indigo-400" />
                         </div>
-                        <h3 className="text-2xl font-bold text-gray-900">Aucun plan configuré</h3>
-                        <p className="text-gray-500 mt-2 text-lg">Commencez par créer votre premier plan d'abonnement.</p>
+                        <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Aucun plan configuré</h3>
+                        <p className="text-gray-500 dark:text-gray-400 mt-2 text-lg">Commencez par créer votre premier plan d'abonnement.</p>
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                         {plans.map((plan) => (
                             <div
                                 key={plan._id}
-                                className={`group relative bg-white rounded-3xl p-8 shadow-sm border transition-all hover:shadow-xl hover:-translate-y-1 ${plan.isActive ? 'border-gray-100' : 'border-gray-50 opacity-80'
+                                className={`group relative bg-white dark:bg-gray-800 rounded-3xl p-8 shadow-sm border transition-all hover:shadow-xl hover:-translate-y-1 ${plan.isActive ? 'border-gray-100 dark:border-gray-700' : 'border-gray-50 dark:border-gray-800 opacity-80'
                                     }`}
                             >
                                 <div className="absolute top-6 right-6 flex space-x-2">
                                     <button
                                         onClick={() => openModal(plan)}
-                                        className="p-3 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-all"
+                                        className="p-3 text-gray-400 dark:text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:text-indigo-400 dark:hover:bg-indigo-900/30 rounded-2xl transition-all"
                                     >
                                         <PencilIcon className="w-5 h-5" />
                                     </button>
                                     <button
                                         onClick={() => handleDelete(plan._id)}
-                                        className="p-3 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-2xl transition-all"
+                                        className="p-3 text-gray-400 dark:text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:text-red-400 dark:hover:bg-red-900/30 rounded-2xl transition-all"
                                     >
                                         <TrashIcon className="w-5 h-5" />
                                     </button>
@@ -233,53 +233,53 @@ export default function PlansManagementPage() {
 
                                 <div className="mb-6">
                                     <span className={`inline-flex px-3 py-1 rounded-full text-xs font-bold tracking-wider uppercase ${plan.isActive
-                                        ? 'bg-green-50 text-green-700 border border-green-100'
-                                        : 'bg-gray-50 text-gray-700 border border-gray-100'
+                                        ? 'bg-green-50 text-green-700 border border-green-100 dark:bg-green-900/30 dark:text-green-400 dark:border-green-900/50'
+                                        : 'bg-gray-50 text-gray-700 border border-gray-100 dark:bg-gray-700 dark:text-gray-400 dark:border-gray-600'
                                         }`}>
                                         {plan.isActive ? 'Actif' : 'Inactif'}
                                     </span>
                                 </div>
 
-                                <h3 className="text-2xl font-black text-gray-900 leading-tight mb-1">{plan.name}</h3>
-                                <p className="text-sm text-gray-400 font-mono mb-4">{plan.slug}</p>
+                                <h3 className="text-2xl font-black text-gray-900 dark:text-white leading-tight mb-1">{plan.name}</h3>
+                                <p className="text-sm text-gray-400 dark:text-gray-500 font-mono mb-4">{plan.slug}</p>
 
                                 <div className="mb-8 flex items-baseline">
-                                    <span className="text-4xl font-black text-indigo-600 tracking-tighter">
+                                    <span className="text-4xl font-black text-indigo-600 dark:text-indigo-400 tracking-tighter">
                                         {plan.price}
                                     </span>
-                                    <span className="ml-1 text-xl font-bold text-indigo-400">{plan.currency}</span>
-                                    <span className="ml-1 text-gray-400 font-medium">/{plan.interval === 'month' ? 'mois' : 'an'}</span>
+                                    <span className="ml-1 text-xl font-bold text-indigo-400 dark:text-indigo-300">{plan.currency}</span>
+                                    <span className="ml-1 text-gray-400 dark:text-gray-500 font-medium">/{plan.interval === 'month' ? 'mois' : 'an'}</span>
                                 </div>
 
-                                <div className="space-y-4 py-6 border-t border-gray-100/60">
+                                <div className="space-y-4 py-6 border-t border-gray-100/60 dark:border-gray-700/60">
                                     <div className="flex items-center justify-between text-base">
-                                        <span className="text-gray-500 font-medium">Documents (Quota)</span>
-                                        <span className={`font-bold px-3 py-1 rounded-lg ${plan.limits?.maxDocuments === -1 ? 'bg-indigo-50 text-indigo-700' : 'bg-gray-50 text-gray-900'}`}>
+                                        <span className="text-gray-500 dark:text-gray-400 font-medium">Documents (Quota)</span>
+                                        <span className={`font-bold px-3 py-1 rounded-lg ${plan.limits?.maxDocuments === -1 ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300' : 'bg-gray-50 text-gray-900 dark:bg-gray-700 dark:text-white'}`}>
                                             {plan.limits?.maxDocuments === -1 ? 'Illimité' : (plan.limits?.maxDocuments !== undefined && plan.limits?.maxDocuments !== null ? plan.limits.maxDocuments : '100')}
                                         </span>
                                     </div>
                                     <div className="flex items-center justify-between text-base">
-                                        <span className="text-gray-500">Utilisateurs</span>
-                                        <span className="font-bold text-gray-900 bg-gray-50 px-3 py-1 rounded-lg">{plan.limits?.maxUsers || 1}</span>
+                                        <span className="text-gray-500 dark:text-gray-400">Utilisateurs</span>
+                                        <span className="font-bold text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-700 px-3 py-1 rounded-lg">{plan.limits?.maxUsers || 1}</span>
                                     </div>
                                     <div className="flex items-center justify-between text-base">
-                                        <span className="text-gray-500">Sociétés</span>
-                                        <span className="font-bold text-gray-900 bg-gray-50 px-3 py-1 rounded-lg">{plan.limits?.maxCompanies || 1}</span>
+                                        <span className="text-gray-500 dark:text-gray-400">Sociétés</span>
+                                        <span className="font-bold text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-700 px-3 py-1 rounded-lg">{plan.limits?.maxCompanies || 1}</span>
                                     </div>
                                 </div>
 
                                 {plan.features?.length > 0 && (
-                                    <div className="mt-6 pt-6 border-t border-gray-100/60">
-                                        <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Fonctionnalités incluses</p>
+                                    <div className="mt-6 pt-6 border-t border-gray-100/60 dark:border-gray-700/60">
+                                        <p className="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4">Fonctionnalités incluses</p>
                                         <ul className="space-y-3">
                                             {plan.features.slice(0, 4).map((feature, i) => (
-                                                <li key={i} className="text-gray-600 flex items-start text-sm font-medium">
-                                                    <CheckIcon className="w-5 h-5 text-indigo-500 mr-2 shrink-0 border border-indigo-100 rounded-md p-1 bg-indigo-50/50" />
+                                                <li key={i} className="text-gray-600 dark:text-gray-300 flex items-start text-sm font-medium">
+                                                    <CheckIcon className="w-5 h-5 text-indigo-500 dark:text-indigo-400 mr-2 shrink-0 border border-indigo-100 dark:border-indigo-900 rounded-md p-1 bg-indigo-50/50 dark:bg-indigo-900/20" />
                                                     {feature}
                                                 </li>
                                             ))}
                                             {plan.features.length > 4 && (
-                                                <li className="text-xs text-indigo-500 font-bold bg-indigo-50 inline-block px-3 py-1 rounded-full mt-2">
+                                                <li className="text-xs text-indigo-500 dark:text-indigo-400 font-bold bg-indigo-50 dark:bg-indigo-900/30 inline-block px-3 py-1 rounded-full mt-2">
                                                     +{plan.features.length - 4} autres
                                                 </li>
                                             )}
@@ -300,16 +300,16 @@ export default function PlansManagementPage() {
 
                         <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
 
-                        <div className="inline-block align-bottom bg-white rounded-[2rem] text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl w-full border border-gray-100">
+                        <div className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-[2rem] text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl w-full border border-gray-100 dark:border-gray-700">
                             <div className="p-8 sm:p-10">
                                 <div className="flex justify-between items-center mb-10">
                                     <div>
-                                        <h3 className="text-3xl font-black text-slate-900 tracking-tight">
+                                        <h3 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
                                             {editingPlan ? 'Modifier le Plan' : 'Nouveau Plan'}
                                         </h3>
-                                        <p className="text-slate-500 mt-1 font-medium italic">Configurez les droits et tarifs de cette offre</p>
+                                        <p className="text-slate-500 dark:text-slate-400 mt-1 font-medium italic">Configurez les droits et tarifs de cette offre</p>
                                     </div>
-                                    <button onClick={closeModal} className="w-12 h-12 flex items-center justify-center bg-slate-50 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-2xl transition-all">
+                                    <button onClick={closeModal} className="w-12 h-12 flex items-center justify-center bg-slate-50 dark:bg-slate-700 text-slate-400 dark:text-slate-300 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-600 rounded-2xl transition-all">
                                         <XMarkIcon className="w-6 h-6" />
                                     </button>
                                 </div>
@@ -317,7 +317,7 @@ export default function PlansManagementPage() {
                                 <form onSubmit={handleSubmit} className="space-y-8">
                                     <div className="grid grid-cols-2 gap-8">
                                         <div className="col-span-1">
-                                            <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Nom du Plan</label>
+                                            <label className="block text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">Nom du Plan</label>
                                             <input
                                                 type="text"
                                                 required
@@ -329,25 +329,25 @@ export default function PlansManagementPage() {
                                                     }
                                                 }}
                                                 placeholder="ex: Pro Plus"
-                                                className="w-full rounded-2xl border-slate-200 shadow-sm focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-slate-700 font-bold py-4 px-5 border transition-all text-lg"
+                                                className="w-full rounded-2xl border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-slate-700 font-bold py-4 px-5 border transition-all text-lg"
                                             />
                                         </div>
                                         <div className="col-span-1">
-                                            <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Slug (Auto)</label>
+                                            <label className="block text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">Slug (Auto)</label>
                                             <input
                                                 type="text"
                                                 required
                                                 value={slug}
                                                 onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/\s+/g, '-'))}
                                                 placeholder="ex: pro-plus"
-                                                className="w-full rounded-2xl border-slate-100 bg-slate-50 text-slate-400 font-mono py-4 px-5 border text-base"
+                                                className="w-full rounded-2xl border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 text-slate-400 dark:text-slate-500 font-mono py-4 px-5 border text-base"
                                             />
                                         </div>
                                     </div>
 
                                     <div className="grid grid-cols-2 gap-8">
                                         <div>
-                                            <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Prix de vente</label>
+                                            <label className="block text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">Prix de vente</label>
                                             <div className="relative">
                                                 <input
                                                     type="number"
@@ -356,13 +356,13 @@ export default function PlansManagementPage() {
                                                     step="0.01"
                                                     value={price}
                                                     onChange={(e) => setPrice(parseFloat(e.target.value))}
-                                                    className="w-full rounded-2xl border-slate-200 shadow-sm focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-slate-700 font-black py-4 px-5 border pr-20 text-xl"
+                                                    className="w-full rounded-2xl border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-slate-700 font-black py-4 px-5 border pr-20 text-xl"
                                                 />
                                                 <div className="absolute inset-y-0 right-4 flex items-center">
                                                     <select
                                                         value={currency}
                                                         onChange={(e) => setCurrency(e.target.value)}
-                                                        className="h-10 py-0 pl-2 pr-2 border-transparent bg-slate-100 text-slate-600 font-bold rounded-xl focus:ring-0 focus:border-transparent text-sm"
+                                                        className="h-10 py-0 pl-2 pr-2 border-transparent bg-slate-100 dark:bg-slate-600 text-slate-600 dark:text-slate-200 font-bold rounded-xl focus:ring-0 focus:border-transparent text-sm"
                                                     >
                                                         <option value="TND">TND</option>
                                                         <option value="USD">$ USD</option>
@@ -372,12 +372,12 @@ export default function PlansManagementPage() {
                                             </div>
                                         </div>
                                         <div>
-                                            <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Périodicité</label>
+                                            <label className="block text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">Périodicité</label>
                                             <select
                                                 value={interval}
                                                 // @ts-ignore
                                                 onChange={(e) => setInterval(e.target.value)}
-                                                className="w-full rounded-2xl border-slate-200 shadow-sm focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-slate-700 font-bold py-4 px-5 border text-lg appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2020%2020%22%3E%3Cpath%20stroke%3D%22%236b7280%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%221.5%22%20d%3D%22m6%208%204%204%204-4%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[right_1.25rem_center]"
+                                                className="w-full rounded-2xl border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-slate-700 font-bold py-4 px-5 border text-lg appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2020%2020%22%3E%3Cpath%20stroke%3D%22%236b7280%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%221.5%22%20d%3D%22m6%208%204%204%204-4%22%2F%3E%3C%2Fsvg%3E')] dark:bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2020%2020%22%3E%3Cpath%20stroke%3D%22%239ca3af%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%221.5%22%20d%3D%22m6%208%204%204%204-4%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[right_1.25rem_center]"
                                             >
                                                 <option value="month">Facturation Mensuelle</option>
                                                 <option value="year">Facturation Annuelle</option>
@@ -385,50 +385,50 @@ export default function PlansManagementPage() {
                                         </div>
                                     </div>
 
-                                    <div className="bg-slate-50 p-8 rounded-[2rem] border border-slate-100/50 space-y-6">
-                                        <h4 className="text-sm font-black text-slate-900 uppercase tracking-widest flex items-center">
-                                            <span className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center mr-3 text-xs shadow-lg shadow-indigo-100">
+                                    <div className="bg-slate-50 dark:bg-gray-700/50 p-8 rounded-[2rem] border border-slate-100/50 dark:border-gray-600/50 space-y-6">
+                                        <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest flex items-center">
+                                            <span className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center mr-3 text-xs shadow-lg shadow-indigo-100 dark:shadow-none">
                                                 <CheckIcon className="w-4 h-4" />
                                             </span>
                                             Quotas & Limites Techniques
                                         </h4>
                                         <div className="grid grid-cols-2 gap-8">
                                             <div>
-                                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1 tracking-wider">Quota Documents (-1 = ∞)</label>
+                                                <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2 px-1 tracking-wider">Quota Documents (-1 = ∞)</label>
                                                 <input
                                                     type="number"
                                                     required
                                                     value={maxDocuments}
                                                     onChange={(e) => setMaxDocuments(e.target.value === '' ? 0 : parseInt(e.target.value))}
-                                                    className="w-full rounded-xl border-slate-200 shadow-inner focus:border-indigo-500 focus:ring-0 text-slate-900 font-black py-4 px-5 border text-lg"
+                                                    className="w-full rounded-xl border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-white shadow-inner focus:border-indigo-500 focus:ring-0 text-slate-900 font-black py-4 px-5 border text-lg"
                                                 />
-                                                <p className="text-[10px] text-slate-400 mt-2 italic">* Use -1 for unlimited</p>
+                                                <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-2 italic">* Use -1 for unlimited</p>
                                             </div>
                                             <div>
-                                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1 tracking-wider">Collaborateurs Max</label>
+                                                <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2 px-1 tracking-wider">Collaborateurs Max</label>
                                                 <input
                                                     type="number"
                                                     required
                                                     value={maxUsers}
                                                     onChange={(e) => setMaxUsers(e.target.value === '' ? 0 : parseInt(e.target.value))}
-                                                    className="w-full rounded-xl border-slate-200 shadow-inner focus:border-indigo-500 focus:ring-0 text-slate-900 font-black py-4 px-5 border text-lg"
+                                                    className="w-full rounded-xl border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-white shadow-inner focus:border-indigo-500 focus:ring-0 text-slate-900 font-black py-4 px-5 border text-lg"
                                                 />
                                             </div>
                                         </div>
                                     </div>
 
                                     <div>
-                                        <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Avantages & Services (un par ligne)</label>
+                                        <label className="block text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">Avantages & Services (un par ligne)</label>
                                         <textarea
                                             value={featuresInput}
                                             onChange={(e) => setFeaturesInput(e.target.value)}
-                                            className="w-full rounded-2xl border-slate-200 shadow-sm focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-slate-600 font-medium py-4 px-5 border text-base"
+                                            className="w-full rounded-2xl border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-slate-600 font-medium py-4 px-5 border text-base"
                                             rows={4}
                                             placeholder="ex: Support VIP&#10;Espace 10Go&#10;Multi-devises"
                                         />
                                     </div>
 
-                                    <div className="flex items-center p-6 bg-slate-900 rounded-[1.5rem] text-white shadow-xl">
+                                    <div className="flex items-center p-6 bg-slate-900 dark:bg-black/50 rounded-[1.5rem] text-white shadow-xl">
                                         <div className="flex items-center h-6">
                                             <input
                                                 id="isActive"
@@ -449,13 +449,13 @@ export default function PlansManagementPage() {
                                         <button
                                             type="button"
                                             onClick={closeModal}
-                                            className="flex-1 py-5 rounded-2xl bg-slate-50 text-slate-600 font-black hover:bg-slate-100 transition-all text-lg"
+                                            className="flex-1 py-5 rounded-2xl bg-slate-50 dark:bg-slate-700 text-slate-600 dark:text-slate-200 font-black hover:bg-slate-100 dark:hover:bg-slate-600 transition-all text-lg"
                                         >
                                             Annuler
                                         </button>
                                         <button
                                             type="submit"
-                                            className="flex-[2] py-5 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-black hover:shadow-2xl hover:shadow-indigo-200 transform transition-all hover:scale-[1.02] text-xl"
+                                            className="flex-[2] py-5 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-black hover:shadow-2xl hover:shadow-indigo-200 dark:hover:shadow-none transform transition-all hover:scale-[1.02] text-xl"
                                         >
                                             {editingPlan ? 'Mettre à jour l\'offre' : 'Confirmer la création'}
                                         </button>

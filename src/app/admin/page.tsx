@@ -35,7 +35,7 @@ export default function AdminDashboardPage() {
         <AdminLayout>
             <div className="space-y-6">
                 {/* Welcome Section */}
-                <div className="flex flex-col md:flex-row justify-between items-center bg-gradient-to-r from-slate-900 to-slate-800 rounded-2xl p-6 shadow-lg text-white">
+                <div className="flex flex-col md:flex-row justify-between items-center bg-gradient-to-r from-slate-900 to-slate-800 dark:from-slate-800 dark:to-slate-900 rounded-2xl p-6 shadow-lg text-white">
                     <div>
                         <h1 className="text-2xl font-bold mb-2">Tableau de bord Administrateur</h1>
                         <p className="text-slate-300">Bienvenue, {session?.user?.name}. Voici un aperçu de la performance de la plateforme.</p>
@@ -85,8 +85,8 @@ export default function AdminDashboardPage() {
 
                 {/* Charts Section */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                        <h3 className="text-lg font-semibold text-gray-800 mb-6">Revenus & Croissance</h3>
+                    <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+                        <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-6">Revenus & Croissance</h3>
                         <div className="h-80">
                             <ResponsiveContainer width="100%" height="100%">
                                 <AreaChart data={data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
@@ -96,35 +96,38 @@ export default function AdminDashboardPage() {
                                             <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
                                         </linearGradient>
                                     </defs>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                                    <XAxis dataKey="name" axisLine={false} tickLine={false} />
-                                    <YAxis axisLine={false} tickLine={false} />
-                                    <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#374151" className="opacity-20" />
+                                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#9CA3AF' }} />
+                                    <YAxis axisLine={false} tickLine={false} tick={{ fill: '#9CA3AF' }} />
+                                    <Tooltip
+                                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', backgroundColor: 'var(--tooltip-bg, #fff)' }}
+                                        itemStyle={{ color: 'var(--tooltip-text, #111)' }}
+                                    />
                                     <Area type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorRevenue)" />
                                 </AreaChart>
                             </ResponsiveContainer>
                         </div>
                     </div>
 
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                        <h3 className="text-lg font-semibold text-gray-800 mb-6">Dernières Inscriptions</h3>
+                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+                        <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-6">Dernières Inscriptions</h3>
                         <div className="space-y-4">
                             {[1, 2, 3, 4, 5].map((i) => (
-                                <div key={i} className="flex items-center justify-between border-b border-gray-50 last:border-0 pb-3 last:pb-0">
+                                <div key={i} className="flex items-center justify-between border-b border-gray-50 dark:border-gray-700 last:border-0 pb-3 last:pb-0">
                                     <div className="flex items-center gap-3">
-                                        <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-600">
+                                        <div className="h-8 w-8 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-600 dark:text-slate-300">
                                             C{i}
                                         </div>
                                         <div>
-                                            <p className="text-sm font-medium text-gray-900">Company {i}</p>
-                                            <p className="text-xs text-gray-500">Starter Plan</p>
+                                            <p className="text-sm font-medium text-gray-900 dark:text-white">Company {i}</p>
+                                            <p className="text-xs text-gray-500 dark:text-gray-400">Starter Plan</p>
                                         </div>
                                     </div>
-                                    <span className="text-xs text-gray-400">2h ago</span>
+                                    <span className="text-xs text-gray-400 dark:text-gray-500">2h ago</span>
                                 </div>
                             ))}
                         </div>
-                        <button className="w-full mt-6 py-2 text-sm text-center text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+                        <button className="w-full mt-6 py-2 text-sm text-center text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
                             Voir tout
                         </button>
                     </div>
@@ -136,13 +139,13 @@ export default function AdminDashboardPage() {
 
 function StatCard({ title, value, trend, trendUp, icon: Icon, color }: any) {
     return (
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-all duration-200">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-all duration-200">
             <div className="flex items-start justify-between">
                 <div>
-                    <p className="text-sm font-medium text-gray-500">{title}</p>
-                    <h3 className="text-2xl font-bold text-gray-900 mt-2">{value}</h3>
+                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{title}</p>
+                    <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-2">{value}</h3>
                 </div>
-                <div className={`p-2 rounded-lg ${color} bg-opacity-10`}>
+                <div className={`p-2 rounded-lg ${color} bg-opacity-10 dark:bg-opacity-20`}>
                     <Icon className={`h-6 w-6 ${color.replace('bg-', 'text-')}`} />
                 </div>
             </div>
@@ -155,7 +158,7 @@ function StatCard({ title, value, trend, trendUp, icon: Icon, color }: any) {
                 <span className={`text-sm font-medium ${trendUp ? 'text-emerald-500' : 'text-red-500'}`}>
                     {trend}
                 </span>
-                <span className="text-sm text-gray-400 ml-2">vs mois dernier</span>
+                <span className="text-sm text-gray-400 dark:text-gray-500 ml-2">vs mois dernier</span>
             </div>
         </div>
     );

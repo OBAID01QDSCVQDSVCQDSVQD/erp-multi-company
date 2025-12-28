@@ -176,48 +176,48 @@ export default function CompaniesPage() {
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Gestion des Entreprises</h1>
-            <p className="mt-1 text-sm text-gray-500">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Gestion des Entreprises</h1>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
               Administration globale de toutes les entreprises enregistrées.
             </p>
           </div>
         </div>
 
         {/* Filters and Actions */}
-        <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex flex-col sm:flex-row gap-4 justify-between items-center">
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row gap-4 justify-between items-center">
           <div className="relative w-full sm:w-96">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
             </div>
             <input
               type="text"
-              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md leading-5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
               placeholder="Rechercher (Nom, Code, Email)..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-500">{filteredCompanies.length} entreprises trouvées</span>
+            <span className="text-sm text-gray-500 dark:text-gray-400">{filteredCompanies.length} entreprises trouvées</span>
           </div>
         </div>
 
-        {/* Companies Table */}
-        <div className="bg-white shadow-sm rounded-lg border border-gray-200 overflow-hidden">
+        {/* Desktop Table */}
+        <div className="hidden lg:block bg-white dark:bg-gray-800 shadow-sm rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+              <thead className="bg-gray-50 dark:bg-gray-700/50">
                 <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Entreprise
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Contact
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Statut
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Date de création
                   </th>
                   <th scope="col" className="relative px-6 py-3">
@@ -225,63 +225,63 @@ export default function CompaniesPage() {
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                 {filteredCompanies.map((company) => (
-                  <tr key={company._id} className="hover:bg-gray-50 transition-colors">
+                  <tr key={company._id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
-                        <div className="flex-shrink-0 h-10 w-10 bg-indigo-100 rounded-lg flex items-center justify-center text-indigo-600 font-bold text-lg">
+                        <div className="flex-shrink-0 h-10 w-10 bg-indigo-100 dark:bg-indigo-900/40 rounded-lg flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold text-lg">
                           {company.name.charAt(0).toUpperCase()}
                         </div>
                         <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">{company.name}</div>
-                          <div className="text-sm text-gray-500">Code: <span className="font-mono bg-gray-100 px-1 rounded">{company.code}</span></div>
+                          <div className="text-sm font-medium text-gray-900 dark:text-white">{company.name}</div>
+                          <div className="text-sm text-gray-500 dark:text-gray-400">Code: <span className="font-mono bg-gray-100 dark:bg-gray-700 px-1 rounded">{company.code}</span></div>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
+                      <div className="text-sm text-gray-900 dark:text-white">
                         {company.contact?.email || 'N/A'}
                       </div>
-                      <div className="text-sm text-gray-500">
+                      <div className="text-sm text-gray-500 dark:text-gray-400">
                         {company.contact?.phone || 'N/A'}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {company.isActive ? (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
                           <CheckCircleIcon className="w-4 h-4 mr-1" />
                           Active
                         </span>
                       ) : (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">
                           <XCircleIcon className="w-4 h-4 mr-1" />
                           Inactive
                         </span>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                       {new Date(company.createdAt).toLocaleDateString('fr-FR')}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex items-center justify-end gap-2">
                         <button
                           onClick={() => toggleCompanyStatus(company._id, company.isActive)}
-                          className={`p-1 rounded-md transition-colors ${company.isActive ? 'text-red-600 hover:bg-red-50' : 'text-green-600 hover:bg-green-50'}`}
+                          className={`p-1 rounded-md transition-colors ${company.isActive ? 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20' : 'text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20'}`}
                           title={company.isActive ? "Désactiver" : "Activer"}
                         >
                           <PowerIcon className="h-5 w-5" />
                         </button>
                         <button
                           onClick={() => handleImpersonate(company._id)}
-                          className="p-1 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors"
+                          className="p-1 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:text-indigo-400 dark:hover:bg-indigo-900/20 rounded-md transition-colors"
                           title="Se connecter en tant que (Impersonate)"
                         >
                           <ArrowRightOnRectangleIcon className="h-5 w-5" />
                         </button>
                         <button
                           onClick={() => deleteCompany(company._id)}
-                          className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                          className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:text-red-400 dark:hover:bg-red-900/20 rounded-md transition-colors"
                           title="Supprimer (Attention)"
                         >
                           <TrashIcon className="h-5 w-5" />
@@ -292,7 +292,7 @@ export default function CompaniesPage() {
                 ))}
                 {filteredCompanies.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
+                    <td colSpan={5} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
                       Aucune entreprise trouvée pour "{searchQuery}"
                     </td>
                   </tr>
@@ -300,6 +300,83 @@ export default function CompaniesPage() {
               </tbody>
             </table>
           </div>
+        </div>
+
+        {/* Mobile Cards */}
+        <div className="lg:hidden space-y-4">
+          {filteredCompanies.map((company) => (
+            <div key={company._id} className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+              <div className="flex justify-between items-start mb-4">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0 h-10 w-10 bg-indigo-100 dark:bg-indigo-900/40 rounded-lg flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold text-lg">
+                    {company.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="ml-3">
+                    <div className="text-sm font-medium text-gray-900 dark:text-white">{company.name}</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">Code: <span className="font-mono bg-gray-100 dark:bg-gray-700 px-1 rounded">{company.code}</span></div>
+                  </div>
+                </div>
+                {company.isActive ? (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+                    <CheckCircleIcon className="w-3 h-3 mr-1" />
+                    Active
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">
+                    <XCircleIcon className="w-3 h-3 mr-1" />
+                    Inactive
+                  </span>
+                )}
+              </div>
+
+              <div className="space-y-2 mb-4">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500 dark:text-gray-400">Email:</span>
+                  <span className="text-gray-900 dark:text-white font-medium">{company.contact?.email || 'N/A'}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500 dark:text-gray-400">Tél:</span>
+                  <span className="text-gray-900 dark:text-white font-medium">{company.contact?.phone || 'N/A'}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500 dark:text-gray-400">Créée le:</span>
+                  <span className="text-gray-900 dark:text-white font-medium">{new Date(company.createdAt).toLocaleDateString('fr-FR')}</span>
+                </div>
+              </div>
+
+              <div className="border-t dark:border-gray-700 pt-3 flex justify-end gap-2">
+                <button
+                  onClick={() => toggleCompanyStatus(company._id, company.isActive)}
+                  className={`flex-1 flex items-center justify-center gap-2 p-2 rounded-lg border transition-colors text-sm ${company.isActive
+                    ? 'border-red-200 text-red-600 hover:bg-red-50 dark:border-red-900/30 dark:text-red-400 dark:hover:bg-red-900/20'
+                    : 'border-green-200 text-green-600 hover:bg-green-50 dark:border-green-900/30 dark:text-green-400 dark:hover:bg-green-900/20'
+                    }`}
+                >
+                  <PowerIcon className="h-4 w-4" />
+                  <span className="sr-only sm:not-sr-only">{company.isActive ? "Désactiver" : "Activer"}</span>
+                </button>
+                <button
+                  onClick={() => handleImpersonate(company._id)}
+                  className="flex-1 flex items-center justify-center gap-2 p-2 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 transition-colors text-sm"
+                >
+                  <ArrowRightOnRectangleIcon className="h-4 w-4" />
+                  <span className="sr-only sm:not-sr-only">Se connecter</span>
+                </button>
+                <button
+                  onClick={() => deleteCompany(company._id)}
+                  className="flex-1 flex items-center justify-center gap-2 p-2 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 dark:border-red-900/30 dark:text-red-400 dark:hover:bg-red-900/20 transition-colors text-sm"
+                >
+                  <TrashIcon className="h-4 w-4" />
+                  <span className="sr-only sm:not-sr-only">Supprimer</span>
+                </button>
+              </div>
+            </div>
+          ))}
+          {filteredCompanies.length === 0 && (
+            <div className="text-center py-12 text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+              Aucune entreprise trouvée pour "{searchQuery}"
+            </div>
+          )}
         </div>
       </div>
     </AdminLayout>
