@@ -11,6 +11,7 @@ export interface IGlobalExpenseCategory extends Document {
   updatedAt: Date;
 }
 
+// @ts-ignore
 const GlobalExpenseCategorySchema = new Schema<IGlobalExpenseCategory>({
   code: {
     type: String,
