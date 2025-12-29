@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
 import { PlusIcon, DocumentTextIcon, MagnifyingGlassIcon, EyeIcon, PencilIcon, ArrowDownTrayIcon, TrashIcon, XMarkIcon, ArrowLeftIcon, ChatBubbleLeftEllipsisIcon, PhoneIcon, CheckIcon } from '@heroicons/react/24/outline';
 import { useTenantId } from '@/hooks/useTenantId';
@@ -53,6 +53,7 @@ interface Product {
 
 export default function DeliveriesPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { tenantId } = useTenantId();
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [loading, setLoading] = useState(true);
@@ -161,7 +162,38 @@ export default function DeliveriesPage() {
 
   useEffect(() => {
     if (tenantId) fetchDeliveries();
-  }, [tenantId]);
+
+    // Auto-open new delivery modal
+    if (searchParams.get('action') === 'new') {
+      router.replace('/sales/deliveries', { scroll: false });
+      setTimeout(() => handleOpenNewDeliveryModal(), 0);
+    }
+  }, [tenantId, searchParams]);
+
+  const handleOpenNewDeliveryModal = () => {
+    setEditingDeliveryId(null);
+    setLines([]);
+    setFormData({
+      customerId: '',
+      dateDoc: new Date().toISOString().split('T')[0],
+      referenceExterne: '',
+      devise: 'TND',
+      modePaiement: 'Espèces',
+      dateLivraisonPrevue: getDefaultDeliveryDate(),
+      dateLivraisonReelle: getDefaultDeliveryDate(),
+      lieuLivraison: '',
+      matriculeTransport: '',
+      notes: ''
+    });
+    setCustomerSearch('');
+    setShowCustomerDropdown(false);
+    setSelectedCustomerIndex(-1);
+    setProductSearches({});
+    setShowProductModal({});
+    setCurrentProductLineIndex(null);
+    setShowModal(true);
+  };
+
 
   // Close dropdown when clicking outside
   useEffect(() => {

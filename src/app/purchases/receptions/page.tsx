@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
 import { PlusIcon, ClipboardDocumentCheckIcon, MagnifyingGlassIcon, EyeIcon, ArrowDownTrayIcon, PencilIcon } from '@heroicons/react/24/outline';
 import { useTenantId } from '@/hooks/useTenantId';
@@ -26,6 +26,7 @@ interface Reception {
 
 export default function ReceptionsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { tenantId } = useTenantId();
   const [receptions, setReceptions] = useState<Reception[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,7 +36,12 @@ export default function ReceptionsPage() {
 
   useEffect(() => {
     if (tenantId) fetchReceptions();
-  }, [tenantId, statutFilter]);
+
+    // Auo-redirect to new page if action=new
+    if (searchParams.get('action') === 'new') {
+      router.replace('/purchases/receptions/new');
+    }
+  }, [tenantId, statutFilter, searchParams, router]);
 
   async function fetchReceptions() {
     if (!tenantId) return;

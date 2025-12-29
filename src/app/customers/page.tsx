@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
 import { PlusIcon, UserGroupIcon, MagnifyingGlassIcon, BuildingOfficeIcon, XMarkIcon, EyeIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { useTenantId } from '@/hooks/useTenantId';
@@ -42,8 +43,68 @@ export default function CustomersPage() {
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [viewingId, setViewingId] = useState<string | null>(null);
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState('identite');
   const [taxRates, setTaxRates] = useState<{ code: string; libelle: string; tauxPct: number }[]>([]);
+
+  const openNewCustomerModal = () => {
+    setEditingId(null);
+    setViewingId(null);
+    setForm({
+      type: 'societe',
+      raisonSociale: '',
+      nom: '',
+      prenom: '',
+      matriculeFiscale: '',
+      tvaCode: '',
+      email: '',
+      telephone: '',
+      mobile: '',
+      siteWeb: '',
+      adresseFacturation: {
+        ligne1: '',
+        ligne2: '',
+        ville: '',
+        codePostal: '',
+        gouvernorat: '',
+        pays: 'TN'
+      },
+      adresseLivraisonIdentique: false,
+      adresseLivraison: {
+        ligne1: '',
+        ligne2: '',
+        ville: '',
+        codePostal: '',
+        gouvernorat: '',
+        pays: 'TN'
+      },
+      conditionsPaiement: '',
+      modePaiementPrefere: '',
+      plafondCredit: '',
+      delaiGraceJours: '',
+      rib: '',
+      iban: '',
+      banqueNom: '',
+      swift: '',
+      tagsText: '',
+      actif: true
+    });
+    setActiveTab('identite');
+    setShowModal(true);
+  };
+
+  useEffect(() => {
+    fetchCustomers();
+    fetchTaxRates();
+
+    if (searchParams.get('new') === 'true') {
+      router.replace('/customers', { scroll: false });
+      // Use setTimeout to ensure state is ready if needed, though direct call usually works
+      setTimeout(() => openNewCustomerModal(), 0);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tenantId, searchParams]);
 
   const [form, setForm] = useState({
     type: 'societe' as 'societe' | 'particulier',

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import Sidebar from './Sidebar';
 import Header from './Header';
+import CommandPalette from './CommandPalette';
 
 interface DashboardLayoutProps {
     children: React.ReactNode;
@@ -46,6 +47,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
     return (
         <div className="h-screen flex overflow-hidden bg-gray-100 dark:bg-gray-900">
+            <CommandPalette />
             <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
             <div className="flex flex-col w-0 flex-1 overflow-hidden">
                 <Header onMenuClick={() => setSidebarOpen(true)} />

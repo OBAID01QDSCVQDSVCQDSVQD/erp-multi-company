@@ -25,7 +25,8 @@
     "test-login": "node scripts/test-login.js",
     "debug-login": "node scripts/debug-login.js",
     "api:seed-expense-categories": "ts-node src/lib/scripts/seed-expense-categories.ts",
-    "api:migrate:exp-cats-global": "ts-node -T scripts/migrate-expense-categories-global.ts"
+    "api:migrate:exp-cats-global": "ts-node -T scripts/migrate-expense-categories-global.ts",
+    "deploy": "flyctl deploy --build-only --push -a erp-multi-company --image-label deployment-done-v1 --config fly.toml"
   },
   "dependencies": {
     "@headlessui/react": "^1.7.17",

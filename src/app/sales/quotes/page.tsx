@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
 import {
   PlusIcon,
@@ -58,6 +58,7 @@ interface Product {
 
 export default function QuotesPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { tenantId } = useTenantId();
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [loading, setLoading] = useState(true);
@@ -147,6 +148,26 @@ export default function QuotesPage() {
   }, []);
 
   // No dropdown scroll/position needed with modal
+
+  const [shouldAutoOpenCreate, setShouldAutoOpenCreate] = useState(false);
+
+  // Auto-open modal if ?action=new is in URL
+  useEffect(() => {
+    const action = searchParams.get('action');
+    if (action === 'new') {
+      router.replace('/sales/quotes', { scroll: false });
+      setShouldAutoOpenCreate(true);
+    }
+  }, [searchParams, router]);
+
+  useEffect(() => {
+    if (shouldAutoOpenCreate) {
+      handleOpenNewQuoteModal();
+      setShouldAutoOpenCreate(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shouldAutoOpenCreate]);
+
 
   // Filter customers based on search
   const filteredCustomers = customers.filter((customer) => {

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
 import { PlusIcon, MagnifyingGlassIcon, EyeIcon, PencilIcon, TrashIcon, ArrowDownTrayIcon, ChevronDownIcon, PhotoIcon, XMarkIcon, PlusCircleIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
 import { useTenantId } from '@/hooks/useTenantId';
@@ -29,6 +29,7 @@ interface PurchaseInvoice {
 
 export default function PurchaseInvoicesPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { tenantId } = useTenantId();
   const [loading, setLoading] = useState(true);
   const [invoices, setInvoices] = useState<PurchaseInvoice[]>([]);
@@ -45,7 +46,12 @@ export default function PurchaseInvoicesPage() {
     if (tenantId) {
       fetchInvoices();
     }
-  }, [tenantId, statusFilter]);
+
+    // Auto-redirect if action=new
+    if (searchParams.get('action') === 'new') {
+      router.replace('/purchases/invoices/new');
+    }
+  }, [tenantId, statusFilter, searchParams, router]);
 
   async function fetchInvoices() {
     if (!tenantId) return;
