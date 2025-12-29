@@ -23,7 +23,8 @@ import {
 } from '@heroicons/react/24/outline';
 
 export default function Home() {
-  const { data: session, status } = useSession();
+  const { data: rawSession, status } = useSession();
+  const session = rawSession as any;
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -156,7 +157,7 @@ export default function Home() {
               </div>
 
               {/* Admin Dropdown - Only for admin@entreprise-demo.com */}
-              {session?.user?.email === 'admin@entreprise-demo.com' && (
+              {session && session.user && session.user.email === 'admin@entreprise-demo.com' && (
                 <div
                   className="relative pb-2"
                   onMouseEnter={() => setAdminMenuOpen(true)}
@@ -205,7 +206,7 @@ export default function Home() {
 
               {status === 'loading' ? (
                 <div className="h-6 w-6 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent"></div>
-              ) : session?.user ? (
+              ) : (session && session.user) ? (
                 <div
                   ref={userMenuContainerRef}
                   className="relative"
@@ -353,7 +354,7 @@ export default function Home() {
                   </div>
                 </div>
 
-                {session?.user?.role === 'admin' && (
+                {session && session.user && session.user.role === 'admin' && (
                   <div className="px-3 py-2">
                     <div className="text-base font-medium text-gray-700 mb-2">Administration</div>
                     <div className="pl-4 space-y-1">
@@ -375,7 +376,7 @@ export default function Home() {
                   </div>
                 )}
 
-                {status === 'loading' ? null : session?.user ? (
+                {status === 'loading' ? null : (session && session.user) ? (
                   <>
                     <div className="px-3 py-2 border-t border-gray-200 mt-2 mb-2">
                       <div className="flex items-center space-x-2">
