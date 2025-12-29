@@ -526,7 +526,7 @@ export default function AgendaPage() {
                                     }}
                                     className="bg-transparent text-sm md:text-xl font-bold text-gray-800 dark:text-gray-100 cursor-pointer focus:ring-0 border-none py-0 pl-0 pr-2 md:pr-8"
                                 >
-                                    {Array.from({ length: 10 }).map((_, i) => {
+                                    {Array.from({ length: 30 }).map((_, i) => {
                                         const y = new Date().getFullYear() - 5 + i;
                                         return (
                                             <option key={y} value={y} className="text-base text-gray-900 dark:text-gray-900">

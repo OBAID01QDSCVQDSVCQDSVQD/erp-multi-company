@@ -44,6 +44,7 @@ import {
 const navigation = [
   { name: 'Accueil', href: '/home', icon: SparklesIcon, permission: null },
   { name: 'Tableau de bord', href: '/dashboard', icon: HomeIcon, permission: null },
+  { name: 'Agenda', href: '/agenda', icon: CalendarDaysIcon, permission: null },
   { name: 'Ma Société', href: '/my-company', icon: BuildingOfficeIcon, permission: 'settings' },
   { name: 'Utilisateurs', href: '/users', icon: UserGroupIcon, permission: 'users' },
   { name: 'Mon abonnement', href: '/subscriptions', icon: CreditCardIcon, permission: null },
@@ -100,7 +101,6 @@ const navigation = [
       { name: 'Facture interne', href: '/internal-invoices', icon: DocumentTextIcon, permission: 'internal_invoices' },
     ]
   },
-  { name: 'Agenda', href: '/agenda', icon: CalendarDaysIcon, permission: null },
   {
     name: 'Documents Divers', href: '#', icon: FolderIcon, hasSubmenu: true, permission: null, submenu: [
       { name: 'Garanties', href: '/documents/warranties', icon: ShieldCheckIcon, permission: null },
