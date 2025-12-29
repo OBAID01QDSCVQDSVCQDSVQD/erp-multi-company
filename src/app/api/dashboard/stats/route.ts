@@ -27,13 +27,53 @@ export async function GET(request: NextRequest) {
 
     await connectDB();
 
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+    // Get period from query params (month, quarter, year)
+    const url = new URL(request.url);
+    const period = url.searchParams.get('period') || 'month';
 
-    // For historical charts (last 6 months)
-    const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+    const now = new Date();
+    let startDate: Date, endDate: Date, previousStartDate: Date, previousEndDate: Date;
+    let chartStartDate: Date;
+
+    // Define dates based on period
+    if (period === 'year') {
+      startDate = new Date(now.getFullYear(), 0, 1); // Start of year
+      endDate = new Date(now.getFullYear(), 11, 31, 23, 59, 59); // End of year
+
+      previousStartDate = new Date(now.getFullYear() - 1, 0, 1);
+      previousEndDate = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59);
+
+      chartStartDate = startDate;
+    } else if (period === 'quarter') {
+      // Last 3 months
+      startDate = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+      endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+
+      previousStartDate = new Date(startDate.getFullYear(), startDate.getMonth() - 3, 1);
+      previousEndDate = new Date(startDate.getFullYear(), startDate.getMonth(), 0, 23, 59, 59);
+
+      chartStartDate = startDate;
+    } else {
+      // Default: Month
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+      endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+
+      previousStartDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      previousEndDate = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+
+      // For charts in month view, we still show last 6 months for context, or maybe just days of month?
+      // Let's keep existing chart logic (last 6 months) for simplicity unless requested otherwise,
+      // but strictly speaking, if user selects "This Month", they might expect daily chart.
+      // For now, let's keep the Revenue/Expense Card calculation strictly tied to the period,
+      // and the Main Chart showing the relevant trend.
+
+      // If period is month, chart shows daily breakdown? No, too complex for now.
+      // Let's stick to Monthly Trend for Year/Quarter, and for Month maybe stick to 6-months history or Switch to Daily.
+      // To keep it simple and robust: The cards obey the period. The chart shows the trend covering that period.
+
+      chartStartDate = new Date(now.getFullYear(), now.getMonth() - 5, 1); // Default 6 months history
+      if (period === 'year') chartStartDate = new Date(now.getFullYear(), 0, 1);
+    }
 
     // Convert tenantId to ObjectId for models that use ObjectId
     let tenantObjectId: mongoose.Types.ObjectId;
@@ -53,24 +93,29 @@ export async function GET(request: NextRequest) {
       totalQuotes,
       totalDeliveries,
       totalPurchaseInvoices,
-      invoicesThisMonth,
-      invoicesLastMonth,
-      purchaseInvoicesThisMonth,
-      purchaseInvoicesLastMonth,
-      revenueThisMonth,
-      revenueLastMonth,
-      purchaseExpensesThisMonth,
-      purchaseExpensesLastMonth,
+
+      currentPeriodInvoices,
+      previousPeriodInvoices,
+
+      currentPeriodPurchaseInvoices,
+      previousPeriodPurchaseInvoices,
+
+      revenueCurrentPeriod,
+      revenuePreviousPeriod,
+
+      expensesCurrentPeriod,
+      expensesPreviousPeriod,
+
       totalCustomerPayments,
       totalSupplierPayments,
       lowStockProducts,
       recentInvoices,
       recentPayments,
-      monthlyRevenue,
-      monthlyExpenses,
+      revenueChartData,
+      expensesChartData,
       topProducts
     ] = await Promise.all([
-      // ... existing single value queries ...
+      // Global counts (Total All Time)
       (Customer as any).countDocuments({ tenantId, actif: true }),
       (Supplier as any).countDocuments({ tenantId, actif: true }),
       (Product as any).countDocuments({ tenantId, actif: true }),
@@ -79,33 +124,31 @@ export async function GET(request: NextRequest) {
       (Document as any).countDocuments({ tenantId, type: 'BL' }),
       (PurchaseInvoice as any).countDocuments({ societeId: tenantId }),
 
-      // Invoices counts
-      (Document as any).countDocuments({ tenantId, type: 'FAC', dateDoc: { $gte: startOfMonth } }),
-      (Document as any).countDocuments({ tenantId, type: 'FAC', dateDoc: { $gte: startOfLastMonth, $lte: endOfLastMonth } }),
+      // Invoices counts (Period vs Previous)
+      (Document as any).countDocuments({ tenantId, type: 'FAC', dateDoc: { $gte: startDate, $lte: endDate } }),
+      (Document as any).countDocuments({ tenantId, type: 'FAC', dateDoc: { $gte: previousStartDate, $lte: previousEndDate } }),
 
-      // Purchase Invoices counts
-      (PurchaseInvoice as any).countDocuments({ societeId: tenantId, dateFacture: { $gte: startOfMonth } }),
-      (PurchaseInvoice as any).countDocuments({ societeId: tenantId, dateFacture: { $gte: startOfLastMonth, $lte: endOfLastMonth } }),
+      // Purchase Invoices counts (Period vs Previous)
+      (PurchaseInvoice as any).countDocuments({ societeId: tenantId, dateFacture: { $gte: startDate, $lte: endDate } }),
+      (PurchaseInvoice as any).countDocuments({ societeId: tenantId, dateFacture: { $gte: previousStartDate, $lte: previousEndDate } }),
 
-      // Revenue this month
+      // Revenue (Period vs Previous)
       (Document as any).aggregate([
-        { $match: { tenantId, type: 'FAC', dateDoc: { $gte: startOfMonth } } },
+        { $match: { tenantId, type: 'FAC', dateDoc: { $gte: startDate, $lte: endDate } } },
         { $group: { _id: null, total: { $sum: '$totalTTC' } } }
       ]),
-      // Revenue last month
       (Document as any).aggregate([
-        { $match: { tenantId, type: 'FAC', dateDoc: { $gte: startOfLastMonth, $lte: endOfLastMonth } } },
+        { $match: { tenantId, type: 'FAC', dateDoc: { $gte: previousStartDate, $lte: previousEndDate } } },
         { $group: { _id: null, total: { $sum: '$totalTTC' } } }
       ]),
 
-      // Expenses this month
+      // Expenses (Period vs Previous)
       (PurchaseInvoice as any).aggregate([
-        { $match: { societeId: tenantId, dateFacture: { $gte: startOfMonth } } },
+        { $match: { societeId: tenantId, dateFacture: { $gte: startDate, $lte: endDate } } },
         { $group: { _id: null, total: { $sum: '$totaux.totalTTC' } } }
       ]),
-      // Expenses last month
       (PurchaseInvoice as any).aggregate([
-        { $match: { societeId: tenantId, dateFacture: { $gte: startOfLastMonth, $lte: endOfLastMonth } } },
+        { $match: { societeId: tenantId, dateFacture: { $gte: previousStartDate, $lte: previousEndDate } } },
         { $group: { _id: null, total: { $sum: '$totaux.totalTTC' } } }
       ]),
 
@@ -129,13 +172,14 @@ export async function GET(request: NextRequest) {
         .sort({ datePaiement: -1 }).limit(5)
         .lean(),
 
-      // [NEW] Monthly Revenue History (Last 6 Months)
+      // Revenue Chart Data (Dynamic based on Period)
+      // If Years -> Group by month
       (Document as any).aggregate([
         {
           $match: {
             tenantId,
             type: 'FAC',
-            dateDoc: { $gte: sixMonthsAgo }
+            dateDoc: { $gte: chartStartDate }
           }
         },
         {
@@ -150,12 +194,12 @@ export async function GET(request: NextRequest) {
         { $sort: { "_id.year": 1, "_id.month": 1 } }
       ]),
 
-      // [NEW] Monthly Expenses History (Last 6 Months)
+      // Expenses Chart Data
       (PurchaseInvoice as any).aggregate([
         {
           $match: {
             societeId: tenantId,
-            dateFacture: { $gte: sixMonthsAgo }
+            dateFacture: { $gte: chartStartDate }
           }
         },
         {
@@ -170,13 +214,13 @@ export async function GET(request: NextRequest) {
         { $sort: { "_id.year": 1, "_id.month": 1 } }
       ]),
 
-      // [NEW] Top Selling Products
+      // Top Selling Products (Within selected period)
       (Document as any).aggregate([
         {
           $match: {
             tenantId,
             type: 'FAC',
-            dateDoc: { $gte: startOfMonth } // Top products this month
+            dateDoc: { $gte: startDate, $lte: endDate }
           }
         },
         { $unwind: "$lignes" },
@@ -193,22 +237,22 @@ export async function GET(request: NextRequest) {
     ]);
 
     // ... Calculations ...
-    const invoiceChange = invoicesLastMonth > 0
-      ? ((invoicesThisMonth - invoicesLastMonth) / invoicesLastMonth * 100).toFixed(1)
-      : invoicesThisMonth > 0 ? '100' : '0';
+    const invoiceChange = previousPeriodInvoices > 0
+      ? ((currentPeriodInvoices - previousPeriodInvoices) / previousPeriodInvoices * 100).toFixed(1)
+      : currentPeriodInvoices > 0 ? '100' : '0';
 
-    const purchaseInvoiceChange = purchaseInvoicesLastMonth > 0
-      ? ((purchaseInvoicesThisMonth - purchaseInvoicesLastMonth) / purchaseInvoicesLastMonth * 100).toFixed(1)
-      : purchaseInvoicesThisMonth > 0 ? '100' : '0';
+    const purchaseInvoiceChange = previousPeriodPurchaseInvoices > 0
+      ? ((currentPeriodPurchaseInvoices - previousPeriodPurchaseInvoices) / previousPeriodPurchaseInvoices * 100).toFixed(1)
+      : currentPeriodPurchaseInvoices > 0 ? '100' : '0';
 
-    const revenue = revenueThisMonth.length > 0 ? revenueThisMonth[0].total : 0;
-    const lastRevenue = revenueLastMonth.length > 0 ? revenueLastMonth[0].total : 0;
+    const revenue = revenueCurrentPeriod.length > 0 ? revenueCurrentPeriod[0].total : 0;
+    const lastRevenue = revenuePreviousPeriod.length > 0 ? revenuePreviousPeriod[0].total : 0;
     const revenueChange = lastRevenue > 0
       ? ((revenue - lastRevenue) / lastRevenue * 100).toFixed(1)
       : revenue > 0 ? '100' : '0';
 
-    const expenses = purchaseExpensesThisMonth.length > 0 ? purchaseExpensesThisMonth[0].total : 0;
-    const lastExpenses = purchaseExpensesLastMonth.length > 0 ? purchaseExpensesLastMonth[0].total : 0;
+    const expenses = expensesCurrentPeriod.length > 0 ? expensesCurrentPeriod[0].total : 0;
+    const lastExpenses = expensesPreviousPeriod.length > 0 ? expensesPreviousPeriod[0].total : 0;
     const expensesChange = lastExpenses > 0
       ? ((expenses - lastExpenses) / lastExpenses * 100).toFixed(1)
       : expenses > 0 ? '100' : '0';
@@ -218,14 +262,39 @@ export async function GET(request: NextRequest) {
 
     // Merge revenue and expenses by month
     const chartData = [];
+
+    // We need to generate labels based on period.
+    // If Year: Jan -> Dec
+    // If Quarter: 3 months
+    // If Month: 6 previous months (as per logic)
+
+    let loopStart, loopEnd; // indices relative to chartStartDate
+
+    // Simplification: Iterate through the returned aggregation results and map to labels
+    // Or generate the expected timeline and fill with 0
+
+    // Let's use the generating logic consistent with previous implementation (last X months relative to now)
+    // BUT now chartStartDate might be Jan 1st of current year.
+
     const today = new Date();
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+    let monthsToIterate = 6;
+    let startIteratorDate = new Date(today.getFullYear(), today.getMonth() - 5, 1);
+
+    if (period === 'year') {
+      monthsToIterate = 12;
+      startIteratorDate = new Date(today.getFullYear(), 0, 1);
+    } else if (period === 'quarter') {
+      monthsToIterate = 3;
+      startIteratorDate = new Date(today.getFullYear(), today.getMonth() - 2, 1);
+    }
+
+    for (let i = 0; i < monthsToIterate; i++) {
+      const d = new Date(startIteratorDate.getFullYear(), startIteratorDate.getMonth() + i, 1);
       const monthIndex = d.getMonth() + 1;
       const year = d.getFullYear();
 
-      const revEntry = monthlyRevenue.find((r: any) => r._id.month === monthIndex && r._id.year === year);
-      const expEntry = monthlyExpenses.find((e: any) => e._id.month === monthIndex && e._id.year === year);
+      const revEntry = revenueChartData.find((r: any) => r._id.month === monthIndex && r._id.year === year);
+      const expEntry = expensesChartData.find((e: any) => e._id.month === monthIndex && e._id.year === year);
 
       chartData.push({
         name: monthNames[d.getMonth()],
@@ -267,7 +336,7 @@ export async function GET(request: NextRequest) {
         products: { total: totalProducts, label: 'Produits' },
         invoices: {
           total: totalInvoices,
-          thisMonth: invoicesThisMonth,
+          thisMonth: currentPeriodInvoices,
           change: parseFloat(invoiceChange),
           label: 'Factures clients'
         },
@@ -275,7 +344,7 @@ export async function GET(request: NextRequest) {
         deliveries: { total: totalDeliveries, label: 'Bons de livraison' },
         purchaseInvoices: {
           total: totalPurchaseInvoices,
-          thisMonth: purchaseInvoicesThisMonth,
+          thisMonth: currentPeriodPurchaseInvoices,
           change: parseFloat(purchaseInvoiceChange),
           label: 'Factures fournisseurs'
         },

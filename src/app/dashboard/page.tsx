@@ -24,6 +24,7 @@ import StatCard from '@/components/dashboard/StatCard';
 import { RevenueChart, TopProductsChart } from '@/components/dashboard/Charts';
 import RecentActivity from '@/components/dashboard/RecentActivity';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
+import DashboardFilter from '@/components/dashboard/DashboardFilter';
 
 interface DashboardData {
   stats: {
@@ -90,6 +91,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<DashboardData | null>(null);
   const [pendingSummary, setPendingSummary] = useState<{ totalCount: number; totalPendingAmount: number } | null>(null);
+  const [period, setPeriod] = useState('month');
 
   useEffect(() => {
     if (session?.user) {
@@ -107,7 +109,7 @@ export default function DashboardPage() {
       fetchDashboardData();
       fetchPendingSummary();
     }
-  }, [tenantId]);
+  }, [tenantId, period]);
 
   const fetchPendingSummary = async () => {
     try {
@@ -127,7 +129,7 @@ export default function DashboardPage() {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/dashboard/stats', {
+      const response = await fetch(`/api/dashboard/stats?period=${period}`, {
         headers: {
           'X-Tenant-Id': tenantId || '',
         },
@@ -178,10 +180,13 @@ export default function DashboardPage() {
             transition={{ duration: 0.3 }}
             className="mb-3"
           >
-            <DashboardHeader
-              userName={session?.user?.name}
-              companyName={session?.user?.companyName}
-            />
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-3">
+              <DashboardHeader
+                userName={session?.user?.name}
+                companyName={session?.user?.companyName}
+              />
+              <DashboardFilter selectedPeriod={period} onChange={setPeriod} />
+            </div>
           </motion.div>
 
           {/* Pending Invoices Alert Banner */}

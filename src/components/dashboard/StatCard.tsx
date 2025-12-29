@@ -41,37 +41,41 @@ export default function StatCard({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay }}
-      className="bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow transition-all duration-300 border border-gray-100 dark:border-gray-700 overflow-hidden group"
+      className="bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 border border-gray-100 dark:border-gray-700 overflow-hidden group relative"
     >
-      <div className="p-2">
+      <div className="absolute right-0 top-0 p-3 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 duration-500">
+        <Icon className={`w-16 h-16 ${color.replace('bg-', 'text-')}`} />
+      </div>
+
+      <div className="p-4 sm:p-5 relative z-10">
         <div className="flex items-start justify-between">
-          <div className="flex-1 min-w-0 pr-1">
-            <p className="text-[9px] font-bold text-gray-500 dark:text-gray-400 mb-0 uppercase tracking-wider truncate leading-none">{name}</p>
-            <h3 className="text-base font-bold text-gray-900 dark:text-white tracking-tight leading-none mt-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors truncate">
+          <div className="flex-1 min-w-0 pr-2">
+            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wide">{name}</p>
+            <h3 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white tracking-tight leading-tight group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
               {value}
             </h3>
             {subtitle && (
-              <p className="text-[9px] text-gray-400 dark:text-gray-500 mt-0.5 truncate leading-none">{subtitle}</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 font-medium">{subtitle}</p>
             )}
           </div>
-          <div className={`p-1 rounded-md ${color} bg-opacity-10 text-opacity-100 flex-shrink-0`}>
+          <div className={`p-2 rounded-lg ${color} bg-opacity-10 text-opacity-100 flex-shrink-0 shadow-sm`}>
             <div className={`${color.replace('bg-', 'text-').replace('500', '600')} dark:${color.replace('bg-', 'text-').replace('500', '400')}`}>
-              <Icon className="w-3.5 h-3.5" />
+              <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
           </div>
         </div>
 
         {change && (
-          <div className="mt-1.5 flex items-center">
-            <span className={`inline-flex items-center px-1 py-0 rounded text-[9px] font-medium leading-none ${getChangeColor()}`}>
+          <div className="mt-3 flex items-center">
+            <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-semibold ${getChangeColor()}`}>
               <ChangeIcon />
               {change}
             </span>
-            <span className="text-[9px] text-gray-400 dark:text-gray-500 ml-1 leading-none">vs mois dernier</span>
+            <span className="text-xs text-gray-400 dark:text-gray-500 ml-2">vs période préc.</span>
           </div>
         )}
       </div>
-      <div className="h-0.5 w-full bg-gray-50 dark:bg-gray-700">
+      <div className="h-1 w-full bg-gray-50 dark:bg-gray-700">
         <motion.div
           initial={{ width: 0 }}
           animate={{ width: '100%' }}
