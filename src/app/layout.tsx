@@ -3,6 +3,7 @@ import './globals.css';
 import Providers from '@/components/Providers';
 import { Toaster } from 'react-hot-toast';
 import SecurityEnforcer from '@/components/auth/SecurityEnforcer';
+import InstallPrompt from '@/components/InstallPrompt';
 
 export const metadata: Metadata = {
   title: 'ERP Multi-Entreprises',
@@ -32,6 +33,7 @@ export default function RootLayout({
         <Providers>
           <SecurityEnforcer />
           {children}
+          <InstallPrompt />
           <Toaster position="top-right" />
         </Providers>
       </body>
