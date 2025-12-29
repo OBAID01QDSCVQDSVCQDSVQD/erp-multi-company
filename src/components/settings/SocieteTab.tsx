@@ -78,6 +78,10 @@ export default function SocieteTab({ tenantId }: SocieteTabProps) {
   const logoUrl = watch('logoUrl');
   const cachetUrl = watch('cachetUrl');
 
+  const toTitleCase = (str: string) => {
+    return str.replace(/\b\w/g, (char) => char.toUpperCase());
+  };
+
   useEffect(() => {
     console.log('=== SocieteTab useEffect triggered ===');
     console.log('SocieteTab mounted, tenantId:', tenantId);
@@ -568,6 +572,10 @@ export default function SocieteTab({ tenantId }: SocieteTabProps) {
             <input
               type="text"
               {...register('nom')}
+              onChange={(e) => {
+                register('nom').onChange(e);
+                setValue('nom', toTitleCase(e.target.value));
+              }}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
               placeholder="Nom de votre entreprise"
             />
@@ -585,6 +593,10 @@ export default function SocieteTab({ tenantId }: SocieteTabProps) {
               <input
                 type="text"
                 {...register('adresse.rue')}
+                onChange={(e) => {
+                  register('adresse.rue').onChange(e);
+                  setValue('adresse.rue', toTitleCase(e.target.value));
+                }}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                 placeholder="Adresse de l'entreprise"
               />
@@ -600,6 +612,10 @@ export default function SocieteTab({ tenantId }: SocieteTabProps) {
               <input
                 type="text"
                 {...register('adresse.ville')}
+                onChange={(e) => {
+                  register('adresse.ville').onChange(e);
+                  setValue('adresse.ville', toTitleCase(e.target.value));
+                }}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                 placeholder="Ville"
               />
@@ -630,6 +646,10 @@ export default function SocieteTab({ tenantId }: SocieteTabProps) {
               <input
                 type="text"
                 {...register('adresse.pays')}
+                onChange={(e) => {
+                  register('adresse.pays').onChange(e);
+                  setValue('adresse.pays', toTitleCase(e.target.value));
+                }}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                 placeholder="Pays"
               />

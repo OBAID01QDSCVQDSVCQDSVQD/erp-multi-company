@@ -46,6 +46,7 @@ export async function logAction(
 
         await (AuditLog as any).create({
             userId: session.user.id,
+            tenantId: session.user.companyId || (metadata && metadata.tenantId),
             userName: session.user.name,
             userEmail: session.user.email,
             action,

@@ -6,6 +6,12 @@ const AuditLogSchema = new mongoose.Schema({
         ref: 'User',
         required: true
     },
+    tenantId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Company',
+        required: true,
+        index: true
+    },
     userName: String, // Store snapshot of name
     userEmail: String, // Store snapshot of email
     action: {

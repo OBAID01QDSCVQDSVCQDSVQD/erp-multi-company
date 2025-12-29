@@ -97,6 +97,10 @@ export default function CustomersPage() {
     }));
   };
 
+  const toTitleCase = (str: string) => {
+    return str.replace(/\b\w/g, (char) => char.toUpperCase());
+  };
+
   useEffect(() => {
     fetchCustomers();
     fetchTaxRates();
@@ -631,7 +635,7 @@ export default function CustomersPage() {
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Raison sociale *</label>
                       <input
                         value={form.raisonSociale}
-                        onChange={(e) => setForm({ ...form, raisonSociale: e.target.value })}
+                        onChange={(e) => setForm({ ...form, raisonSociale: toTitleCase(e.target.value) })}
                         placeholder="Ex: Société ABC SARL"
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500"
                         disabled={!!viewingId}
@@ -643,7 +647,7 @@ export default function CustomersPage() {
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nom *</label>
                         <input
                           value={form.nom}
-                          onChange={(e) => setForm({ ...form, nom: e.target.value })}
+                          onChange={(e) => setForm({ ...form, nom: toTitleCase(e.target.value) })}
                           placeholder="Ex: Ben Ali"
                           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500"
                         />
@@ -652,7 +656,7 @@ export default function CustomersPage() {
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Prénom</label>
                         <input
                           value={form.prenom}
-                          onChange={(e) => setForm({ ...form, prenom: e.target.value })}
+                          onChange={(e) => setForm({ ...form, prenom: toTitleCase(e.target.value) })}
                           placeholder="Ex: Mohamed"
                           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500"
                         />
@@ -746,7 +750,7 @@ export default function CustomersPage() {
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Adresse ligne 1 *</label>
                         <input
                           value={form.adresseFacturation.ligne1}
-                          onChange={(e) => setForm({ ...form, adresseFacturation: { ...form.adresseFacturation, ligne1: e.target.value } })}
+                          onChange={(e) => setForm({ ...form, adresseFacturation: { ...form.adresseFacturation, ligne1: toTitleCase(e.target.value) } })}
                           placeholder="Ex: 10 Rue de la République"
                           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500"
                         />
@@ -755,7 +759,7 @@ export default function CustomersPage() {
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Adresse ligne 2</label>
                         <input
                           value={form.adresseFacturation.ligne2}
-                          onChange={(e) => setForm({ ...form, adresseFacturation: { ...form.adresseFacturation, ligne2: e.target.value } })}
+                          onChange={(e) => setForm({ ...form, adresseFacturation: { ...form.adresseFacturation, ligne2: toTitleCase(e.target.value) } })}
                           placeholder="Appartement, bureau, etc."
                           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500"
                         />
@@ -765,7 +769,7 @@ export default function CustomersPage() {
                           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Ville *</label>
                           <input
                             value={form.adresseFacturation.ville}
-                            onChange={(e) => setForm({ ...form, adresseFacturation: { ...form.adresseFacturation, ville: e.target.value } })}
+                            onChange={(e) => setForm({ ...form, adresseFacturation: { ...form.adresseFacturation, ville: toTitleCase(e.target.value) } })}
                             placeholder="Ex: Tunis"
                             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500"
                           />
@@ -784,7 +788,7 @@ export default function CustomersPage() {
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Gouvernorat</label>
                         <input
                           value={form.adresseFacturation.gouvernorat}
-                          onChange={(e) => setForm({ ...form, adresseFacturation: { ...form.adresseFacturation, gouvernorat: e.target.value } })}
+                          onChange={(e) => setForm({ ...form, adresseFacturation: { ...form.adresseFacturation, gouvernorat: toTitleCase(e.target.value) } })}
                           placeholder="Ex: Tunis"
                           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500"
                         />
@@ -810,20 +814,20 @@ export default function CustomersPage() {
                       <div className="space-y-3">
                         <input
                           value={form.adresseLivraison.ligne1}
-                          onChange={(e) => setForm({ ...form, adresseLivraison: { ...form.adresseLivraison, ligne1: e.target.value } })}
+                          onChange={(e) => setForm({ ...form, adresseLivraison: { ...form.adresseLivraison, ligne1: toTitleCase(e.target.value) } })}
                           placeholder="Adresse ligne 1"
                           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500"
                         />
                         <input
                           value={form.adresseLivraison.ligne2}
-                          onChange={(e) => setForm({ ...form, adresseLivraison: { ...form.adresseLivraison, ligne2: e.target.value } })}
+                          onChange={(e) => setForm({ ...form, adresseLivraison: { ...form.adresseLivraison, ligne2: toTitleCase(e.target.value) } })}
                           placeholder="Adresse ligne 2"
                           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500"
                         />
                         <div className="grid grid-cols-2 gap-3">
                           <input
                             value={form.adresseLivraison.ville}
-                            onChange={(e) => setForm({ ...form, adresseLivraison: { ...form.adresseLivraison, ville: e.target.value } })}
+                            onChange={(e) => setForm({ ...form, adresseLivraison: { ...form.adresseLivraison, ville: toTitleCase(e.target.value) } })}
                             placeholder="Ville"
                             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500"
                           />
@@ -901,7 +905,7 @@ export default function CustomersPage() {
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">RIB</label>
                     <input
                       value={form.rib}
-                      onChange={(e) => setForm({ ...form, rib: e.target.value })}
+                      onChange={(e) => setForm({ ...form, rib: e.target.value.toUpperCase() })}
                       placeholder="Ex: 02 890 12345678901234567"
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md font-mono bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500"
                     />
@@ -910,7 +914,7 @@ export default function CustomersPage() {
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">IBAN</label>
                     <input
                       value={form.iban}
-                      onChange={(e) => setForm({ ...form, iban: e.target.value })}
+                      onChange={(e) => setForm({ ...form, iban: e.target.value.toUpperCase() })}
                       placeholder="Ex: TN59 0208 9012 3456 7890 1234"
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md font-mono bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500"
                     />
@@ -919,7 +923,7 @@ export default function CustomersPage() {
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Banque</label>
                     <input
                       value={form.banqueNom}
-                      onChange={(e) => setForm({ ...form, banqueNom: e.target.value })}
+                      onChange={(e) => setForm({ ...form, banqueNom: e.target.value.toUpperCase() })}
                       placeholder="Ex: Banque de Tunisie"
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500"
                     />
@@ -928,7 +932,7 @@ export default function CustomersPage() {
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">SWIFT</label>
                     <input
                       value={form.swift}
-                      onChange={(e) => setForm({ ...form, swift: e.target.value })}
+                      onChange={(e) => setForm({ ...form, swift: e.target.value.toUpperCase() })}
                       placeholder="Ex: BTUNITN"
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500"
                     />
