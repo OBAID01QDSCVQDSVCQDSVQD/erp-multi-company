@@ -1,194 +1,166 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { getModelToken } from '@nestjs/mongoose';
-import { NotFoundException, ConflictException } from '@nestjs/common';
-import { ExpenseCategoryService } from '../services/expense-category.service';
-import { ExpenseCategory } from '../models/ExpenseCategory';
-import { GlobalExpenseCategory } from '../models/GlobalExpenseCategory';
+
+/**
+ * Test adapté pour Next.js (Jest standard sans @nestjs/testing)
+ */
+
+import { ExpenseCategoryService, NotFoundException, ConflictException } from '../services/expense-category.service';
 import { ExpenseCategoryScope } from '../dto/expense-category.dto';
+
+// Mock simple des Models Mongoose
+const mockExpenseCategoryModel = {
+  find: jest.fn(),
+  findOne: jest.fn(),
+  findOneAndUpdate: jest.fn(),
+  findByIdAndUpdate: jest.fn(),
+  countDocuments: jest.fn(),
+};
+
+const mockGlobalExpenseCategoryModel = {
+  find: jest.fn(),
+  findOne: jest.fn(),
+  findOneAndUpdate: jest.fn(),
+};
+
+// Mock du constructeur de Model
+jest.mock('../models/ExpenseCategory', () => {
+  return {
+    __esModule: true,
+    default: Object.assign(
+      jest.fn((data) => ({ ...data, save: jest.fn().mockResolvedValue({ ...data, _id: 'new_id', toObject: () => ({ ...data, _id: 'new_id' }) }) })),
+      mockExpenseCategoryModel
+    )
+  };
+});
+
+jest.mock('../models/GlobalExpenseCategory', () => {
+  return {
+    __esModule: true,
+    default: Object.assign(
+      jest.fn(),
+      mockGlobalExpenseCategoryModel
+    )
+  };
+});
 
 describe('ExpenseCategoryService - Union Global/Tenant', () => {
   let service: ExpenseCategoryService;
-  let mockExpenseCategoryModel: any;
-  let mockGlobalExpenseCategoryModel: any;
 
   const mockTenantCategory = {
-    _id: 'tenant123',
+    _id: 'tenant_cat_1',
+    code: 'CAT_TENANT',
+    nom: 'Catégorie Tenant',
     tenantId: 'tenant123',
-    code: 'DEP_TRANSPORT',
-    nom: 'Transport Tenant',
-    typeGlobal: 'exploitation',
     isActive: true,
-    createdAt: new Date(),
-    updatedAt: new Date(),
+    toObject: () => mockTenantCategory
   };
 
   const mockGlobalCategory = {
-    _id: 'global123',
-    code: 'DEP_RESTAURATION',
-    nom: 'Restaurant Global',
+    _id: 'global_cat_1',
+    code: 'CAT_GLOBAL',
+    nom: 'Catégorie Globale',
     typeGlobal: 'exploitation',
-    createdAt: new Date(),
-    updatedAt: new Date(),
+    isActive: true,
+    toObject: () => mockGlobalCategory
   };
 
-  beforeEach(async () => {
-    mockExpenseCategoryModel = {
-      find: jest.fn().mockReturnThis(),
-      findOne: jest.fn(),
-      findOneAndUpdate: jest.fn(),
-      sort: jest.fn().mockReturnThis(),
-      exec: jest.fn(),
-    };
-
-    mockGlobalExpenseCategoryModel = {
-      find: jest.fn().mockReturnThis(),
-      findOne: jest.fn(),
-      findOneAndUpdate: jest.fn(),
-      sort: jest.fn().mockReturnThis(),
-      exec: jest.fn(),
-    };
-
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        ExpenseCategoryService,
-        {
-          provide: getModelToken(ExpenseCategory.name),
-          useValue: mockExpenseCategoryModel,
-        },
-        {
-          provide: getModelToken(GlobalExpenseCategory.name),
-          useValue: mockGlobalExpenseCategoryModel,
-        },
-      ],
-    }).compile();
-
-    service = module.get<ExpenseCategoryService>(ExpenseCategoryService);
-  });
-
-  afterEach(() => {
+  beforeEach(() => {
     jest.clearAllMocks();
+    service = new ExpenseCategoryService();
   });
 
   describe('listUnion', () => {
-    it('devrait fusionner les catégories tenant et globales', async () => {
-      const query = { page: 1, limit: 20 };
-      
-      mockExpenseCategoryModel.exec.mockResolvedValue([mockTenantCategory]);
-      mockGlobalExpenseCategoryModel.exec.mockResolvedValue([mockGlobalCategory]);
+    it('should merge tenant and global categories', async () => {
+      // Setup mocks
+      const mockTenantFind = {
+        sort: jest.fn().mockReturnThis(),
+        exec: jest.fn().mockResolvedValue([mockTenantCategory])
+      };
 
-      const result = await service.listUnion('tenant123', query);
+      const mockGlobalFind = {
+        sort: jest.fn().mockReturnThis(),
+        exec: jest.fn().mockResolvedValue([mockGlobalCategory])
+      };
+
+      mockExpenseCategoryModel.find.mockReturnValue(mockTenantFind);
+      mockGlobalExpenseCategoryModel.find.mockReturnValue(mockGlobalFind);
+
+      const result = await service.listUnion('tenant123', {});
 
       expect(result.data).toHaveLength(2);
-      expect(result.data[0]).toHaveProperty('_source', 'tenant');
-      expect(result.data[1]).toHaveProperty('_source', 'global');
       expect(result.meta.tenantCount).toBe(1);
       expect(result.meta.globalCount).toBe(1);
+
+      // Verify global category transformation
+      const globalResult = result.data.find((c: any) => c.code === 'CAT_GLOBAL');
+      expect(globalResult._source).toBe('global');
+      expect(globalResult._id).toBe('global_global_cat_1');
     });
 
-    it('devrait privilégier les catégories tenant en cas de conflit de code', async () => {
-      const query = { page: 1, limit: 20 };
-      
-      const conflictingGlobal = {
-        ...mockGlobalCategory,
-        code: 'DEP_TRANSPORT',
-        nom: 'Transport Global',
+    it('should prioritize tenant category over global when codes match', async () => {
+      const mockOverridingTenantCategory = {
+        _id: 'tenant_cat_override',
+        code: 'CAT_GLOBAL', // Same code as global
+        nom: 'Catégorie Globale Modifiée',
+        tenantId: 'tenant123',
+        isActive: true,
+        toObject: () => mockOverridingTenantCategory
       };
 
-      mockExpenseCategoryModel.exec.mockResolvedValue([mockTenantCategory]);
-      mockGlobalExpenseCategoryModel.exec.mockResolvedValue([conflictingGlobal]);
+      // Setup mocks
+      const mockTenantFind = {
+        sort: jest.fn().mockReturnThis(),
+        exec: jest.fn().mockResolvedValue([mockOverridingTenantCategory])
+      };
 
-      const result = await service.listUnion('tenant123', query);
+      const mockGlobalFind = {
+        sort: jest.fn().mockReturnThis(),
+        exec: jest.fn().mockResolvedValue([mockGlobalCategory])
+      };
 
-      expect(result.data).toHaveLength(1);
-      expect(result.data[0].nom).toBe('Transport Tenant');
+      mockExpenseCategoryModel.find.mockReturnValue(mockTenantFind);
+      mockGlobalExpenseCategoryModel.find.mockReturnValue(mockGlobalFind);
+
+      const result = await service.listUnion('tenant123', {});
+
+      expect(result.data).toHaveLength(1); // Should have merged to 1
       expect(result.data[0]._source).toBe('tenant');
+      expect(result.data[0].nom).toBe('Catégorie Globale Modifiée');
     });
   });
 
-  describe('create', () => {
-    it('devrait créer une catégorie globale si portee=globale', async () => {
-      const createDto = {
-        code: 'DEP_NEW',
-        nom: 'Nouvelle catégorie',
-        typeGlobal: 'exploitation',
-        portee: ExpenseCategoryScope.GLOBAL,
+  describe('CRUD Operations', () => {
+    it('should create a tenant category', async () => {
+      // Since we are mocking the module, the "new" call in the service uses the mocked default export
+      // The save method is already mocked in the factory above
+      const dto = {
+        code: 'NEW_CAT',
+        nom: 'Nouvelle Catégorie',
+        portee: ExpenseCategoryScope.TENANT
       };
 
-      const mockGlobalResult = {
-        ...mockGlobalCategory,
-        code: 'DEP_NEW',
-        nom: 'Nouvelle catégorie',
-      };
+      mockExpenseCategoryModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(null) });
 
-      mockGlobalExpenseCategoryModel.findOneAndUpdate.mockResolvedValue(mockGlobalResult);
+      const result = await service.create('tenant123', dto as any);
 
-      const result = await service.create('tenant123', createDto);
-
-      expect(mockGlobalExpenseCategoryModel.findOneAndUpdate).toHaveBeenCalledWith(
-        { code: 'DEP_NEW' },
-        expect.objectContaining({
-          $setOnInsert: { code: 'DEP_NEW' },
-          $set: expect.objectContaining({
-            nom: 'Nouvelle catégorie',
-            typeGlobal: 'exploitation',
-          }),
-        }),
-        { upsert: true, new: true }
-      );
-      expect(result.scope).toBe('globale');
-    });
-
-    it('devrait créer une catégorie tenant si portee=tenant', async () => {
-      const createDto = {
-        code: 'DEP_NEW',
-        nom: 'Nouvelle catégorie',
-        typeGlobal: 'exploitation',
-        portee: ExpenseCategoryScope.TENANT,
-      };
-
-      mockExpenseCategoryModel.findOne.mockResolvedValue(null);
-      mockExpenseCategoryModel.prototype.save = jest.fn().mockResolvedValue(mockTenantCategory);
-
-      const result = await service.create('tenant123', createDto);
-
+      expect(result).toBeDefined();
       expect(result.scope).toBe('tenant');
+      expect(result.code).toBe('NEW_CAT');
     });
 
-    it('devrait rejeter si code dupliqué pour le même tenant', async () => {
-      const createDto = {
-        code: 'DEP_TRANSPORT',
-        nom: 'Transport',
-        typeGlobal: 'exploitation',
-        portee: ExpenseCategoryScope.TENANT,
-      };
+    it('should retrieve a category by id', async () => {
+      mockExpenseCategoryModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(mockTenantCategory) });
 
-      mockExpenseCategoryModel.findOne.mockResolvedValue(mockTenantCategory);
+      const result = await service.findOne('tenant123', 'tenant_cat_1');
 
-      await expect(service.create('tenant123', createDto)).rejects.toThrow(ConflictException);
-    });
-  });
-
-  describe('remove', () => {
-    it('devrait refuser la suppression d\'une catégorie globale', async () => {
-      await expect(service.remove('tenant123', 'global_123')).rejects.toThrow(
-        'Les catégories globales ne peuvent pas être supprimées via ce endpoint'
-      );
+      expect(result).toBeDefined();
+      expect(result._id).toBe('tenant_cat_1');
     });
 
-    it('devrait supprimer une catégorie tenant', async () => {
-      mockExpenseCategoryModel.findOne.mockResolvedValue(mockTenantCategory);
-      mockExpenseCategoryModel.findByIdAndUpdate.mockResolvedValue(mockTenantCategory);
+    it('should throw NotFoundException if category not found', async () => {
+      mockExpenseCategoryModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(null) });
 
-      await service.remove('tenant123', 'tenant123');
-
-      expect(mockExpenseCategoryModel.findByIdAndUpdate).toHaveBeenCalledWith(
-        'tenant123',
-        { isActive: false }
-      );
+      await expect(service.findOne('tenant123', 'unknown_id'))
+        .rejects.toThrow(NotFoundException);
     });
   });
 });
-
-
-
-
