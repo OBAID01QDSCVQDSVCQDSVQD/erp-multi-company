@@ -442,7 +442,7 @@ export const authOptions: NextAuthOptions = {
           // Dynamic import to avoid circular dependency if any
           const CompanySettings = (await import('./models/CompanySettings')).default;
           const settings = await (CompanySettings as any).findOne({ tenantId: user.companyId }).select('securite.deuxFA').lean();
-          token.requires2FA = !!settings?.securite?.deuxFA;
+          token.requires2FA = !!settings?.securite?.deuxFA && user.role !== 'admin';
         } catch (e) {
           console.error("Error fetching company settings for 2FA check", e);
           token.requires2FA = false;
