@@ -188,6 +188,8 @@ export async function GET(request: NextRequest) {
             if (uniqueBook.has(d._id.toString())) return;
             uniqueBook.add(d._id.toString());
 
+
+
             let url = '/documents/${d._id}';
             let typeLabel = d.type;
             let icon = 'DocumentTextIcon';
@@ -229,6 +231,10 @@ export async function GET(request: NextRequest) {
                 case 'FAC':
                     url = `/sales/invoices/${d._id}`;
                     typeLabel = 'Facture Client';
+                    break;
+                case 'INT_FAC':
+                    url = `/internal-invoices/${d._id}`;
+                    typeLabel = 'Facture Interne';
                     break;
                 case 'AVOIR':
                     url = `/sales/credit-notes/${d._id}`;

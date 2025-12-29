@@ -343,7 +343,7 @@ export default function CustomerDetailsPage() {
                                                         Payé
                                                     </th>
                                                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                                        Reste
+                                                        Solde
                                                     </th>
                                                 </>
                                             )}
@@ -442,7 +442,9 @@ export default function CustomerDetailsPage() {
                                         </div>
                                         {['facture', 'paiement'].includes(typeFilter) && (
                                             <div className="flex flex-col items-end">
-                                                <span className="text-gray-500 dark:text-gray-400 text-xs text-right">Reste à payer</span>
+                                                <span className="text-gray-500 dark:text-gray-400 text-xs text-right">
+                                                    {transaction.type === 'paiement' || transaction.type === 'avoir' ? 'Non affecté' : 'Reste à payer'}
+                                                </span>
                                                 <span className={`font-semibold text-right ${transaction.soldeRestant > 0
                                                     ? 'text-red-600 dark:text-red-400'
                                                     : transaction.soldeRestant < 0

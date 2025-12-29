@@ -197,6 +197,18 @@ export async function GET(
     // Process Payments into Transactions
     allPayments.forEach((p: any) => {
       const isOnAccount = p.isPaymentOnAccount || false;
+
+      // Calculate how much of the payment is actually used
+      let amountUsed = 0;
+      if (p.lignes && Array.isArray(p.lignes)) {
+        amountUsed = p.lignes.reduce((sum: number, ligne: any) => sum + (ligne.montantPaye || 0), 0);
+      }
+
+      // The remaining unused amount (Solde non affecté)
+      // If it's pure "on account" payment, used might be 0 until applied.
+      // If fully applied, unused should be ~0.
+      const amountUnused = Math.max(0, p.montantTotal - amountUsed);
+
       transactions.push({
         id: p._id.toString(),
         type: 'paiement',
@@ -205,8 +217,8 @@ export async function GET(
         date: p.datePaiement,
         dateEcheance: null,
         montant: p.montantTotal,
-        montantPaye: p.montantTotal,
-        soldeRestant: -p.montantTotal,
+        montantPaye: amountUsed, // Show how much was used
+        soldeRestant: -amountUnused, // Negative means credit (money available to use)
         statut: isOnAccount ? 'PAYE_SUR_COMPTE' : 'PAYE',
         devise: 'TND',
         documentType: 'PaiementClient',
