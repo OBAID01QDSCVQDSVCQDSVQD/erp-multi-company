@@ -140,7 +140,7 @@ describe('ExpenseCategoryService - Union Global/Tenant', () => {
 
       mockExpenseCategoryModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(null) });
 
-      const result = await service.create('tenant123', dto as any);
+      const result: any = await service.create('tenant123', dto as any);
 
       expect(result).toBeDefined();
       expect(result.scope).toBe('tenant');
@@ -150,7 +150,7 @@ describe('ExpenseCategoryService - Union Global/Tenant', () => {
     it('should retrieve a category by id', async () => {
       mockExpenseCategoryModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(mockTenantCategory) });
 
-      const result = await service.findOne('tenant123', 'tenant_cat_1');
+      const result: any = await service.findOne('tenant123', 'tenant_cat_1');
 
       expect(result).toBeDefined();
       expect(result._id).toBe('tenant_cat_1');
