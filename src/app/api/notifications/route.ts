@@ -52,10 +52,19 @@ export async function GET(request: NextRequest) {
       return true;
     }).slice(0, limit);
 
+    // عدّاد غير المقروءة بعد إزالة التكرار في الواجهة
     const unreadCountDb = await (Notification as any).countDocuments({
       tenantId,
       userEmail,
       status: 'unread',
+    });
+
+    // Fix links for Internal Invoices (INT_FAC)
+    // If title has "Facture" but no "FAC-", it's likely an Internal Invoice -> /internal-invoices/
+    notifications.forEach((n: any) => {
+      if (n.link && n.link.includes('/sales/invoices/') && n.title && n.title.includes('Facture') && !n.title.includes('FAC-')) {
+        n.link = n.link.replace('/sales/invoices/', '/internal-invoices/');
+      }
     });
 
     // عدّاد غير المقروءة بعد إزالة التكرار في الواجهة
