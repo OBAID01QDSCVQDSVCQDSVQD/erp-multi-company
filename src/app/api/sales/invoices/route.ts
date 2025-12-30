@@ -289,8 +289,27 @@ export async function POST(request: NextRequest) {
 
     if (shouldCreateStockMovements) {
       await createStockMovementsForInvoice(invoice, tenantId, session.user.email, warehouseIdStr);
+
+      // Check for low stock asynchronously
+      // Dynamic import to avoid circular dependency issues if any
+      const { NotificationService } = await import('@/lib/services/notification.service');
+      // No await to avoid blocking response
+      NotificationService.checkLowStock(tenantId).catch(err => console.error('Error checking low stock:', err));
     } else {
       console.log(`[Create Invoice] Skipping stock movements for invoice ${invoice._id} - created from BL or Deferred Delivery`);
+    }
+
+    // Notify Admins about new invoice
+    try {
+      const { NotificationService } = await import('@/lib/services/notification.service');
+      await NotificationService.notifyAdmins(tenantId, {
+        type: 'new_invoice',
+        title: 'Nouvelle Facture',
+        message: `Une nouvelle facture ${invoice.numero} a été créée par ${session.user.name}. Montant: ${invoice.totalTTC.toFixed(3)} TND`,
+        link: `/sales/invoices/${invoice._id}`
+      });
+    } catch (notifError) {
+      console.error('Error sending notification:', notifError);
     }
 
     return NextResponse.json(invoice, { status: 201 });

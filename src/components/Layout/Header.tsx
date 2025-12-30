@@ -6,7 +6,8 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useTenantId } from '@/hooks/useTenantId';
-import { Bars3Icon, BellIcon, HomeIcon, UserCircleIcon, ChartBarIcon, ArrowRightOnRectangleIcon, CogIcon, BuildingOfficeIcon, ChevronDownIcon, CreditCardIcon, SunIcon, MoonIcon, MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { Bars3Icon, HomeIcon, UserCircleIcon, ChartBarIcon, ArrowRightOnRectangleIcon, CogIcon, BuildingOfficeIcon, ChevronDownIcon, CreditCardIcon, SunIcon, MoonIcon, MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import NotificationDropdown from '@/components/layout/NotificationDropdown';
 
 interface NotificationItem {
     _id: string;
@@ -28,16 +29,11 @@ export default function Header({ onMenuClick }: HeaderProps) {
     const { tenantId } = useTenantId();
     const [userMenuOpen, setUserMenuOpen] = useState(false);
     const [adminMenuOpen, setAdminMenuOpen] = useState(false);
-    const [notifOpen, setNotifOpen] = useState(false);
-    const [notifications, setNotifications] = useState<NotificationItem[]>([]);
-    const [unreadCount, setUnreadCount] = useState(0);
-    const [loadingNotifs, setLoadingNotifs] = useState(false);
     const [companySettings, setCompanySettings] = useState<any>(null);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
     const adminTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const adminContainerRef = useRef<HTMLDivElement>(null);
-    const notifRef = useRef<HTMLDivElement>(null);
     const searchContainerRef = useRef<HTMLDivElement>(null);
     const mobileSearchContainerRef = useRef<HTMLDivElement>(null);
     const mobileSearchInputRef = useRef<HTMLInputElement>(null);
@@ -121,16 +117,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
     }, []);
 
     // Close notifications dropdown when clicking outside
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            const target = event.target as HTMLElement;
-            if (notifRef.current && !notifRef.current.contains(target)) {
-                setNotifOpen(false);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
+    /* Logic moved to component */
 
     // Close search dropdown when clicking outside
     useEffect(() => {
@@ -190,22 +177,10 @@ export default function Header({ onMenuClick }: HeaderProps) {
         }
     };
 
-    const extractInvoiceNumero = (title: string): string | null => {
-        // Exemple: "Facture en attente - FAC-2025-00020"
-        const match = title.match(/(FAC-\d{4}-\d+)/);
-        return match ? match[1] : null;
-    };
-
     // Fetch notifications on mount - Only for admin
-    useEffect(() => {
-        const userRole = session?.user?.role;
-        const hasAllPermissions = session?.user?.permissions?.includes('all');
-        const isUserAdmin = userRole === 'admin' || hasAllPermissions;
-
-        if (session?.user && isUserAdmin) {
-            fetchNotifications();
-        }
-    }, [session]);
+    /* 
+       Logic moved to NotificationDropdown.tsx 
+    */
 
     // Fetch company settings for logo
     useEffect(() => {
@@ -218,85 +193,6 @@ export default function Header({ onMenuClick }: HeaderProps) {
                 .catch((err) => console.error('Error fetching company settings:', err));
         }
     }, [tenantId]);
-
-    const fetchNotifications = async () => {
-        try {
-            setLoadingNotifs(true);
-            const res = await fetch('/api/notifications?status=all&limit=10', {
-                cache: 'no-store',
-            });
-            if (res.ok) {
-                const data = await res.json();
-                const items = data.notifications || [];
-
-                const sorted = [...items].sort((a: any, b: any) => {
-                    const isInvA = a.type === 'invoice_overdue';
-                    const isInvB = b.type === 'invoice_overdue';
-
-                    if (isInvA && isInvB) {
-                        const numA = extractInvoiceNumero(a.title);
-                        const numB = extractInvoiceNumero(b.title);
-
-                        if (numA && numB && numA !== numB) {
-                            return numB.localeCompare(numA, 'fr-FR', { numeric: true });
-                        }
-                    }
-
-                    const dateA = new Date(a.createdAt).getTime();
-                    const dateB = new Date(b.createdAt).getTime();
-                    return dateB - dateA;
-                });
-
-                setNotifications(sorted);
-                setUnreadCount(data.unreadCount || 0);
-            }
-        } catch (err) {
-            console.error('Error fetching notifications:', err);
-        } finally {
-            setLoadingNotifs(false);
-        }
-    };
-
-    const markAsRead = async (id?: string, navigateTo?: string) => {
-        try {
-            const res = await fetch('/api/notifications', {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(id ? { id } : { markAllRead: true }),
-            });
-            if (res.ok) {
-                const data = await res.json();
-                setUnreadCount(data.unreadCount || 0);
-                // Update local state
-                setNotifications((prev) =>
-                    prev.map((n) =>
-                        !id || n._id === id ? { ...n, status: 'read' } : n
-                    )
-                );
-            }
-        } catch (err) {
-            console.error('Error updating notifications:', err);
-        } finally {
-            if (navigateTo) {
-                router.push(navigateTo);
-                setNotifOpen(false);
-            }
-        }
-    };
-
-    const formatDate = (dateStr: string) => {
-        try {
-            const d = new Date(dateStr);
-            return d.toLocaleString('fr-FR', {
-                day: '2-digit',
-                month: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit',
-            });
-        } catch {
-            return dateStr;
-        }
-    };
 
     const handleMouseLeave = () => {
         timeoutRef.current = setTimeout(() => {
@@ -537,99 +433,8 @@ export default function Header({ onMenuClick }: HeaderProps) {
                         </Link>
                     )}
 
-                    {/* Notifications - Only for admin */}
-                    {isAdmin && (
-                        <div className="relative flex-shrink-0" ref={notifRef}>
-                            <button
-                                type="button"
-                                onClick={() =>
-                                    setNotifOpen((open) => {
-                                        const next = !open;
-                                        // When opening the panel, mark all as read so the red badge disappears
-                                        if (!open && next && unreadCount > 0) {
-                                            markAsRead();
-                                        }
-                                        return next;
-                                    })
-                                }
-                                className="bg-white dark:bg-gray-700 p-1.5 rounded-full text-gray-400 hover:text-gray-500 dark:text-gray-300 dark:hover:text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 relative"
-                            >
-                                <BellIcon className="h-5 w-5" />
-                                {unreadCount > 0 && (
-                                    <span className="absolute -top-1 -right-1 inline-flex items-center justify-center px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-red-500 text-white min-w-[18px]">
-                                        {unreadCount > 9 ? '9+' : unreadCount}
-                                    </span>
-                                )}
-                            </button>
-                            {notifOpen && (
-                                <div className="origin-top-right absolute right-0 mt-2 w-80 rounded-lg shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 z-50">
-                                    <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
-                                        <span className="text-sm font-semibold text-gray-800 dark:text-white">
-                                            Notifications
-                                        </span>
-                                        {unreadCount > 0 && (
-                                            <button
-                                                onClick={() => markAsRead()}
-                                                className="text-xs text-indigo-600 hover:text-indigo-800"
-                                            >
-                                                Tout marquer comme lu
-                                            </button>
-                                        )}
-                                    </div>
-                                    <div className="max-h-80 overflow-y-auto">
-                                        {loadingNotifs ? (
-                                            <div className="py-6 text-center text-gray-500 text-sm">
-                                                Chargement...
-                                            </div>
-                                        ) : notifications.length === 0 ? (
-                                            <div className="py-6 text-center text-gray-500 text-sm">
-                                                Aucune notification
-                                            </div>
-                                        ) : (
-                                            <ul className="divide-y divide-gray-100">
-                                                {notifications.map((notif) => (
-                                                    <li
-                                                        key={notif._id}
-                                                        className={`px-4 py-3 text-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 ${notif.status === 'unread' ? 'bg-indigo-50 dark:bg-indigo-900/20' : ''
-                                                            }`}
-                                                        onClick={() =>
-                                                            markAsRead(notif._id, notif.link || undefined)
-                                                        }
-                                                    >
-                                                        <div className="flex items-start justify-between">
-                                                            <div className="flex-1 pr-2">
-                                                                <p className="font-medium text-gray-900 dark:text-white">
-                                                                    {notif.title}
-                                                                </p>
-                                                                <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5 line-clamp-2">
-                                                                    {notif.message}
-                                                                </p>
-                                                                <p className="text-[11px] text-gray-400 mt-1">
-                                                                    {formatDate(notif.createdAt)}
-                                                                </p>
-                                                            </div>
-                                                            {notif.status === 'unread' && (
-                                                                <span className="mt-1 inline-flex h-2 w-2 rounded-full bg-indigo-500" />
-                                                            )}
-                                                        </div>
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                        )}
-                                    </div>
-                                    <div className="px-4 py-2 border-t border-gray-100 dark:border-gray-700 text-xs text-right">
-                                        <Link
-                                            href="/notifications"
-                                            className="text-indigo-600 hover:text-indigo-800"
-                                            onClick={() => setNotifOpen(false)}
-                                        >
-                                            Voir toutes les notifications
-                                        </Link>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    )}
+                    {/* Notifications */}
+                    <NotificationDropdown />
 
                     <div
                         ref={containerRef}

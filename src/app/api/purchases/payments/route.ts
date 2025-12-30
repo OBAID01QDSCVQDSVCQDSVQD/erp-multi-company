@@ -590,6 +590,19 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Notify Admins about supplier payment
+    try {
+      const { NotificationService } = await import('@/lib/services/notification.service');
+      await NotificationService.notifyAdmins(tenantId, {
+        type: 'new_supplier_payment',
+        title: 'Paiement Fournisseur Effectué',
+        message: `Paiement ${paiement.numero} de ${(montantTotal || 0).toFixed(3)} TND au fournisseur ${fournisseurNom}.`,
+        link: `/purchases/payments`
+      });
+    } catch (notifError) {
+      console.error('Erreur lors de la création des notifications de paiement fournisseur:', notifError);
+    }
+
     return NextResponse.json(paiement, { status: 201 });
   } catch (error) {
     console.error('Erreur POST /api/purchases/payments:', error);

@@ -107,26 +107,7 @@ export default function InvoicesPage() {
   const [selectedWarehouseId, setSelectedWarehouseId] = useState<string>('');
   const [multiWarehouseEnabled, setMultiWarehouseEnabled] = useState(false);
 
-  // Auto-open modal if ?action=new is in URL
-  useEffect(() => {
-    const action = searchParams.get('action');
-    if (action === 'new') {
-      router.replace('/sales/invoices', { scroll: false });
-      // We set a small timeout to ensure everything is mounted before triggering the modal logic
-      // Ideally we should call a function, but since it's defined below, we can set a flag or rely on a separate effect
-      // For now, we'll just set showModal(true) which triggers data fetching, 
-      // but we ALSO need to Initialize the form.
-      // Since handleOpenNewInvoiceModal is complex and defined later, we should probably move its logic or duplicates some of it here.
-      // BUT, since this is a Functional Component, we can define a "shouldOpenCreateModal" state.
-      // Or better, let's just use a ref or state that triggers an effect that calls handleOpenNewInvoiceModal.
-      // HOWEVER, simply setting showModal(true) is a good start, but misses the form reset/number generation.
 
-      // Let's trigger a specialized state
-      setShouldAutoOpenCreate(true);
-    }
-  }, [searchParams, router]);
-
-  const [shouldAutoOpenCreate, setShouldAutoOpenCreate] = useState(false);
 
   // WhatsApp Modal State
   const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
@@ -501,13 +482,22 @@ export default function InvoicesPage() {
     setShowModal(true);
   };
 
+  // Auto-open modal if ?action=new is in URL
   useEffect(() => {
-    if (shouldAutoOpenCreate) {
-      handleOpenNewInvoiceModal();
-      setShouldAutoOpenCreate(false);
+    const action = searchParams.get('action');
+    if (action === 'new') {
+      // Remove the query param to avoid re-opening on refresh
+      router.replace('/sales/invoices', { scroll: false });
+
+      // Use a small timeout to ensure safe execution
+      setTimeout(() => {
+        handleOpenNewInvoiceModal();
+      }, 100);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shouldAutoOpenCreate]);
+  }, [searchParams]);
+
+
 
   // Handle alphabet filter click
   const handleAlphabetClick = (letter: string) => {

@@ -4,132 +4,56 @@ import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import Notification from '@/lib/models/Notification';
 
-export const dynamic = 'force-dynamic';
-
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { user } = session;
+    const tenantId = request.headers.get('X-Tenant-Id') || user.companyId;
+
+    if (!tenantId) {
+      return NextResponse.json({ error: 'Tenant ID missing' }, { status: 400 });
     }
 
     await connectDB();
 
-    const { searchParams } = new URL(request.url);
-    const status = searchParams.get('status') || 'all'; // unread | all
-    const limit = parseInt(searchParams.get('limit') || '10', 10);
-
-    const tenantId = session.user.companyId?.toString() || '';
-    const userEmail = session.user.email as string | undefined;
-
-    if (!tenantId || !userEmail) {
-      return NextResponse.json({ error: 'Tenant ou email utilisateur introuvable' }, { status: 400 });
-    }
-
-    const query: any = {
+    // Fetch recent notifications (both read and unread)
+    const notifications = await Notification.find({
       tenantId,
-      userEmail,
-    };
-
-    if (status === 'unread') {
-      query.status = 'unread';
-    }
-
-    const notificationsRaw = await (Notification as any)
-      .find(query)
+      userId: user.id,
+    })
       .sort({ createdAt: -1 })
-      .limit(limit * 3) // جلب أكثر شوية قبل ما نعمل dedupe
-      .lean();
+      .limit(20);
 
-    // إزالة التكرار: نفس dedupeKey أو نفس عنوان الفاتورة نحتفظو بآخر واحدة فقط
-    const seen = new Set<string>();
-    const notifications = notificationsRaw.filter((n: any) => {
-      const dedupe =
-        (n.metadata && n.metadata.dedupeKey) ||
-        (typeof n.title === 'string' ? n.title : n._id.toString());
-      if (seen.has(dedupe)) return false;
-      seen.add(dedupe);
-      return true;
-    }).slice(0, limit);
-
-    // عدّاد غير المقروءة بعد إزالة التكرار في الواجهة
-    const unreadCountDb = await (Notification as any).countDocuments({
+    // Count unread notifications seperately
+    const unreadCount = await Notification.countDocuments({
       tenantId,
-      userEmail,
+      userId: user.id,
       status: 'unread',
     });
 
-    // Fix links for Internal Invoices (INT_FAC)
-    // If title has "Facture" but no "FAC-", it's likely an Internal Invoice -> /internal-invoices/
-    notifications.forEach((n: any) => {
-      if (n.link && n.link.includes('/sales/invoices/') && n.title && n.title.includes('Facture') && !n.title.includes('FAC-')) {
-        n.link = n.link.replace('/sales/invoices/', '/internal-invoices/');
-      }
-    });
-
-    // عدّاد غير المقروءة بعد إزالة التكرار في الواجهة
-    const unreadCount = notifications.filter((n: any) => n.status === 'unread').length || unreadCountDb;
-
-    return NextResponse.json({
-      notifications,
-      unreadCount,
-    });
-  } catch (error: any) {
-    console.error('Erreur GET /notifications:', error);
-    return NextResponse.json(
-      { error: 'Erreur serveur', details: error.message },
-      { status: 500 }
-    );
-  }
-}
-
-export async function PATCH(request: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
-    }
-
-    await connectDB();
-
-    const body = await request.json();
-    const { id, markAllRead } = body || {};
-
-    const tenantId = session.user.companyId?.toString() || '';
-    const userEmail = session.user.email as string | undefined;
-
-    if (!tenantId || !userEmail) {
-      return NextResponse.json({ error: 'Tenant ou email utilisateur introuvable' }, { status: 400 });
-    }
-
-    const now = new Date();
-
-    if (markAllRead) {
-      await (Notification as any).updateMany(
-        { tenantId, userEmail, status: 'unread' },
-        { $set: { status: 'read', readAt: now } }
-      );
-    } else if (id) {
-      await (Notification as any).updateOne(
-        { _id: id, tenantId, userEmail },
-        { $set: { status: 'read', readAt: now } }
-      );
-    } else {
-      return NextResponse.json({ error: 'Aucune action spécifiée' }, { status: 400 });
-    }
-
-    const unreadCount = await (Notification as any).countDocuments({
+    // Auto-cleanup corrupted notifications (Temporary Fix)
+    // Remove if message or title contains "undefined"
+    await Notification.deleteMany({
       tenantId,
-      userEmail,
-      status: 'unread',
+      $or: [
+        { title: { $regex: 'undefined', $options: 'i' } },
+        { message: { $regex: 'undefined', $options: 'i' } }
+      ]
     });
 
-    return NextResponse.json({ success: true, unreadCount });
-  } catch (error: any) {
-    console.error('Erreur PATCH /notifications:', error);
-    return NextResponse.json(
-      { error: 'Erreur serveur', details: error.message },
-      { status: 500 }
+    // Filter out from current result just in case (though deleteMany is async, might race)
+    const cleanNotifications = notifications.filter(n =>
+      !n.title.toLowerCase().includes('undefined') &&
+      !n.message.toLowerCase().includes('undefined')
     );
+
+    return NextResponse.json({ notifications: cleanNotifications, unreadCount });
+  } catch (error: any) {
+    console.error('Error fetching notifications:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

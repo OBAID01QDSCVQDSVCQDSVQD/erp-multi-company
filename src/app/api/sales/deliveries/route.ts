@@ -159,26 +159,19 @@ export async function POST(request: NextRequest) {
     // Ensure we have a valid warehouseId string (if found) or keep null/undefined
     const warehouseIdStr = warehouseId ? warehouseId.toString() : undefined;
 
-    console.log(`[STOCK] Using Warehouse ID: ${warehouseIdStr}`);
+
 
     // === CHECK STOCK AVAILABILITY ===
     // 1. Fetch company settings to see if negative stock is allowed
     const CompanySettings = (await import('@/lib/models/CompanySettings')).default;
     const settings = await (CompanySettings as any).findOne({ tenantId }).lean();
 
-    // Debug logging
-    console.log('[STOCK CHECK] Settings retrieved:', JSON.stringify(settings?.stock));
-
     // Default is allowed if not specified OR if explictly set to 'autorise'
     // Stricter check: Only allow if NOT 'interdit'
     const stockSettingValue = settings?.stock?.stockNegatif;
     const isNegativeStockAllowed = stockSettingValue !== 'interdit';
 
-    console.log(`[STOCK CHECK] Is negative stock allowed? ${isNegativeStockAllowed} (Value in DB: "${stockSettingValue}")`);
-
     if (!isNegativeStockAllowed) {
-      console.log('[STOCK CHECK] Verifying stock levels for items...');
-
       // 2. If forbidden, check stock for each item
       for (const line of body.lignes || []) {
         if (!line.productId || !line.quantite || line.quantite <= 0) continue;
@@ -212,21 +205,14 @@ export async function POST(request: NextRequest) {
             else if (mov.type === 'SORTIE') currentStock -= mov.qte;
           }
 
-          console.log(`[STOCK CHECK] Product: ${product.nom} | Available (Wh:${warehouseIdStr || 'ALL'}): ${currentStock} | Requested: ${line.quantite}`);
-
           if (currentStock < line.quantite) {
             const errorMsg = `Stock insuffisant pour le produit "${product.nom}" dans l'entrepôt sélectionné. Disponible: ${currentStock}, Demandé: ${line.quantite}.`;
-            console.log(`[STOCK CHECK] BLOCKED: ${errorMsg}`);
             return NextResponse.json({
               error: errorMsg
             }, { status: 400 });
           }
-        } else {
-          console.log(`[STOCK CHECK] Product ${line.productId} is not stockable or not found.`);
         }
       }
-    } else {
-      console.log('[STOCK CHECK] Skipped check because negative stock is allowed.');
     }
     // === END CHECK STOCK AVAILABILITY ===
 
@@ -262,6 +248,22 @@ export async function POST(request: NextRequest) {
 
     // Create stock movements for all products
     await createStockMovementsForDelivery(delivery, tenantId, session.user.email, projectId, warehouseIdStr);
+
+    // Notify Admins about new delivery
+    try {
+      const { NotificationService } = await import('@/lib/services/notification.service');
+      await NotificationService.notifyAdmins(tenantId, {
+        type: 'new_delivery',
+        title: 'Bon de Livraison Créé',
+        message: `Bon de livraison ${delivery.numero} créé.`,
+        link: `/sales/deliveries/${delivery._id}`
+      });
+
+      // Check low stock
+      NotificationService.checkLowStock(tenantId).catch(err => console.error('Error checking low stock:', err));
+    } catch (notifError) {
+      console.error('Error sending delivery notification:', notifError);
+    }
 
     // Log action
     const { logAction } = await import('@/lib/logger');

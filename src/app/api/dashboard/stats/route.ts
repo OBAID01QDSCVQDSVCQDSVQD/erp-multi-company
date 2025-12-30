@@ -329,6 +329,17 @@ export async function GET(request: NextRequest) {
       value: p.revenue
     }));
 
+    // Trigger background checks (fire and forget)
+    try {
+      const { NotificationService } = await import('@/lib/services/notification.service');
+      // Check overdue invoices
+      NotificationService.checkOverdueInvoices(tenantId).catch(err => console.error('Error checking overdue invoices:', err));
+      // Check low stock
+      NotificationService.checkLowStock(tenantId).catch(err => console.error('Error checking low stock:', err));
+    } catch (e) {
+      console.error('Error triggering background checks:', e);
+    }
+
     return NextResponse.json({
       stats: {
         customers: { total: totalCustomers, label: 'Clients' },
