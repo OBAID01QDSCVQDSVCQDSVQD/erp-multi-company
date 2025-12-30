@@ -7,7 +7,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useTenantId } from '@/hooks/useTenantId';
 import { Bars3Icon, HomeIcon, UserCircleIcon, ChartBarIcon, ArrowRightOnRectangleIcon, CogIcon, BuildingOfficeIcon, ChevronDownIcon, CreditCardIcon, SunIcon, MoonIcon, MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline';
-import NotificationDropdown from '@/components/layout/NotificationDropdown';
+import NotificationDropdown from '@/components/Layout/NotificationDropdown';
 
 interface NotificationItem {
     _id: string;
