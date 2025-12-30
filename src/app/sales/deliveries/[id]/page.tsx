@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
-import { DocumentTextIcon, ArrowLeftIcon, ArrowDownTrayIcon, ChatBubbleLeftEllipsisIcon, PhoneIcon, MagnifyingGlassIcon, XMarkIcon, CheckIcon } from '@heroicons/react/24/outline';
+import { DocumentTextIcon, ArrowLeftIcon, ArrowDownTrayIcon, ChatBubbleLeftEllipsisIcon, PhoneIcon, MagnifyingGlassIcon, XMarkIcon, CheckIcon, EnvelopeIcon } from '@heroicons/react/24/outline';
 import { useTenantId } from '@/hooks/useTenantId';
 import toast from 'react-hot-toast';
 
@@ -37,6 +37,10 @@ export default function ViewDeliveryPage() {
   const [companySettings, setCompanySettings] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [generatingPDF, setGeneratingPDF] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [emailToUse, setEmailToUse] = useState('');
+  const [includeStampEmail, setIncludeStampEmail] = useState(true);
 
   // WhatsApp Modal State
   const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
@@ -149,6 +153,57 @@ export default function ViewDeliveryPage() {
       toast.error('Erreur lors du téléchargement du PDF');
     } finally {
       setGeneratingPDF(false);
+    }
+  };
+
+  const handleSendEmail = () => {
+    if (!delivery || !customer) return;
+
+    // Pre-fill email: valid root email or fallback to contacts
+    let email = customer.email || '';
+    if (!email && customer.contacts && customer.contacts.length > 0) {
+      const principal = customer.contacts.find((c: any) => c.principal && c.email);
+      if (principal) email = principal.email;
+      else {
+        const first = customer.contacts.find((c: any) => c.email);
+        if (first) email = first.email;
+      }
+    }
+
+    setEmailToUse(email);
+    setIncludeStampEmail(true);
+    setShowEmailModal(true);
+  };
+
+  const confirmSendEmail = async () => {
+    if (!delivery || !emailToUse) {
+      toast.error("Veuillez saisir une adresse email valide.");
+      return;
+    }
+
+    setSendingEmail(true);
+    try {
+      const res = await fetch(`/api/sales/deliveries/${delivery._id}/email`, {
+        method: 'POST',
+        headers: { 'X-Tenant-Id': tenantId || '', 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: emailToUse,
+          withStamp: includeStampEmail
+        })
+      });
+
+      if (res.ok) {
+        toast.success(`Bon de livraison envoyé à ${emailToUse}`);
+        setShowEmailModal(false);
+      } else {
+        const err = await res.json();
+        toast.error(err.error || "Erreur lors de l'envoi");
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Erreur serveur");
+    } finally {
+      setSendingEmail(false);
     }
   };
 
@@ -302,34 +357,45 @@ export default function ViewDeliveryPage() {
             </div>
           </div>
 
-          <button
-            onClick={handleDownloadPDF}
-            disabled={generatingPDF}
-            className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base self-start sm:self-auto"
-          >
-            {generatingPDF ? (
-              <>
-                <svg className="animate-spin h-4 w-4 sm:h-5 sm:w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <span>Génération du PDF...</span>
-              </>
-            ) : (
-              <>
-                <ArrowDownTrayIcon className="w-4 h-4 sm:w-5 sm:h-5" />
-                <span>Télécharger PDF</span>
-              </>
-            )}
-          </button>
+          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+            <button
+              onClick={handleDownloadPDF}
+              disabled={generatingPDF}
+              className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base self-start sm:self-auto w-full sm:w-auto"
+            >
+              {generatingPDF ? (
+                <>
+                  <svg className="animate-spin h-4 w-4 sm:h-5 sm:w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <span>Génération...</span>
+                </>
+              ) : (
+                <>
+                  <ArrowDownTrayIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span>Télécharger PDF</span>
+                </>
+              )}
+            </button>
 
-          <button
-            onClick={handleOpenWhatsAppModal}
-            className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm sm:text-base self-start sm:self-auto"
-          >
-            <ChatBubbleLeftEllipsisIcon className="w-4 h-4 sm:w-5 sm:h-5" />
-            WhatsApp
-          </button>
+            <button
+              onClick={handleSendEmail}
+              disabled={sendingEmail}
+              className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base self-start sm:self-auto w-full sm:w-auto"
+            >
+              <EnvelopeIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span>{sendingEmail ? 'Envoi...' : 'Email'}</span>
+            </button>
+
+            <button
+              onClick={handleOpenWhatsAppModal}
+              className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm sm:text-base self-start sm:self-auto w-full sm:w-auto"
+            >
+              <ChatBubbleLeftEllipsisIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+              WhatsApp
+            </button>
+          </div>
         </div>
 
         {/* Company Header Info */}
@@ -810,6 +876,95 @@ export default function ViewDeliveryPage() {
                   type="button"
                   className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-700 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:col-start-1 sm:text-sm"
                   onClick={() => setShowWhatsAppModal(false)}
+                >
+                  Annuler
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Email Modal */}
+      {showEmailModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+          <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onClick={() => setShowEmailModal(false)}></div>
+            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            <div className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
+              <div className="absolute top-0 right-0 pt-4 pr-4">
+                <button
+                  type="button"
+                  className="bg-white dark:bg-gray-800 rounded-md text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  onClick={() => setShowEmailModal(false)}
+                >
+                  <span className="sr-only">Fermer</span>
+                  <XMarkIcon className="h-6 w-6" aria-hidden="true" />
+                </button>
+              </div>
+
+              <div>
+                <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-900">
+                  <EnvelopeIcon className="h-6 w-6 text-blue-600 dark:text-blue-400" aria-hidden="true" />
+                </div>
+                <div className="mt-3 text-center sm:mt-5">
+                  <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white" id="modal-title">
+                    Envoyer par Email
+                  </h3>
+                  <div className="mt-2">
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Vérifiez l'adresse email et les options d'envoi.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-5 space-y-4">
+                <div>
+                  <label htmlFor="email-to" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Email du destinataire
+                  </label>
+                  <div className="mt-1 relative rounded-md shadow-sm">
+                    <input
+                      type="email"
+                      name="email-to"
+                      id="email-to"
+                      className="focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md h-10 px-3"
+                      placeholder="exemple@email.com"
+                      value={emailToUse}
+                      onChange={(e) => setEmailToUse(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {/* Include Stamp Checkbox */}
+                <div
+                  className="mt-4 flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                  onClick={() => setIncludeStampEmail(!includeStampEmail)}
+                >
+                  <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${includeStampEmail ? 'bg-blue-600 border-blue-600' : 'border-gray-400 bg-white dark:bg-gray-800'}`}>
+                    {includeStampEmail && <CheckIcon className="w-3.5 h-3.5 text-white" />}
+                  </div>
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer select-none">
+                    Inclure le cachet
+                  </label>
+                </div>
+
+              </div>
+
+              <div className="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense">
+                <button
+                  type="button"
+                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:col-start-2 sm:text-sm"
+                  onClick={confirmSendEmail}
+                  disabled={sendingEmail}
+                >
+                  {sendingEmail ? 'Envoi...' : 'Envoyer'}
+                </button>
+                <button
+                  type="button"
+                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-700 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:col-start-1 sm:text-sm"
+                  onClick={() => setShowEmailModal(false)}
+                  disabled={sendingEmail}
                 >
                   Annuler
                 </button>
