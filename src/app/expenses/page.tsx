@@ -120,7 +120,7 @@ export default function ExpensesPage() {
     periode: '',
     categorieId: '',
     statut: '',
-    isDeclared: 'true',
+    isDeclared: '',
     projetId: '',
   });
   const [pagination, setPagination] = useState({
