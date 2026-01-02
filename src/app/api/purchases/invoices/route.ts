@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
     const total = await (PurchaseInvoice as any).countDocuments(query);
     const invoices = await (PurchaseInvoice as any)
       .find(query)
-      .sort({ dateFacture: -1, createdAt: -1 })
+      .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
       .lean();
@@ -93,19 +93,12 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
 
     // Use manual number if provided, otherwise generate automatically
-    console.log('========================================');
-    console.log('POST /api/purchases/invoices: START');
-    console.log('Body keys:', Object.keys(body));
-    console.log('Body.numero:', body.numero);
-    console.log('Body.numero type:', typeof body.numero);
-    console.log('Body.numero value:', JSON.stringify(body.numero));
-    console.log('========================================');
+    // Use manual number if provided, otherwise generate automatically
     let numero: string;
 
     // Check if manual number is provided and not empty
     if (body.numero && typeof body.numero === 'string' && body.numero.trim() !== '') {
       numero = body.numero.trim();
-      console.log('POST /api/purchases/invoices: Using manual number:', numero);
       // Check if manual number already exists
       const existingInvoice = await (PurchaseInvoice as any).findOne({
         societeId: tenantId,
@@ -118,10 +111,8 @@ export async function POST(request: NextRequest) {
         );
       }
     } else {
-      console.log('POST /api/purchases/invoices: No manual number provided, generating automatically');
       numero = await NumberingService.next(tenantId, 'facfo');
     }
-    console.log('POST /api/purchases/invoices: Final numero to use:', numero);
 
     // Get supplier name if not provided
     let fournisseurNom = body.fournisseurNom || '';
@@ -136,8 +127,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Resolve Warehouse
+    // Resolve Warehouse
     let warehouseId = body.warehouseId;
-    console.log('POST /api/purchases/invoices: Received warehouseId:', warehouseId);
 
     if (!warehouseId) {
       // Try to find default warehouse
@@ -218,12 +209,6 @@ export async function POST(request: NextRequest) {
     });
 
     // Force Mongoose to recognize images as modified if it's an array (same logic as PUT route)
-    console.log('POST /api/purchases/invoices: Received images in body', {
-      hasImages: !!body.images,
-      imagesIsArray: Array.isArray(body.images),
-      imagesLength: Array.isArray(body.images) ? body.images.length : 0,
-      images: body.images,
-    });
 
     if (Array.isArray(body.images) && body.images.length > 0) {
       // Clear and set images array
@@ -241,16 +226,7 @@ export async function POST(request: NextRequest) {
           format: img.format || undefined,
         });
       });
-      console.log('POST /api/purchases/invoices: Setting images on invoice', {
-        imagesCount: invoice.images.length,
-        images: invoice.images,
-      });
       (invoice as any).markModified('images');
-    } else {
-      console.log('POST /api/purchases/invoices: No images to save', {
-        imagesIsArray: Array.isArray(body.images),
-        imagesValue: body.images,
-      });
     }
 
     // Totals will be calculated by pre-save hook

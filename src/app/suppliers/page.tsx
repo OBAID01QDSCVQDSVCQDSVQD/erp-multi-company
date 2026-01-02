@@ -41,6 +41,7 @@ export default function SuppliersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [q, setQ] = useState('');
+  const [searchReadOnly, setSearchReadOnly] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [viewingId, setViewingId] = useState<string | null>(null);
@@ -399,7 +400,12 @@ export default function SuppliersPage() {
         <div className="relative">
           <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
           <input
-            type="text"
+            type="search"
+            name="search_query_safe"
+            id="search_query_safe"
+            autoComplete="new-password"
+            readOnly={searchReadOnly}
+            onFocus={() => setSearchReadOnly(false)}
             placeholder="Rechercher par nom, matricule, email, téléphone, ville..."
             value={q}
             onChange={(e) => setQ(e.target.value)}

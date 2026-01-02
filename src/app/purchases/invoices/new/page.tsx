@@ -3,11 +3,13 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
-import { PlusIcon, XMarkIcon, MagnifyingGlassIcon, ArrowLeftIcon, ClipboardDocumentCheckIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, XMarkIcon, MagnifyingGlassIcon, ArrowLeftIcon, ClipboardDocumentCheckIcon, TrashIcon, CameraIcon } from '@heroicons/react/24/outline';
 import { useTenantId } from '@/hooks/useTenantId';
 import toast from 'react-hot-toast';
 import ImageUploader, { ImageData } from '@/components/common/ImageUploader';
 import ProductSearchModal from '@/components/common/ProductSearchModal';
+import QuickProductCreateModal from '@/components/products/QuickProductCreateModal';
+import QuickSupplierCreateModal from '@/components/suppliers/QuickSupplierCreateModal';
 
 interface Supplier {
   _id: string;
@@ -94,6 +96,77 @@ export default function NewPurchaseInvoicePage() {
   const [selectedSupplierIndex, setSelectedSupplierIndex] = useState(-1);
   const [supplierDropdownPosition, setSupplierDropdownPosition] = useState<{ top: number; left: number; width: number } | null>(null);
 
+  // Quick Create State
+  const [showQuickCreateModal, setShowQuickCreateModal] = useState(false);
+  const [quickCreateLineIndex, setQuickCreateLineIndex] = useState<number | null>(null);
+  const [quickCreateName, setQuickCreateName] = useState('');
+
+  const handleOpenQuickCreate = (index: number) => {
+    const line = lines[index];
+    setQuickCreateName(line.designation || productSearches[index] || '');
+    setQuickCreateLineIndex(index);
+    setShowQuickCreateModal(true);
+  };
+
+  const handleProductCreated = (product: Product) => {
+    if (quickCreateLineIndex === null) return;
+
+    // Update the line with the new product
+    handleSelectProduct(product); // Re-use existing selection logic which uses currentProductLineIndex
+
+    // Since handleSelectProduct uses currentProductLineIndex, we need to make sure it matches or adapt logic.
+    // Actually handleSelectProduct depends on currentProductLineIndex. Let's fix that dependency.
+
+    const index = quickCreateLineIndex;
+    const newLines = [...lines];
+    newLines[index].produitId = product._id;
+    newLines[index].designation = product.nom;
+    newLines[index].prixUnitaireHT = product.prixVenteHT || 0;
+    if (product.tvaPct !== undefined) {
+      newLines[index].tvaPct = product.tvaPct;
+    }
+
+    // Recalculate line total
+    if (newLines[index].prixUnitaireHT && newLines[index].quantite > 0) {
+      let prixAvecRemise = newLines[index].prixUnitaireHT;
+      const remisePct = newLines[index].remisePct || 0;
+      if (remisePct > 0) {
+        prixAvecRemise = prixAvecRemise * (1 - remisePct / 100);
+      }
+      newLines[index].totalLigneHT = prixAvecRemise * newLines[index].quantite;
+    }
+
+    setLines(newLines);
+    setProductSearches({ ...productSearches, [index]: product.nom });
+
+    // Close modal
+    setShowQuickCreateModal(false);
+    setQuickCreateLineIndex(null);
+    toast.success('Produit créé et ajouté !');
+  };
+
+  // Supplier Quick Create State
+  const [showSupplierCreateModal, setShowSupplierCreateModal] = useState(false);
+  const [supplierCreateName, setSupplierCreateName] = useState('');
+
+  const handleOpenSupplierCreate = () => {
+    setSupplierCreateName(supplierSearch);
+    setShowSupplierCreateModal(true);
+    setShowSupplierDropdown(false);
+  };
+
+  const handleSupplierCreated = (supplier: any) => {
+    setSuppliers(prev => [...prev, supplier]);
+    setFormData(prev => ({
+      ...prev,
+      fournisseurId: supplier._id,
+      fournisseurNom: supplier.raisonSociale || supplier.nom
+    }));
+    setSupplierSearch(supplier.raisonSociale || supplier.nom);
+    setShowSupplierCreateModal(false);
+    toast.success('Fournisseur créé et sélectionné !');
+  };
+
   // Purchase Orders and Receptions
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [receptions, setReceptions] = useState<Reception[]>([]);
@@ -130,6 +203,8 @@ export default function NewPurchaseInvoicePage() {
   const [lines, setLines] = useState<InvoiceLine[]>([]);
   const [images, setImages] = useState<ImageData[]>([]);
 
+  const [isScanning, setIsScanning] = useState(false);
+
   useEffect(() => {
     if (tenantId) {
       fetchSuppliers();
@@ -140,6 +215,93 @@ export default function NewPurchaseInvoicePage() {
       fetchWarehouses();
     }
   }, [tenantId]);
+
+  const handleScanInvoice = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsScanning(true);
+    const toastId = toast.loading('Analyse de la facture en cours...');
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch('/api/purchases/scan', {
+        method: 'POST',
+        headers: { 'X-Tenant-Id': tenantId || '' },
+        body: formData
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Erreur lors du scan');
+      }
+
+      const { data, imageUrl, imageUploadError } = await res.json();
+
+      // Populate form
+      setFormData(prev => ({
+        ...prev,
+        referenceFournisseur: data.numero || prev.referenceFournisseur,
+        fournisseurId: data.supplierId || prev.fournisseurId,
+        fournisseurNom: data.supplierName || prev.fournisseurNom,
+        dateFacture: data.date || prev.dateFacture,
+        fodec: data.fodec?.present
+          ? { enabled: true, tauxPct: data.fodec.rate || 1 }
+          : prev.fodec,
+      }));
+
+      if (data.supplierName) {
+        setSupplierSearch(data.supplierName);
+      }
+
+      // Populate lines
+      if (data.lines && data.lines.length > 0) {
+        const newLines: InvoiceLine[] = data.lines.map((line: any) => ({
+          produitId: line.productId || undefined,
+          designation: line.designation || 'Article non identifié',
+          quantite: line.quantity || 1,
+          prixUnitaireHT: line.unitPrice || 0,
+          remisePct: line.remisePct || 0,
+          tvaPct: (line.tvaPct !== undefined && line.tvaPct !== null) ? Number(line.tvaPct) : 19, // Default to 19 only if missing or null
+          fodecPct: 0,
+          totalLigneHT: line.totalHT || ((line.quantity || 1) * (line.unitPrice || 0))
+        }));
+        setLines(newLines);
+
+        // Update product searches/matches logic
+        const searches: { [key: number]: string } = {};
+        newLines.forEach((line, idx) => {
+          if (line.designation) searches[idx] = line.designation;
+        });
+        setProductSearches(searches);
+      }
+
+      // Add image to attachments if returned
+      if (imageUrl) {
+        setImages(prev => [...prev, {
+          id: Date.now().toString(),
+          url: imageUrl,
+          type: 'image/jpeg',
+          name: 'scan-invoice.jpg',
+          size: file.size
+        }]);
+      } else if (imageUploadError) {
+        toast.error(`Attention: ${imageUploadError}`, { duration: 6000, id: 'image-upload-error' });
+      }
+
+      toast.success("Facture analysée avec succès !", { id: toastId });
+
+    } catch (error: any) {
+      console.error("Scan error:", error);
+      toast.error(error.message || "Erreur lors de l'analyse", { id: toastId });
+    } finally {
+      setIsScanning(false);
+      // Reset input
+      e.target.value = '';
+    }
+  };
 
   useEffect(() => {
     if (selectedCAId && selectedDocumentType === 'ca') {
@@ -154,9 +316,7 @@ export default function NewPurchaseInvoicePage() {
   }, [selectedBRId, selectedDocumentType]);
 
   // Debug: Log images state changes
-  useEffect(() => {
-    console.log('Images state updated:', images);
-  }, [images]);
+
 
   async function fetchSuppliers() {
     if (!tenantId) return;
@@ -662,8 +822,11 @@ export default function NewPurchaseInvoicePage() {
       return;
     }
 
-    if (lines.length === 0) {
-      toast.error('Veuillez ajouter au moins une ligne');
+    // Filter out invalid lines (empty designation or zero quantity)
+    const validLines = lines.filter(l => l.designation && (l.designation.trim() !== '') && l.quantite > 0);
+
+    if (validLines.length === 0) {
+      toast.error('Veuillez ajouter au moins une ligne valide (désignation et quantité non nulles)');
       return;
     }
 
@@ -673,37 +836,26 @@ export default function NewPurchaseInvoicePage() {
       const { images: formDataImages, ...formDataWithoutImages } = formData as any;
 
       // Ensure images is an array and format them correctly (same format as PUT route)
-      console.log('handleSave: Current images state', images);
       const imagesToSend = Array.isArray(images) && images.length > 0 ? images.map((img: ImageData) => ({
         id: img.id || `${Date.now()}-${Math.random()}`,
-        name: img.name || '',
-        url: img.url || '',
-        publicId: img.publicId || undefined,
+        name: img.name || img.url.split('/').pop() || 'unknown',
+        url: img.url,
+        publicId: img.publicId, // Can be undefined
         type: img.type || 'image/jpeg',
         size: img.size || 0,
-        width: img.width || undefined,
-        height: img.height || undefined,
-        format: img.format || undefined,
+        width: img.width,
+        height: img.height,
+        format: img.format,
       })) : [];
-
-      console.log('handleSave: Formatted images to send', imagesToSend);
 
       const payload: any = {
         ...formDataWithoutImages,
         numero: formData.numero || formDataWithoutImages.numero || '', // Ensure numero is included
         warehouseId: selectedWarehouseId || undefined,
-        lignes: lines,
+        lignes: validLines,
         bonsReceptionIds: selectedBRId ? [selectedBRId] : [],
         images: imagesToSend,
       };
-
-      console.log('handleSave: Full payload', {
-        numero: payload.numero,
-        formDataNumero: formData.numero,
-        formDataWithoutImagesNumero: formDataWithoutImages.numero,
-        payloadKeys: Object.keys(payload),
-        fullPayload: payload
-      });
 
       const payloadString = JSON.stringify(payload);
 
@@ -740,28 +892,41 @@ export default function NewPurchaseInvoicePage() {
       return;
     }
 
-    if (lines.length === 0) {
-      toast.error('Veuillez ajouter au moins une ligne');
+    // Filter out invalid lines
+    const validLines = lines.filter(l => l.designation && (l.designation.trim() !== '') && l.quantite > 0);
+
+    if (validLines.length === 0) {
+      toast.error('Veuillez ajouter au moins une ligne valide (désignation et quantité non nulles)');
       return;
     }
 
     setSaving(true);
     try {
+      // Create payload without images in formData, then add images separately
+      const { images: formDataImages, ...formDataWithoutImages } = formData as any;
+
+      // Ensure images is an array and format them correctly
+      const imagesToSend = Array.isArray(images) && images.length > 0 ? images.map((img: ImageData) => ({
+        id: img.id || `${Date.now()}-${Math.random()}`,
+        name: img.name || img.url.split('/').pop() || 'unknown',
+        url: img.url,
+        publicId: img.publicId, // Can be undefined
+        type: img.type || 'image/jpeg',
+        size: img.size || 0,
+        width: img.width,
+        height: img.height,
+        format: img.format,
+      })) : [];
+
       const validatePayload = {
-        ...formData,
-        numero: formData.numero || '', // Ensure numero is included
+        ...formDataWithoutImages,
+        numero: formData.numero || formDataWithoutImages.numero || '', // Ensure numero is included
         warehouseId: selectedWarehouseId || undefined,
-        lignes: lines,
+        lignes: validLines,
         statut: 'VALIDEE',
         bonsReceptionIds: selectedBRId ? [selectedBRId] : [],
+        images: imagesToSend,
       };
-
-      console.log('handleValidate: Payload', {
-        numero: validatePayload.numero,
-        formDataNumero: formData.numero,
-        payloadKeys: Object.keys(validatePayload),
-        fullPayload: validatePayload
-      });
 
       const response = await fetch('/api/purchases/invoices', {
         method: 'POST',
@@ -791,17 +956,47 @@ export default function NewPurchaseInvoicePage() {
   return (
     <DashboardLayout>
       <div className="p-4 sm:p-6 max-w-7xl mx-auto">
-        <div className="mb-6">
-          <button
-            onClick={() => router.back()}
-            className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-4"
-          >
-            <ArrowLeftIcon className="w-5 h-5" />
-            <span className="text-sm">Retour</span>
-          </button>
-          <div className="flex items-center gap-3">
-            <ClipboardDocumentCheckIcon className="w-8 h-8 text-blue-600 dark:text-blue-400" />
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Nouvelle facture d'achat</h1>
+        <div className="mb-6 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+          <div>
+            <button
+              onClick={() => router.back()}
+              className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-4"
+            >
+              <ArrowLeftIcon className="w-5 h-5" />
+              <span className="text-sm">Retour</span>
+            </button>
+            <div className="flex items-center gap-3">
+              <ClipboardDocumentCheckIcon className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Nouvelle facture d'achat</h1>
+            </div>
+          </div>
+
+          <div>
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              id="scan-invoice-input"
+              onChange={handleScanInvoice}
+              disabled={isScanning}
+            />
+            <label
+              htmlFor="scan-invoice-input"
+              className={`flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 cursor-pointer shadow-md transition-all ${isScanning ? 'opacity-70 cursor-wait' : ''}`}
+            >
+              {isScanning ? (
+                <>
+                  <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
+                  <span>Analyse intelligente...</span>
+                </>
+              ) : (
+                <>
+                  <CameraIcon className="w-5 h-5" />
+                  <span className="font-medium">Scanner Facture (AI)</span>
+                </>
+              )}
+            </label>
           </div>
         </div>
 
@@ -885,7 +1080,30 @@ export default function NewPurchaseInvoicePage() {
                   Fournisseur *
                 </label>
                 <div className="relative">
-                  <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  {/* Icon Logic: Show Plus if text entered but no ID selected */}
+                  {!formData.fournisseurId && supplierSearch.length > 0 ? (
+                    <div className="absolute left-3 top-1/2 transform -translate-y-1/2 flex items-center space-x-2">
+                      <PlusIcon
+                        className="h-5 w-5 text-green-600 bg-green-100 rounded-full p-0.5 cursor-pointer z-20 hover:scale-110 transition-transform"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenSupplierCreate();
+                        }}
+                      />
+                      <span
+                        className="text-xs text-green-700 font-medium underline cursor-pointer hover:text-green-800 z-20"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenSupplierCreate();
+                        }}
+                      >
+                        Créer ?
+                      </span>
+                    </div>
+                  ) : (
+                    <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  )}
+
                   <input
                     type="text"
                     data-supplier-input="true"
@@ -893,6 +1111,15 @@ export default function NewPurchaseInvoicePage() {
                     onChange={(e) => {
                       if (selectedDocumentType === 'none') {
                         setSupplierSearch(e.target.value);
+                        // If user clears input, clear ID
+                        if (e.target.value === '') {
+                          setFormData(prev => ({ ...prev, fournisseurId: undefined, fournisseurNom: undefined }));
+                        }
+                        // If typed text matches current ID name, fine. Else, assume filtering/new
+                        if (formData.fournisseurId && e.target.value !== formData.fournisseurNom) {
+                          setFormData(prev => ({ ...prev, fournisseurId: undefined, fournisseurNom: undefined }));
+                        }
+
                         setShowSupplierDropdown(true);
                         setSelectedSupplierIndex(-1);
                         calculateSupplierDropdownPosition();
@@ -907,7 +1134,7 @@ export default function NewPurchaseInvoicePage() {
                     onKeyDown={selectedDocumentType === 'none' ? handleSupplierKeyDown : undefined}
                     placeholder="Rechercher un fournisseur..."
                     readOnly={selectedDocumentType !== 'none'}
-                    className={`w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 ${selectedDocumentType !== 'none' ? 'bg-gray-50 dark:bg-gray-600 cursor-not-allowed' : ''
+                    className={`w-full ${!formData.fournisseurId && supplierSearch.length > 0 ? 'pl-24 border-yellow-400 bg-yellow-50' : 'pl-10'} pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 ${selectedDocumentType !== 'none' ? 'bg-gray-50 dark:bg-gray-600 cursor-not-allowed' : ''
                       }`}
                   />
                   {showSupplierDropdown && supplierDropdownPosition && filteredSuppliers.length > 0 && (
@@ -968,18 +1195,7 @@ export default function NewPurchaseInvoicePage() {
                 </div>
               )}
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  N° facture interne
-                </label>
-                <input
-                  type="text"
-                  value={formData.numero}
-                  onChange={(e) => setFormData({ ...formData, numero: e.target.value })}
-                  placeholder="Laisser vide pour génération automatique"
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
-                />
-              </div>
+
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -1098,14 +1314,39 @@ export default function NewPurchaseInvoicePage() {
                             type="text"
                             value={productSearches[index] || line.designation || ''}
                             onChange={(e) => {
-                              updateLine(index, 'designation', e.target.value);
-                              setProductSearches({ ...productSearches, [index]: e.target.value });
+                              const val = e.target.value;
+                              setProductSearches(prev => ({ ...prev, [index]: val }));
+                              setLines(prevLines => {
+                                const newLines = [...prevLines];
+                                newLines[index] = {
+                                  ...newLines[index],
+                                  designation: val,
+                                  produitId: undefined
+                                };
+                                return newLines;
+                              });
                             }}
-                            onClick={() => handleOpenProductModal(index)}
-                            onFocus={() => handleOpenProductModal(index)}
-                            placeholder="Rechercher..."
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            placeholder="Rechercher ou saisir un produit..."
+                            className={`w-full px-3 py-2 border rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${!line.produitId && line.designation ? 'border-yellow-400 bg-yellow-50 dark:border-yellow-600 dark:bg-yellow-900/20' : 'border-gray-300 dark:border-gray-600'
+                              }`}
                           />
+                          {(!line.produitId && line.designation) ? (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenQuickCreate(index)}
+                              className="p-2 text-green-600 hover:text-green-800 bg-green-100 dark:bg-green-900/30 rounded-full"
+                            >
+                              <PlusIcon className="w-5 h-5" />
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenProductModal(index)}
+                              className="p-2 text-gray-400 hover:text-blue-600"
+                            >
+                              <MagnifyingGlassIcon className="w-5 h-5" />
+                            </button>
+                          )}
                           {line.designation && (
                             <button
                               onClick={() => {
@@ -1126,7 +1367,7 @@ export default function NewPurchaseInvoicePage() {
                           <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Quantité</label>
                           <input
                             type="number"
-                            value={line.quantite || ''}
+                            value={line.quantite !== undefined && line.quantite !== null ? line.quantite : ''}
                             onChange={(e) => updateLine(index, 'quantite', parseFloat(e.target.value) || 0)}
                             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded text-sm text-right bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                           />
@@ -1135,7 +1376,7 @@ export default function NewPurchaseInvoicePage() {
                           <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Prix HT</label>
                           <input
                             type="number"
-                            value={line.prixUnitaireHT || ''}
+                            value={line.prixUnitaireHT !== undefined && line.prixUnitaireHT !== null ? line.prixUnitaireHT : ''}
                             onChange={(e) => updateLine(index, 'prixUnitaireHT', parseFloat(e.target.value) || 0)}
                             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded text-sm text-right bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                           />
@@ -1147,7 +1388,7 @@ export default function NewPurchaseInvoicePage() {
                           <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Remise %</label>
                           <input
                             type="number"
-                            value={line.remisePct || ''}
+                            value={line.remisePct !== undefined && line.remisePct !== null ? line.remisePct : ''}
                             onChange={(e) => updateLine(index, 'remisePct', parseFloat(e.target.value) || 0)}
                             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded text-sm text-right bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                           />
@@ -1156,7 +1397,7 @@ export default function NewPurchaseInvoicePage() {
                           <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">TVA %</label>
                           <input
                             type="number"
-                            value={line.tvaPct || ''}
+                            value={line.tvaPct !== undefined && line.tvaPct !== null ? line.tvaPct : ''}
                             onChange={(e) => updateLine(index, 'tvaPct', parseFloat(e.target.value) || 0)}
                             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded text-sm text-right bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                           />
@@ -1203,29 +1444,57 @@ export default function NewPurchaseInvoicePage() {
                                   type="text"
                                   value={productSearches[index] || line.designation || ''}
                                   onChange={(e) => {
-                                    updateLine(index, 'designation', e.target.value);
-                                    setProductSearches({ ...productSearches, [index]: e.target.value });
+                                    const val = e.target.value;
+                                    setProductSearches(prev => ({ ...prev, [index]: val }));
+                                    setLines(prevLines => {
+                                      const newLines = [...prevLines];
+                                      newLines[index] = {
+                                        ...newLines[index],
+                                        designation: val,
+                                        produitId: null
+                                      };
+                                      return newLines;
+                                    });
                                   }}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    e.preventDefault();
-                                    handleOpenProductModal(index);
-                                  }}
-                                  onFocus={(e) => {
-                                    e.stopPropagation();
-                                    handleOpenProductModal(index);
-                                  }}
-                                  placeholder="Rechercher un produit..."
-                                  className="px-3 py-1.5 pr-8 border border-gray-300 dark:border-gray-600 rounded text-sm cursor-pointer focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
-                                  readOnly
+                                  placeholder="Rechercher ou saisir un produit..."
+                                  className={`px-3 py-1.5 pr-8 border rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 ${!line.produitId && line.designation ? 'border-yellow-400 bg-yellow-50 dark:border-yellow-600 dark:bg-yellow-900/20' : 'border-gray-300 dark:border-gray-600'
+                                    }`}
                                   style={{
                                     minWidth: '150px',
                                     width: line.designation ? `${Math.max(150, Math.min(500, (line.designation.length * 8) + 50))}px` : '150px',
                                     maxWidth: '500px',
                                   }}
                                 />
-                                <MagnifyingGlassIcon className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                                {(!line.produitId && line.designation) ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenQuickCreate(index)}
+                                    className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 text-green-600 hover:text-green-800 focus:outline-none bg-green-100 dark:bg-green-900/30 rounded-full"
+                                    title="Produit inconnu. Cliquez pour créer."
+                                  >
+                                    <PlusIcon className="h-4 w-4" />
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenProductModal(index)}
+                                    className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 text-gray-400 hover:text-blue-600 focus:outline-none"
+                                    title="Rechercher dans le catalogue"
+                                  >
+                                    <MagnifyingGlassIcon className="h-4 w-4" />
+                                  </button>
+                                )}
                               </div>
+                              {(!line.produitId && line.designation) && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenQuickCreate(index)}
+                                  className="ml-2 text-xs font-semibold text-green-600 hover:text-green-700 dark:text-green-400 underline whitespace-nowrap"
+                                  title="Créer ce produit maintenant"
+                                >
+                                  Créer ?
+                                </button>
+                              )}
                               {line.designation && (
                                 <button
                                   onClick={(e) => {
@@ -1246,7 +1515,7 @@ export default function NewPurchaseInvoicePage() {
                           <td className="px-3 py-3">
                             <input
                               type="number"
-                              value={line.quantite || ''}
+                              value={line.quantite || 0}
                               onChange={(e) => updateLine(index, 'quantite', parseFloat(e.target.value) || 0)}
                               min="0"
                               step="0.01"
@@ -1256,7 +1525,7 @@ export default function NewPurchaseInvoicePage() {
                           <td className="px-3 py-3">
                             <input
                               type="number"
-                              value={line.prixUnitaireHT || ''}
+                              value={line.prixUnitaireHT || 0}
                               onChange={(e) => updateLine(index, 'prixUnitaireHT', parseFloat(e.target.value) || 0)}
                               min="0"
                               step="0.01"
@@ -1266,7 +1535,7 @@ export default function NewPurchaseInvoicePage() {
                           <td className="px-3 py-3">
                             <input
                               type="number"
-                              value={line.remisePct || ''}
+                              value={line.remisePct || 0}
                               onChange={(e) => updateLine(index, 'remisePct', parseFloat(e.target.value) || 0)}
                               min="0"
                               max="100"
@@ -1277,7 +1546,7 @@ export default function NewPurchaseInvoicePage() {
                           <td className="px-3 py-3">
                             <input
                               type="number"
-                              value={line.tvaPct || ''}
+                              value={line.tvaPct || 0}
                               onChange={(e) => updateLine(index, 'tvaPct', parseFloat(e.target.value) || 0)}
                               min="0"
                               max="100"
@@ -1492,6 +1761,23 @@ export default function NewPurchaseInvoicePage() {
           title="Rechercher un produit"
         />
       )}
+
+      {/* Quick Create Modal */}
+      <QuickProductCreateModal
+        isOpen={showQuickCreateModal}
+        onClose={() => setShowQuickCreateModal(false)}
+        onSuccess={handleProductCreated}
+        initialName={quickCreateName}
+        tenantId={tenantId || ''}
+      />
+
+      <QuickSupplierCreateModal
+        isOpen={showSupplierCreateModal}
+        onClose={() => setShowSupplierCreateModal(false)}
+        onSuccess={handleSupplierCreated}
+        initialName={supplierCreateName}
+        tenantId={tenantId || ''}
+      />
     </DashboardLayout>
   );
 }

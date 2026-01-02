@@ -421,6 +421,8 @@ export default function CustomersPage() {
 
 
 
+  const [searchReadOnly, setSearchReadOnly] = useState(true);
+
   return (
     <DashboardLayout>
       <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
@@ -436,6 +438,12 @@ export default function CustomersPage() {
             <div className="relative flex-1">
               <MagnifyingGlassIcon className="h-5 w-5 text-gray-400 dark:text-gray-500 absolute left-3 top-1/2 transform -translate-y-1/2" />
               <input
+                type="search"
+                name="customer_search_safe"
+                id="customer_search_safe"
+                autoComplete="new-password"
+                readOnly={searchReadOnly}
+                onFocus={() => setSearchReadOnly(false)}
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 placeholder="Rechercher (nom, matricule, email, ville)"
