@@ -36,7 +36,7 @@
     "@types/nodemailer": "^7.0.4",
     "bcryptjs": "^2.4.3",
     "cloudinary": "^2.8.0",
-    "date-fns": "^2.30.0",
+    "date-fns": "^4.1.0",
     "dotenv": "^16.6.1",
     "framer-motion": "^12.23.26",
     "html2canvas": "^1.4.1",
