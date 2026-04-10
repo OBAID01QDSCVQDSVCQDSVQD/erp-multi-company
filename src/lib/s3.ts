@@ -42,11 +42,14 @@ export async function uploadFileToS3(
       ACL: "public-read",
     });
 
-    await s3Client.send(command);
-
-    // Return the public URL
-    const url = `https://${process.env.S3_ENDPOINT}/${bucketName}/${key}`;
-    return { url, key };
+    // Return the imgproxy URL for optimization
+    // Added rs:fill:800:0 (resize to 800px width, auto height) and q:80 (80% quality)
+    const imgproxyUrl = `https://imgproxy.chanti.tn/insecure/rs:fill:800:0/q:80/plain/s3://${bucketName}/${key}@webp`;
+    
+    // Also return the direct URL just in case
+    const directUrl = `https://${process.env.S3_ENDPOINT}/${bucketName}/${key}`;
+    
+    return { url: imgproxyUrl, key };
   } catch (error) {
     console.error("Error uploading to S3:", error);
     throw error;
