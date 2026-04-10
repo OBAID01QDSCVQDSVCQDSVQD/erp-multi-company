@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
-import { CubeIcon, MagnifyingGlassIcon, ArrowLeftIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import { CubeIcon, MagnifyingGlassIcon, ArrowLeftIcon, ExclamationTriangleIcon, PlusIcon } from '@heroicons/react/24/outline';
 import { useTenantId } from '@/hooks/useTenantId';
 import toast from 'react-hot-toast';
 
@@ -71,6 +71,7 @@ export default function StockPage() {
       }
     } catch (error) {
       console.error('Error fetching warehouses:', error);
+      toast.error('Erreur lors du chargement des entrepôts');
     }
   }
 
@@ -179,11 +180,20 @@ export default function StockPage() {
               <span>Stock</span>
             </h1>
           </div>
+          <div>
+            <button
+              onClick={() => router.push('/stock/adjustments/new')}
+              className="flex items-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg text-sm sm:text-base transition-colors border border-gray-200 dark:border-gray-700"
+            >
+              <PlusIcon className="w-5 h-5" />
+              <span>Ajustement Stock</span>
+            </button>
+          </div>
         </div>
 
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-          {multiWarehouseEnabled && warehouses.length > 0 && (
+          {(warehouses.length > 1 || (multiWarehouseEnabled && warehouses.length > 0)) && (
             <div className="w-full sm:w-64">
               <select
                 value={selectedWarehouseId}

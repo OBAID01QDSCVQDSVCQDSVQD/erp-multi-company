@@ -13,23 +13,43 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Accès non autorisé' }, { status: 403 });
         }
 
-        const { companyId } = await request.json();
-
-        if (!mongoose.Types.ObjectId.isValid(companyId)) {
-            return NextResponse.json({ error: 'ID entreprise invalide' }, { status: 400 });
-        }
+        const { companyId, userId } = await request.json();
 
         await connectDB();
 
-        // 1. Find the first admin user of the target company
-        const targetUser = await (User as any).findOne({
-            companyId: companyId,
-            role: 'admin',
-            isActive: true
-        }).sort({ createdAt: 1 });
+        let targetUser;
 
-        if (!targetUser) {
-            return NextResponse.json({ error: 'Aucun utilisateur administrateur trouvé pour cette entreprise' }, { status: 404 });
+        // Si userId est fourni, utiliser cet utilisateur spécifique
+        if (userId) {
+            if (!mongoose.Types.ObjectId.isValid(userId)) {
+                return NextResponse.json({ error: 'ID utilisateur invalide' }, { status: 400 });
+            }
+
+            targetUser = await (User as any).findOne({
+                _id: userId,
+                isActive: true
+            });
+
+            if (!targetUser) {
+                return NextResponse.json({ error: 'Utilisateur non trouvé' }, { status: 404 });
+            }
+        } else if (companyId) {
+            // Sinon, trouver le premier admin de l'entreprise
+            if (!mongoose.Types.ObjectId.isValid(companyId)) {
+                return NextResponse.json({ error: 'ID entreprise invalide' }, { status: 400 });
+            }
+
+            targetUser = await (User as any).findOne({
+                companyId: companyId,
+                role: 'admin',
+                isActive: true
+            }).sort({ createdAt: 1 });
+
+            if (!targetUser) {
+                return NextResponse.json({ error: 'Aucun utilisateur administrateur trouvé pour cette entreprise' }, { status: 404 });
+            }
+        } else {
+            return NextResponse.json({ error: 'companyId ou userId requis' }, { status: 400 });
         }
 
         // 2. Generate a signed token
@@ -47,9 +67,9 @@ export async function POST(request: NextRequest) {
         await logAction(
             session,
             'IMPERSONATE',
-            'Company',
-            `Impersonated company ${companyId} (User: ${targetUser.email})`,
-            { targetUserId: targetUser._id, companyId }
+            'User',
+            `Impersonated user ${targetUser.email} (Company: ${targetUser.companyId})`,
+            { targetUserId: targetUser._id, companyId: targetUser.companyId }
         );
 
         return NextResponse.json({

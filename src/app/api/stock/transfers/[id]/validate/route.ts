@@ -30,9 +30,16 @@ export async function POST(request: NextRequest, props: { params: Promise<{ id: 
             return NextResponse.json({ error: 'Déjà validé' }, { status: 400 });
         }
 
-        // Check stock availability in Source Warehouse
+        // Fetch both warehouses to get their names for the notes
         const sourceWhId = transfer.sourceWarehouseId;
-        const warehouse = await (Warehouse as any).findOne({ _id: sourceWhId, tenantId });
+        const destWhId = transfer.destinationWarehouseId;
+
+        const [sourceWarehouse, destWarehouse] = await Promise.all([
+            (Warehouse as any).findOne({ _id: sourceWhId, tenantId }),
+            (Warehouse as any).findOne({ _id: destWhId, tenantId })
+        ]);
+
+        const warehouse = sourceWarehouse; // Keep existing variable name for compatibility with checks below
 
         for (const line of transfer.lignes) {
             let matchQuery: any = {
@@ -76,6 +83,7 @@ export async function POST(request: NextRequest, props: { params: Promise<{ id: 
         }
 
         // Proceed to create movements
+        // Proceed to create movements
         const moveOuts = transfer.lignes.map((line: any) => ({
             societeId: tenantId,
             productId: line.productId,
@@ -85,7 +93,7 @@ export async function POST(request: NextRequest, props: { params: Promise<{ id: 
             date: new Date(),
             source: 'TRANSFERT',
             sourceId: transfer._id.toString(),
-            notes: `Transfert vers ${transfer.destinationWarehouseId} (Ref: ${transfer.numero})`,
+            notes: `Transfert vers ${destWarehouse?.name || transfer.destinationWarehouseId} (Ref: ${transfer.numero})`,
             createdBy: session.user.name || session.user.email
         }));
 
@@ -98,7 +106,7 @@ export async function POST(request: NextRequest, props: { params: Promise<{ id: 
             date: new Date(),
             source: 'TRANSFERT',
             sourceId: transfer._id.toString(),
-            notes: `Transfert depuis ${transfer.sourceWarehouseId} (Ref: ${transfer.numero})`,
+            notes: `Transfert depuis ${sourceWarehouse?.name || transfer.sourceWarehouseId} (Ref: ${transfer.numero})`,
             createdBy: session.user.name || session.user.email
         }));
 

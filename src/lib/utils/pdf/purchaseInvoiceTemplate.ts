@@ -74,7 +74,7 @@ function drawLogo(doc: jsPDF, base64: string | undefined, x: number = 15, y: num
 
     let w = maxW;
     let h = w / ratio;
-    
+
     if (h > maxH) {
       h = maxH;
       w = h * ratio;
@@ -82,7 +82,7 @@ function drawLogo(doc: jsPDF, base64: string | undefined, x: number = 15, y: num
 
     const format = base64.split(',')[0].split('/')[1].split(';')[0].toUpperCase();
     doc.addImage(base64, format, x, y, w, h);
-    
+
     return y + h;
   } catch (error) {
     console.error('Error adding logo:', error);
@@ -102,7 +102,7 @@ function drawHeader(doc: jsPDF, companyInfo: CompanyInfo): number {
   doc.text(companyInfo.nom, rightX, topY);
 
   doc.setFontSize(9).setFont('helvetica', 'normal');
-  
+
   // Display full address
   const addressParts = [
     companyInfo.adresse.rue,
@@ -110,9 +110,9 @@ function drawHeader(doc: jsPDF, companyInfo: CompanyInfo): number {
     companyInfo.adresse.ville,
     companyInfo.adresse.pays
   ].filter(Boolean);
-  
+
   let currentY = topY + 5;
-  
+
   if (addressParts.length > 0) {
     const fullAddress = addressParts.join(', ');
     // Wrap address if too long
@@ -123,7 +123,7 @@ function drawHeader(doc: jsPDF, companyInfo: CompanyInfo): number {
     });
     currentY += splitAddress.length * 4;
   }
-  
+
   if (companyInfo.enTete?.telephone || companyInfo.enTete?.email) {
     doc.text(
       [
@@ -140,7 +140,7 @@ function drawHeader(doc: jsPDF, companyInfo: CompanyInfo): number {
   }
 
   if (companyInfo.enTete?.matriculeFiscal) {
-    doc.text(`Matricule : ${companyInfo.enTete.matriculeFiscal}`, rightX, currentY);
+    doc.text(`Matricule fiscale : ${companyInfo.enTete.matriculeFiscal}`, rightX, currentY);
   }
 
   return 10 + 32 + 4;
@@ -148,12 +148,12 @@ function drawHeader(doc: jsPDF, companyInfo: CompanyInfo): number {
 
 function drawInvoiceTitle(doc: jsPDF): number {
   const startY = 10 + 32 + 8;
-  
+
   doc.setFontSize(16).setFont('helvetica', 'bold');
   doc.setTextColor(47, 95, 255);
   doc.text('FACTURE D\'ACHAT', 10, startY);
   doc.setTextColor(0, 0, 0);
-  
+
   return startY + 8;
 }
 
@@ -188,17 +188,17 @@ function drawInfoBlocks(doc: jsPDF, invoiceData: PurchaseInvoiceData, companyInf
   // Statut
   doc.text('Statut', col2X, startY + 17);
   doc.setFont('helvetica', 'bold');
-  const statutText = invoiceData.statut === 'VALIDEE' ? 'Validée' : 
-                      invoiceData.statut === 'PARTIELLEMENT_PAYEE' ? 'Partiellement payée' :
-                      invoiceData.statut === 'PAYEE' ? 'Payée' :
-                      invoiceData.statut === 'ANNULEE' ? 'Annulée' : 'Brouillon';
+  const statutText = invoiceData.statut === 'VALIDEE' ? 'Validée' :
+    invoiceData.statut === 'PARTIELLEMENT_PAYEE' ? 'Partiellement payée' :
+      invoiceData.statut === 'PAYEE' ? 'Payée' :
+        invoiceData.statut === 'ANNULEE' ? 'Annulée' : 'Brouillon';
   doc.text(statutText, col2X, startY + 23);
   doc.setFont('helvetica', 'normal');
 
   // Bloc fournisseur
   let textY = startY + 12;
   let dynamicHeight = 6;
-  
+
   let addressLines = 0;
   if (invoiceData.supplierAddress) {
     const addressText = `Adresse: ${invoiceData.supplierAddress}`;
@@ -209,26 +209,26 @@ function drawInfoBlocks(doc: jsPDF, invoiceData: PurchaseInvoiceData, companyInf
   } else {
     dynamicHeight += 5;
   }
-  
+
   if (invoiceData.supplierPhone) {
     dynamicHeight += 5;
   }
-  
+
   if (invoiceData.supplierMatricule) {
     dynamicHeight += 5;
   }
-  
+
   dynamicHeight = Math.max(dynamicHeight, h);
-  
+
   doc.setFillColor(238, 244, 255);
   doc.roundedRect(supplierX, startY, 80, dynamicHeight, 3, 3, 'F');
-  
+
   doc.setFontSize(9).setFont('helvetica', 'bold');
   doc.text('Fournisseur', supplierX + 4, startY + 6);
   doc.setFont('helvetica', 'normal');
   doc.text(invoiceData.supplierName || '—', supplierX + 4, textY);
   textY += 5;
-  
+
   if (invoiceData.supplierAddress) {
     const addressText = `Adresse: ${invoiceData.supplierAddress}`;
     const addressWidth = 72;
@@ -238,14 +238,14 @@ function drawInfoBlocks(doc: jsPDF, invoiceData: PurchaseInvoiceData, companyInf
     });
     textY += splitAddress.length * 4;
   }
-  
+
   if (invoiceData.supplierPhone) {
     doc.text(`Tél: ${invoiceData.supplierPhone}`, supplierX + 4, textY);
     textY += 5;
   }
-  
+
   if (invoiceData.supplierMatricule) {
-    doc.text(`Matricule: ${invoiceData.supplierMatricule}`, supplierX + 4, textY);
+    doc.text(`Matricule fiscale : ${invoiceData.supplierMatricule}`, supplierX + 4, textY);
   }
 
   return startY + dynamicHeight + 6;
@@ -254,7 +254,7 @@ function drawInfoBlocks(doc: jsPDF, invoiceData: PurchaseInvoiceData, companyInf
 // Helper function to parse color strings to RGB array
 function parseColor(colorStr: string): number[] | undefined {
   if (!colorStr) return undefined;
-  
+
   const trimmed = colorStr.trim();
   if (trimmed.startsWith('#')) {
     const hex = trimmed.slice(1);
@@ -377,12 +377,12 @@ function drawLinesTable(doc: jsPDF, invoiceData: PurchaseInvoiceData, startY: nu
       fillColor: [252, 252, 252],
     },
     columnStyles: {
-      0: { cellWidth: 80, cellPadding: { top: 4, right: 3, bottom: 3, left: 3 }, valign: 'top', halign: 'left' }, // Désignation
-      1: { cellWidth: 22, halign: 'right', valign: 'top' }, // Quantité
-      2: { cellWidth: 26, halign: 'right', valign: 'top' }, // Prix HT
-      3: { cellWidth: 22, halign: 'right', valign: 'top' }, // Remise %
+      0: { cellWidth: 70, cellPadding: { top: 4, right: 3, bottom: 3, left: 3 }, valign: 'top', halign: 'left' }, // Désignation
+      1: { cellWidth: 20, halign: 'right', valign: 'top' }, // Quantité
+      2: { cellWidth: 25, halign: 'right', valign: 'top' }, // Prix HT
+      3: { cellWidth: 20, halign: 'right', valign: 'top' }, // Remise %
       4: { cellWidth: 20, halign: 'right', valign: 'top' }, // TVA %
-      5: { cellWidth: 20, halign: 'right', valign: 'top' }, // Total HT
+      5: { cellWidth: 35, halign: 'right', valign: 'top' }, // Total HT
     },
     willDrawCell: (data: any) => {
       // Ensure all cells in the row have the same height as the tallest cell
@@ -395,7 +395,7 @@ function drawLinesTable(doc: jsPDF, invoiceData: PurchaseInvoiceData, startY: nu
       if (data.column.index === 0 && data.cell.raw && typeof data.cell.raw === 'object' && data.cell.raw.isHtml) {
         const html = data.cell.raw.content || '';
         (data.cell as any).htmlContent = html;
-        
+
         const htmlText = html
           .replace(/<br\s*\/?>/gi, '\n')
           .replace(/<p[^>]*>/gi, '\n')
@@ -403,13 +403,13 @@ function drawLinesTable(doc: jsPDF, invoiceData: PurchaseInvoiceData, startY: nu
           .replace(/<div[^>]*>/gi, '\n')
           .replace(/<\/div>/gi, '\n')
           .replace(/<[^>]*>/g, '');
-        
+
         const lines = htmlText.split('\n');
         const maxWidth = 80 - 4;
         const fontSize = 9;
         doc.setFontSize(fontSize);
         doc.setFont('helvetica', 'normal');
-        
+
         let totalEstimatedLines = 0;
         lines.forEach((line) => {
           if (line.trim()) {
@@ -420,17 +420,17 @@ function drawLinesTable(doc: jsPDF, invoiceData: PurchaseInvoiceData, startY: nu
             totalEstimatedLines += 0.5;
           }
         });
-        
+
         const lineHeight = 4.5;
         const minHeight = 8;
         const padding = 4;
         const calculatedHeight = Math.max(minHeight, (totalEstimatedLines * lineHeight) + padding);
-        
+
         data.cell.height = calculatedHeight;
         if (data.row) {
           data.row.height = Math.max(data.row.height || 0, calculatedHeight);
         }
-        
+
         data.cell.text = [' '];
         data.cell.styles = { ...data.cell.styles, textColor: [255, 255, 255] };
       }
@@ -443,18 +443,18 @@ function drawLinesTable(doc: jsPDF, invoiceData: PurchaseInvoiceData, startY: nu
         const paddingLeft = (cell.styles?.cellPadding?.left || cell.styles?.cellPadding?.[0] || 3);
         const paddingTop = (cell.styles?.cellPadding?.top || cell.styles?.cellPadding?.[1] || 4);
         const paddingRight = (cell.styles?.cellPadding?.right || cell.styles?.cellPadding?.[2] || 3);
-        
+
         const fontSize = 9;
         doc.setFontSize(fontSize);
         doc.setFont('helvetica', 'normal');
-        
+
         const x = cell.x + paddingLeft;
         const fontAscent = 6.5;
         let y = cell.y + paddingTop + fontAscent;
         const maxWidth = cell.width - paddingLeft - paddingRight;
         const lineHeight = 4.5;
         const startY = y;
-        
+
         let htmlText = html
           .replace(/<br\s*\/?>/gi, '\n')
           .replace(/<p[^>]*>/gi, '\n')
@@ -464,16 +464,16 @@ function drawLinesTable(doc: jsPDF, invoiceData: PurchaseInvoiceData, startY: nu
           .replace(/<li[^>]*>/gi, '• ')
           .replace(/<\/li>/gi, '\n')
           .replace(/<ul[^>]*>|<\/ul>|<ol[^>]*>|<\/ol>/gi, '');
-        
+
         const segments: Array<{ text: string; bold: boolean; color?: number[] }> = [];
         let currentText = '';
         let inBold = false;
         let currentColor: number[] | undefined = undefined;
-        
+
         const tagRegex = /<(?:strong|b)([^>]*)>|<\/(?:strong|b)>|<font[^>]*color\s*=\s*["']([^"']+)["'][^>]*>|<\/font>|<span[^>]*style\s*=\s*["'][^"]*color\s*:\s*([^";\s]+)[^"]*["'][^>]*>|<\/span>|([^<]+)/gi;
         let match;
         let lastIndex = 0;
-        
+
         while ((match = tagRegex.exec(htmlText)) !== null) {
           if (match.index > lastIndex) {
             const beforeText = htmlText.substring(lastIndex, match.index);
@@ -481,7 +481,7 @@ function drawLinesTable(doc: jsPDF, invoiceData: PurchaseInvoiceData, startY: nu
               segments.push({ text: beforeText, bold: inBold, color: currentColor });
             }
           }
-          
+
           if (match[1] !== undefined) {
             if (currentText) {
               segments.push({ text: currentText, bold: inBold, color: currentColor });
@@ -521,10 +521,10 @@ function drawLinesTable(doc: jsPDF, invoiceData: PurchaseInvoiceData, startY: nu
           } else if (match[4]) {
             currentText += match[4];
           }
-          
+
           lastIndex = match.index + match[0].length;
         }
-        
+
         if (lastIndex < htmlText.length) {
           const remainingText = htmlText.substring(lastIndex);
           if (remainingText.trim()) {
@@ -534,7 +534,7 @@ function drawLinesTable(doc: jsPDF, invoiceData: PurchaseInvoiceData, startY: nu
         if (currentText) {
           segments.push({ text: currentText, bold: inBold, color: currentColor });
         }
-        
+
         let totalLinesRendered = 0;
         segments.forEach((segment) => {
           const lines = segment.text.split('\n');
@@ -546,14 +546,14 @@ function drawLinesTable(doc: jsPDF, invoiceData: PurchaseInvoiceData, startY: nu
               } else {
                 doc.setTextColor(0, 0, 0);
               }
-              
+
               const words = line.split(/\s+/);
               let currentLine = '';
-              
+
               words.forEach((word) => {
                 const testLine = currentLine ? `${currentLine} ${word}` : word;
                 const textWidth = doc.getTextWidth(testLine);
-                
+
                 if (textWidth > maxWidth && currentLine) {
                   doc.text(currentLine, x, y, { maxWidth, align: 'left' });
                   y += lineHeight;
@@ -563,7 +563,7 @@ function drawLinesTable(doc: jsPDF, invoiceData: PurchaseInvoiceData, startY: nu
                   currentLine = testLine;
                 }
               });
-              
+
               if (currentLine) {
                 doc.text(currentLine, x, y, { maxWidth, align: 'left' });
                 y += lineHeight;
@@ -575,19 +575,19 @@ function drawLinesTable(doc: jsPDF, invoiceData: PurchaseInvoiceData, startY: nu
             }
           });
         });
-        
+
         const paddingBottom = (cell.styles?.cellPadding?.bottom || cell.styles?.cellPadding?.[3] || 3);
         const minCellHeight = (cell.styles?.minCellHeight || 8);
-        
+
         const contentHeight = (y - startY) + fontAscent;
         const actualHeight = contentHeight + paddingTop + paddingBottom;
         const finalHeight = Math.max(actualHeight, cell.height || 8, minCellHeight);
-        
+
         cell.height = finalHeight;
         if (data.row) {
           data.row.height = Math.max(data.row.height || 0, finalHeight);
         }
-        
+
         doc.setTextColor(0, 0, 0);
         doc.setFont('helvetica', 'normal');
       }
@@ -662,7 +662,7 @@ function drawTotals(doc: jsPDF, invoiceData: PurchaseInvoiceData, startY: number
   // Always show TIMBRE if field exists
   if (invoiceData.timbreActif !== undefined || invoiceData.timbre !== undefined) {
     doc.setFont('helvetica', 'normal');
-    const timbreLabel = invoiceData.timbreActif 
+    const timbreLabel = invoiceData.timbreActif
       ? 'Timbre fiscal'
       : 'Timbre fiscal - Non activé';
     doc.text(timbreLabel, x + 4, y);
@@ -684,11 +684,11 @@ function drawTotals(doc: jsPDF, invoiceData: PurchaseInvoiceData, startY: number
     const boxBottomY = actualStartY + totalBoxH;
     const maxWidth = 190;
     const splitNotes = doc.splitTextToSize(`Notes: ${invoiceData.notes}`, maxWidth);
-    
+
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
     doc.setTextColor(102, 102, 102);
-    
+
     splitNotes.forEach((line: string, idx: number) => {
       doc.text(line, 10, boxBottomY + 5 + (idx * 4));
     });
@@ -699,7 +699,7 @@ function drawTotals(doc: jsPDF, invoiceData: PurchaseInvoiceData, startY: number
 function drawFooter(doc: jsPDF, companyInfo: CompanyInfo, footerY: number, pageNumber?: number, totalPages?: number): void {
   doc.setDrawColor(220, 220, 220);
   doc.line(10, footerY, 200, footerY);
-  
+
   const yPos = footerY + 6;
   doc.setFontSize(9).setTextColor(0, 0, 0);
 
@@ -741,7 +741,7 @@ function drawFooter(doc: jsPDF, companyInfo: CompanyInfo, footerY: number, pageN
     const centerX = 105;
     doc.text(footerText, centerX, yPos, { align: 'center' });
   }
-  
+
   if (pageNumber !== undefined && totalPages !== undefined) {
     doc.setFontSize(9);
     doc.setTextColor(100, 100, 100);
@@ -767,17 +767,17 @@ export function generatePurchaseInvoicePdf(invoiceData: PurchaseInvoiceData, com
   y = drawInvoiceTitle(doc);
   y = drawInfoBlocks(doc, invoiceData, companyInfo, y);
   const tableEndY = drawLinesTable(doc, invoiceData, y);
-  
+
   const pageCount = doc.getNumberOfPages();
-  
+
   const totalBoxH = 6 + (2 * 6) + 6 + 7 + (invoiceData.notes ? 20 : 0);
   const availableSpace = footerY - tableEndY - 3;
-  
+
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
-    
+
     drawFooter(doc, companyInfo, footerY, i, pageCount);
-    
+
     if (i === pageCount) {
       if (availableSpace < totalBoxH + 10) {
         doc.addPage();

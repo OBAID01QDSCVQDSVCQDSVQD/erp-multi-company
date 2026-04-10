@@ -9,7 +9,8 @@ import {
     PowerIcon,
     CheckCircleIcon,
     XCircleIcon,
-    UserCircleIcon
+    UserCircleIcon,
+    ArrowRightOnRectangleIcon
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 
@@ -116,6 +117,45 @@ export default function AdminUsersPage() {
             }
         } catch (error) {
             toast.error("Erreur de connexion");
+        }
+    };
+
+    const handleImpersonate = async (userId: string) => {
+        try {
+            const loadingToast = toast.loading("Connexion...");
+
+            const response = await fetch('/api/admin/impersonate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId })
+            });
+
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.error || "Impossible de se connecter");
+            }
+
+            const { impersonationToken } = await response.json();
+            const { signIn } = await import('next-auth/react');
+
+            const result = await signIn('credentials', {
+                redirect: false,
+                impersonationToken,
+                callbackUrl: '/dashboard'
+            });
+
+            toast.dismiss(loadingToast);
+
+            if (result?.error) {
+                throw new Error("Échec de l'authentification");
+            }
+
+            toast.success("Connexion réussie");
+            window.location.href = '/dashboard';
+
+        } catch (e: any) {
+            toast.dismiss();
+            toast.error(e.message || "Erreur lors de la connexion");
         }
     };
 
@@ -239,6 +279,13 @@ export default function AdminUsersPage() {
                                                     <PowerIcon className="h-5 w-5" />
                                                 </button>
                                                 <button
+                                                    onClick={() => handleImpersonate(user._id)}
+                                                    className="p-1 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:text-indigo-400 dark:hover:bg-indigo-900/20 rounded-md transition-colors"
+                                                    title="Se connecter avec ce compte"
+                                                >
+                                                    <ArrowRightOnRectangleIcon className="h-5 w-5" />
+                                                </button>
+                                                <button
                                                     onClick={() => deleteUser(user._id)}
                                                     className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:text-red-400 dark:hover:bg-red-900/20 rounded-md transition-colors"
                                                     title="Supprimer"
@@ -313,6 +360,13 @@ export default function AdminUsersPage() {
                                 >
                                     <PowerIcon className="h-4 w-4" />
                                     <span className="sr-only sm:not-sr-only">{user.isActive ? "Désactiver" : "Activer"}</span>
+                                </button>
+                                <button
+                                    onClick={() => handleImpersonate(user._id)}
+                                    className="flex-1 flex items-center justify-center gap-2 p-2 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 transition-colors text-sm"
+                                >
+                                    <ArrowRightOnRectangleIcon className="h-4 w-4" />
+                                    <span className="sr-only sm:not-sr-only">Se connecter</span>
                                 </button>
                                 <button
                                     onClick={() => deleteUser(user._id)}

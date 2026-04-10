@@ -76,7 +76,8 @@ export default function DeliveriesPage() {
   const [productSearches, setProductSearches] = useState<{ [key: number]: string }>({});
   const [showProductModal, setShowProductModal] = useState<{ [key: number]: boolean }>({});
   const [currentProductLineIndex, setCurrentProductLineIndex] = useState<number | null>(null);
-  const [productStocks, setProductStocks] = useState<{ [productId: string]: number }>({});
+  // Store stock by "productId_warehouseId" key to handle multi-warehouse stocks
+  const [productStocks, setProductStocks] = useState<{ [key: string]: number }>({});
   const [saving, setSaving] = useState(false);
 
   // WhatsApp Modal State
@@ -120,6 +121,7 @@ export default function DeliveriesPage() {
     tvaPct: number;
     remisePct?: number;
     totalLine: number;
+    warehouseId?: string;
   }>>([]);
 
   // Warehouse state
@@ -268,12 +270,15 @@ export default function DeliveriesPage() {
 
   // Handle product selection for a specific line
   // Fetch stock for a product
-  const fetchProductStock = async (productId: string) => {
+  const fetchProductStock = async (productId: string, warehouseIdOverride?: string) => {
     if (!tenantId || !productId) return;
     try {
+      // Use specific warehouse if provided, otherwise use the global selected warehouse
+      const targetWarehouseId = warehouseIdOverride || selectedWarehouseId;
+
       let url = `/api/stock/product/${productId}`;
-      if (multiWarehouseEnabled && selectedWarehouseId) {
-        url += `?warehouseId=${selectedWarehouseId}`;
+      if (multiWarehouseEnabled && targetWarehouseId) {
+        url += `?warehouseId=${targetWarehouseId}`;
       }
 
       const response = await fetch(url, {
@@ -281,9 +286,12 @@ export default function DeliveriesPage() {
       });
       if (response.ok) {
         const data = await response.json();
+        // Key is productId_warehouseId (or just productId if no warehouse)
+        const key = targetWarehouseId ? `${productId}_${targetWarehouseId}` : productId;
+
         setProductStocks((prev) => ({
           ...prev,
-          [productId]: data.stockActuel || 0,
+          [key]: data.stockActuel || 0,
         }));
       }
     } catch (error) {
@@ -316,7 +324,7 @@ export default function DeliveriesPage() {
     setLines(newLines);
 
     // Fetch stock for the selected product
-    fetchProductStock(product._id);
+    fetchProductStock(product._id, lines[lineIndex].warehouseId);
 
     // Update search state
     setProductSearches({ ...productSearches, [lineIndex]: product.nom });
@@ -449,7 +457,8 @@ export default function DeliveriesPage() {
     if (showModal && multiWarehouseEnabled && selectedWarehouseId) {
       lines.forEach(line => {
         if (line.productId) {
-          fetchProductStock(line.productId);
+          // Pass the line's warehouseId (which might be empty/default)
+          fetchProductStock(line.productId, line.warehouseId);
         }
       });
     }
@@ -491,7 +500,8 @@ export default function DeliveriesPage() {
       taxCode: '',
       tvaPct: 0,
       remisePct: 0,
-      totalLine: 0
+      totalLine: 0,
+      warehouseId: '' // Default to empty string to follow the global warehouse
     }]);
   };
 
@@ -527,9 +537,12 @@ export default function DeliveriesPage() {
       }
     }
 
-    // Recalculate total line (HT only for now, TVA calculated separately)
-    if (field === 'quantite' || field === 'prixUnitaireHT') {
-      newLines[index].totalLine = newLines[index].quantite * newLines[index].prixUnitaireHT;
+    // Recalculate total line (HT) including remise
+    if (field === 'quantite' || field === 'prixUnitaireHT' || field === 'remisePct') {
+      const qte = newLines[index].quantite || 0;
+      const prix = newLines[index].prixUnitaireHT || 0;
+      const remise = newLines[index].remisePct || 0;
+      newLines[index].totalLine = qte * prix * (1 - remise / 100);
     }
 
     // Update tax code when tvaPct changes (if manually edited)
@@ -650,7 +663,8 @@ export default function DeliveriesPage() {
           prixUnitaireHT: line.prixUnitaireHT,
           remisePct: line.remisePct || 0,
           taxCode: line.taxCode,
-          tvaPct: line.tvaPct || 0
+          tvaPct: line.tvaPct || 0,
+          warehouseId: line.warehouseId || selectedWarehouseId // Use line warehouse first, then default
         }));
 
       if (lignesData.length === 0) {
@@ -806,6 +820,7 @@ export default function DeliveriesPage() {
             remisePct: line.remisePct || 0,
             taxCode: line.taxCode || '',
             tvaPct: line.tvaPct || 0,
+            warehouseId: line.warehouseId || '',
             totalLine: 0
           }));
           setLines(mappedLines);
@@ -813,7 +828,7 @@ export default function DeliveriesPage() {
           // Fetch stock for all products in lines
           mappedLines.forEach((line: any) => {
             if (line.productId) {
-              fetchProductStock(line.productId);
+              fetchProductStock(line.productId, line.warehouseId);
             }
           });
 
@@ -1567,18 +1582,21 @@ export default function DeliveriesPage() {
                                         updatedLines[index] = { ...updatedLines[index], quantite: parseFloat(val) || 0 };
                                         setLines(updatedLines);
                                       }}
-                                      className={`w-full px-3 py-2 border rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${line.productId && productStocks[line.productId] !== undefined &&
-                                        (line.quantite || 0) > productStocks[line.productId]
-                                        ? 'border-red-500 dark:border-red-500' : 'dark:border-gray-600'
-                                        }`}
+                                      className={`w-full px-3 py-2 border rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${(() => {
+                                        const stockKey = line.warehouseId || selectedWarehouseId ? `${line.productId}_${line.warehouseId || selectedWarehouseId}` : line.productId;
+                                        return line.productId && productStocks[stockKey] !== undefined && (line.quantite || 0) > productStocks[stockKey]
+                                          ? 'border-red-500 dark:border-red-500' : 'dark:border-gray-600';
+                                      })()}`}
                                       placeholder="0"
                                     />
-                                    {line.productId && productStocks[line.productId] !== undefined &&
-                                      (line.quantite || 0) > productStocks[line.productId] && (
+                                    {(() => {
+                                      const stockKey = line.warehouseId || selectedWarehouseId ? `${line.productId}_${line.warehouseId || selectedWarehouseId}` : line.productId;
+                                      return line.productId && productStocks[stockKey] !== undefined && (line.quantite || 0) > productStocks[stockKey] && (
                                         <span className="text-xs text-red-600 dark:text-red-400 mt-1">
-                                          Stock disp: {productStocks[line.productId]}
+                                          Stock disp: {productStocks[stockKey]}
                                         </span>
-                                      )}
+                                      );
+                                    })()}
                                   </div>
                                 </div>
                                 <div>
@@ -1592,6 +1610,26 @@ export default function DeliveriesPage() {
                                 </div>
                               </div>
 
+                              {multiWarehouseEnabled && (
+                                <div>
+                                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Entrepôt</label>
+                                  <select
+                                    value={line.warehouseId || selectedWarehouseId || ''}
+                                    onChange={(e) => {
+                                      const newLines = [...lines];
+                                      newLines[index] = { ...newLines[index], warehouseId: e.target.value };
+                                      setLines(newLines);
+                                    }}
+                                    className="w-full px-3 py-2 border dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                  >
+                                    <option value="">Par défaut ({warehouses.find(w => w._id === selectedWarehouseId)?.name || 'Principal'})</option>
+                                    {warehouses.map(w => (
+                                      <option key={w._id} value={w._id}>{w.name}</option>
+                                    ))}
+                                  </select>
+                                </div>
+                              )}
+
                               {/* Prix & TVA */}
                               <div className="grid grid-cols-2 gap-3">
                                 <div>
@@ -1601,31 +1639,45 @@ export default function DeliveriesPage() {
                                     value={line.prixUnitaireHT || ''}
                                     onChange={(e) => {
                                       const val = e.target.value;
-                                      const updatedLines = [...lines];
-                                      updatedLines[index] = { ...updatedLines[index], prixUnitaireHT: parseFloat(val) || 0 };
-                                      setLines(updatedLines);
+                                      updateLine(index, 'prixUnitaireHT', parseFloat(val) || 0);
                                     }}
                                     className="w-full px-3 py-2 border dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                                     placeholder="0.000"
                                   />
                                 </div>
                                 <div>
-                                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">TVA %</label>
-                                  <div className="flex flex-col">
-                                    <input
-                                      type="number"
-                                      value={line.tvaPct ?? ''}
-                                      onChange={(e) => {
-                                        const val = e.target.value;
-                                        const updatedLines = [...lines];
-                                        updatedLines[index] = { ...updatedLines[index], tvaPct: parseFloat(val) || 0 };
-                                        setLines(updatedLines);
-                                      }}
-                                      className="w-full px-3 py-2 border dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                                      placeholder="0%"
-                                    />
-                                    {line.taxCode && <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">{line.taxCode}</span>}
-                                  </div>
+                                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Remise %</label>
+                                  <input
+                                    type="number"
+                                    value={line.remisePct ?? ''}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      updateLine(index, 'remisePct', parseFloat(val) || 0);
+                                    }}
+                                    min="0"
+                                    max="100"
+                                    step="0.01"
+                                    className="w-full px-3 py-2 border dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                    placeholder="0%"
+                                  />
+                                </div>
+                              </div>
+
+                              {/* TVA */}
+                              <div>
+                                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">TVA %</label>
+                                <div className="flex flex-col">
+                                  <input
+                                    type="number"
+                                    value={line.tvaPct ?? ''}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      updateLine(index, 'tvaPct', parseFloat(val) || 0);
+                                    }}
+                                    className="w-full px-3 py-2 border dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                    placeholder="0%"
+                                  />
+                                  {line.taxCode && <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">{line.taxCode}</span>}
                                 </div>
                               </div>
 
@@ -1669,21 +1721,23 @@ export default function DeliveriesPage() {
                             <thead className="bg-gray-50 dark:bg-gray-700 border-b dark:border-gray-600">
                               <tr>
                                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">Produit</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">Qté</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">Unité</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">Prix HT</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">TVA %</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 w-24">Qté</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 w-24">Unité</th>
+                                {multiWarehouseEnabled && <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 w-40">Entrepôt</th>}
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 w-32">Prix HT</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 w-24">Remise %</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 w-24">TVA %</th>
                                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">Total HT</th>
                                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">Total TVA</th>
                                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">Total TTC</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200"></th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 w-12"></th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                               {lines.map((line, index) => (
                                 <tr key={index}>
-                                  <td className="px-2 sm:px-4 py-3" style={{ width: 'auto', maxWidth: 'none' }}>
-                                    <div className="flex items-center gap-2">
+                                  <td className="px-4 py-3">
+                                    <div className="flex items-center gap-2" style={{ minWidth: '200px' }}>
                                       <div className="relative inline-block w-full">
                                         <input
                                           type="text"
@@ -1703,14 +1757,9 @@ export default function DeliveriesPage() {
                                             e.stopPropagation();
                                             handleOpenProductModal(index);
                                           }}
-                                          placeholder="Rechercher un produit..."
+                                          placeholder="Produit..."
                                           className="w-full px-3 py-2 pr-8 border dark:border-gray-600 rounded-lg text-sm cursor-pointer focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                                           readOnly
-                                          style={{
-                                            minWidth: '150px',
-                                            width: line.designation ? `${Math.max(150, Math.min(500, (line.designation.length * 8) + 50))}px` : '150px',
-                                            maxWidth: '500px',
-                                          }}
                                         />
                                         <MagnifyingGlassIcon className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
                                       </div>
@@ -1723,8 +1772,7 @@ export default function DeliveriesPage() {
                                             setLines(updatedLines);
                                             setProductSearches({ ...productSearches, [index]: '' });
                                           }}
-                                          className="p-1 text-gray-400 hover:text-red-600 transition-colors flex-shrink-0"
-                                          title="Effacer"
+                                          className="p-1 text-gray-400 hover:text-red-600 transition-colors"
                                           type="button"
                                         >
                                           <XMarkIcon className="w-4 h-4" />
@@ -1732,10 +1780,10 @@ export default function DeliveriesPage() {
                                       )}
                                     </div>
                                   </td>
-                                  <td className="px-4 py-3">
+                                  <td className="px-4 py-3 align-top">
                                     <div className="flex flex-col">
                                       <input
-                                        type="text"
+                                        type="number"
                                         value={line.quantite || ''}
                                         onChange={(e) => {
                                           const val = e.target.value;
@@ -1743,73 +1791,108 @@ export default function DeliveriesPage() {
                                           updatedLines[index] = { ...updatedLines[index], quantite: parseFloat(val) || 0 };
                                           setLines(updatedLines);
                                         }}
-                                        className={`w-20 px-2 py-1 border rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${line.productId && productStocks[line.productId] !== undefined &&
-                                          (line.quantite || 0) > productStocks[line.productId]
-                                          ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'
-                                          }`}
+                                        className={`w-full px-2 py-2 border rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-blue-500 focus:border-blue-500 ${(() => {
+                                          const stockKey = line.warehouseId || selectedWarehouseId ? `${line.productId}_${line.warehouseId || selectedWarehouseId}` : line.productId;
+                                          return line.productId && productStocks[stockKey] !== undefined && (line.quantite || 0) > productStocks[stockKey]
+                                            ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600';
+                                        })()}`}
                                         placeholder="0"
                                       />
-                                      {line.productId && productStocks[line.productId] !== undefined &&
-                                        (line.quantite || 0) > productStocks[line.productId] && (
-                                          <span className="text-xs text-red-600 dark:text-red-400 mt-1">
-                                            Stock: {productStocks[line.productId]}
+                                      {(() => {
+                                        const stockKey = line.warehouseId || selectedWarehouseId ? `${line.productId}_${line.warehouseId || selectedWarehouseId}` : line.productId;
+                                        return line.productId && productStocks[stockKey] !== undefined && (line.quantite || 0) > productStocks[stockKey] && (
+                                          <span className="text-[10px] text-red-600 dark:text-red-400 mt-1 leading-tight">
+                                            Stock: {productStocks[stockKey]}
                                           </span>
-                                        )}
+                                        );
+                                      })()}
                                     </div>
                                   </td>
-                                  <td className="px-4 py-3">
+                                  <td className="px-4 py-3 align-top">
                                     <input
                                       type="text"
                                       value={line.uomCode || ''}
                                       readOnly
-                                      className="w-20 px-2 py-1 border dark:border-gray-600 rounded text-sm bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white"
+                                      className="w-full px-2 py-2 border border-gray-200 dark:border-gray-600 rounded text-sm bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 cursor-not-allowed"
                                     />
                                   </td>
-                                  <td className="px-4 py-3">
+                                  {multiWarehouseEnabled && (
+                                    <td className="px-4 py-3 align-top">
+                                      <select
+                                        value={line.warehouseId || ''}
+                                        onChange={(e) => {
+                                          const newWarehouseId = e.target.value;
+                                          const newLines = [...lines];
+                                          newLines[index] = { ...newLines[index], warehouseId: newWarehouseId };
+                                          setLines(newLines);
+                                          // Fetch stock for this specific warehouse immediately
+                                          if (line.productId) {
+                                            fetchProductStock(line.productId, newWarehouseId || selectedWarehouseId);
+                                          }
+                                        }}
+                                        className="w-full px-2 py-2 border border-gray-300 dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-blue-500 focus:border-blue-500"
+                                      >
+                                        <option value="">(Défaut)</option>
+                                        {warehouses.map(w => (
+                                          <option key={w._id} value={w._id}>{w.name}</option>
+                                        ))}
+                                      </select>
+                                    </td>
+                                  )}
+                                  <td className="px-4 py-3 align-top">
                                     <input
-                                      type="text"
+                                      type="number"
                                       value={line.prixUnitaireHT || ''}
                                       onChange={(e) => {
-                                        const val = e.target.value;
-                                        const updatedLines = [...lines];
-                                        updatedLines[index] = { ...updatedLines[index], prixUnitaireHT: parseFloat(val) || 0 };
-                                        setLines(updatedLines);
+                                        updateLine(index, 'prixUnitaireHT', parseFloat(e.target.value) || 0);
                                       }}
-                                      className="w-24 px-2 py-1 border dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                      className="w-full px-2 py-2 border border-gray-300 dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-blue-500 focus:border-blue-500"
                                       placeholder="0.000"
                                     />
                                   </td>
-                                  <td className="px-4 py-3">
+                                  <td className="px-4 py-3 align-top">
                                     <input
-                                      type="text"
-                                      value={line.tvaPct ?? ''}
+                                      type="number"
+                                      value={line.remisePct ?? ''}
                                       onChange={(e) => {
-                                        const val = e.target.value;
-                                        const updatedLines = [...lines];
-                                        updatedLines[index] = { ...updatedLines[index], tvaPct: parseFloat(val) || 0 };
-                                        setLines(updatedLines);
+                                        updateLine(index, 'remisePct', parseFloat(e.target.value) || 0);
                                       }}
-                                      className="w-20 px-2 py-1 border dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                      min="0"
+                                      max="100"
+                                      step="0.01"
+                                      className="w-full px-2 py-2 border border-gray-300 dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-blue-500 focus:border-blue-500"
                                       placeholder="0%"
                                     />
-                                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{line.taxCode || ''}</div>
                                   </td>
-                                  <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">
-                                    {(((line.quantite || 0) * (line.prixUnitaireHT || 0)) * (1 - ((line.remisePct || 0) / 100))).toFixed(3)} {formData.devise}
+                                  <td className="px-4 py-3 align-top">
+                                    <div className="flex flex-col">
+                                      <input
+                                        type="number"
+                                        value={line.tvaPct ?? ''}
+                                        onChange={(e) => {
+                                          updateLine(index, 'tvaPct', parseFloat(e.target.value) || 0);
+                                        }}
+                                        className="w-full px-2 py-2 border border-gray-300 dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-blue-500 focus:border-blue-500"
+                                        placeholder="0"
+                                      />
+                                      <div className="text-[10px] text-gray-500 dark:text-gray-400 mt-1 text-center">{line.taxCode || ''}</div>
+                                    </div>
                                   </td>
-                                  <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">
-                                    {((((line.quantite || 0) * (line.prixUnitaireHT || 0)) * (1 - ((line.remisePct || 0) / 100))) * ((line.tvaPct || 0) / 100)).toFixed(3)} {formData.devise}
+                                  <td className="px-4 py-3 align-middle text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">
+                                    {(((line.quantite || 0) * (line.prixUnitaireHT || 0)) * (1 - ((line.remisePct || 0) / 100))).toFixed(3)}
                                   </td>
-                                  <td className="px-4 py-3 text-sm font-medium text-blue-600 dark:text-blue-400">
-                                    {(((line.quantite || 0) * (line.prixUnitaireHT || 0) * (1 - ((line.remisePct || 0) / 100))) * (1 + (line.tvaPct || 0) / 100)).toFixed(3)} {formData.devise}
+                                  <td className="px-4 py-3 align-middle text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                                    {((((line.quantite || 0) * (line.prixUnitaireHT || 0)) * (1 - ((line.remisePct || 0) / 100))) * ((line.tvaPct || 0) / 100)).toFixed(3)}
                                   </td>
-                                  <td className="px-4 py-3">
+                                  <td className="px-4 py-3 align-middle text-sm font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap">
+                                    {(((line.quantite || 0) * (line.prixUnitaireHT || 0) * (1 - ((line.remisePct || 0) / 100))) * (1 + (line.tvaPct || 0) / 100)).toFixed(3)}
+                                  </td>
+                                  <td className="px-4 py-3 align-middle">
                                     <button
                                       onClick={() => removeLine(index)}
-                                      className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                                      title="Supprimer"
+                                      className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                                     >
-                                      <TrashIcon className="w-4 h-4" />
+                                      <TrashIcon className="w-5 h-5" />
                                     </button>
                                   </td>
                                 </tr>

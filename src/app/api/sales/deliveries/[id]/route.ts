@@ -118,13 +118,13 @@ export async function PATCH(
         if (newLine.productId) {
           const productIdStr = newLine.productId.toString();
           const qtyLivree = qtyLivreeMap.get(productIdStr);
-          
+
           if (qtyLivree !== undefined) {
             // Check if new quantity is less than qtyLivree
             const newQuantite = newLine.quantite || 0;
             if (newQuantite < qtyLivree) {
               return NextResponse.json(
-                { 
+                {
                   error: `Impossible de réduire la quantité. La quantité livrée (${qtyLivree.toFixed(2)}) est supérieure à la nouvelle quantité (${newQuantite.toFixed(2)}). Il y a eu des retours sur ce bon de livraison.`,
                   productId: productIdStr,
                   qtyLivree,
@@ -140,7 +140,7 @@ export async function PATCH(
 
     // Update fields (but preserve qtyLivree)
     Object.assign(delivery, body);
-    
+
     // Restore/update qtyLivree values after update
     if (delivery.lignes && Array.isArray(delivery.lignes)) {
       delivery.lignes.forEach((line: any) => {
@@ -149,7 +149,7 @@ export async function PATCH(
           const savedQtyLivree = qtyLivreeMap.get(productIdStr);
           const hadReturn = hadReturnMap.get(productIdStr);
           const newQuantite = line.quantite || 0;
-          
+
           if (savedQtyLivree !== undefined) {
             if (hadReturn) {
               // If there was a return, preserve qtyLivree (don't change it - it reflects actual delivered quantity)
@@ -255,7 +255,7 @@ function calculateDocumentTotals(doc: any) {
 
   doc.totalBaseHT = Math.round(totalBaseHT * 100) / 100;
   doc.totalTVA = Math.round(totalTVA * 100) / 100;
-  
+
   // Add timbre fiscal if it exists in the document
   const timbreFiscal = doc.timbreFiscal || 0;
   doc.totalTTC = doc.totalBaseHT + doc.totalTVA + timbreFiscal;
@@ -305,7 +305,7 @@ async function updateStockMovementsForDelivery(
 
       // Convert productId to string for consistency
       const productIdStr = productId.toString();
-      
+
       // Check if product is stored
       // Try to find product using ObjectId first, then string
       let product = null;
@@ -369,10 +369,19 @@ async function updateStockMovementsForDelivery(
         }
       } else {
         // Product exists, update or create movement
+        // Use line-specific warehouse first, then document warehouse
+        const targetWarehouseId = currentLine.warehouseId || delivery.warehouseId;
+
         if (existingMovement) {
           // Update existing movement
           existingMovement.qte = currentLine.quantite;
           existingMovement.date = dateDoc;
+          if (targetWarehouseId) {
+            existingMovement.warehouseId = targetWarehouseId;
+          }
+          if (delivery.projetId) {
+            existingMovement.projectId = delivery.projetId;
+          }
           await (existingMovement as any).save();
         } else {
           // Create new movement
@@ -386,6 +395,8 @@ async function updateStockMovementsForDelivery(
             sourceId: deliveryId,
             notes: `Bon de livraison ${delivery.numero}`,
             createdBy,
+            warehouseId: targetWarehouseId,
+            projectId: delivery.projetId,
           });
 
           await (mouvement as any).save();

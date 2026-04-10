@@ -10,6 +10,7 @@ import PaiementClient from '@/lib/models/PaiementClient';
 import PaiementFournisseur from '@/lib/models/PaiementFournisseur';
 import Supplier from '@/lib/models/Supplier';
 import Customer from '@/lib/models/Customer';
+import CompanySettings from '@/lib/models/CompanySettings';
 import mongoose from 'mongoose';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -45,13 +46,18 @@ export async function GET(request: NextRequest) {
       dateFilter.$lte = endDate;
     }
 
+    // Récupérer les paramètres de la société pour le nom
+    const settings = await (CompanySettings as any).findOne({ tenantId }).lean();
+    const companyName = settings?.societe?.nom || '';
+
     // Utiliser l'orientation landscape pour avoir plus d'espace horizontal
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
     let yPosition = 20;
 
     // En-tête
     doc.setFontSize(18);
-    doc.text('Rapport Comptable', 14, yPosition);
+    const titleText = companyName ? `${companyName} - Rapport Comptable` : 'Rapport Comptable';
+    doc.text(titleText, 14, yPosition);
     yPosition += 10;
 
     // Période
@@ -127,16 +133,17 @@ export async function GET(request: NextRequest) {
             fournisseur
               ? (fournisseur.raisonSociale || `${fournisseur.nom || ''} ${fournisseur.prenom || ''}`.trim())
               : 'N/A',
-            `${tvaPct}%`,
-            formatPrice(0, currency), // Timbre (non applicable pour les dépenses)
-            formatPrice(montantHT, currency),
-            formatPrice(montantTTC, currency),
+            formatPrice(exp.tva || 0, currency),
+            formatPrice(exp.fodec || 0, currency),
+            formatPrice(exp.timbreFiscal || 0, currency),
+            formatPrice(exp.totalHT || 0, currency),
+            formatPrice(exp.totalTTC || 0, currency),
           ];
         });
 
         autoTable(doc, {
           startY: yPosition,
-          head: [['Date', 'Numéro', 'Entreprise', 'TVA', 'Timbre', 'Total HT', 'Total TTC']],
+          head: [['Date', 'Numéro', 'Entreprise', 'TVA', 'Fodec', 'Timbre', 'Total HT', 'Total TTC']],
           body: expenseData,
           theme: 'striped',
           headStyles: { fillColor: [66, 139, 202], fontSize: 9, cellPadding: { top: 1, bottom: 1, left: 1, right: 1 } },
@@ -145,10 +152,11 @@ export async function GET(request: NextRequest) {
             0: { cellWidth: 18 }, // Date
             1: { cellWidth: 32 }, // Numéro
             2: { cellWidth: 40 }, // Entreprise
-            3: { cellWidth: 24, halign: 'right' }, // TVA
-            4: { cellWidth: 24, halign: 'right' }, // Timbre
-            5: { cellWidth: 30, halign: 'right' }, // Total HT
-            6: { cellWidth: 30, halign: 'right' }, // Total TTC
+            3: { cellWidth: 22, halign: 'right' }, // TVA
+            4: { cellWidth: 22, halign: 'right' }, // Fodec
+            5: { cellWidth: 22, halign: 'right' }, // Timbre
+            6: { cellWidth: 28, halign: 'right' }, // Total HT
+            7: { cellWidth: 28, halign: 'right' }, // Total TTC
           },
           styles: { overflow: 'linebreak', cellPadding: { top: 1, bottom: 1, left: 1, right: 1 }, fontSize: 8 },
           margin: { left: 5, right: 5 },
@@ -163,19 +171,18 @@ export async function GET(request: NextRequest) {
         }
 
         // Totaux par devise
-        const expensesByCurrency: Record<string, { totalHT: number; totalTimbre: number; totalTTC: number }> = {};
+        const expensesByCurrency: Record<string, { totalHT: number; totalTVA: number; totalFodec: number; totalTimbre: number; totalTTC: number }> = {};
         expenses.forEach((exp: any) => {
           const currency = exp.devise || 'TND';
-          const tvaPct = exp.tvaPct || 0;
-          const montantTTC = exp.montant;
-          const montantHT = tvaPct > 0 ? montantTTC / (1 + tvaPct / 100) : montantTTC;
 
           if (!expensesByCurrency[currency]) {
-            expensesByCurrency[currency] = { totalHT: 0, totalTimbre: 0, totalTTC: 0 };
+            expensesByCurrency[currency] = { totalHT: 0, totalTVA: 0, totalFodec: 0, totalTimbre: 0, totalTTC: 0 };
           }
-          expensesByCurrency[currency].totalHT += montantHT;
-          expensesByCurrency[currency].totalTimbre += 0; // Timbre non applicable pour les dépenses
-          expensesByCurrency[currency].totalTTC += montantTTC;
+          expensesByCurrency[currency].totalHT += exp.totalHT || 0;
+          expensesByCurrency[currency].totalTVA += exp.tva || 0;
+          expensesByCurrency[currency].totalFodec += exp.fodec || 0;
+          expensesByCurrency[currency].totalTimbre += exp.timbreFiscal || 0;
+          expensesByCurrency[currency].totalTTC += exp.totalTTC || 0;
         });
 
         // Résumé par devise
@@ -190,9 +197,11 @@ export async function GET(request: NextRequest) {
           doc.setFont(undefined, 'bold');
           doc.text(`${currency}:`, 14, yPosition);
           doc.setFont(undefined, 'normal');
-          doc.text(`Total HT: ${formatPrice(totals.totalHT, currency)}`, 35, yPosition);
-          doc.text(`Total Timbre: ${formatPrice(totals.totalTimbre, currency)}`, 95, yPosition);
-          doc.text(`Total TTC: ${formatPrice(totals.totalTTC, currency)}`, 140, yPosition);
+          doc.text(`HT: ${formatPrice(totals.totalHT, currency)}`, 30, yPosition);
+          doc.text(`TVA: ${formatPrice(totals.totalTVA, currency)}`, 65, yPosition);
+          doc.text(`Fodec: ${formatPrice(totals.totalFodec, currency)}`, 100, yPosition);
+          doc.text(`Timbre: ${formatPrice(totals.totalTimbre, currency)}`, 135, yPosition);
+          doc.text(`TTC: ${formatPrice(totals.totalTTC, currency)}`, 175, yPosition);
           yPosition += 5;
         });
         yPosition += 5;
@@ -321,6 +330,7 @@ export async function GET(request: NextRequest) {
         purchaseQuery.dateFacture = dateFilter;
       }
 
+      purchaseQuery.referenceFournisseur = { $exists: true, $ne: "" };
       purchaseInvoices = await (PurchaseInvoice as any).find(purchaseQuery)
         .sort({ dateFacture: -1 })
         .lean();
@@ -339,7 +349,7 @@ export async function GET(request: NextRequest) {
           const currency = inv.devise || 'TND';
           return [
             new Date(inv.dateFacture).toLocaleDateString('fr-FR'),
-            inv.numero,
+            inv.referenceFournisseur || inv.numero,
             inv.fournisseurNom || 'N/A',
             formatPrice(inv.totaux?.totalTVA || 0, currency),
             formatPrice(inv.totaux?.totalFodec || 0, currency),
@@ -351,7 +361,7 @@ export async function GET(request: NextRequest) {
 
         autoTable(doc, {
           startY: yPosition,
-          head: [['Date', 'Numéro', 'Fournisseur', 'TVA', 'Fodec', 'Timbre', 'Total HT', 'Total TTC']],
+          head: [['Date', 'N° Facture Fournisseur', 'Fournisseur', 'TVA', 'Fodec', 'Timbre', 'Total HT', 'Total TTC']],
           body: purchaseData,
           theme: 'striped',
           headStyles: { fillColor: [23, 162, 184], fontSize: 9, cellPadding: { top: 1, bottom: 1, left: 1, right: 1 } },
@@ -603,20 +613,20 @@ export async function GET(request: NextRequest) {
         .lean();
 
       const allPayments = [
-        ...customerPayments.map((pay: any) => ({
-          ...pay,
-          type: 'client',
-          companyName: pay.customerId
-            ? (pay.customerId.raisonSociale || `${pay.customerId.nom || ''} ${pay.customerId.prenom || ''}`.trim())
-            : pay.customerNom || 'N/A',
-        })),
-        ...supplierPayments.map((pay: any) => ({
-          ...pay,
-          type: 'fournisseur',
-          companyName: pay.fournisseurId
-            ? (pay.fournisseurId.raisonSociale || `${pay.fournisseurId.nom || ''} ${pay.fournisseurId.prenom || ''}`.trim())
-            : pay.fournisseurNom || 'N/A',
-        })),
+        ...supplierPayments
+          .filter((pay: any) => {
+            // Avances (Paiement sur compte)
+            if (pay.isPaymentOnAccount) return true;
+            // Paiements sur factures avec numéro (référence fournisseur)
+            return pay.lignes?.some((l: any) => l.referenceFournisseur && l.referenceFournisseur.trim() !== "");
+          })
+          .map((pay: any) => ({
+            ...pay,
+            type: 'fournisseur',
+            companyName: pay.fournisseurId
+              ? (pay.fournisseurId.raisonSociale || `${pay.fournisseurId.nom || ''} ${pay.fournisseurId.prenom || ''}`.trim())
+              : pay.fournisseurNom || 'N/A',
+          })),
       ].sort((a, b) => new Date(b.datePaiement).getTime() - new Date(a.datePaiement).getTime());
 
       if (allPayments.length > 0) {
@@ -667,12 +677,8 @@ export async function GET(request: NextRequest) {
 
         // Total
         const total = allPayments.reduce((sum: number, p: any) => sum + (p.montantTotal || 0), 0);
-        const totalClients = allPayments.filter((p: any) => p.type === 'client').reduce((sum: number, p: any) => sum + (p.montantTotal || 0), 0);
-        const totalFournisseurs = allPayments.filter((p: any) => p.type === 'fournisseur').reduce((sum: number, p: any) => sum + (p.montantTotal || 0), 0);
         doc.setFontSize(10);
-        doc.text(`Total Clients: ${formatPrice(totalClients)}`, 14, yPosition);
-        doc.text(`Total Fournisseurs: ${formatPrice(totalFournisseurs)}`, 100, yPosition);
-        doc.text(`Total: ${formatPrice(total)}`, 14, yPosition + 5);
+        doc.text(`Total: ${formatPrice(total)}`, 14, yPosition);
       }
     }
 
@@ -756,18 +762,16 @@ export async function GET(request: NextRequest) {
         expenses.forEach((exp: any) => {
           const tauxChange = 1; // TODO: Ajouter tauxChange dans Expense
           const currency = exp.devise || 'TND';
-          const tvaPct = exp.tvaPct || 0;
-          const montantTTC = exp.montant;
-          const montantHT = tvaPct > 0 ? montantTTC / (1 + tvaPct / 100) : montantTTC;
+          const tvaAmount = exp.tva || 0;
 
           if (currency !== 'TND') {
-            financialSummary.totalDepensesHT += montantHT * tauxChange;
-            financialSummary.totalDepensesTVA += (montantTTC - montantHT) * tauxChange;
-            financialSummary.totalDepensesTTC += montantTTC * tauxChange;
+            financialSummary.totalDepensesHT += (exp.totalHT || 0) * tauxChange;
+            financialSummary.totalDepensesTVA += tvaAmount * tauxChange;
+            financialSummary.totalDepensesTTC += (exp.totalTTC || 0) * tauxChange;
           } else {
-            financialSummary.totalDepensesHT += montantHT;
-            financialSummary.totalDepensesTVA += (montantTTC - montantHT);
-            financialSummary.totalDepensesTTC += montantTTC;
+            financialSummary.totalDepensesHT += exp.totalHT || 0;
+            financialSummary.totalDepensesTVA += tvaAmount;
+            financialSummary.totalDepensesTTC += exp.totalTTC || 0;
           }
         });
       }

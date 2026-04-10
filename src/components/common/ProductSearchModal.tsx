@@ -37,6 +37,7 @@ export default function ProductSearchModal({
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(-1);
+  const [isLoading, setIsLoading] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
 
@@ -55,23 +56,29 @@ export default function ProductSearchModal({
 
   useEffect(() => {
     if (!searchQuery.trim()) {
-      setFilteredProducts(products.slice(0, 50)); // Show first 50 products when search is empty
+      setFilteredProducts(products);
       return;
     }
 
-    const query = searchQuery.toLowerCase().trim();
-    const filtered = products
-      .filter((product) => {
-        const nom = (product.nom || '').toLowerCase();
-        const sku = (product.sku || '').toLowerCase();
-        const ref = (product.referenceClient || '').toLowerCase();
-        return nom.includes(query) || sku.includes(query) || ref.includes(query);
-      })
-      .slice(0, 100); // Limit to 100 results for performance
+    const delayDebounceFn = setTimeout(async () => {
+      setIsLoading(true);
+      try {
+        const res = await fetch(`/api/products?q=${encodeURIComponent(searchQuery)}&limit=50`, {
+          headers: { 'X-Tenant-Id': tenantId }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setFilteredProducts(data.items || []);
+        }
+      } catch (error) {
+        console.error('Error searching products:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    }, 300);
 
-    setFilteredProducts(filtered);
-    setSelectedIndex(-1);
-  }, [searchQuery, products]);
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchQuery, products, tenantId]);
 
   useEffect(() => {
     if (selectedIndex >= 0 && resultsRef.current) {
@@ -152,7 +159,12 @@ export default function ProductSearchModal({
           className="flex-1 overflow-y-auto p-4 space-y-2"
           style={{ maxHeight: 'calc(90vh - 180px)' }}
         >
-          {filteredProducts.length > 0 ? (
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center py-12 text-gray-500 dark:text-gray-400">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
+              Chargement...
+            </div>
+          ) : filteredProducts.length > 0 ? (
             <div className="grid grid-cols-1 gap-2">
               {filteredProducts.map((product, index) => {
                 const displayName = product.nom;

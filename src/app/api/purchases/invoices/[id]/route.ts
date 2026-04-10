@@ -30,9 +30,26 @@ export async function GET(
       return NextResponse.json({ error: 'Facture non trouvée' }, { status: 404 });
     }
 
+    // Check for associated stock movements to identify the warehouse
+    let warehouseName = undefined;
+    let warehouseId = undefined;
+
+    const movement = await (MouvementStock as any).findOne({
+      societeId: tenantId,
+      source: 'FAC',
+      sourceId: id,
+    }).populate('warehouseId');
+
+    if (movement && movement.warehouseId) {
+      warehouseName = movement.warehouseId.name;
+      warehouseId = movement.warehouseId._id;
+    }
+
     // Ensure default values
     const normalizedInvoice = {
       ...invoice,
+      warehouseName, // Add warehouse info
+      warehouseId,
       fodec: {
         enabled: invoice.fodec?.enabled ?? false,
         tauxPct: invoice.fodec?.tauxPct ?? 1,
@@ -97,10 +114,11 @@ export async function PUT(
     const isImagesOnlyUpdate = Object.keys(body).length === 1 && body.images !== undefined;
     const hasOtherFields = Object.keys(body).some(key => key !== 'statut' && key !== 'images');
 
-    // If updating other fields (not just status or images), check if invoice is BROUILLON
-    if (hasOtherFields && invoice.statut !== 'BROUILLON') {
+    // If updating other fields (not just status or images), check if invoice is BROUILLON or VALIDEE
+    // Allow editing VALIDEE invoices as per user request to "fix" them
+    if (hasOtherFields && invoice.statut !== 'BROUILLON' && invoice.statut !== 'VALIDEE') {
       return NextResponse.json(
-        { error: 'Impossible de modifier une facture qui n\'est pas en brouillon' },
+        { error: 'Impossible de modifier une facture qui n\'est pas en brouillon ou validée' },
         { status: 400 }
       );
     }
@@ -226,12 +244,16 @@ export async function PUT(
     // Create stock movements if status changed to VALIDEE
     // Check if invoice is created from BR - if so, update existing BR stock movements to reference the invoice
     const isFromBR = invoice.bonsReceptionIds && invoice.bonsReceptionIds.length > 0;
+
     if (isStatusChangeToValidee || invoice.statut === 'VALIDEE') {
-      if (isFromBR) {
+      if (isStatusChangeToValidee && isFromBR) {
         // Update existing BR stock movements to reference the invoice instead of creating new ones
+        // This runs ONLY on the initial transition to VALIDEE for BR-based invoices
         await updateStockMovementsFromBRToPurchaseInvoice(invoice, tenantId, session.user.email || '');
       } else {
-        // Create new stock movements for direct invoice creation
+        // Create new stock movements for:
+        // 1. Direct invoice creation (not from BR)
+        // 2. Editing an already VALIDEE invoice (recreates movements to sync changes)
         await createStockMovementsForPurchaseInvoice(id, tenantId, session.user.email || '');
       }
     }
@@ -444,8 +466,13 @@ async function createStockMovementsForPurchaseInvoice(invoiceId: string, tenantI
     });
 
     if (existingMovements.length > 0) {
-      // Movements already exist, skip
-      return;
+      // If updating a VALIDEE invoice, replace existing movements to ensure data consistency
+      // This supports the case where a user edits a validated invoice and quantities change
+      await (MouvementStock as any).deleteMany({
+        societeId: tenantId,
+        source: 'FAC',
+        sourceId: invoiceId,
+      });
     }
 
     // Create stock movements for each line with quantite > 0 and produitId

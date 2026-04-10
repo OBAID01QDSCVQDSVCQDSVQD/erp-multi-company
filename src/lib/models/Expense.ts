@@ -80,6 +80,13 @@ export interface IExpense extends Document {
   statut: 'brouillon' | 'en_attente' | 'valide' | 'paye' | 'rejete';
   piecesJointes: IPieceJointe[];
   createdBy: mongoose.Types.ObjectId;
+
+  // Approval and Payment tracking
+  approvedBy?: mongoose.Types.ObjectId;
+  approvedAt?: Date;
+  paidBy?: mongoose.Types.ObjectId;
+  paidAt?: Date;
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -264,13 +271,29 @@ const ExpenseSchema = new (Schema as any)({
   statut: {
     type: String,
     enum: ['brouillon', 'en_attente', 'valide', 'paye', 'rejete'],
-    default: 'brouillon',
+    default: 'en_attente',
   },
   piecesJointes: [PieceJointeSchema],
   createdBy: {
     type: Schema.Types.ObjectId,
     ref: 'User',
     required: true,
+  },
+
+  // Approval and Payment tracking
+  approvedBy: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+  },
+  approvedAt: {
+    type: Date,
+  },
+  paidBy: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+  },
+  paidAt: {
+    type: Date,
   },
 }, {
   timestamps: true,

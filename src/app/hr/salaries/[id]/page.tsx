@@ -61,6 +61,7 @@ interface Salary {
       amount: number;
       date: string;
       notes?: string;
+      createdBy?: string;
     }>;
     otherDeductions: number;
     totalDeductions: number;
@@ -70,6 +71,7 @@ interface Salary {
   paymentStatus: 'pending' | 'paid' | 'partial' | 'owing' | 'cancelled';
   paymentDate?: string;
   notes?: string;
+  createdBy?: string;
   createdAt: string;
   updatedAt: string;
   deductionsEnabled?: boolean;
@@ -718,6 +720,7 @@ export default function SalaryDetailPage() {
                             <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Date</th>
                             <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Montant</th>
                             <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Notes</th>
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Créé par</th>
                             <th className="px-3 py-2 text-right text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Actions</th>
                           </tr>
                         </thead>
@@ -733,6 +736,9 @@ export default function SalaryDetailPage() {
                               <td className="px-3 py-2 text-gray-600 dark:text-gray-400">
                                 {advance.notes || '-'}
                               </td>
+                              <td className="px-3 py-2 text-gray-600 dark:text-gray-400">
+                                {advance.createdBy || '-'}
+                              </td>
                               <td className="px-3 py-2 text-right">
                                 <button
                                   onClick={() => handleDeleteAdvance(index)}
@@ -747,7 +753,7 @@ export default function SalaryDetailPage() {
                         </tbody>
                         <tfoot className="bg-gray-50 dark:bg-gray-700/50">
                           <tr>
-                            <td colSpan={3} className="px-3 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 text-right">
+                            <td colSpan={4} className="px-3 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 text-right">
                               Total Avances:
                             </td>
                             <td className="px-3 py-2 text-sm font-bold text-gray-900 dark:text-white">
@@ -853,6 +859,12 @@ export default function SalaryDetailPage() {
                   <p className="text-gray-600 dark:text-gray-400">Créé le</p>
                   <p className="font-medium text-gray-900 dark:text-white">{formatDate(salary.createdAt)}</p>
                 </div>
+                {salary.createdBy && (
+                  <div>
+                    <p className="text-gray-600 dark:text-gray-400">Créé par</p>
+                    <p className="font-medium text-gray-900 dark:text-white">{salary.createdBy}</p>
+                  </div>
+                )}
                 <div>
                   <p className="text-gray-600 dark:text-gray-400">Modifié le</p>
                   <p className="font-medium text-gray-900 dark:text-white">{formatDate(salary.updatedAt)}</p>

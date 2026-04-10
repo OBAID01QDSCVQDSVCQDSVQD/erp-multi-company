@@ -75,12 +75,50 @@ export async function PATCH(
       expenseData.notesInterne = undefined;
     }
 
+    // Track approval and payment
+    const currentStatut = expense.statut;
+    const newStatut = expenseData.statut;
+
+    // Vérifier que l'utilisateur est admin pour changer le statut
+    const userRole = session.user.role;
+    const userPermissions = session.user.permissions || [];
+    const isAdmin = userRole === 'admin' || userPermissions.includes('all');
+
+    if (!isAdmin) {
+      return NextResponse.json(
+        { error: 'Seuls les administrateurs peuvent modifier le statut' },
+        { status: 403 }
+      );
+    }
+
+    // Empêcher le changement de statut depuis "paye" vers une autre état
+    if (currentStatut === 'paye' && newStatut !== 'paye') {
+      return NextResponse.json(
+        { error: 'Impossible de modifier le statut d\'une dépense déjà payée' },
+        { status: 400 }
+      );
+    }
+
+    // Si le statut change vers "valide", enregistrer l'approbation
+    if (newStatut === 'valide' && currentStatut !== 'valide') {
+      expenseData.approvedBy = new mongoose.Types.ObjectId(session.user.id);
+      expenseData.approvedAt = new Date();
+    }
+
+    // Si le statut change vers "paye", enregistrer le paiement
+    if (newStatut === 'paye' && currentStatut !== 'paye') {
+      expenseData.paidBy = new mongoose.Types.ObjectId(session.user.id);
+      expenseData.paidAt = new Date();
+    }
+
     // Mise à jour de la dépense
     const updatedExpense = await ((Expense as any).findByIdAndUpdate(
       id,
       { ...expenseData, updatedAt: new Date() },
       { new: true }
     ) as any).populate([
+      { path: 'approvedBy', select: 'firstName lastName', model: User as any },
+      { path: 'paidBy', select: 'firstName lastName', model: User as any },
       { path: 'categorieId', select: 'nom code icone', model: ExpenseCategory as any },
       // { path: 'centreCoutId', select: 'code nom' }, // Model not implemented yet
       { path: 'fournisseurId', select: 'type raisonSociale nom prenom', model: Supplier as any },
@@ -136,7 +174,9 @@ export async function GET(
         // { path: 'centreCoutId', select: 'code nom' }, // Model not implemented yet
         { path: 'fournisseurId', select: 'type raisonSociale nom prenom', model: Supplier as any },
         { path: 'employeId', select: 'firstName lastName', model: User as any },
-        { path: 'projetId', select: 'name', model: Project as any }
+        { path: 'projetId', select: 'name', model: Project as any },
+        { path: 'approvedBy', select: 'firstName lastName', model: User as any },
+        { path: 'paidBy', select: 'firstName lastName', model: User as any }
       ] as any);
 
     if (!expense) {

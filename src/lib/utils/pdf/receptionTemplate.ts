@@ -123,7 +123,7 @@ function drawHeader(doc: jsPDF, companyInfo: CompanyInfo): number {
   }
 
   if (companyInfo.enTete?.matriculeFiscal) {
-    doc.text(`Matricule : ${companyInfo.enTete.matriculeFiscal}`, rightX, topY + 15);
+    doc.text(`Matricule fiscale : ${companyInfo.enTete.matriculeFiscal}`, rightX, topY + 15);
   }
 
   return 10 + 32 + 4;
@@ -185,6 +185,10 @@ function drawInfoBlocks(doc: jsPDF, receptionData: ReceptionData, companyInfo: C
     dynamicHeight += 5;
   }
 
+  if (receptionData.supplierMatricule) {
+    dynamicHeight += 5;
+  }
+
   dynamicHeight = Math.max(dynamicHeight, h);
 
   doc.setFillColor(238, 244, 255);
@@ -208,6 +212,11 @@ function drawInfoBlocks(doc: jsPDF, receptionData: ReceptionData, companyInfo: C
 
   if (receptionData.supplierPhone) {
     doc.text(`Tél: ${receptionData.supplierPhone}`, supplierX + 4, textY);
+    textY += 5;
+  }
+
+  if (receptionData.supplierMatricule) {
+    doc.text(`Matricule fiscale : ${receptionData.supplierMatricule}`, supplierX + 4, textY);
   }
 
   return startY + dynamicHeight + 6;

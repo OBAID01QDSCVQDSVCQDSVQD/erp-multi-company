@@ -189,46 +189,51 @@ export default function NewProjectPage() {
   };
 
   const addEmployee = () => {
-    setFormData({
-      ...formData,
+    setFormData(prev => ({
+      ...prev,
       assignedEmployees: [
-        ...formData.assignedEmployees,
+        ...prev.assignedEmployees,
         {
           employeeId: '',
           role: '',
-          startDate: formData.startDate,
+          startDate: prev.startDate,
         }
       ]
-    });
+    }));
   };
 
   const removeEmployee = (index: number) => {
-    setFormData({
-      ...formData,
-      assignedEmployees: formData.assignedEmployees.filter((_, i) => i !== index)
-    });
+    setFormData(prev => ({
+      ...prev,
+      assignedEmployees: prev.assignedEmployees.filter((_, i) => i !== index)
+    }));
   };
 
   const updateEmployee = (index: number, field: string, value: any) => {
-    const updated = [...formData.assignedEmployees];
-    updated[index] = { ...updated[index], [field]: value };
-    setFormData({ ...formData, assignedEmployees: updated });
+    setFormData(prev => {
+      const updated = [...prev.assignedEmployees];
+      updated[index] = { ...updated[index], [field]: value };
+      return { ...prev, assignedEmployees: updated };
+    });
   };
 
   const addTag = (tag: string) => {
-    if (tag.trim() && !formData.tags.includes(tag.trim())) {
-      setFormData({
-        ...formData,
-        tags: [...formData.tags, tag.trim()]
+    if (tag.trim()) {
+      setFormData(prev => {
+        if (prev.tags.includes(tag.trim())) return prev;
+        return {
+          ...prev,
+          tags: [...prev.tags, tag.trim()]
+        };
       });
     }
   };
 
   const removeTag = (tag: string) => {
-    setFormData({
-      ...formData,
-      tags: formData.tags.filter(t => t !== tag)
-    });
+    setFormData(prev => ({
+      ...prev,
+      tags: prev.tags.filter(t => t !== tag)
+    }));
   };
 
   const getCustomerName = (customer: Customer) => {
@@ -312,7 +317,7 @@ export default function NewProjectPage() {
                   </select>
                 </div>
 
-                <div className="col-span-2">
+                <div className="sm:col-span-2">
                   <p className="text-sm text-gray-500 dark:text-gray-400">
                     Vous pourrez lier des Devis et des Bons de livraison après la création du projet.
                   </p>
@@ -465,15 +470,17 @@ export default function NewProjectPage() {
 
                               // 1. Optimistic update from loaded list
                               const listEmp = employees.find(employee => employee._id === selectedEmployeeId);
-                              let updatedEmployees = [...formData.assignedEmployees];
-                              updatedEmployees[index] = {
-                                ...updatedEmployees[index],
-                                employeeId: selectedEmployeeId,
-                                // Use list data if available
-                                dailyRate: listEmp?.dailyRate !== undefined ? listEmp.dailyRate.toString() : updatedEmployees[index].dailyRate,
-                                role: listEmp?.position || updatedEmployees[index].role
-                              };
-                              setFormData(prev => ({ ...prev, assignedEmployees: updatedEmployees }));
+
+                              setFormData(prev => {
+                                const current = [...prev.assignedEmployees];
+                                current[index] = {
+                                  ...current[index],
+                                  employeeId: selectedEmployeeId,
+                                  dailyRate: listEmp?.dailyRate !== undefined ? listEmp.dailyRate.toString() : current[index].dailyRate,
+                                  role: listEmp?.position || current[index].role
+                                };
+                                return { ...prev, assignedEmployees: current };
+                              });
 
                               // 2. Fetch fresh details to ensure accuracy
                               if (selectedEmployeeId && tenantId) {

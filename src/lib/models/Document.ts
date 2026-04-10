@@ -16,6 +16,7 @@ export interface IDocumentLine {
   qtyLivree?: number; // For deliveries
   qtyRecue?: number; // For receipts
   qtyFacturee?: number; // For invoicing
+  warehouseId?: string; // Optional override for warehouse per line
 }
 
 export interface IDocument extends Document {
@@ -102,7 +103,8 @@ const DocumentLineSchema = new Schema({
   sourceLineId: { type: String }, // Tracking partial
   qtyLivree: { type: Number, default: 0 },
   qtyRecue: { type: Number, default: 0 },
-  qtyFacturee: { type: Number, default: 0 }
+  qtyFacturee: { type: Number, default: 0 },
+  warehouseId: { type: Schema.Types.ObjectId, ref: 'Warehouse' }
 }, { _id: true });
 
 const DocumentSchema = new (Schema as any)({

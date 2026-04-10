@@ -21,7 +21,21 @@ export async function GET(request: NextRequest) {
 
     await connectDB();
     const filter: any = { tenantId };
-    if (q) filter.$text = { $search: q };
+    if (q) {
+      const terms = q.trim().split(/\s+/).filter(t => t.length > 0);
+      if (terms.length > 0) {
+        filter.$and = terms.map(term => {
+          const regex = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+          return {
+            $or: [
+              { nom: { $regex: regex } },
+              { sku: { $regex: regex } },
+              { referenceClient: { $regex: regex } }
+            ]
+          };
+        });
+      }
+    }
     if (categorie) filter.categorieCode = categorie.toUpperCase();
     if (actif === 'true' || actif === 'false') filter.actif = actif === 'true';
     if (estStocke === 'true' || estStocke === 'false') filter.estStocke = estStocke === 'true';

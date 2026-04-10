@@ -248,23 +248,41 @@ export async function POST(request: NextRequest) {
           const product = await (Product as any).findOne({ _id: line.productId, tenantId }).lean();
 
           if (product && product.estStocke !== false) {
-            const MouvementStock = (await import('@/lib/models/MouvementStock')).default;
-
             // Query specific warehouse
-            const query: any = {
+            const matchQuery: any = {
               societeId: tenantId,
-              productId: line.productId.toString()
+              productId: line.productId.toString(),
             };
+
             if (warehouseIdStr) {
-              query.warehouseId = new mongoose.Types.ObjectId(warehouseIdStr);
+              // Check if this is the default warehouse
+              const Warehouse = (await import('@/lib/models/Warehouse')).default;
+              const warehouse = await (Warehouse as any).findOne({
+                _id: warehouseIdStr,
+                tenantId,
+              });
+
+              if (warehouse && warehouse.isDefault) {
+                // If it's the default warehouse, include movements with this ID OR with no ID (legacy data)
+                matchQuery.$or = [
+                  { warehouseId: new mongoose.Types.ObjectId(warehouseIdStr) },
+                  { warehouseId: { $exists: false } },
+                  { warehouseId: null }
+                ];
+              } else {
+                // Strict match for non-default warehouses
+                matchQuery.warehouseId = new mongoose.Types.ObjectId(warehouseIdStr);
+              }
             }
 
-            const movements = await (MouvementStock as any).find(query).lean();
+            const MouvementStock = (await import('@/lib/models/MouvementStock')).default;
+            const movements = await (MouvementStock as any).find(matchQuery).lean();
 
             let currentStock = 0;
             for (const mov of movements) {
               if (mov.type === 'ENTREE') currentStock += mov.qte;
               else if (mov.type === 'SORTIE') currentStock -= mov.qte;
+              else if (mov.type === 'INVENTAIRE') currentStock += mov.qte;
             }
 
             if (currentStock < line.quantite) {

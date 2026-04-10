@@ -261,6 +261,7 @@ export async function POST(request: NextRequest) {
           societeId: new mongoose.Types.ObjectId(societeId),
           numero,
           createdBy: new mongoose.Types.ObjectId(session.user.id),
+          statut: body.statut || 'en_attente',
         };
 
         // Convert projetId to ObjectId if provided

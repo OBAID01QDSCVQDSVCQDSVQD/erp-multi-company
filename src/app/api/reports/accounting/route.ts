@@ -193,6 +193,7 @@ export async function GET(request: NextRequest) {
         purchaseQuery.dateFacture = dateFilter;
       }
 
+      purchaseQuery.referenceFournisseur = { $exists: true, $ne: "" };
       const purchaseInvoices = await (PurchaseInvoice as any).find(purchaseQuery)
         .sort({ dateFacture: -1 })
         .lean();
@@ -405,32 +406,26 @@ export async function GET(request: NextRequest) {
         .lean();
 
       results.payments = [
-        ...customerPayments.map((pay: any) => ({
-          _id: pay._id,
-          numero: pay.numero,
-          date: pay.datePaiement,
-          companyName: pay.customerId
-            ? (pay.customerId.raisonSociale || `${pay.customerId.nom || ''} ${pay.customerId.prenom || ''}`.trim())
-            : pay.customerNom || 'N/A',
-          type: 'client',
-          montant: pay.montantTotal || 0,
-          modePaiement: pay.modePaiement,
-          reference: pay.reference,
-          isPaymentOnAccount: pay.isPaymentOnAccount || false,
-        })),
-        ...supplierPayments.map((pay: any) => ({
-          _id: pay._id,
-          numero: pay.numero,
-          date: pay.datePaiement,
-          companyName: pay.fournisseurId
-            ? (pay.fournisseurId.raisonSociale || `${pay.fournisseurId.nom || ''} ${pay.fournisseurId.prenom || ''}`.trim())
-            : pay.fournisseurNom || 'N/A',
-          type: 'fournisseur',
-          montant: pay.montantTotal || 0,
-          modePaiement: pay.modePaiement,
-          reference: pay.reference,
-          isPaymentOnAccount: pay.isPaymentOnAccount || false,
-        })),
+        ...supplierPayments
+          .filter((pay: any) => {
+            // Avances (Paiement sur compte)
+            if (pay.isPaymentOnAccount) return true;
+            // Paiements sur factures avec numéro (référence fournisseur)
+            return pay.lignes?.some((l: any) => l.referenceFournisseur && l.referenceFournisseur.trim() !== "");
+          })
+          .map((pay: any) => ({
+            _id: pay._id,
+            numero: pay.numero,
+            date: pay.datePaiement,
+            companyName: pay.fournisseurId
+              ? (pay.fournisseurId.raisonSociale || `${pay.fournisseurId.nom || ''} ${pay.fournisseurId.prenom || ''}`.trim())
+              : pay.fournisseurNom || 'N/A',
+            type: 'fournisseur',
+            montant: pay.montantTotal || 0,
+            modePaiement: pay.modePaiement,
+            reference: pay.reference,
+            isPaymentOnAccount: pay.isPaymentOnAccount || false,
+          })),
       ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     }
 

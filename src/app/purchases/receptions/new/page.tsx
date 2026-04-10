@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
 import { PlusIcon, XMarkIcon, MagnifyingGlassIcon, ClipboardDocumentCheckIcon, ArrowLeftIcon, TrashIcon } from '@heroicons/react/24/outline';
+import QuickProductCreateModal from '@/components/products/QuickProductCreateModal';
 import ProductSearchModal from '@/components/common/ProductSearchModal';
 import { useTenantId } from '@/hooks/useTenantId';
 import toast from 'react-hot-toast';
@@ -103,6 +104,55 @@ export default function NewReceptionPage() {
 
   const [lines, setLines] = useState<ReceptionLine[]>([]);
   const isEditMode = !!editId;
+
+  // Quick Create State
+  const [showQuickCreateModal, setShowQuickCreateModal] = useState(false);
+  const [quickCreateLineIndex, setQuickCreateLineIndex] = useState<number | null>(null);
+  const [quickCreateName, setQuickCreateName] = useState('');
+
+  const handleOpenQuickCreate = (index: number) => {
+    const line = lines[index];
+    setQuickCreateName(line.designation || productSearches[index] || '');
+    setQuickCreateLineIndex(index);
+    setShowQuickCreateModal(true);
+  };
+
+  const handleProductCreated = (product: Product) => {
+    if (quickCreateLineIndex === null) return;
+
+    // Update the line with the new product
+    const index = quickCreateLineIndex;
+    const newLines = [...lines];
+    newLines[index].productId = product._id;
+    newLines[index].designation = product.nom;
+    newLines[index].reference = product.sku || product.referenceClient || '';
+    newLines[index].uom = product.uomAchatCode || product.uomStockCode || 'PCE';
+    newLines[index].prixUnitaireHT = product.prixAchatRef || product.prixVenteHT || 0;
+    if (product.tvaPct !== undefined) {
+      newLines[index].tvaPct = product.tvaPct;
+    }
+
+    // Recalculate line total
+    if (newLines[index].prixUnitaireHT && newLines[index].qteRecue > 0) {
+      let prixAvecRemise = newLines[index].prixUnitaireHT;
+      const remisePct = newLines[index].remisePct || 0;
+      if (remisePct > 0) {
+        prixAvecRemise = prixAvecRemise * (1 - remisePct / 100);
+      }
+      newLines[index].totalLigneHT = prixAvecRemise * newLines[index].qteRecue;
+    }
+
+    setLines(newLines);
+    setProductSearches({ ...productSearches, [index]: product.nom });
+
+    // Close modal
+    setShowQuickCreateModal(false);
+    setQuickCreateLineIndex(null);
+    toast.success('Produit créé et ajouté !');
+  };
+
+
+
 
   useEffect(() => {
     if (tenantId) {
@@ -604,6 +654,13 @@ export default function NewReceptionPage() {
       return;
     }
 
+    // Strict Validation: Check for ghost products (designation entered but not linked)
+    const linesWithoutProduct = lines.filter(l => !l.productId && l.designation);
+    if (linesWithoutProduct.length > 0) {
+      toast.error(`Produit non reconnu pour la ligne : "${linesWithoutProduct[0].designation}". Veuillez sélectionner un produit existant ou cliquer sur "+" pour le créer.`);
+      return;
+    }
+
     const hasQteRecue = lines.some(line => line.qteRecue > 0);
     if (saveAsValid && !hasQteRecue) {
       toast.error('Au moins une quantité reçue doit être supérieure à 0');
@@ -901,17 +958,30 @@ export default function NewReceptionPage() {
                             value={productSearches[index] || line.designation || ''}
                             onChange={(e) => {
                               updateLine(index, 'designation', e.target.value);
+                              updateLine(index, 'productId', undefined);
                               setProductSearches({ ...productSearches, [index]: e.target.value });
                             }}
                             onClick={() => !formData.purchaseOrderId && handleOpenProductModal(index)}
-                            onFocus={() => !formData.purchaseOrderId && handleOpenProductModal(index)}
                             placeholder="Rechercher..."
                             className={`w-full px-3 py-2 border rounded text-sm ${formData.purchaseOrderId
                               ? 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 cursor-not-allowed'
-                              : 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600'
+                              : !line.productId && line.designation
+                                ? 'border-yellow-400 bg-yellow-50 dark:border-yellow-600 dark:bg-yellow-900/20 text-gray-900 dark:text-white'
+                                : 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600'
                               }`}
                             readOnly={!!formData.purchaseOrderId}
                           />
+                          {/* Quick Create Button */}
+                          {!formData.purchaseOrderId && !line.productId && line.designation && (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenQuickCreate(index)}
+                              className="p-2 text-green-600 hover:text-green-800 bg-green-100 dark:bg-green-900/30 rounded-full"
+                              title="Créer ce produit"
+                            >
+                              <PlusIcon className="w-5 h-5" />
+                            </button>
+                          )}
                           {!formData.purchaseOrderId && line.designation && (
                             <button
                               onClick={() => {
@@ -1038,34 +1108,47 @@ export default function NewReceptionPage() {
                                     value={productSearches[index] || line.designation || ''}
                                     onChange={(e) => {
                                       updateLine(index, 'designation', e.target.value);
+                                      updateLine(index, 'productId', undefined);
                                       setProductSearches({ ...productSearches, [index]: e.target.value });
                                     }}
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      e.preventDefault();
-                                      handleOpenProductModal(index);
-                                    }}
-                                    onFocus={(e) => {
-                                      e.stopPropagation();
                                       handleOpenProductModal(index);
                                     }}
                                     placeholder="Rechercher un produit..."
-                                    className="px-3 py-1.5 pr-8 border rounded text-sm cursor-pointer focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
-                                    readOnly
+                                    className={`px-3 py-1.5 pr-8 border rounded text-sm cursor-pointer focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${!line.productId && line.designation
+                                      ? 'border-yellow-400 bg-yellow-50 dark:border-yellow-600 dark:bg-yellow-900/20'
+                                      : 'border-gray-300 dark:border-gray-600'
+                                      }`}
                                     style={{
                                       minWidth: '150px',
-                                      width: line.designation ? `${Math.max(150, Math.min(500, (line.designation.length * 8) + 50))}px` : '150px',
-                                      maxWidth: '500px',
+                                      width: line.designation ? `${Math.max(150, Math.min(400, (line.designation.length * 8) + 80))}px` : '150px',
+                                      maxWidth: '400px',
                                     }}
                                   />
                                   <MagnifyingGlassIcon className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
                                 </div>
+                                {/* Quick Create Button - appears when product not found */}
+                                {!line.productId && line.designation && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleOpenQuickCreate(index);
+                                    }}
+                                    className="flex items-center gap-1 px-2 py-1.5 text-green-600 hover:text-green-800 bg-green-100 dark:bg-green-900/30 rounded-full transition-colors"
+                                    title="Créer ce produit"
+                                  >
+                                    <PlusIcon className="w-4 h-4" />
+                                    <span className="text-xs font-medium hidden lg:inline">Créer ?</span>
+                                  </button>
+                                )}
                                 {line.designation && (
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       const updatedLines = [...lines];
-                                      updatedLines[index] = { ...updatedLines[index], designation: '', productId: '' };
+                                      updatedLines[index] = { ...updatedLines[index], designation: '', productId: undefined };
                                       setLines(updatedLines);
                                       setProductSearches({ ...productSearches, [index]: '' });
                                     }}
@@ -1401,6 +1484,15 @@ export default function NewReceptionPage() {
           title="Rechercher un produit"
         />
       )}
+
+      {/* Quick Product Create Modal */}
+      <QuickProductCreateModal
+        isOpen={showQuickCreateModal}
+        onClose={() => setShowQuickCreateModal(false)}
+        onSuccess={handleProductCreated}
+        initialName={quickCreateName}
+        tenantId={tenantId || ''}
+      />
     </DashboardLayout>
   );
 }

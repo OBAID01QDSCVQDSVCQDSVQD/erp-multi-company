@@ -202,7 +202,7 @@ function drawPaymentInfo(doc: jsPDF, y: number, paymentData: PaymentData, compan
 
   if (paymentData.supplierMatricule) {
     doc.setTextColor(75, 85, 99);
-    doc.text(`Matricule: ${paymentData.supplierMatricule}`, 115, rightY);
+    doc.text(`Matricule fiscale : ${paymentData.supplierMatricule}`, 115, rightY);
     rightY += 6;
   }
 

@@ -19,10 +19,10 @@ export async function POST(
 
     const tenantId = session.user.companyId?.toString() || '';
 
-    const bl = await (Document as any).findOne({ 
-      _id: params.id, 
-      tenantId, 
-      type: 'BL' 
+    const bl = await (Document as any).findOne({
+      _id: params.id,
+      tenantId,
+      type: 'BL'
     });
 
     if (!bl) {
@@ -47,6 +47,7 @@ export async function POST(
         quantite: line.quantite,
         quantiteBase: line.quantite, // TODO: convert via UnitConversionService
         prixUnitaire: line.prixUnitaireHT,
+        warehouseId: line.warehouseId || bl.warehouseId || undefined, // Use line warehouse, then BL warehouse, then default
         processedBy: session.user.email
       }));
 

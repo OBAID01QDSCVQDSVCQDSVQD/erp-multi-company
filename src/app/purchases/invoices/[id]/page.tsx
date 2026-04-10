@@ -50,6 +50,7 @@ interface PurchaseInvoice {
   bonsReceptionIds?: string[];
   notes?: string;
   images?: ImageItem[];
+  warehouseName?: string;
 }
 
 export default function PurchaseInvoiceDetailPage() {
@@ -652,6 +653,10 @@ export default function PurchaseInvoiceDetailPage() {
               <div>
                 <label className="text-xs text-gray-500 dark:text-gray-400">Fournisseur</label>
                 <p className="text-sm font-medium text-gray-900 dark:text-white mt-1">{invoice.fournisseurNom}</p>
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 dark:text-gray-400">Entrepôt</label>
+                <p className="text-sm font-medium text-gray-900 dark:text-white mt-1">{invoice.warehouseName || '—'}</p>
               </div>
               <div>
                 <label className="text-xs text-gray-500 dark:text-gray-400">Devise</label>

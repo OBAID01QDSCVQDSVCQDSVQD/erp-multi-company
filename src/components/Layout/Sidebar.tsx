@@ -84,7 +84,12 @@ const navigation = [
       { name: 'Alertes stock minimum', href: '/stock/alerts', icon: ChartBarIcon, permission: 'stock_alerts' },
     ]
   },
-  { name: 'Dépenses', href: '/expenses', icon: CurrencyEuroIcon, permission: 'expenses' },
+  {
+    name: 'Dépenses', href: '#', icon: CurrencyEuroIcon, hasSubmenu: true, permission: null, submenu: [
+      { name: 'Dépenses de l\'entreprise', href: '/expenses', icon: CurrencyEuroIcon, permission: 'expenses' },
+      { name: 'Dépenses Personnelles', href: '/profile/expenses', icon: UserIcon, permission: null },
+    ]
+  },
   {
     name: 'Ressources Humaines', href: '#', icon: UserGroupIcon, hasSubmenu: true, permission: null, submenu: [
       { name: 'Liste des employés', href: '/hr/employees', icon: UserIcon, permission: 'employees' },
@@ -166,7 +171,13 @@ export default function Sidebar({ sidebarOpen: externalSidebarOpen, setSidebarOp
           );
         }
 
-        const filteredSubmenu = currentSubmenu.filter((subItem: any) => hasPermission(subItem.permission));
+        const filteredSubmenu = currentSubmenu.filter((subItem: any) => {
+          // "Dépenses de l'entreprise" visible only for admin
+          if (subItem.name === 'Dépenses de l\'entreprise') {
+            return session?.user?.role === 'admin' || session?.user?.permissions?.includes('all');
+          }
+          return hasPermission(subItem.permission);
+        });
         return filteredSubmenu.length > 0;
       }
       return true;
@@ -178,7 +189,13 @@ export default function Sidebar({ sidebarOpen: externalSidebarOpen, setSidebarOp
         if (item.name.includes('Stock') && !hasMultiWarehouse) {
           subItems = subItems.filter((sub: any) => sub.name !== 'Entrepôts' && sub.name !== 'Transferts de stock');
         }
-        return { ...item, submenu: subItems.filter((subItem: any) => hasPermission(subItem.permission)) };
+        return { ...item, submenu: subItems.filter((subItem: any) => {
+          // "Dépenses de l'entreprise" visible only for admin
+          if (subItem.name === 'Dépenses de l\'entreprise') {
+            return session?.user?.role === 'admin' || session?.user?.permissions?.includes('all');
+          }
+          return hasPermission(subItem.permission);
+        }) };
       }
       return item;
     });

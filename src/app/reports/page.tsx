@@ -831,7 +831,7 @@ export default function ReportsPage() {
                         Date
                       </th>
                       <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        Numéro
+                        N° Facture Fournisseur
                       </th>
                       <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider hidden sm:table-cell">
                         Nom du fournisseur
@@ -869,8 +869,8 @@ export default function ReportsPage() {
                           <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm text-gray-900 dark:text-white">
                             {formatDate(invoice.date)}
                           </td>
-                          <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
-                            {invoice.numero}
+                          <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm font-medium text-blue-600 dark:text-blue-400">
+                            {invoice.referenceFournisseur || invoice.numero}
                           </td>
                           <td className="px-2 py-2 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden sm:table-cell">
                             {invoice.companyName}

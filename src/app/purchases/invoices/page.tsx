@@ -378,9 +378,9 @@ export default function PurchaseInvoicesPage() {
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead className="bg-blue-50 dark:bg-gray-700 border-b-2 border-blue-200 dark:border-gray-600">
                   <tr>
-                    <th className="px-4 sm:px-6 py-3 text-left text-sm font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">N° Facture</th>
+                    <th className="px-4 sm:px-6 py-3 text-left text-sm font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">N° Facture Fournisseur</th>
                     <th className="px-4 sm:px-6 py-3 text-left text-sm font-bold text-gray-800 dark:text-gray-200">Date</th>
-                    <th className="px-4 sm:px-6 py-3 text-left text-sm font-bold text-gray-800 dark:text-gray-200">N° Facture Fournisseur</th>
+                    <th className="px-4 sm:px-6 py-3 text-left text-sm font-bold text-gray-800 dark:text-gray-200">N° Interne</th>
                     <th className="px-4 sm:px-6 py-3 text-left text-sm font-bold text-gray-800 dark:text-gray-200">Fournisseur</th>
                     <th className="px-4 sm:px-6 py-3 text-right text-sm font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">Total TTC</th>
                     <th className="px-4 sm:px-6 py-3 text-center text-sm font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">Images</th>
@@ -391,13 +391,15 @@ export default function PurchaseInvoicesPage() {
                   {filteredInvoices.map((invoice) => (
                     <tr key={invoice._id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                       <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-blue-600 dark:text-blue-400">{invoice.numero}</div>
+                        <div className="text-sm font-medium text-blue-600 dark:text-blue-400">
+                          {invoice.referenceFournisseur || '—'}
+                        </div>
                       </td>
                       <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                         {new Date(invoice.dateFacture).toLocaleDateString('fr-FR')}
                       </td>
-                      <td className="px-4 sm:px-6 py-4 text-sm text-gray-900 dark:text-white">
-                        {invoice.referenceFournisseur || '—'}
+                      <td className="px-4 sm:px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+                        {invoice.numero}
                       </td>
                       <td className="px-4 sm:px-6 py-4 text-sm text-gray-900 dark:text-white">{invoice.fournisseurNom}</td>
                       <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-right font-medium text-gray-900 dark:text-white">
@@ -480,7 +482,9 @@ export default function PurchaseInvoicesPage() {
                 <div key={invoice._id} className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg p-4 space-y-3 shadow-sm">
                   <div className="flex items-start justify-between">
                     <div>
-                      <h3 className="font-semibold text-gray-900 dark:text-white">{invoice.numero}</h3>
+                      <h3 className="font-semibold text-blue-600 dark:text-blue-400">
+                        {invoice.referenceFournisseur || invoice.numero}
+                      </h3>
                       <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                         {new Date(invoice.dateFacture).toLocaleDateString('fr-FR')}
                       </p>
@@ -495,7 +499,11 @@ export default function PurchaseInvoicesPage() {
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-500 dark:text-gray-400">Réf. Fournisseur:</span>
-                      <span className="text-gray-900 dark:text-white">{invoice.referenceFournisseur || '—'}</span>
+                      <span className="font-medium text-gray-900 dark:text-white">{invoice.referenceFournisseur || '—'}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500 dark:text-gray-400">N° Interne:</span>
+                      <span className="text-gray-900 dark:text-white">{invoice.numero}</span>
                     </div>
                   </div>
 

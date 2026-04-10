@@ -3,10 +3,12 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
 import ExpenseCategoryModal from '@/components/ExpenseCategoryModal';
 import { useTenantId } from '@/hooks/useTenantId';
 import { PlusIcon, FunnelIcon, DocumentArrowDownIcon, CogIcon, EyeIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
+import toast from 'react-hot-toast';
 
 interface Expense {
   _id: string;
@@ -111,6 +113,7 @@ const categorySuggestions = [
 
 export default function ExpensesPage() {
   const router = useRouter();
+  const { data: session } = useSession();
   const { tenantId } = useTenantId();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
@@ -314,6 +317,23 @@ export default function ExpensesPage() {
   };
 
   const handleStatusChange = async (expenseId: string, newStatus: string) => {
+    // Vérifier que l'utilisateur est admin
+    const userRole = session?.user?.role;
+    const userPermissions = session?.user?.permissions || [];
+    const isAdmin = userRole === 'admin' || userPermissions.includes('all');
+
+    if (!isAdmin) {
+      toast.error('Seuls les administrateurs peuvent modifier le statut');
+      return;
+    }
+
+    // Trouver la dépense actuelle pour vérifier son statut
+    const currentExpense = expenses.find(exp => exp._id === expenseId);
+    if (currentExpense?.statut === 'paye' && newStatus !== 'paye') {
+      toast.error('Impossible de modifier le statut d\'une dépense déjà payée');
+      return;
+    }
+
     console.log('Changing status for expense:', expenseId, 'to:', newStatus);
     try {
       // Mettre à jour l'état local immédiatement pour un feedback visuel rapide
@@ -336,18 +356,19 @@ export default function ExpensesPage() {
       if (response.ok) {
         const updatedData = await response.json();
         console.log('Updated expense:', updatedData);
+        toast.success('Statut mis à jour avec succès');
         // Rafraîchir les données pour s'assurer de la cohérence
         await fetchExpenses();
       } else {
         const errorData = await response.json();
         console.error('Erreur lors de la mise à jour:', errorData);
-        setError(errorData.error || 'Erreur lors de la mise à jour du statut');
+        toast.error(errorData.error || 'Erreur lors de la mise à jour du statut');
         // Recharger les données pour annuler le changement local
         await fetchExpenses();
       }
     } catch (err) {
       console.error('Erreur de connexion:', err);
-      setError('Erreur de connexion lors de la mise à jour du statut');
+      toast.error('Erreur de connexion lors de la mise à jour du statut');
       // Recharger les données pour annuler le changement local
       await fetchExpenses();
     }
@@ -890,21 +911,31 @@ export default function ExpensesPage() {
                           {formatPrice(expense.totalTTC || expense.montant || 0, expense.devise || 'TND')}
                         </td>
                         <td className="px-2 py-2 whitespace-nowrap">
-                          <select
-                            value={expense.statut}
-                            onChange={(e) => handleStatusChange(expense._id, e.target.value)}
-                            className={`text-xs font-semibold rounded-full px-1.5 py-0.5 border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500 ${expense.statut === 'paye' ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300' :
-                              expense.statut === 'valide' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300' :
-                                expense.statut === 'en_attente' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300' :
-                                  'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
-                              }`}
-                          >
-                            <option value="brouillon">Brouillon</option>
-                            <option value="en_attente">En attente</option>
-                            <option value="valide">Validé</option>
-                            <option value="paye">Payé</option>
-                            <option value="rejete">Rejeté</option>
-                          </select>
+                          {(() => {
+                            const userRole = session?.user?.role;
+                            const userPermissions = session?.user?.permissions || [];
+                            const isAdmin = userRole === 'admin' || userPermissions.includes('all');
+                            const isDisabled = !isAdmin || expense.statut === 'paye';
+                            
+                            return (
+                              <select
+                                value={expense.statut}
+                                onChange={(e) => handleStatusChange(expense._id, e.target.value)}
+                                disabled={isDisabled}
+                                className={`text-xs font-semibold rounded-full px-1.5 py-0.5 border-0 ${isDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'} focus:outline-none focus:ring-2 focus:ring-indigo-500 ${expense.statut === 'paye' ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300' :
+                                  expense.statut === 'valide' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300' :
+                                    expense.statut === 'en_attente' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300' :
+                                      'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                                  }`}
+                              >
+                                <option value="brouillon">Brouillon</option>
+                                <option value="en_attente">En attente</option>
+                                <option value="valide">Validé</option>
+                                <option value="paye">Payé</option>
+                                <option value="rejete">Rejeté</option>
+                              </select>
+                            );
+                          })()}
                         </td>
                         <td className="px-2 py-2 whitespace-nowrap text-xs">
                           <div className="flex space-x-1">
@@ -961,6 +992,14 @@ export default function ExpensesPage() {
                       <span className="text-gray-900 dark:text-white truncate">{expense.projetId?.name || '-'}</span>
                     </div>
                     <div className="flex items-center text-sm">
+                      <span className="w-20 text-gray-500 dark:text-gray-400">Utilisateur:</span>
+                      <span className="text-gray-900 dark:text-white truncate">
+                        {expense.createdBy
+                          ? `${expense.createdBy.firstName || ''} ${expense.createdBy.lastName || ''}`.trim() || '-'
+                          : '-'}
+                      </span>
+                    </div>
+                    <div className="flex items-center text-sm">
                       <span className="w-20 text-gray-500 dark:text-gray-400">Total TTC:</span>
                       <span className="text-indigo-600 dark:text-indigo-400 font-bold">
                         {formatPrice(expense.totalTTC || expense.montant || 0, expense.devise || 'TND')}
@@ -969,21 +1008,31 @@ export default function ExpensesPage() {
                   </div>
 
                   <div className="flex justify-between items-center pt-2 border-t dark:border-gray-700">
-                    <select
-                      value={expense.statut}
-                      onChange={(e) => handleStatusChange(expense._id, e.target.value)}
-                      className={`text-xs font-semibold rounded-full px-2 py-1 border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500 ${expense.statut === 'paye' ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300' :
-                        expense.statut === 'valide' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300' :
-                          expense.statut === 'en_attente' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300' :
-                            'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
-                        }`}
-                    >
-                      <option value="brouillon">Brouillon</option>
-                      <option value="en_attente">En attente</option>
-                      <option value="valide">Validé</option>
-                      <option value="paye">Payé</option>
-                      <option value="rejete">Rejeté</option>
-                    </select>
+                    {(() => {
+                      const userRole = session?.user?.role;
+                      const userPermissions = session?.user?.permissions || [];
+                      const isAdmin = userRole === 'admin' || userPermissions.includes('all');
+                      const isDisabled = !isAdmin || expense.statut === 'paye';
+                      
+                      return (
+                        <select
+                          value={expense.statut}
+                          onChange={(e) => handleStatusChange(expense._id, e.target.value)}
+                          disabled={isDisabled}
+                          className={`text-xs font-semibold rounded-full px-2 py-1 border-0 ${isDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'} focus:outline-none focus:ring-2 focus:ring-indigo-500 ${expense.statut === 'paye' ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300' :
+                            expense.statut === 'valide' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300' :
+                              expense.statut === 'en_attente' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300' :
+                                'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                            }`}
+                        >
+                          <option value="brouillon">Brouillon</option>
+                          <option value="en_attente">En attente</option>
+                          <option value="valide">Validé</option>
+                          <option value="paye">Payé</option>
+                          <option value="rejete">Rejeté</option>
+                        </select>
+                      );
+                    })()}
 
                     <div className="flex space-x-2">
                       <button

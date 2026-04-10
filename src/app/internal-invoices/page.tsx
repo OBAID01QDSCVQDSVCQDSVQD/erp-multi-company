@@ -771,6 +771,20 @@ export default function InternalInvoicesPage() {
       // Check if customer is already selected
       if (formData.customerId === projectCustomerId) return;
 
+      if (typeof projectCustomerId === 'object') {
+        const customer = projectCustomerId as any;
+        // Customer object is already available
+        const customerData = customer;
+        // Check if customer exists in customers list
+        const existing = customers.find(c => c._id === customerData._id);
+        if (!existing) {
+          setCustomers(prev => [...prev, customerData]);
+        }
+        setFormData(prev => ({ ...prev, customerId: customerData._id }));
+        setCustomerSearch(customerData.raisonSociale || `${customerData.nom || ''} ${customerData.prenom || ''}`.trim());
+        return;
+      }
+
       // Check if customer exists in customers list
       const existingCustomer = customers.find(c => c._id === projectCustomerId);
 
@@ -1088,19 +1102,27 @@ export default function InternalInvoicesPage() {
         const documentsWithCustomers = await Promise.all(
           availableDocuments.map(async (doc: any) => {
             if (doc.customerId) {
-              try {
-                const customerResponse = await fetch(`/api/customers/${doc.customerId}`, {
-                  headers: { 'X-Tenant-Id': tenantId }
-                });
-                if (customerResponse.ok) {
-                  const customer = await customerResponse.json();
-                  return {
-                    ...doc,
-                    customerName: customer.raisonSociale || `${customer.nom || ''} ${customer.prenom || ''}`.trim()
-                  };
+              // Check if customerId is already an object (populated)
+              if (typeof doc.customerId === 'object') {
+                const customer = doc.customerId;
+                const customerName = customer.raisonSociale || `${customer.nom || ''} ${customer.prenom || ''}`.trim();
+                return { ...doc, customerName };
+              } else {
+                // If string, fetch the customer details
+                try {
+                  const customerResponse = await fetch(`/api/customers/${doc.customerId}`, {
+                    headers: { 'X-Tenant-Id': tenantId }
+                  });
+                  if (customerResponse.ok) {
+                    const customer = await customerResponse.json();
+                    return {
+                      ...doc,
+                      customerName: customer.raisonSociale || `${customer.nom || ''} ${customer.prenom || ''}`.trim()
+                    };
+                  }
+                } catch (err) {
+                  console.error('Error fetching customer:', err);
                 }
-              } catch (err) {
-                console.error('Error fetching customer:', err);
               }
             }
             return doc;
@@ -1910,6 +1932,18 @@ export default function InternalInvoicesPage() {
             </h1>
           </div>
           <div className="flex gap-2 flex-wrap">
+            <button
+              onClick={() => handleOpenConvertModal('DEVIS')}
+              className="flex items-center gap-2 px-3 sm:px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            >
+              Depuis Devis
+            </button>
+            <button
+              onClick={() => handleOpenConvertModal('BL')}
+              className="flex items-center gap-2 px-3 sm:px-4 py-2 border border-green-600 text-green-600 dark:text-green-400 rounded-lg text-sm font-medium hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors"
+            >
+              Depuis BL
+            </button>
             <button
               onClick={handleOpenNewInvoiceModal}
               className="flex items-center gap-2 bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/20 text-sm sm:text-base w-full sm:w-auto justify-center"
@@ -2949,7 +2983,7 @@ export default function InternalInvoicesPage() {
                       + Ajouter une ligne
                     </button>
                   </div>
-                  <div className="border rounded-lg overflow-visible dark:border-gray-700">
+                  <div className="border rounded-lg overflow-x-auto dark:border-gray-700">
                     {lines.length === 0 ? (
                       <div className="text-center py-12 text-gray-500">
                         Aucune ligne ajoutée

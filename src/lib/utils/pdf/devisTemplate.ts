@@ -246,7 +246,7 @@ function drawHeader(doc: jsPDF, companyInfo: CompanyInfo): number {
   }
 
   if (companyInfo.enTete?.matriculeFiscal) {
-    doc.text(`Matricule : ${companyInfo.enTete.matriculeFiscal}`, rightX, topY + 15);
+    doc.text(`Matricule fiscale : ${companyInfo.enTete.matriculeFiscal}`, rightX, topY + 15);
   }
 
   return 10 + 32 + 4;
@@ -481,6 +481,11 @@ function drawInfoBlocks(doc: jsPDF, quoteData: QuoteData, companyInfo: CompanyIn
     dynamicHeight += 5;
   }
 
+  // Add matricule height if exists
+  if (quoteData.customerMatricule) {
+    dynamicHeight += 5;
+  }
+
   // Ensure minimum height
   dynamicHeight = Math.max(dynamicHeight, h);
 
@@ -508,6 +513,12 @@ function drawInfoBlocks(doc: jsPDF, quoteData: QuoteData, companyInfo: CompanyIn
   // Phone
   if (quoteData.customerPhone) {
     doc.text(`Tél: ${quoteData.customerPhone}`, clientX + 4, textY);
+    textY += 5;
+  }
+
+  // Matricule fiscale
+  if (quoteData.customerMatricule) {
+    doc.text(`Matricule fiscale : ${quoteData.customerMatricule}`, clientX + 4, textY);
   }
 
   return startY + dynamicHeight + 6;
@@ -701,7 +712,7 @@ function drawLinesTable(doc: jsPDF, quoteData: QuoteData, startY: number, maxY: 
     rowPageBreak: 'auto',
     styles: {
       fontSize: 9,
-      cellPadding: 4,
+      cellPadding: { top: 3, right: 2, bottom: 3, left: 2 },
       valign: 'top',
       halign: 'left',
       minCellHeight: 8,
@@ -718,13 +729,13 @@ function drawLinesTable(doc: jsPDF, quoteData: QuoteData, startY: number, maxY: 
       fillColor: [252, 252, 252],
     },
     columnStyles: {
-      0: { cellWidth: 80, halign: 'left' },  // Produit
-      1: { cellWidth: 16, halign: 'center' }, // Qté
+      0: { cellWidth: 70, halign: 'left' },  // Produit
+      1: { cellWidth: 15, halign: 'center' }, // Qté
       2: { cellWidth: 22, halign: 'right' },  // Prix HT
-      3: { cellWidth: 20, halign: 'right' },  // Remise %
-      4: { cellWidth: 14, halign: 'right' },  // TVA
-      5: { cellWidth: 19, halign: 'right' },  // Total HT
-      6: { cellWidth: 19, halign: 'right' },  // Total TTC
+      3: { cellWidth: 18, halign: 'right' },  // Remise %
+      4: { cellWidth: 15, halign: 'right' },  // TVA
+      5: { cellWidth: 25, halign: 'right' },  // Total HT
+      6: { cellWidth: 25, halign: 'right' },  // Total TTC
     },
   });
 

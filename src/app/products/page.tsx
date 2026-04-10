@@ -37,7 +37,13 @@ export default function ProductsPage() {
     actif: boolean; tagsText?: string;
   }>({ nom: '', sku: '', barcode: '', categorieCode: undefined, description: '', referenceClient: '', prixVenteHT: undefined, prixAchatRef: undefined, taxCode: undefined, uomVenteCode: undefined, typeProduit: 'service', min: undefined, max: undefined, leadTimeJours: undefined, actif: true, tagsText: '' });
 
-  useEffect(() => { fetchProducts(); }, [tenantId]);
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      if (tenantId) fetchProducts(q);
+    }, 500);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [tenantId, q]);
   useEffect(() => { if (tenantId) loadRefs(); }, [tenantId]);
 
   const normalized = (s: string) => s.toLowerCase();
@@ -55,21 +61,18 @@ export default function ProductsPage() {
     return map;
   }, [categories]);
 
-  const filteredProducts = useMemo(() => {
-    const query = normalized(q || '');
-    if (!query) return products;
-    return products.filter(p => {
-      const name = normalized(p.nom || '');
-      const ref = normalized(p.referenceClient || '');
-      const catName = normalized(categoryNameByCode.get(p.categorieCode || '') || '');
-      return name.includes(query) || ref.includes(query) || catName.includes(query);
-    });
-  }, [products, q, categoryNameByCode]);
+  // Products are filtered server-side now
+  const filteredProducts = products;
 
-  const fetchProducts = async () => {
+  const fetchProducts = async (query = '') => {
     try {
       if (!tenantId) return;
-      const response = await fetch('/api/products', { headers: { 'X-Tenant-Id': tenantId } });
+      setLoading(true);
+      const url = query
+        ? `/api/products?q=${encodeURIComponent(query)}&limit=100`
+        : `/api/products?limit=50`;
+
+      const response = await fetch(url, { headers: { 'X-Tenant-Id': tenantId } });
       if (response.ok) {
         const data = await response.json();
         setProducts(data.items || []);
@@ -496,30 +499,54 @@ export default function ProductsPage() {
               {filteredCategories.length === 0 ? (
                 <p className="text-sm text-gray-500 dark:text-gray-400">Aucune catégorie.</p>
               ) : (
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                  <thead className="bg-gray-50 dark:bg-gray-700">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Code</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Nom</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                <>
+                  {/* Mobile View: Cards */}
+                  <div className="grid grid-cols-1 gap-4 sm:hidden">
                     {filteredCategories.map(category => (
-                      <tr key={category.code} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900 dark:text-white">{category.code}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{category.nom}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                          <div className="flex items-center space-x-3">
-                            <button onClick={() => handleViewCategory(category)} className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200" title="Voir"><EyeIcon className="h-5 w-5" /></button>
-                            <button onClick={() => handleEditCategory(category)} className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300" title="Modifier"><PencilIcon className="h-5 w-5" /></button>
-                            <button onClick={() => handleDeleteCategory(category.code)} className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300" title="Supprimer"><TrashIcon className="h-5 w-5" /></button>
+                      <div key={category.code} className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 shadow-sm flex flex-col gap-3">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <span className="text-xs font-mono text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">{category.code}</span>
+                            <h4 className="font-medium text-gray-900 dark:text-white mt-2">{category.nom}</h4>
                           </div>
-                        </td>
-                      </tr>
+                        </div>
+                        <div className="flex justify-end items-center gap-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+                          <button onClick={() => handleViewCategory(category)} className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg" title="Voir"><EyeIcon className="h-5 w-5" /></button>
+                          <button onClick={() => handleEditCategory(category)} className="p-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg" title="Modifier"><PencilIcon className="h-5 w-5" /></button>
+                          <button onClick={() => handleDeleteCategory(category.code)} className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg" title="Supprimer"><TrashIcon className="h-5 w-5" /></button>
+                        </div>
+                      </div>
                     ))}
-                  </tbody>
-                </table>
+                  </div>
+
+                  {/* Desktop View: Table */}
+                  <div className="hidden sm:block overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                      <thead className="bg-gray-50 dark:bg-gray-700">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Code</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Nom</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                        {filteredCategories.map(category => (
+                          <tr key={category.code} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900 dark:text-white">{category.code}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{category.nom}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                              <div className="flex items-center space-x-3">
+                                <button onClick={() => handleViewCategory(category)} className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200" title="Voir"><EyeIcon className="h-5 w-5" /></button>
+                                <button onClick={() => handleEditCategory(category)} className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300" title="Modifier"><PencilIcon className="h-5 w-5" /></button>
+                                <button onClick={() => handleDeleteCategory(category.code)} className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300" title="Supprimer"><TrashIcon className="h-5 w-5" /></button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
               )}
             </div>
           </div>
@@ -547,50 +574,88 @@ export default function ProductsPage() {
                   </p>
                 </div>
               ) : (
-                <div className="overflow-x-auto -mx-4 sm:mx-0 sm:rounded-md">
-                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                    <thead className="bg-gray-50 dark:bg-gray-700">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">SKU</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Réf</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Nom</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Type</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Prix (HT)</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">TVA</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Unité</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Statut</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                      {filteredProducts.map((p) => (
-                        <tr key={p._id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900 dark:text-white">{p.sku}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{p.referenceClient ?? '-'}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{p.nom}</td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${p.estStocke ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300' : 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300'}`}>
+                <>
+                  {/* Mobile View: Cards */}
+                  <div className="grid grid-cols-1 gap-4 sm:hidden">
+                    {filteredProducts.map((p) => (
+                      <div key={p._id} className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 shadow-sm flex flex-col gap-3">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <span className="text-xs font-mono text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">{p.sku}</span>
+                            <h4 className="font-medium text-gray-900 dark:text-white mt-1 text-base">{p.nom}</h4>
+                            {p.referenceClient && <p className="text-xs text-gray-500 mt-1">Ref: {p.referenceClient}</p>}
+                          </div>
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${p.actif ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300' : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300'}`}>{p.actif ? 'ACTIF' : 'INACTIF'}</span>
+                        </div>
+
+                        <div className="flex items-center justify-between text-sm py-2 border-t border-b border-gray-100 dark:border-gray-700">
+                          <div className="flex flex-col">
+                            <span className="text-gray-500 text-xs">Type</span>
+                            <span className={`inline-flex items-center mt-1 px-2 py-0.5 rounded text-xs font-medium w-fit ${p.estStocke ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300' : 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300'}`}>
                               {p.estStocke ? 'ARTICLE' : 'SERVICE'}
                             </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{p.prixVenteHT ?? '-'}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{p.taxCode ?? '-'}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{p.uomVenteCode ?? '-'}</td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${p.actif ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300' : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300'}`}>{p.actif ? 'ACTIF' : 'INACTIF'}</span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                            <div className="flex items-center space-x-3">
-                              <button onClick={() => handleView(p)} className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200" title="Voir"><EyeIcon className="h-5 w-5" /></button>
-                              <button onClick={() => handleEdit(p)} className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300" title="Modifier"><PencilIcon className="h-5 w-5" /></button>
-                              <button onClick={() => handleDelete(p.sku)} className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300" title="Supprimer"><TrashIcon className="h-5 w-5" /></button>
-                            </div>
-                          </td>
+                          </div>
+                          <div className="flex flex-col text-right">
+                            <span className="text-gray-500 text-xs">Prix HT</span>
+                            <span className="font-semibold text-gray-900 dark:text-white">{p.prixVenteHT ? formatPrice(p.prixVenteHT) : '-'}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex justify-end items-center gap-2 pt-1">
+                          <button onClick={() => handleView(p)} className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg" title="Voir"><EyeIcon className="h-5 w-5" /></button>
+                          <button onClick={() => handleEdit(p)} className="p-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg" title="Modifier"><PencilIcon className="h-5 w-5" /></button>
+                          <button onClick={() => handleDelete(p.sku)} className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg" title="Supprimer"><TrashIcon className="h-5 w-5" /></button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Desktop View: Table */}
+                  <div className="hidden sm:block overflow-x-auto sm:rounded-md">
+                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                      <thead className="bg-gray-50 dark:bg-gray-700">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">SKU</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Réf</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Nom</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Type</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Prix (HT)</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">TVA</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Unité</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Statut</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                        {filteredProducts.map((p) => (
+                          <tr key={p._id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900 dark:text-white">{p.sku}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{p.referenceClient ?? '-'}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{p.nom}</td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${p.estStocke ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300' : 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300'}`}>
+                                {p.estStocke ? 'ARTICLE' : 'SERVICE'}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{p.prixVenteHT ? formatPrice(p.prixVenteHT) : '-'}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{p.taxCode ?? '-'}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{p.uomVenteCode ?? '-'}</td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${p.actif ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300' : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300'}`}>{p.actif ? 'ACTIF' : 'INACTIF'}</span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                              <div className="flex items-center space-x-3">
+                                <button onClick={() => handleView(p)} className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200" title="Voir"><EyeIcon className="h-5 w-5" /></button>
+                                <button onClick={() => handleEdit(p)} className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300" title="Modifier"><PencilIcon className="h-5 w-5" /></button>
+                                <button onClick={() => handleDelete(p.sku)} className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300" title="Supprimer"><TrashIcon className="h-5 w-5" /></button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
               )}
             </div>
           </div>

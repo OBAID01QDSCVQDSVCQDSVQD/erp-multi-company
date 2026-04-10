@@ -280,7 +280,7 @@ export async function POST(request: NextRequest) {
       paymentMethod: paymentMethod || employee.paymentMethod || 'bank_transfer',
       paymentStatus,
       notes,
-      createdBy: session.user.email,
+      createdBy: session.user.name || session.user.email || 'Unknown',
     });
 
     await salary.save();

@@ -58,6 +58,7 @@ export default function InvoicesPage() {
     notes: '',
     numero: '',
     timbreActif: true,
+    timbreFiscalAmount: 1.0,
     remiseGlobalePct: 0,
     fodec: { enabled: false, tauxPct: 1 }
   });
@@ -468,7 +469,10 @@ export default function InvoicesPage() {
       fodec: currentTvaSettings?.fodec?.actif ? {
         enabled: true,
         tauxPct: currentTvaSettings.fodec.tauxPct || 1
-      } : { enabled: false, tauxPct: 1 }
+      } : { enabled: false, tauxPct: 1 },
+      // Set default timbre amount from settings
+      timbreFiscalAmount: currentTvaSettings?.timbreFiscal?.actif ? (currentTvaSettings?.timbreFiscal?.montantFixe || 1) : 0,
+      timbreActif: currentTvaSettings?.timbreFiscal?.actif || false
     };
     setFormData(resolvedForm);
     if (nextNumero) {
@@ -875,9 +879,14 @@ export default function InvoicesPage() {
     }, 0);
 
     // Timbre fiscal
-    const timbreAmount = (formData.timbreActif && tvaSettings?.timbreFiscal?.actif)
-      ? (tvaSettings?.timbreFiscal?.montantFixe || 1)
-      : 0;
+    let timbreAmount = 0;
+    if (formData.timbreActif) {
+      if (formData.timbreFiscalAmount !== undefined && formData.timbreFiscalAmount !== null) {
+        timbreAmount = formData.timbreFiscalAmount;
+      } else if (tvaSettings?.timbreFiscal?.actif) {
+        timbreAmount = tvaSettings?.timbreFiscal?.montantFixe || 1;
+      }
+    }
 
     const totalTTC = totalHT + fodec + totalTVA + timbreAmount;
 
@@ -1044,6 +1053,7 @@ export default function InvoicesPage() {
             notes: fullInvoice.notes || '',
             numero: fullInvoice.numero || '',
             timbreActif: (fullInvoice.timbreFiscal || 0) > 0,
+            timbreFiscalAmount: fullInvoice.timbreFiscal || 0,
             remiseGlobalePct: fullInvoice.remiseGlobalePct || 0,
             fodec: fullInvoice.fodec ? {
               enabled: fullInvoice.fodec.enabled || false,
@@ -1303,6 +1313,7 @@ export default function InvoicesPage() {
           notes: fullInvoice.notes || '',
           numero: fullInvoice.numero || '',
           timbreActif: (fullInvoice.timbreFiscal || 0) > 0,
+          timbreFiscalAmount: fullInvoice.timbreFiscal || 0,
           remiseGlobalePct: 0, // Will be calculated from existing remise if needed
           fodec: fullInvoice.fodec ? {
             enabled: fullInvoice.fodec.enabled || false,
@@ -2627,20 +2638,32 @@ export default function InvoicesPage() {
                         <span className="text-gray-600 dark:text-gray-400">TVA</span>
                         <span className="font-medium text-gray-900 dark:text-white">{totals.totalTVA.toFixed(3)} {formData.devise}</span>
                       </div>
-                      {tvaSettings?.timbreFiscal?.actif && (
-                        <div className="flex justify-between text-sm items-center">
-                          <div className="flex items-center gap-2">
-                            <span className="text-gray-600 dark:text-gray-400">Timbre fiscal</span>
-                            <input
-                              type="checkbox"
-                              checked={formData.timbreActif}
-                              onChange={(e) => setFormData({ ...formData, timbreActif: e.target.checked })}
-                              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
-                            />
-                          </div>
-                          <span className="font-medium text-gray-900 dark:text-white">{totals.timbreAmount.toFixed(3)} {formData.devise}</span>
+                      <div className="flex justify-between text-sm items-center">
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-600 dark:text-gray-400">Timbre fiscal</span>
+                          <input
+                            type="checkbox"
+                            checked={formData.timbreActif}
+                            onChange={(e) => setFormData({ ...formData, timbreActif: e.target.checked })}
+                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
+                          />
                         </div>
-                      )}
+                        <div className="flex items-center gap-2">
+                          {formData.timbreActif ? (
+                            <input
+                              type="number"
+                              step="0.001"
+                              min="0"
+                              value={formData.timbreFiscalAmount}
+                              onChange={(e) => setFormData({ ...formData, timbreFiscalAmount: parseFloat(e.target.value) || 0 })}
+                              className="w-24 px-2 py-1 border rounded text-sm bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
+                            />
+                          ) : (
+                            <span className="font-medium text-gray-900 dark:text-white">0.000</span>
+                          )}
+                          <span className="text-gray-900 dark:text-white">{formData.devise}</span>
+                        </div>
+                      </div>
                       <div className="border-t dark:border-gray-700 pt-3 flex justify-between text-lg font-bold">
                         <span className="text-gray-900 dark:text-white">Total TTC</span>
                         <span className="text-blue-600 dark:text-blue-400">{totals.totalTTC.toFixed(3)} {formData.devise}</span>

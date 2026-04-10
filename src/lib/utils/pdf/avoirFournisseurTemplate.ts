@@ -220,7 +220,7 @@ function drawHeader(doc: jsPDF, companyInfo: CompanyInfo): number {
     }
 
     if (companyInfo.enTete?.matriculeFiscal) {
-        doc.text(`Matricule : ${companyInfo.enTete.matriculeFiscal}`, rightX, topY + 15);
+        doc.text(`Matricule fiscale : ${companyInfo.enTete.matriculeFiscal}`, rightX, topY + 15);
     }
 
     return 10 + 32 + 4;

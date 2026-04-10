@@ -39,11 +39,15 @@ export interface ISalary extends Document {
     socialSecurity: number;
     insurance: number;
     advances: number;
-    advancesList?: Array<{
-      amount: number;
-      date: Date;
-      notes?: string;
-    }>;
+  advancesList?: Array<{
+    amount: number;
+    date: Date;
+    notes?: string;
+    createdBy?: string;
+    repaidBy?: string;
+    repaidAt?: Date;
+    isRepaid?: boolean;
+  }>;
     otherDeductions: number;
     totalDeductions: number;
   };
@@ -85,6 +89,10 @@ const AdvanceSchema = new Schema({
   amount: { type: Number, required: true, min: 0 },
   date: { type: Date, required: true },
   notes: { type: String },
+  createdBy: { type: String },
+  repaidBy: { type: String },
+  repaidAt: { type: Date },
+  isRepaid: { type: Boolean, default: false },
 }, { _id: false });
 
 const DeductionsSchema = new Schema({

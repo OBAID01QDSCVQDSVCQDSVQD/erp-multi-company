@@ -59,6 +59,7 @@ export async function POST(
       amount: parseFloat(amount),
       date: new Date(date),
       notes: notes || undefined,
+      createdBy: session.user.name || session.user.email || 'Unknown',
     });
 
     // Recalculate total advances

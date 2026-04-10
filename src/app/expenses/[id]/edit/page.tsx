@@ -610,7 +610,18 @@ export default function EditExpensePage() {
         )}
 
         {/* Form */}
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <form
+          onSubmit={handleSubmit(onSubmit, (errors) => {
+            console.log('Form errors:', errors);
+            setError('Veuillez corriger les erreurs dans le formulaire : ' +
+              Object.keys(errors).map(key => {
+                const err = (errors as any)[key];
+                return err.message || key;
+              }).join(', ')
+            );
+          })}
+          className="space-y-6"
+        >
           {/* 1. Informations générales */}
           <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow border dark:border-gray-700">
             <div className="flex justify-between items-center mb-4">
@@ -1297,9 +1308,14 @@ export default function EditExpensePage() {
             <button
               type="submit"
               disabled={loading}
-              className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 disabled:opacity-50"
+              className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 disabled:opacity-50 shadow-sm transition-all focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
             >
-              {loading ? 'Mise à jour...' : 'Mettre à jour'}
+              {loading ? (
+                <div className="flex items-center">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Mise à jour...
+                </div>
+              ) : 'Mettre à jour'}
             </button>
           </div>
         </form>

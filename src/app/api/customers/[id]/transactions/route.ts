@@ -111,46 +111,78 @@ export async function GET(
       allDocs = await (Document as any).find(docQuery).lean();
     }
 
-    // Fetch Payments if needed
-    let allPayments: any[] = [];
+    // Fetch ALL payments for this customer (ignoring filters) to calculate:
+    // 1. Global invoice payment status
+    // 2. FIFO Advance usage (Solde Restant for On-Account payments)
+    // 3. Global Summary stats
+    const allTimePayments = await (PaiementClient as any).find({
+      societeId: new mongoose.Types.ObjectId(tenantId),
+      customerId: customerObjectId
+    }).lean().sort({ datePaiement: 1, numero: 1 }); // Sort ASC for FIFO
+
+    // Calculate FIFO Usage of Advances
+    let totalAdvanceUsed = allTimePayments.reduce((sum: number, p: any) => sum + (p.advanceUsed || 0), 0);
+    const advanceInfoMap: { [key: string]: number } = {}; // Map paymentId -> remainingAmount
+
+    allTimePayments.forEach((p: any) => {
+      // If this is a source of credit (Payment On Account OR Mixed payment with on-account lines)
+      // Note: mixed payments are rare but 'isPaymentOnAccount' or lines check handles it.
+      // We look at lines specifically for precise credit amount.
+      const creditAmount = (p.lignes || []).reduce((sum: number, l: any) =>
+        l.isPaymentOnAccount ? sum + (l.montantPaye || 0) : sum, 0
+      );
+
+      if (creditAmount > 0) {
+        // FIFO: Consume this credit with the global usage
+        const usedFromThis = Math.min(creditAmount, totalAdvanceUsed);
+        const remaining = creditAmount - usedFromThis;
+        advanceInfoMap[p._id.toString()] = remaining;
+
+        // Decrease global usage counter
+        totalAdvanceUsed -= usedFromThis;
+      }
+    });
+
+    // Build map for invoice status checks
+    let globalInvoicePaymentsMap: { [key: string]: number } = {};
+    allTimePayments.forEach((p: any) => {
+      if (p.lignes && Array.isArray(p.lignes)) {
+        p.lignes.forEach((l: any) => {
+          if (l.factureId && !l.isPaymentOnAccount) {
+            const invId = l.factureId.toString();
+            globalInvoicePaymentsMap[invId] = (globalInvoicePaymentsMap[invId] || 0) + (l.montantPaye || 0);
+          }
+        });
+      }
+    });
+
+
+    // Fetch Payments for the List View (Filtered)
+    let listPayments: any[] = [];
     if (type === 'paiement' || type === 'all' || !type) {
+      // We can filter in memory from allTimePayments if the dataset isn't huge, 
+      // OR re-query if we want to rely on DB for complex filtering.
+      // Given we already have allTimePayments, let's filter in memory to save a DB call 
+      // UNLESS we need strict DB matching. 
+      // Let's stick to the original pattern of querying for the list to ensure consistent behavior with search/dates
+      // strictly matching the previous logic.
       const payQuery: any = {
         societeId: new mongoose.Types.ObjectId(tenantId),
         customerId: customerObjectId
       };
       if (dateFilter) payQuery.datePaiement = dateFilter;
-      // Search for payments?
       if (search) {
         payQuery.$or = [
           { numero: { $regex: search, $options: 'i' } },
           { reference: { $regex: search, $options: 'i' } }
         ];
       }
-      allPayments = await (PaiementClient as any).find(payQuery).lean();
+      listPayments = await (PaiementClient as any).find(payQuery).lean();
     }
+
 
     // Process Documents into Transactions
     const transactions: any[] = [];
-
-    // Calculate invoice payments (only needed for invoices/avoirs really)
-    // We need ALL payments for this calculation, even if we are not returning them in the list.
-    // So if we didn't fetch payments above, we might need to fetch them JUST for calculation if we are showing invoices.
-    let invoicePaymentsMap: { [key: string]: number } = {};
-    if (docTypesToFetch.includes('FAC') || docTypesToFetch.includes('AVOIR')) {
-      // Fetch all payments for calc if not already fetched
-      const paymentsForCalc = allPayments.length > 0 ? allPayments : await (PaiementClient as any).find({ societeId: new mongoose.Types.ObjectId(tenantId), customerId: customerObjectId }).lean();
-
-      paymentsForCalc.forEach((p: any) => {
-        if (p.lignes && Array.isArray(p.lignes)) {
-          p.lignes.forEach((l: any) => {
-            if (l.factureId && !l.isPaymentOnAccount) {
-              const invId = l.factureId.toString();
-              invoicePaymentsMap[invId] = (invoicePaymentsMap[invId] || 0) + (l.montantPaye || 0);
-            }
-          });
-        }
-      });
-    }
 
     allDocs.forEach((doc: any) => {
       let docType = 'facture';
@@ -165,13 +197,12 @@ export async function GET(
       let soldeRestant = 0;
 
       if (docType === 'facture' || docType === 'avoir') {
-        const paid = invoicePaymentsMap[doc._id.toString()] || 0;
+        const paid = globalInvoicePaymentsMap[doc._id.toString()] || 0;
         montantPaye = Math.abs(paid);
         const total = Math.abs(montantTotal);
         soldeRestant = docType === 'avoir' ? -(total - montantPaye) : (total - montantPaye);
       } else {
-        // For Devis, BC, BL, we don't track payments directly usually, or it's different.
-        // We'll just set paid to 0 and rest to total for now.
+        // For Devis, BC, BL, we don't track payments directly usually
         montantPaye = 0;
         soldeRestant = montantTotal;
       }
@@ -195,19 +226,40 @@ export async function GET(
     });
 
     // Process Payments into Transactions
-    allPayments.forEach((p: any) => {
+    listPayments.forEach((p: any) => {
       const isOnAccount = p.isPaymentOnAccount || false;
 
       // Calculate how much of the payment is actually used
       let amountUsed = 0;
       if (p.lignes && Array.isArray(p.lignes)) {
-        amountUsed = p.lignes.reduce((sum: number, ligne: any) => sum + (ligne.montantPaye || 0), 0);
+        amountUsed = p.lignes.reduce((sum: number, ligne: any) => {
+          // If line is 'on account', it's not 'used' in the sense of paying an invoice
+          return ligne.isPaymentOnAccount ? sum : sum + (ligne.montantPaye || 0);
+        }, 0);
       }
 
-      // The remaining unused amount (Solde non affecté)
-      // If it's pure "on account" payment, used might be 0 until applied.
-      // If fully applied, unused should be ~0.
-      const amountUnused = Math.max(0, p.montantTotal - amountUsed);
+      // Determining "Remaining" (Solde Restant) for this payment row:
+      let amountUnused = 0;
+
+      if (isOnAccount) {
+        // If it is an advance payment, use the FIFO calculated remaining balance
+        // If the ID is not in map (shouldn't happen for advance), fallback to naive calc
+        if (advanceInfoMap[p._id.toString()] !== undefined) {
+          amountUnused = advanceInfoMap[p._id.toString()];
+        } else {
+          amountUnused = Math.max(0, p.montantTotal - amountUsed);
+        }
+      } else {
+        // If normal payment, check if it has any mixed on-account lines?
+        // For now, normal payments usually fully used or excess is lost/not tracked unless strict mixed mode.
+        // BUT, we calculated `advanceInfoMap` for ALL payments that have on-account lines.
+        if (advanceInfoMap[p._id.toString()] !== undefined) {
+          amountUnused = advanceInfoMap[p._id.toString()];
+        } else {
+          // Standard unused amount logic for robust display
+          amountUnused = Math.max(0, p.montantTotal - amountUsed);
+        }
+      }
 
       transactions.push({
         id: p._id.toString(),
@@ -217,7 +269,7 @@ export async function GET(
         date: p.datePaiement,
         dateEcheance: null,
         montant: p.montantTotal,
-        montantPaye: amountUsed, // Show how much was used
+        montantPaye: amountUsed, // Show how much was assigned to invoices
         soldeRestant: -amountUnused, // Negative means credit (money available to use)
         statut: isOnAccount ? 'PAYE_SUR_COMPTE' : 'PAYE',
         devise: 'TND',
@@ -230,6 +282,7 @@ export async function GET(
     // Sort
     transactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
+
     // Pagination
     const total = transactions.length;
     const startIndex = (page - 1) * limit;
@@ -237,12 +290,79 @@ export async function GET(
 
     // Summary (Calculate based on ALL fetched, not just paginated)
     // Note: If filters applied (date, search), summary reflects filtered data.
+    // Calculate Global Solde Avance Disponible AND other stats (ignoring filters)
+
+    // OLD LOCATION OF duplicate logic removed from here
+    // Variables allTimePayments, globalInvoicePaymentsMap, allTimeDocs are already available from top scope.
+
+    // We need to fetch allTimeDocs if we haven't already (we defined logic for it but check if it was declared)
+    // Wait, we defined `allDocs` (filtered) but `allTimeDocs` (unfiltered) was part of the block we need to keep or move?
+
+    // Check line 299 in original file: `const allTimeDocs = ...`
+    // We should keep `allTimeDocs` fetch here IF it wasn't moved to top. 
+    // Looking at file: `allTimeDocs` is NOT at the top. So we keep it.
+
+    // Fetch all docs for this customer to calc global stats if not already fetched
+    const allTimeDocs = await (Document as any).find({
+      tenantId,
+      customerId: { $in: [customerObjectId, id.toString()] },
+      type: { $in: ['FAC', 'INT_FAC', 'AVOIR'] },
+      statut: { $nin: ['annulee', 'ANNULEE'] }
+    }).select('type totalTTC totalBaseHT _id status').lean();
+
+    // The `globalInvoicePaymentsMap` was already built at line 147. We do NOT need to rebuild it or redeclare it.
+    // References to it below (line 355) will use the top-level variable.
+
+
+    // 2. Calculate Stats
+    let totalFactures = 0;
+    let totalAvoirs = 0;
+    let facturesOuvertes = 0;
+    let globalSoldeAvance = 0;
+    // Total Payments = Sum of (Total Amount - Advance Used)
+    // This ensures we only count NEW money coming in, not recycling of advance credit.
+    let totalPaiements = allTimePayments.reduce((sum: number, p: any) => {
+      const amount = p.montantTotal || 0;
+      const usedAdvance = p.advanceUsed || 0;
+      // The real money inflow is Total amount minus amount paid by Advance
+      return sum + Math.max(0, amount - usedAdvance);
+    }, 0);
+
+    // Calc Solde Avance
+    allTimePayments.forEach((p: any) => {
+      // Credit comes from lines marked as on account
+      const creditFromLines = (p.lignes || []).reduce((s: number, l: any) => {
+        return l.isPaymentOnAccount ? s + (l.montantPaye || 0) : s;
+      }, 0);
+
+      // Debit comes from using advance in other payments
+      const advanceUsed = p.advanceUsed || 0;
+
+      globalSoldeAvance += (creditFromLines - advanceUsed);
+    });
+
+    // Calc Factures/Avoirs/Ouvertes
+    allTimeDocs.forEach((doc: any) => {
+      const amount = doc.totalTTC || doc.totalBaseHT || 0;
+      if (doc.type === 'AVOIR') {
+        totalAvoirs += amount;
+      } else {
+        totalFactures += amount;
+        // Check open balance
+        const paid = globalInvoicePaymentsMap[doc._id.toString()] || 0;
+        const remaining = Math.max(0, amount - paid);
+        if (remaining > 0.001) {
+          facturesOuvertes += remaining;
+        }
+      }
+    });
+
     const summary = {
-      totalFactures: transactions.filter(t => t.type === 'facture').reduce((sum, t) => sum + t.montant, 0),
-      totalPaiements: transactions.filter(t => t.type === 'paiement').reduce((sum, t) => sum + t.montant, 0),
-      totalAvoirs: transactions.filter(t => t.type === 'avoir').reduce((sum, t) => sum + t.montant, 0),
-      // For dashboard
-      facturesOuvertes: transactions.filter(t => t.type === 'facture' && t.soldeRestant > 0.001).reduce((sum, t) => sum + t.soldeRestant, 0),
+      totalFactures,
+      totalPaiements,
+      totalAvoirs,
+      facturesOuvertes,
+      soldeAvanceDisponible: globalSoldeAvance,
       soldeActuel: 0 // Logic complex, skipping for now or strictly based on filtered
     };
 

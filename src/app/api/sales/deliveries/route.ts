@@ -185,24 +185,43 @@ export async function POST(request: NextRequest) {
         // Only check for stockable products
         if (product && product.estStocke !== false) {
           // 3. Calculate current stock level IN THE TARGET WAREHOUSE
-          const MouvementStock = (await import('@/lib/models/MouvementStock')).default;
+          // Target warehouse is line-specific if available, otherwise global default
+          const targetWarehouseId = line.warehouseId || warehouseIdStr;
 
-          const query: any = {
+          const matchQuery: any = {
             societeId: tenantId,
-            productId: line.productId.toString()
+            productId: line.productId.toString(),
           };
 
-          // Filter by warehouse if we have one
-          if (warehouseIdStr) {
-            query.warehouseId = new mongoose.Types.ObjectId(warehouseIdStr);
+          if (targetWarehouseId) {
+            // Check if this is the default warehouse
+            const Warehouse = (await import('@/lib/models/Warehouse')).default;
+            const warehouse = await (Warehouse as any).findOne({
+              _id: targetWarehouseId,
+              tenantId,
+            });
+
+            if (warehouse && warehouse.isDefault) {
+              // If it's the default warehouse, include movements with this ID OR with no ID (legacy data)
+              matchQuery.$or = [
+                { warehouseId: new mongoose.Types.ObjectId(targetWarehouseId) },
+                { warehouseId: { $exists: false } },
+                { warehouseId: null }
+              ];
+            } else {
+              // Strict match for non-default warehouses
+              matchQuery.warehouseId = new mongoose.Types.ObjectId(targetWarehouseId);
+            }
           }
 
-          const movements = await (MouvementStock as any).find(query).lean();
+          const MouvementStock = (await import('@/lib/models/MouvementStock')).default;
+          const movements = await (MouvementStock as any).find(matchQuery).lean();
 
           let currentStock = 0;
           for (const mov of movements) {
             if (mov.type === 'ENTREE') currentStock += mov.qte;
             else if (mov.type === 'SORTIE') currentStock -= mov.qte;
+            else if (mov.type === 'INVENTAIRE') currentStock += mov.qte;
           }
 
           if (currentStock < line.quantite) {
@@ -221,7 +240,7 @@ export async function POST(request: NextRequest) {
       tenantId,
       type: 'BL',
       numero,
-      warehouseId: warehouseIdStr, // Save the warehouse ID on the document
+      warehouseId: warehouseIdStr, // Save the global warehouse ID
       createdBy: session.user.email
     });
 
@@ -326,7 +345,7 @@ async function createStockMovementsForDelivery(
   tenantId: string,
   createdBy: string,
   projectId?: string | null,
-  warehouseId?: string
+  globalWarehouseId?: string
 ): Promise<void> {
   if (!delivery.lignes || delivery.lignes.length === 0) {
     return;
@@ -336,13 +355,18 @@ async function createStockMovementsForDelivery(
   const deliveryId = delivery._id.toString();
 
   // Use DB transaction if possible, but for now simple batch
-  const warehouseObjectId = warehouseId ? new mongoose.Types.ObjectId(warehouseId) : undefined;
+  // const warehouseObjectId = warehouseId ? new mongoose.Types.ObjectId(warehouseId) : undefined; // This was global, now it's per line
 
   for (const line of delivery.lignes) {
     // Skip if no productId or quantity is 0
     if (!line.productId || !line.quantite || line.quantite <= 0) {
       continue;
     }
+
+    // Determine target warehouse for this line
+    // Use line-specific warehouse if set, otherwise fallback to global document warehouse
+    const lineWarehouseId = line.warehouseId ? line.warehouseId.toString() : globalWarehouseId;
+    const warehouseObjectId = lineWarehouseId ? new mongoose.Types.ObjectId(lineWarehouseId) : undefined;
 
     try {
       // Convert productId to string for consistency
@@ -376,11 +400,16 @@ async function createStockMovementsForDelivery(
       }
 
       // Check if stock movement already exists for this delivery and product
+      // Note: If multiple lines have same product but different warehouses, we might need a more specific query
+      // Ideally, we should delete all existing BL movements for this invoice and recreate them to be safe
+      // But for now, we assume unique product per line or handle simple case
+
       const existingMovement = await (MouvementStock as any).findOne({
         societeId: tenantId,
         productId: productIdStr,
         source: 'BL',
         sourceId: deliveryId,
+        warehouseId: warehouseObjectId // Match specific warehouse to allow split lines
       });
 
       if (existingMovement) {
@@ -388,7 +417,7 @@ async function createStockMovementsForDelivery(
         existingMovement.qte = line.quantite;
         existingMovement.date = dateDoc;
         if (projectId) existingMovement.projectId = new mongoose.Types.ObjectId(projectId);
-        if (warehouseObjectId) existingMovement.warehouseId = warehouseObjectId; // Update warehouse
+        existingMovement.warehouseId = warehouseObjectId; // Update warehouse
 
         await (existingMovement as any).save();
       } else {

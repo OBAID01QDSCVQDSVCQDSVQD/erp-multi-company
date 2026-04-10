@@ -35,12 +35,29 @@ export async function GET(request: NextRequest) {
 
     const skip = (page - 1) * limit;
     const total = await (PurchaseInvoice as any).countDocuments(query);
-    const invoices = await (PurchaseInvoice as any)
-      .find(query)
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit)
-      .lean();
+    const invoices = await (PurchaseInvoice as any).aggregate([
+      { $match: query },
+      {
+        $addFields: {
+          sortGroup: {
+            $cond: {
+              if: {
+                $and: [
+                  { $ne: ["$referenceFournisseur", null] },
+                  { $ne: ["$referenceFournisseur", ""] },
+                  { $gt: [{ $type: "$referenceFournisseur" }, "missing"] }
+                ]
+              },
+              then: 0, // Priorité aux factures avec numéro fournisseur
+              else: 1  // Ensuite les factures sans numéro fournisseur
+            }
+          }
+        }
+      },
+      { $sort: { sortGroup: 1, dateFacture: -1, createdAt: -1 } },
+      { $skip: skip },
+      { $limit: limit }
+    ]);
 
     // Ensure default values for fodec and timbre
     const normalizedInvoices = invoices.map((inv: any) => ({

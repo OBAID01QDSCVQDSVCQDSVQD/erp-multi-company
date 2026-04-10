@@ -9,7 +9,10 @@ import {
   PowerIcon,
   TrashIcon,
   CheckCircleIcon,
-  XCircleIcon
+  XCircleIcon,
+  UserIcon,
+  ChevronDownIcon,
+  ChevronUpIcon
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 
@@ -29,12 +32,24 @@ interface Company {
   createdAt: string;
 }
 
+interface User {
+  _id: string;
+  firstName?: string;
+  lastName?: string;
+  email: string;
+  role: string;
+  isActive: boolean;
+}
+
 export default function CompaniesPage() {
   const { data: session } = useSession();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [filteredCompanies, setFilteredCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [expandedCompanies, setExpandedCompanies] = useState<Set<string>>(new Set());
+  const [companyUsers, setCompanyUsers] = useState<Record<string, User[]>>({});
+  const [loadingUsers, setLoadingUsers] = useState<Record<string, boolean>>({});
 
   const isAdmin = session?.user?.role === 'admin';
 
@@ -113,14 +128,53 @@ export default function CompaniesPage() {
     }
   };
 
-  const handleImpersonate = async (companyId: string) => {
+  const fetchCompanyUsers = async (companyId: string) => {
+    // Always fetch fresh data when expanding
+    setLoadingUsers(prev => ({ ...prev, [companyId]: true }));
     try {
-      const loadingToast = toast.loading("Connexion à l'entreprise...");
+      console.log(`Fetching users for company: ${companyId}`);
+      const response = await fetch(`/api/admin/companies/${companyId}/users`);
+      console.log(`Response status: ${response.status}`);
+      
+      if (response.ok) {
+        const users = await response.json();
+        console.log(`Fetched ${users.length} users for company ${companyId}:`, users);
+        setCompanyUsers(prev => ({ ...prev, [companyId]: users }));
+        if (users.length === 0) {
+          toast('Aucun utilisateur trouvé pour cette entreprise', { icon: 'ℹ️' });
+        }
+      } else {
+        const errorData = await response.json();
+        console.error('Error fetching users:', errorData);
+        toast.error(errorData.error || 'Erreur lors du chargement des utilisateurs');
+      }
+    } catch (err) {
+      console.error('Error fetching users:', err);
+      toast.error('Erreur de connexion');
+    } finally {
+      setLoadingUsers(prev => ({ ...prev, [companyId]: false }));
+    }
+  };
+
+  const toggleCompanyExpansion = (companyId: string) => {
+    const newExpanded = new Set(expandedCompanies);
+    if (newExpanded.has(companyId)) {
+      newExpanded.delete(companyId);
+    } else {
+      newExpanded.add(companyId);
+      fetchCompanyUsers(companyId);
+    }
+    setExpandedCompanies(newExpanded);
+  };
+
+  const handleImpersonate = async (companyId?: string, userId?: string) => {
+    try {
+      const loadingToast = toast.loading("Connexion...");
 
       const response = await fetch('/api/admin/impersonate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ companyId })
+        body: JSON.stringify({ companyId, userId })
       });
 
       if (!response.ok) {
@@ -226,70 +280,153 @@ export default function CompaniesPage() {
                 </tr>
               </thead>
               <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                {filteredCompanies.map((company) => (
-                  <tr key={company._id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0 h-10 w-10 bg-indigo-100 dark:bg-indigo-900/40 rounded-lg flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold text-lg">
-                          {company.name.charAt(0).toUpperCase()}
-                        </div>
-                        <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900 dark:text-white">{company.name}</div>
-                          <div className="text-sm text-gray-500 dark:text-gray-400">Code: <span className="font-mono bg-gray-100 dark:bg-gray-700 px-1 rounded">{company.code}</span></div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900 dark:text-white">
-                        {company.contact?.email || 'N/A'}
-                      </div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400">
-                        {company.contact?.phone || 'N/A'}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {company.isActive ? (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
-                          <CheckCircleIcon className="w-4 h-4 mr-1" />
-                          Active
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">
-                          <XCircleIcon className="w-4 h-4 mr-1" />
-                          Inactive
-                        </span>
+                {filteredCompanies.map((company) => {
+                  const isExpanded = expandedCompanies.has(company._id);
+                  const users = companyUsers[company._id] || [];
+                  const isLoadingUsers = loadingUsers[company._id] || false;
+                  
+                  // Debug log
+                  if (isExpanded) {
+                    console.log(`Company ${company._id} expanded, users:`, users, 'loading:', isLoadingUsers);
+                  }
+                  
+                  return (
+                    <>
+                      <tr key={company._id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <button
+                              onClick={() => toggleCompanyExpansion(company._id)}
+                              className="mr-2 p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
+                              title="Afficher/Masquer les utilisateurs"
+                            >
+                              {isExpanded ? (
+                                <ChevronUpIcon className="h-4 w-4 text-gray-500" />
+                              ) : (
+                                <ChevronDownIcon className="h-4 w-4 text-gray-500" />
+                              )}
+                            </button>
+                            <div className="flex-shrink-0 h-10 w-10 bg-indigo-100 dark:bg-indigo-900/40 rounded-lg flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold text-lg">
+                              {company.name.charAt(0).toUpperCase()}
+                            </div>
+                            <div className="ml-4">
+                              <div className="text-sm font-medium text-gray-900 dark:text-white">{company.name}</div>
+                              <div className="text-sm text-gray-500 dark:text-gray-400">Code: <span className="font-mono bg-gray-100 dark:bg-gray-700 px-1 rounded">{company.code}</span></div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900 dark:text-white">
+                            {company.contact?.email || 'N/A'}
+                          </div>
+                          <div className="text-sm text-gray-500 dark:text-gray-400">
+                            {company.contact?.phone || 'N/A'}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {company.isActive ? (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+                              <CheckCircleIcon className="w-4 h-4 mr-1" />
+                              Active
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">
+                              <XCircleIcon className="w-4 h-4 mr-1" />
+                              Inactive
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                          {new Date(company.createdAt).toLocaleDateString('fr-FR')}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => toggleCompanyStatus(company._id, company.isActive)}
+                              className={`p-1 rounded-md transition-colors ${company.isActive ? 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20' : 'text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20'}`}
+                              title={company.isActive ? "Désactiver" : "Activer"}
+                            >
+                              <PowerIcon className="h-5 w-5" />
+                            </button>
+                            <button
+                              onClick={() => handleImpersonate(company._id)}
+                              className="p-1 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:text-indigo-400 dark:hover:bg-indigo-900/20 rounded-md transition-colors"
+                              title="Se connecter en tant qu'admin de l'entreprise"
+                            >
+                              <ArrowRightOnRectangleIcon className="h-5 w-5" />
+                            </button>
+                            <button
+                              onClick={() => deleteCompany(company._id)}
+                              className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:text-red-400 dark:hover:bg-red-900/20 rounded-md transition-colors"
+                              title="Supprimer (Attention)"
+                            >
+                              <TrashIcon className="h-5 w-5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      {isExpanded && (
+                        <tr>
+                          <td colSpan={5} className="px-6 py-4 bg-gray-50 dark:bg-gray-900/50">
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2 mb-3">
+                                <UserIcon className="h-5 w-5 text-gray-500" />
+                                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Utilisateurs de l'entreprise</h3>
+                              </div>
+                              {isLoadingUsers ? (
+                                <div className="text-center py-4">
+                                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600 mx-auto"></div>
+                                </div>
+                              ) : users.length === 0 ? (
+                                <div className="text-sm text-gray-500 dark:text-gray-400 text-center py-2">
+                                  Aucun utilisateur trouvé
+                                </div>
+                              ) : (
+                                <div className="space-y-2">
+                                  {users.map((user) => (
+                                    <div
+                                      key={user._id}
+                                      className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                                    >
+                                      <div className="flex items-center gap-3">
+                                        <div className="flex-shrink-0 h-8 w-8 bg-indigo-100 dark:bg-indigo-900/40 rounded-full flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-medium text-sm">
+                                          {user.firstName?.charAt(0) || user.email.charAt(0).toUpperCase()}
+                                        </div>
+                                        <div>
+                                          <div className="text-sm font-medium text-gray-900 dark:text-white">
+                                            {user.firstName && user.lastName
+                                              ? `${user.firstName} ${user.lastName}`
+                                              : user.email}
+                                          </div>
+                                          <div className="text-xs text-gray-500 dark:text-gray-400">{user.email}</div>
+                                        </div>
+                                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                                          user.role === 'admin'
+                                            ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300'
+                                            : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                                        }`}>
+                                          {user.role === 'admin' ? 'Admin' : 'Utilisateur'}
+                                        </span>
+                                      </div>
+                                      <button
+                                        onClick={() => handleImpersonate(undefined, user._id)}
+                                        className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-md transition-colors"
+                                        title="Se connecter avec ce compte"
+                                      >
+                                        <ArrowRightOnRectangleIcon className="h-4 w-4" />
+                                        Se connecter
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
                       )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      {new Date(company.createdAt).toLocaleDateString('fr-FR')}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => toggleCompanyStatus(company._id, company.isActive)}
-                          className={`p-1 rounded-md transition-colors ${company.isActive ? 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20' : 'text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20'}`}
-                          title={company.isActive ? "Désactiver" : "Activer"}
-                        >
-                          <PowerIcon className="h-5 w-5" />
-                        </button>
-                        <button
-                          onClick={() => handleImpersonate(company._id)}
-                          className="p-1 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:text-indigo-400 dark:hover:bg-indigo-900/20 rounded-md transition-colors"
-                          title="Se connecter en tant que (Impersonate)"
-                        >
-                          <ArrowRightOnRectangleIcon className="h-5 w-5" />
-                        </button>
-                        <button
-                          onClick={() => deleteCompany(company._id)}
-                          className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:text-red-400 dark:hover:bg-red-900/20 rounded-md transition-colors"
-                          title="Supprimer (Attention)"
-                        >
-                          <TrashIcon className="h-5 w-5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                    </>
+                  );
+                })}
                 {filteredCompanies.length === 0 && (
                   <tr>
                     <td colSpan={5} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
@@ -304,30 +441,46 @@ export default function CompaniesPage() {
 
         {/* Mobile Cards */}
         <div className="lg:hidden space-y-4">
-          {filteredCompanies.map((company) => (
-            <div key={company._id} className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-              <div className="flex justify-between items-start mb-4">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0 h-10 w-10 bg-indigo-100 dark:bg-indigo-900/40 rounded-lg flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold text-lg">
-                    {company.name.charAt(0).toUpperCase()}
+          {filteredCompanies.map((company) => {
+            const isExpanded = expandedCompanies.has(company._id);
+            const users = companyUsers[company._id] || [];
+            const isLoadingUsers = loadingUsers[company._id];
+            
+            return (
+              <div key={company._id} className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="flex items-center">
+                    <button
+                      onClick={() => toggleCompanyExpansion(company._id)}
+                      className="mr-2 p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
+                      title="Afficher/Masquer les utilisateurs"
+                    >
+                      {isExpanded ? (
+                        <ChevronUpIcon className="h-4 w-4 text-gray-500" />
+                      ) : (
+                        <ChevronDownIcon className="h-4 w-4 text-gray-500" />
+                      )}
+                    </button>
+                    <div className="flex-shrink-0 h-10 w-10 bg-indigo-100 dark:bg-indigo-900/40 rounded-lg flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold text-lg">
+                      {company.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="ml-3">
+                      <div className="text-sm font-medium text-gray-900 dark:text-white">{company.name}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">Code: <span className="font-mono bg-gray-100 dark:bg-gray-700 px-1 rounded">{company.code}</span></div>
+                    </div>
                   </div>
-                  <div className="ml-3">
-                    <div className="text-sm font-medium text-gray-900 dark:text-white">{company.name}</div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">Code: <span className="font-mono bg-gray-100 dark:bg-gray-700 px-1 rounded">{company.code}</span></div>
-                  </div>
+                  {company.isActive ? (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+                      <CheckCircleIcon className="w-3 h-3 mr-1" />
+                      Active
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">
+                      <XCircleIcon className="w-3 h-3 mr-1" />
+                      Inactive
+                    </span>
+                  )}
                 </div>
-                {company.isActive ? (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
-                    <CheckCircleIcon className="w-3 h-3 mr-1" />
-                    Active
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">
-                    <XCircleIcon className="w-3 h-3 mr-1" />
-                    Inactive
-                  </span>
-                )}
-              </div>
 
               <div className="space-y-2 mb-4">
                 <div className="flex justify-between text-sm">
@@ -343,6 +496,62 @@ export default function CompaniesPage() {
                   <span className="text-gray-900 dark:text-white font-medium">{new Date(company.createdAt).toLocaleDateString('fr-FR')}</span>
                 </div>
               </div>
+
+              {isExpanded && (
+                <div className="mb-4 pt-4 border-t dark:border-gray-700">
+                  <div className="flex items-center gap-2 mb-3">
+                    <UserIcon className="h-5 w-5 text-gray-500" />
+                    <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Utilisateurs de l'entreprise</h3>
+                  </div>
+                  {isLoadingUsers ? (
+                    <div className="text-center py-4">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600 mx-auto"></div>
+                    </div>
+                  ) : users.length === 0 ? (
+                    <div className="text-sm text-gray-500 dark:text-gray-400 text-center py-2">
+                      Aucun utilisateur trouvé
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {users.map((user) => (
+                        <div
+                          key={user._id}
+                          className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600"
+                        >
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <div className="flex-shrink-0 h-8 w-8 bg-indigo-100 dark:bg-indigo-900/40 rounded-full flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-medium text-sm">
+                              {user.firstName?.charAt(0) || user.email.charAt(0).toUpperCase()}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                                {user.firstName && user.lastName
+                                  ? `${user.firstName} ${user.lastName}`
+                                  : user.email}
+                              </div>
+                              <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{user.email}</div>
+                            </div>
+                            <span className={`flex-shrink-0 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                              user.role === 'admin'
+                                ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300'
+                                : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                            }`}>
+                              {user.role === 'admin' ? 'Admin' : 'User'}
+                            </span>
+                          </div>
+                          <button
+                            onClick={() => handleImpersonate(undefined, user._id)}
+                            className="ml-2 flex-shrink-0 flex items-center gap-1 px-2 py-1 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded transition-colors"
+                            title="Se connecter avec ce compte"
+                          >
+                            <ArrowRightOnRectangleIcon className="h-4 w-4" />
+                            <span className="hidden sm:inline">Se connecter</span>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="border-t dark:border-gray-700 pt-3 flex justify-end gap-2">
                 <button
@@ -371,7 +580,8 @@ export default function CompaniesPage() {
                 </button>
               </div>
             </div>
-          ))}
+            );
+          })}
           {filteredCompanies.length === 0 && (
             <div className="text-center py-12 text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
               Aucune entreprise trouvée pour "{searchQuery}"

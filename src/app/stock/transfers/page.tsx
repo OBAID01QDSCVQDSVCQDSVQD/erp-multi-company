@@ -109,8 +109,88 @@ export default function StockTransfersPage() {
                         <div className="text-gray-500 dark:text-gray-400">Aucun transfert trouvé.</div>
                     </div>
                 ) : (
-                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden border dark:border-gray-700">
-                        <div className="overflow-x-auto">
+                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow border dark:border-gray-700 overflow-hidden">
+                        {/* Mobile Cards */}
+                        <div className="md:hidden divide-y divide-gray-200 dark:divide-gray-700">
+                            {transfers.map((t) => (
+                                <div key={t._id} className="p-4 space-y-3">
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <div className="text-sm font-medium text-gray-900 dark:text-white">{t.numero}</div>
+                                            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{new Date(t.date).toLocaleDateString()}</div>
+                                        </div>
+                                        <select
+                                            value={t.statut}
+                                            onChange={async (e) => {
+                                                const newStatus = e.target.value;
+                                                if (t.statut === 'VALIDE') {
+                                                    toast.error('Modification impossible (Déjà validé)');
+                                                    return;
+                                                }
+
+                                                if (newStatus === 'VALIDE') {
+                                                    if (!confirm('Valider ce transfert ? Cette action mettra à jour le stock.')) return;
+                                                    try {
+                                                        const res = await fetch(`/api/stock/transfers/${t._id}/validate`, {
+                                                            method: 'POST',
+                                                            headers: { 'X-Tenant-Id': tenantId || '' }
+                                                        });
+                                                        if (res.ok) {
+                                                            toast.success('Transfert validé');
+                                                            fetchTransfers();
+                                                        } else {
+                                                            const err = await res.json();
+                                                            toast.error(err.error || 'Erreur validation');
+                                                        }
+                                                    } catch (e) { toast.error('Erreur connexion'); }
+                                                } else if (newStatus === 'ANNULE') {
+                                                    if (!confirm('Voulez-vous annuler ce transfert ?')) return;
+                                                    try {
+                                                        const res = await fetch(`/api/stock/transfers/${t._id}`, {
+                                                            method: 'PATCH',
+                                                            headers: { 'X-Tenant-Id': tenantId || '', 'Content-Type': 'application/json' },
+                                                            body: JSON.stringify({ statut: 'ANNULE' })
+                                                        });
+                                                        if (res.ok) {
+                                                            toast.success('Transfert annulé');
+                                                            fetchTransfers();
+                                                        } else {
+                                                            toast.error('Erreur lors de l\'annulation');
+                                                        }
+                                                    } catch (e) { toast.error('Erreur serveur'); }
+                                                }
+                                            }}
+                                            className={`px-2 py-1 rounded text-xs font-semibold border-none cursor-pointer focus:ring-2 focus:ring-blue-500 ${getStatusColor(t.statut)}`}
+                                            disabled={t.statut === 'VALIDE' || t.statut === 'ANNULE'}
+                                        >
+                                            <option value="BROUILLON">BROUILLON</option>
+                                            <option value="VALIDE">VALIDE</option>
+                                            <option value="ANNULE">ANNULE</option>
+                                        </select>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-2 text-sm">
+                                        <div>
+                                            <span className="text-xs text-gray-500 dark:text-gray-400 block">De</span>
+                                            <span className="text-gray-900 dark:text-white truncate block">{warehouses[t.sourceWarehouseId] || t.sourceWarehouseId}</span>
+                                        </div>
+                                        <div>
+                                            <span className="text-xs text-gray-500 dark:text-gray-400 block">Vers</span>
+                                            <span className="text-gray-900 dark:text-white truncate block">{warehouses[t.destinationWarehouseId] || t.destinationWarehouseId}</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="pt-2 flex justify-end">
+                                        <Link href={`/stock/transfers/${t._id}`} className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 flex items-center gap-1">
+                                            Voir les détails <ArrowPathIcon className="w-4 h-4" />
+                                        </Link>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Desktop Table */}
+                        <div className="hidden md:block overflow-x-auto">
                             <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                                 <thead className="bg-gray-50 dark:bg-gray-700/50">
                                     <tr>

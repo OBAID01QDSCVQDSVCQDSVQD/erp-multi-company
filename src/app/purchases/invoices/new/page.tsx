@@ -822,13 +822,29 @@ export default function NewPurchaseInvoicePage() {
       return;
     }
 
-    // Filter out invalid lines (empty designation or zero quantity)
-    const validLines = lines.filter(l => l.designation && (l.designation.trim() !== '') && l.quantite > 0);
+    // Filter out completely empty lines
+    const nonEmptyLines = lines.filter(l => l.designation && l.designation.trim() !== '');
 
-    if (validLines.length === 0) {
-      toast.error('Veuillez ajouter au moins une ligne valide (désignation et quantité non nulles)');
+    if (nonEmptyLines.length === 0) {
+      toast.error('Veuillez ajouter au moins une ligne');
       return;
     }
+
+    // Check for lines without product link
+    const linesWithoutProduct = nonEmptyLines.filter(l => !l.produitId);
+    if (linesWithoutProduct.length > 0) {
+      toast.error(`Produit non reconnu pour la ligne : "${linesWithoutProduct[0].designation}". Veuillez sélectionner un produit existant ou cliquer sur "+" pour le créer.`);
+      return;
+    }
+
+    // Check quantity
+    const linesWithZeroQty = nonEmptyLines.filter(l => l.quantite <= 0);
+    if (linesWithZeroQty.length > 0) {
+      toast.error(`La quantité pour "${linesWithZeroQty[0].designation}" doit être supérieure à 0`);
+      return;
+    }
+
+    const validLines = nonEmptyLines;
 
     setSaving(true);
     try {
@@ -892,13 +908,30 @@ export default function NewPurchaseInvoicePage() {
       return;
     }
 
-    // Filter out invalid lines
-    const validLines = lines.filter(l => l.designation && (l.designation.trim() !== '') && l.quantite > 0);
+    // Filter out completely empty lines
+    const nonEmptyLines = lines.filter(l => l.designation && l.designation.trim() !== '');
 
-    if (validLines.length === 0) {
-      toast.error('Veuillez ajouter au moins une ligne valide (désignation et quantité non nulles)');
+    if (nonEmptyLines.length === 0) {
+      toast.error('Veuillez ajouter au moins une ligne');
       return;
     }
+
+    // Check for lines without product link
+    // IMPORTANT: Block saving if product is not linked to database
+    const linesWithoutProduct = nonEmptyLines.filter(l => !l.produitId);
+    if (linesWithoutProduct.length > 0) {
+      toast.error(`Produit non reconnu pour la ligne : "${linesWithoutProduct[0].designation}". Veuillez sélectionner un produit existant ou cliquer sur "+" pour le créer.`);
+      return;
+    }
+
+    // Check quantity
+    const linesWithZeroQty = nonEmptyLines.filter(l => l.quantite <= 0);
+    if (linesWithZeroQty.length > 0) {
+      toast.error(`La quantité pour "${linesWithZeroQty[0].designation}" doit être supérieure à 0`);
+      return;
+    }
+
+    const validLines = nonEmptyLines;
 
     setSaving(true);
     try {

@@ -51,7 +51,7 @@ export const generateWarrantyPdf = (warranty: any, companySettings: any, include
         doc.text(contactLine, rightX, topY + 10);
 
         if (contact.matriculeFiscal) {
-            doc.text(`Matricule : ${contact.matriculeFiscal}`, rightX, topY + 15);
+            doc.text(`Matricule fiscale : ${contact.matriculeFiscal}`, rightX, topY + 15);
         }
     }
 
