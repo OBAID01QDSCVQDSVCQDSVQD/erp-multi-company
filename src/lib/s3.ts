@@ -43,9 +43,9 @@ export async function uploadFileToS3(
     });
     await s3Client.send(command);
 
-    // Final optimized imgproxy URL
-    const imgUrl = `s3://${bucketName}/${key}`;
-    const imgproxyUrl = `https://imgproxy.chanti.tn/insecure/rs:fill:800:0/q:80/plain/${imgUrl}@webp`;
+    // Reliable imgproxy URL using public endpoint as source
+    const publicUrl = `https://${process.env.S3_ENDPOINT}/${bucketName}/${key}`;
+    const imgproxyUrl = `https://imgproxy.chanti.tn/insecure/rs:fill:800:0/q:80/plain/${publicUrl}@webp`;
     
     return { url: imgproxyUrl, key };
 
