@@ -43,11 +43,10 @@ export async function uploadFileToS3(
     });
     await s3Client.send(command);
 
-    // Return the imgproxy URL for optimization
-    // Added rs:fill:800:0 (resize to 800px width, auto height) and q:80 (80% quality)
-    const imgproxyUrl = `https://imgproxy.chanti.tn/insecure/rs:fill:800:0/q:80/plain/s3://${bucketName}/${key}@webp`;
+    // Return the direct public URL (most reliable)
+    const url = `https://${process.env.S3_ENDPOINT}/${bucketName}/${key}`;
     
-    return { url: imgproxyUrl, key };
+    return { url, key };
 
   } catch (error) {
     console.error("Error uploading to S3:", error);
