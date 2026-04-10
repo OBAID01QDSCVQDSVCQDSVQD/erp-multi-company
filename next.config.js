@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    domains: ['localhost'],
+    domains: ['localhost', 'storage.chanti.tn', 'res.cloudinary.com'],
   },
   env: {
     MONGODB_URI: process.env.MONGODB_URI,

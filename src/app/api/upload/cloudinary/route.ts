@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { uploadImageToCloudinary } from '@/lib/cloudinary';
+import { uploadFileToS3, deleteFileFromS3 } from '@/lib/s3';
 
-// POST /api/upload/cloudinary - Uploader une image vers Cloudinary
+// POST /api/upload/cloudinary - Uploader une image vers MinIO (S3)
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -14,7 +14,6 @@ export async function POST(request: NextRequest) {
 
     const formData = await request.formData();
     let file = formData.get('file') as File;
-    const folder = (formData.get('folder') as string) || 'erp-uploads';
     
     if (!file) {
       return NextResponse.json({ error: 'Aucun fichier fourni' }, { status: 400 });
@@ -57,32 +56,29 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Convertir File en ArrayBuffer puis Buffer pour Cloudinary
+    // Convertir File en ArrayBuffer puis Buffer pour MinIO
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Uploader l'image vers Cloudinary
-    const uploadResult = await uploadImageToCloudinary(buffer, folder);
+    // Uploader l'image vers S3 (MinIO)
+    const { url, key } = await uploadFileToS3(buffer, file.name, file.type);
 
-    // Retourner les informations de l'image
+    // Retourner les informations de l'image (format compatible avec l'ancien Cloudinary)
     return NextResponse.json({
       success: true,
       image: {
-        id: uploadResult.public_id,
+        id: key,
         name: file.name,
-        url: uploadResult.secure_url,
-        publicId: uploadResult.public_id,
+        url: url,
+        publicId: key,
         type: file.type,
-        size: uploadResult.bytes,
-        width: uploadResult.width,
-        height: uploadResult.height,
-        format: uploadResult.format,
+        size: file.size,
         uploadedAt: new Date().toISOString(),
       }
     });
 
   } catch (error: any) {
-    console.error('Erreur lors de l\'upload vers Cloudinary:', error);
+    console.error('Erreur lors de l\'upload vers S3:', error);
     return NextResponse.json(
       { error: error.message || 'Erreur lors de l\'upload du fichier' },
       { status: 500 }
@@ -90,7 +86,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// DELETE /api/upload/cloudinary - Supprimer une image de Cloudinary
+// DELETE /api/upload/cloudinary - Supprimer une image de MinIO (S3)
 export async function DELETE(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -100,23 +96,23 @@ export async function DELETE(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const publicId = searchParams.get('publicId');
+    const publicId = searchParams.get('publicId'); // Ici publicId correspond à la key S3
     
     if (!publicId) {
-      return NextResponse.json({ error: 'Public ID manquant' }, { status: 400 });
+      return NextResponse.json({ error: 'Key S3 manquante' }, { status: 400 });
     }
 
-    const { deleteImageFromCloudinary } = await import('@/lib/cloudinary');
-    await deleteImageFromCloudinary(publicId);
+    await deleteFileFromS3(publicId);
 
     return NextResponse.json({ success: true });
 
   } catch (error: any) {
-    console.error('Erreur lors de la suppression de Cloudinary:', error);
+    console.error('Erreur lors de la suppression de S3:', error);
     return NextResponse.json(
       { error: error.message || 'Erreur lors de la suppression' },
       { status: 500 }
     );
   }
 }
+
 

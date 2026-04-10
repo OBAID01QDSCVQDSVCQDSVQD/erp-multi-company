@@ -1,8 +1,7 @@
-
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { uploadImageToCloudinary } from '@/lib/cloudinary';
+import { uploadFileToS3 } from '@/lib/s3';
 import connectDB from '@/lib/mongodb';
 import Product from '@/lib/models/Product';
 import Supplier from '@/lib/models/Supplier';
@@ -52,17 +51,18 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Aucun fichier fourni' }, { status: 400 });
         }
 
-        // 1. Upload to Cloudinary (Optional - Best Effort)
+        // 1. Upload to S3 (MinIO)
         let imageUrl = null;
         const arrayBuffer = await file.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
 
         try {
-            const uploadResult = await uploadImageToCloudinary(buffer, 'erp-invoices');
-            imageUrl = uploadResult.secure_url;
+            const uploadResult = await uploadFileToS3(buffer, file.name, file.type);
+            imageUrl = uploadResult.url;
         } catch (uploadError) {
-            console.warn("Cloudinary upload failed, proceeding with AI scan only:", uploadError);
+            console.warn("S3 upload failed, proceeding with AI scan only:", uploadError);
         }
+
 
         // 2. Prepare OpenAI Call
         const openAiApiKey = process.env.OPENAI_API_KEY;
